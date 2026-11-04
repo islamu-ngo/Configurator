@@ -56,7 +56,14 @@ public sealed class BrowserProviderJourneyTests
         using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.SetDisclosureOverride(FieldDisclosure.Advanced);
         form.EditValue(["select.feature.platform-config"], "true");
-        form.EditValue(["env.SETUP_SECRET"], "synthetic-setup-secret");
+        form.EditValue(["env.SECRET_PROVIDER"], "Environment");
+        form.EditValue(["env.BFF_SESSION_REDIS_ENDPOINT"], "redis://session.example.test:6379");
+        form.EditValue(["env.BFF_SESSION_NAMESPACE"], "synthetic-event");
+        form.EditValue(["env.BFF_SESSION_REDIS_PASSWORD"], "synthetic-bff-session-password");
+        form.EditValue(["env.EVENT_DP_COMBINED_RING"], "synthetic-combined-authority-ring");
+        form.EditValue(["env.EVENT_DP_COMBINED_ADMISSION"], "synthetic-combined-authority-admission");
+        form.EditValue(["env.EVENT_DP_COMBINED_ADMISSION_SHA256"], new string('a', 64));
+        form.EditValue(["env.EVENT_DP_COMBINED_MINIMUM_GENERATION"], "1");
         var component = context.Render<ConfigurationField>(parameters => parameters
             .Add(item => item.Form, form)
             .Add(item => item.Path, ["env.AUTHENTICATION_PROVIDER"])
@@ -81,11 +88,11 @@ public sealed class BrowserProviderJourneyTests
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.Snapshot().Values["env.AUTHENTICATION_PROVIDER"].GetString()).IsEqualTo("local");
         await Assert.That(form.Snapshot().Values["env.KEYCLOAK_BLAZOR_CLIENT_SECRET"].GetString()).IsEqualTo("synthetic-switch-back-secret");
-        DefinitionArtifactResult complete = DefinitionArtifactComposer.Compose(definition, "environment", form.Snapshot());
+        DefinitionArtifactResult complete = DefinitionArtifactComposer.Compose(definition, "environment-standalone", form.Snapshot());
         using DefinitionArtifact? completeArtifact = complete.Artifact;
         await Assert.That(complete.Succeeded).IsTrue();
         await Assert.That(Encoding.UTF8.GetString(completeArtifact!.Bytes.Span)).DoesNotContain("KEYCLOAK_");
-        using DefinitionDraftArtifactResult draft = DefinitionDraftArtifactComposer.Compose(definition, "environment", form.Snapshot());
+        using DefinitionDraftArtifactResult draft = DefinitionDraftArtifactComposer.Compose(definition, "environment-standalone", form.Snapshot());
         await Assert.That(draft.Succeeded).IsTrue();
         await Assert.That(Encoding.UTF8.GetString(draft.Artifact!.Bytes.Span)).DoesNotContain("KEYCLOAK_");
         await Assert.That(draft.Completions.Any(item => item.FieldPath.Contains("KEYCLOAK", StringComparison.Ordinal))).IsFalse();

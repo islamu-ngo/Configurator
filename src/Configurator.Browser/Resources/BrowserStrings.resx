@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="ConfigurationContext" xml:space="preserve"><value>Deployment configuration</value></data>
+  <data name="EnvironmentDestination" xml:space="preserve"><value>Environment destination</value></data>
+  <data name="ComposeInputDestination" xml:space="preserve"><value>Compose input: pass this file to the declared Compose recipe.</value></data>
+  <data name="ProcessEnvironmentDestination" xml:space="preserve"><value>Process environment: use this file with its declared recipient.</value></data>
+  <data name="ConfigurationRecipe" xml:space="preserve"><value>Deployment recipe</value></data>
+  <data name="ConfigurationScope" xml:space="preserve"><value>Components to configure</value></data>
+  <data name="ConfigurationContextHelp" xml:space="preserve"><value>Readiness and files apply to the selected components. Other answers stay in this tab for switching back.</value></data>
+  <data name="CompatibleContextChoices" xml:space="preserve"><value>Choose a compatible recipe and scope together</value></data>
+  <data name="ContextSelectionRejectedStatus" xml:space="preserve"><value>This recipe and scope cannot be selected together. Choose a compatible pair.</value></data>
+  <data name="ContextSelectionChangedStatus" xml:space="preserve"><value>Deployment scope changed. Review the required answers for these components.</value></data>
+  <data name="CopyAllArtifacts" xml:space="preserve"><value>Copy all files</value></data>
+  <data name="DownloadAllArtifacts" xml:space="preserve"><value>Download all files</value></data>
+  <data name="AggregateExportRejectedStatus" xml:space="preserve"><value>These files exceed the aggregate delivery limits. Copy or download files separately.</value></data>
+  <data name="AggregateCopiedStatus" xml:space="preserve"><value>Named file sections copied. This is a multi-file document.</value></data>
+  <data name="AggregateDownloadedStatus" xml:space="preserve"><value>Archive download requested.</value></data>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <data name="CatalogueTitle" xml:space="preserve"><value>Choose a project</value></data>

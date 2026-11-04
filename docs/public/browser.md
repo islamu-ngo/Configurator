@@ -24,11 +24,36 @@ its published Release/AOT and custody evidence is recorded separately in
 
 ## Typed editing and language
 
-The current Event definition starts at Environment with a Basics section.
-Its offline platform-settings inclusion is initially on, while API/site addresses
-and the authentication provider remain unset. This does not enable a target
-integration or secret consent. All five output tasks remain available, and an
-explicit launch entry selects its matching declared task once. Later supplied
+Definitions can declare deployment recipes and component scopes. The workspace
+shows these choices before the form. Choose a compatible recipe and scope
+together; a narrower scope changes required answers, eligible imports and files.
+Readiness describes that selected scope, so component configuration does not
+claim that the whole deployment or the target application is ready. Changing
+detail or language does not change the selected scope.
+
+Changing scope retains inactive answers transiently for switching back, but
+excludes them from prepared files. Secret revocation clears secret leaves across
+all scopes. Pending Developer edits use Apply, Discard or Stay before a context
+change; Stay keeps the current context and document.
+Developer environment editing uses an eligible declared destination. When several
+are available, choose one explicitly or use the declared primary destination;
+changing it also resolves pending document edits before replacing the editor.
+
+Each file remains available separately. **Copy all** preserves named file
+boundaries for multiple files; it is a labelled document, not one runnable
+environment file. **Download all** packages multiple files in a ZIP with their
+declared names. Aggregate delivery allows at most 64 files, 4 MiB of source
+bytes, and separately 4 MiB of final clipboard or archive bytes including
+headers. If an aggregate exceeds a limit, use per-file delivery. Downloads and
+clipboard contents already released to the operating system cannot be recalled.
+Actual browser and assistive-technology qualification of these new controls and
+aggregate delivery is separate from automated component and byte-content tests.
+
+The current Event definition starts at Environment, Standalone and all applicable
+components, with a Basics section. The selected recipe and scope determine which
+addresses, providers and prerequisites are relevant. Initialization does not
+enable a target integration or secret consent. All five output tasks remain
+available, and an explicit launch entry selects its matching declared task once. Later supplied
 choices, explicit false and omissions take precedence over initialization.
 Opening an older pinned definition retains that definition's own behavior.
 

@@ -294,6 +294,7 @@ public sealed class BrowserExportLifecycleTests
                 OpeningStarted.TrySetResult();
                 if (HoldOpening) await OpeningRelease.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
             }
+            if (identifier is "copy" or "download" or "reveal") return (TValue)(object)true;
             return default!;
         }
         public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }

@@ -1,0 +1,29 @@
+Change-Id: CHG-01M6K7Q2P1ABF5H6DQSKED74G5
+Title: "choose deployment scope before editing and export eligible files"
+Type: feat
+Scope: self-hosting
+Summary: "Offer compatible recipe and scope choices before fields and deliver bounded named clipboard sections or ZIP entries with stale export fencing."
+Group: commit-all-browser
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Offer compatible recipe and scope choices before fields and deliver bounded named clipboard sections or ZIP entries with stale export fencing."
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Offer compatible recipe and scope choices before fields and deliver bounded named clipboard sections or ZIP entries with stale export fencing."
+  OpenAPI:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Offer compatible recipe and scope choices before fields and deliver bounded named clipboard sections or ZIP entries with stale export fencing."

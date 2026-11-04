@@ -17,6 +17,37 @@ using Microsoft.JSInterop;
 public sealed class BrowserDeveloperEditingTests
 {
     [Test]
+    [Arguments("apply")]
+    [Arguments("discard")]
+    [Arguments("stay")]
+    public async Task DeploymentSelectionResolvesPendingDocumentBeforeChangingContext(string decision)
+    {
+        await using var context = BrowserFixture.Context();
+        await using var engine = Boundary(context);
+        var root = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserDeploymentScopeTests.Deployment()));
+        var form = root.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
+        await root.InvokeAsync(() => form.SetSecretEntryEnabled(true));
+        await root.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs());
+        var panel = root.FindComponent<ConfigurationDeveloper>();
+        await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await panel.InvokeAsync(() => engine.ChangeAsync("""
+            {"answerContractVersion":"0.0.1","values":{"dashboard":"synthetic-pending"},"omitted":[]}
+            """));
+        Task? transition = null;
+        await root.InvokeAsync(() => { transition = root.Find("#configuration-recipe").ChangeAsync(new ChangeEventArgs { Value = "split" }); });
+        await Assert.That(transition!.IsCompleted).IsFalse();
+        await Click(panel, "developer-resolve-" + decision);
+        await transition.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(form.ConfigurationContext!.RecipeId).IsEqualTo(decision == "stay" ? "standalone" : "split");
+        if (decision == "stay")
+        {
+            await Assert.That(panel.Instance.IsDirty).IsTrue();
+            await Assert.That(engine.CurrentText).Contains("synthetic-pending");
+        }
+        else await Assert.That(form.Snapshot().Values.ContainsKey("dashboard")).IsEqualTo(decision == "apply");
+    }
+
+    [Test]
     public async Task EventProviderPreviewRejectsUnknownChoiceAndAppliesCorrectedWireValue()
     {
         var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));

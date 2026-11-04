@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="ConfigurationContext" xml:space="preserve"><value>إعداد النشر</value></data>
+  <data name="EnvironmentDestination" xml:space="preserve"><value>وجهة ملف البيئة</value></data>
+  <data name="ComposeInputDestination" xml:space="preserve"><value>مدخلات Compose: استخدم الملف مع طريقة Compose المعلنة.</value></data>
+  <data name="ProcessEnvironmentDestination" xml:space="preserve"><value>بيئة العملية: استخدم الملف مع المكوّن المعلن.</value></data>
+  <data name="ConfigurationRecipe" xml:space="preserve"><value>طريقة النشر</value></data>
+  <data name="ConfigurationScope" xml:space="preserve"><value>المكوّنات المراد إعدادها</value></data>
+  <data name="ConfigurationContextHelp" xml:space="preserve"><value>تنطبق الجاهزية والملفات على المكوّنات المحددة. تبقى الإجابات الأخرى في علامة التبويب للعودة إليها.</value></data>
+  <data name="CompatibleContextChoices" xml:space="preserve"><value>اختيار طريقة نشر ونطاق متوافقين معًا</value></data>
+  <data name="ContextSelectionRejectedStatus" xml:space="preserve"><value>لا يمكن اختيار طريقة النشر والنطاق معًا. اختر زوجًا متوافقًا.</value></data>
+  <data name="ContextSelectionChangedStatus" xml:space="preserve"><value>تغيّر نطاق النشر. راجع الإجابات المطلوبة لهذه المكوّنات.</value></data>
+  <data name="CopyAllArtifacts" xml:space="preserve"><value>نسخ جميع الملفات</value></data>
+  <data name="DownloadAllArtifacts" xml:space="preserve"><value>تنزيل جميع الملفات</value></data>
+  <data name="AggregateExportRejectedStatus" xml:space="preserve"><value>تتجاوز الملفات حدود التسليم المجمّع. انسخ الملفات أو نزّلها منفردة.</value></data>
+  <data name="AggregateCopiedStatus" xml:space="preserve"><value>نُسخت أقسام الملفات المسماة. هذا مستند متعدد الملفات.</value></data>
+  <data name="AggregateDownloadedStatus" xml:space="preserve"><value>طُلب تنزيل الأرشيف.</value></data>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <data name="CatalogueTitle" xml:space="preserve"><value>اختر مشروعًا</value></data>

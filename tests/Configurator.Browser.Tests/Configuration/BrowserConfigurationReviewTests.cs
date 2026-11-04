@@ -236,7 +236,7 @@ public sealed class BrowserConfigurationReviewTests
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""
             {"op":"object","members":{"first":{"op":"copy","reference":{"scope":"root","path":"/name"}},
-             "second":{"op":"copy","reference":{"scope":"root","path":"/name"}}}}
+             "nested":{"op":"object","members":{"second":{"op":"copy","reference":{"scope":"root","path":"/name"}}}}}}
             """);
         source["requiredCapabilities"] = new JsonArray("projection.copy", "projection.object", "schema.object", "schema.string", "values.initial");
         var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));

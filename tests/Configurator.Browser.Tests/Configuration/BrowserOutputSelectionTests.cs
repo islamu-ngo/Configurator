@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 public sealed class BrowserOutputSelectionTests
 {
     [Test]
-    public async Task ReuseFollowsOutputMutationsButPreservesExplicitFormatDuringOrdinaryEdits()
+    public async Task ReuseRejectsIneligibleFormatsAndPreservesCurrentFormatDuringOrdinaryEdits()
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition("file.kind")));
@@ -20,7 +20,8 @@ public sealed class BrowserOutputSelectionTests
         await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("identity");
         await component.Find("#import-artifact").ChangeAsync(new ChangeEventArgs { Value = "settings" });
         await component.InvokeAsync(() => form.EditValue(["hostname"], "synthetic.test"));
-        await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("settings");
+        await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("identity");
+        await Assert.That(component.FindAll("#import-artifact option[value='settings']")).IsEmpty();
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         await component.InvokeAsync(() => component.Instance.DiscardAsync());
         await component.InvokeAsync(() => component.Instance.BeginAsync());
@@ -83,7 +84,11 @@ public sealed class BrowserOutputSelectionTests
         await Assert.That(form.InputRevision).IsEqualTo(0L);
         await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
         await Assert.That(component.Find("[data-section-panel]").GetAttribute("data-section-panel")).IsEqualTo("basics");
-        await Assert.That(component.FindAll("[data-field='env.API_ENDPOINT']").Count).IsEqualTo(1);
+        await Assert.That(component.Find("#configuration-recipe").GetAttribute("value")).IsEqualTo("standalone");
+        await Assert.That(component.Find("#configuration-scope").GetAttribute("value")).IsEqualTo("all");
+        await Assert.That(form.ConfigurationContext!.EligibleArtifactIds).IsEquivalentTo(["environment-standalone"]);
+        await Assert.That(component.FindAll("[data-field='env.API_ENDPOINT']")).IsEmpty();
+        await Assert.That(component.FindAll("[data-field='deployment.recipe'], [data-field='deployment.scope']")).IsEmpty();
     }
 
     private static Definition Definition(string fieldName)

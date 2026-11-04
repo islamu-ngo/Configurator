@@ -19,7 +19,7 @@ public partial class ConfigurationEditor
     private void ChangeImportFormat(ChangeEventArgs args)
     {
         string? artifactId = args.Value?.ToString();
-        if (!Definition.Artifacts.Any(item => item.Id == artifactId)) return;
+        if (!ImportArtifacts.Any(item => item.Id == artifactId)) return;
         InvalidateImport();
         _importArtifact = artifactId!;
         SetStatus("ImportFormatChangedStatus");
@@ -32,10 +32,12 @@ public partial class ConfigurationEditor
         if (OutputSelector is { } selector)
         {
             artifacts = _form!.Validate().TryGetEffectiveValue(selector.Location, out var value)
-                ? selector.Options.FirstOrDefault(option => option.Value == value.GetString())?.ArtifactIds.ToArray() ?? []
+                ? selector.Options.FirstOrDefault(option => option.Value == value.GetString())?.ArtifactIds
+                    .Where(id => artifacts.Contains(id, StringComparer.Ordinal)).ToArray() ?? []
                 : [];
         }
-        _importArtifact = artifacts.Length == 1 ? artifacts[0] : string.Empty;
+        _importArtifact = _form!.ConfigurationContext?.PrimaryArtifactId is { } primary && artifacts.Contains(primary, StringComparer.Ordinal)
+            ? primary : artifacts.Length == 1 ? artifacts[0] : string.Empty;
     }
     private void ChangeImportPurpose(ChangeEventArgs args)
     {

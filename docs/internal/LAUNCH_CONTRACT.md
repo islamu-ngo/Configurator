@@ -141,6 +141,28 @@ is no proxy, target login or executable definition loader.
 
 ## Transient answer and output boundary
 
+Deployment context controls adapt the admitted Presentation recipe/scope
+projection and use its atomic `SelectConfigurationContext` mutation. They
+resolve pending Developer edits first and recheck form/view ownership after
+the dialog. Import and Developer destinations come from current eligible
+artifacts; clients cannot expand scope by selecting an artifact. InputChanged
+retires prepared per-file and aggregate capabilities synchronously before
+awaiting JavaScript cleanup.
+
+`BrowserArtifactBundleExport` builds a private clipboard document or standard
+ZIP from one captured prepared-file list. It applies the existing 64-artifact
+ceiling and separate 4,194,304-byte source/delivery bounds, checks portable
+unique names, counts clipboard labels and ZIP overhead, and adopts no partial
+aggregate. ZIP entry timestamps are fixed and host attributes are empty.
+Assembly wraps a nonexpandable owned byte array: clipboard capacity is its
+preflight byte count and ZIP capacity is the 4 MiB delivery ceiling. This avoids
+untracked private arrays from stream growth; source, export and framework
+allocations remain separate and require actual WASM peak-memory measurement.
+Owned assembly buffers are cleared on completion/failure; exposure uses
+`BrowserArtifactExport` generation fencing. Per-file recovery remains available
+if delivery overhead exceeds the aggregate ceiling. Managed strings and bytes
+already transferred to an external clipboard/download cannot be recalled.
+
 `ConfigurationEditor` requires the registered `BrowserOfflinePolicy`; missing
 wiring fails component construction rather than granting readiness. Public app
 preparation and the current workspace's custody acknowledgment must both succeed

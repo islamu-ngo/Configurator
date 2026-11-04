@@ -29,12 +29,13 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private DefinitionFormModel? _form;
     private readonly PresentationSession _session = new(new WeakReferenceMessenger());
     private readonly List<PreparedArtifact> _prepared = [];
+    private BrowserArtifactBundleExport? _bundleExport;
     private readonly List<string> _diagnostics = [];
     private WorkflowStage _activeWorkflowStage = WorkflowStage.Configure;
     private enum WorkflowStage { Configure, Review, Prepare }
     private long _viewGeneration;
     private (DefinitionFormModel Form, long Generation, FocusTarget Target)? _pendingFocus;
-    private enum FocusTarget { Configure, Review, Files, Consent, Import, Start, Output }
+    private enum FocusTarget { Configure, Review, Files, Consent, Import, Start, Output, Context, DeveloperDestination }
     private int _requiredCount;
     private ElementReference _outputControl;
     private ConfigurationConfigurePanel? _configurePanel;
@@ -90,7 +91,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         get
         {
             DefinitionFormProgress progress = _form!.Projection.Progress;
-            return _form.HasInputErrors || _form.HasAnswerBudgetError || progress.Invalid > 0 || progress.Missing > progress.Deferred
+            return _form.ConfigurationContext is { IsReady: false } || _form.HasInputErrors || _form.HasAnswerBudgetError || progress.Invalid > 0 || progress.Missing > progress.Deferred
                 ? "blocked" : progress.Deferred > 0 ? "deferred" : "complete";
         }
     }
@@ -109,6 +110,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (ReferenceEquals(_pinned, Definition)) return;
         RetireDeveloper();
         _developerMode = false;
+        _developerArtifactId = null;
         RetireView();
         _configurePanel = null;
         _reviewPanel = null;
@@ -126,9 +128,6 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _compact = false;
         _consentOpen = false;
         _taskToolsOpen = false;
-        ImportArtifacts = Definition.Artifacts.ToArray();
-        _importCapabilities = ImportArtifacts.ToDictionary(artifact => artifact.Id,
-            artifact => DefinitionImport.GetCapability(Definition, artifact.Id), StringComparer.Ordinal);
         _importPurpose = "compare";
         _ready = false;
         _beginPending = true;
@@ -145,6 +144,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _form.ViewChanged += ViewChanged;
         _form.ImportComparisonChanged += ImportComparisonChanged;
         _importPurpose = "fill";
+        RefreshImportArtifacts();
         SelectCurrentImportArtifact();
         _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
         DefinitionFormModel form = _form;
@@ -324,7 +324,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
                 artifact.Revealed = false;
                 artifact.View = null;
                 return artifact.Export.InvalidateAsync().AsTask();
-            }).ToArray();
+            }).Concat(_bundleExport is null ? [] : new[] { _bundleExport.InvalidateAsync().AsTask() }).ToArray();
             _outputRetirement = Task.WhenAll(_outputRetirement, ObserveRetirementAsync(retirements));
         }
     }
@@ -341,6 +341,14 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         {
             SelectWorkflowStage(WorkflowStage.Configure);
             RequestFocus(FocusTarget.Output);
+            return;
+        }
+        if (_form!.ConfigurationContext is not null && Definition.Deployment is { } deployment && path.Count == 1
+            && (DefinitionPath.FromSegments([field.Name]).ToPointer() == deployment.RecipePointer
+                || DefinitionPath.FromSegments([field.Name]).ToPointer() == deployment.ScopePointer))
+        {
+            SelectWorkflowStage(WorkflowStage.Configure);
+            RequestFocus(FocusTarget.Context);
             return;
         }
         bool focused = _form!.FocusEditor(path, preserveDiscovery: true);
@@ -399,7 +407,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         InvalidateMounts();
         _focusField = null;
         Invalidate();
-        if (_importOutputSelection != OutputSelection) SelectCurrentImportArtifact();
+        RefreshImportArtifacts();
+        if (_importOutputSelection != OutputSelection || !ImportArtifacts.Any(artifact => artifact.Id == _importArtifact)) SelectCurrentImportArtifact();
         int required = _form!.Projection.Progress.Required;
         if (required == _requiredCount) SetStatus("AnswersChangedStatus");
         else SetStatus("RequiredWorkChangedStatus", _requiredCount, required);
@@ -515,6 +524,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             FocusTarget.Consent when _ready && _activeWorkflowStage == WorkflowStage.Configure => _consentControl,
             FocusTarget.Import when _ready && _activeWorkflowStage == WorkflowStage.Configure => _fileInput?.Element,
             FocusTarget.Output when _ready && OutputSelector is not null => _outputControl,
+            FocusTarget.Context when _ready && _form!.ConfigurationContext is not null => _contextControl,
+            FocusTarget.DeveloperDestination when _ready && _developerMode && DeveloperArtifacts.Length > 1 => _developerDestinationControl,
             FocusTarget.Start when !_ready => _startButton,
             _ => null
         };
@@ -564,7 +575,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _navigation?.RefreshWork(this, _navigationLease);
         // Start every retirement before awaiting any JS cleanup. Each owner
         // revokes its workspace, bytes and generation synchronously.
-        Task[] retirements = previous.Select(prepared => prepared.DisposeAsync().AsTask()).ToArray();
+        Task[] retirements = previous.Select(prepared => prepared.DisposeAsync().AsTask())
+            .Concat(_bundleExport is null ? [] : new[] { _bundleExport.InvalidateAsync().AsTask() }).ToArray();
         return _outputRetirement = ObserveRetirementAsync(retirements);
     }
     private void InvalidateImport(bool releaseFileControl = true)
@@ -645,6 +657,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             _form.ViewChanged += ViewChanged;
             _form.ImportComparisonChanged += ImportComparisonChanged;
             _importPurpose = "fill";
+            RefreshImportArtifacts();
             SelectCurrentImportArtifact();
             RegisterSearch();
             RefreshConsentAction();
@@ -681,6 +694,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             IJSObjectReference module = await _comparisonRendering;
             await module.DisposeAsync();
         }
+        if (_bundleExport is not null) await _bundleExport.DisposeAsync();
         GC.SuppressFinalize(this);
     }
     private sealed class PreparedArtifact : IAsyncDisposable

@@ -7,6 +7,15 @@
 <section class="configuration-files" aria-labelledby="@("artifact-" + Metadata.ArtifactId)"
          data-prepared-file="@Metadata.ArtifactId" data-readiness="@(Metadata.IsDraft ? "draft" : "complete")">
     <h4 id="@("artifact-" + Metadata.ArtifactId)" class="configuration-files__heading">@Metadata.FileName</h4>
+    @if (Destination is { } destination)
+    {
+        @if (destination.Title != destination.Id) { <p>@DestinationText("title", destination.Title)</p> }
+        @if (destination.Description is { } description) { <p>@DestinationText("description", description)</p> }
+        @if (destination.Surface is { } surface)
+        {
+            <p data-artifact-surface="@surface">@Text(surface == "compose-input" ? "ComposeInputDestination" : "ProcessEnvironmentDestination")</p>
+        }
+    }
     <p>@Text(Metadata.IsDraft ? "DraftArtifactReadiness" : "CompleteArtifactReadiness") @Text("PrivateOutputHidden")</p>
     @if (Metadata.Completions.Count > 0)
     {
@@ -43,6 +52,7 @@
 @code {
     [Parameter, EditorRequired] public DefinitionPreparationMetadata Metadata { get; set; } = null!;
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
+    [Parameter] public ArtifactDefinition? Destination { get; set; }
     [Parameter] public string Locale { get; set; } = "en";
     [Parameter] public bool Revealed { get; set; }
     [Parameter] public string? StatusKey { get; set; }
@@ -55,5 +65,10 @@
     public ElementReference? PreviewElement => _disposed ? null : _preview;
     private string Text(string key) => BrowserStrings.Get(key, Locale);
     private string Format(string key, params object?[] arguments) => string.Format(CultureInfo.GetCultureInfo(Locale), Text(key), arguments);
+    private string DestinationText(string member, string fallback)
+    {
+        int index = Form.Definition.Artifacts.ToList().FindIndex(artifact => artifact.Id == Metadata.ArtifactId);
+        return Form.LocalizedText(DefinitionPath.FromSegments(["artifacts", index.ToString(CultureInfo.InvariantCulture), member]), fallback)!;
+    }
     public void Dispose() { _disposed = true; _preview = default; }
 }

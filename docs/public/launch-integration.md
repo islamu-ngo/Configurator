@@ -18,6 +18,12 @@ A public definition link with an explicit valid `entry` opens that task directly
 after bounded definition admission and selector validation. A link without an
 explicit output retains definition inspection before opening the workspace.
 
+When a definition declares deployment choices, the workspace shows its recipe
+and component scope before the form. These choices are local configuration
+answers; launch links do not supply them or broaden the selected scope. See
+[deployment metadata](definition-reference.md) and the [browser guide](browser.md)
+for compatible choices, scoped readiness and deliberate destination exports.
+
 ---
 
 ## The Launch & Configuration Flow

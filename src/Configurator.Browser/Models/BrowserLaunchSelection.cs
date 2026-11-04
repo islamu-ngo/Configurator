@@ -14,7 +14,8 @@ public sealed record BrowserLaunchSelection(Definition Definition, string Entry,
         "schema.array", "schema.boolean", "schema.bounds", "schema.const", "schema.enum", "schema.integer",
         "schema.notBlank", "schema.nullable", "schema.number", "schema.object", "schema.string",
         "schema.uniqueBy", "schema.map", "schema.variant", "schema.localRef", "schema.multipleOf",
-        "schema.uniqueItems", "schema.assertFormat", "schema.secret", "values.initial", "values.suggested"
+        "schema.uniqueItems", "schema.assertFormat", "schema.secret", "values.initial", "values.suggested",
+        "deployment.scope", "environment.docker-run", "environment.compose"
     }.ToFrozenSet(StringComparer.Ordinal);
     public static BrowserLaunchSelection Resolve(
         DefinitionRegistry registry, string familyId, string query)

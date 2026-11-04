@@ -26,6 +26,50 @@
                 <li><button type="button" data-workflow-step="prepare" aria-current="@(_activeWorkflowStage == WorkflowStage.Prepare ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(WorkflowStage.Prepare) : Task.CompletedTask'><span aria-hidden="true">3</span> @UiText("WorkflowFiles")</button></li>
             </ol>
         </nav>
+        @if (_form.ConfigurationContext is { } configurationContext)
+        {
+            <fieldset id="configuration-context" @key="(_form, _contextChoiceKey)">
+                <legend>@UiText("ConfigurationContext")</legend>
+                <p id="configuration-context-help">@UiText("ConfigurationContextHelp")</p>
+                <div class="configuration-editor__mode">
+                    <label for="configuration-recipe">@UiText("ConfigurationRecipe")</label>
+                    <select id="configuration-recipe" @ref="_contextControl" value="@configurationContext.RecipeId"
+                            aria-describedby="configuration-context-help"
+                            @onchange="args => IsCurrentView(actionForm, actionView) ? ChangeRecipeAsync(args) : Task.CompletedTask">
+                        <option value="" disabled>@UiText("ConfigurationRecipe")</option>
+                        @foreach (var recipe in _form.ConfigurationRecipes)
+                        {
+                            <option value="@recipe.Id">@RecipeTitle(recipe)</option>
+                        }
+                    </select>
+                </div>
+                <div class="configuration-editor__mode">
+                    <label for="configuration-scope">@UiText("ConfigurationScope")</label>
+                    <select id="configuration-scope" value="@configurationContext.ScopeId" aria-describedby="configuration-context-help"
+                            @onchange="args => IsCurrentView(actionForm, actionView) ? ChangeScopeAsync(args) : Task.CompletedTask">
+                        <option value="" disabled>@UiText("ConfigurationScope")</option>
+                        @foreach (var scope in _form.ConfigurationScopes)
+                        {
+                            var recipe = _form.ConfigurationRecipes.Single(item => item.Id == configurationContext.RecipeId);
+                            <option value="@scope.Id">@ScopeTitle(recipe, scope)</option>
+                        }
+                    </select>
+                </div>
+                <details>
+                    <summary>@UiText("CompatibleContextChoices")</summary>
+                    <div class="actions">
+                        @foreach (var recipe in _form.ConfigurationRecipes)
+                        {
+                            @foreach (var scope in recipe.Scopes)
+                            {
+                                <AppButton Variant="Variant.Outlined" data-context-pair="@(recipe.Id + ":" + scope.Id)"
+                                           OnClick="() => IsCurrentView(actionForm, actionView) ? SelectContextAsync(recipe.Id, scope.Id) : Task.CompletedTask">@RecipeTitle(recipe) / @ScopeTitle(recipe, scope)</AppButton>
+                            }
+                        }
+                    </div>
+                </details>
+            </fieldset>
+        }
         <div class="configuration-editor__progress" aria-live="polite" aria-atomic="true"
              data-required-count="@progress.Required" data-ready-count="@progress.Ready">
             @if (progress.Required == 0)
@@ -53,8 +97,22 @@
         {
         @if (_developerMode)
         {
+            @if (DeveloperArtifacts.Length > 1)
+            {
+                <div class="configuration-editor__mode">
+                    <label for="developer-destination">@UiText("EnvironmentDestination")</label>
+                    <select id="developer-destination" @key="_developerDestinationKey" @ref="_developerDestinationControl" value="@DeveloperArtifactId"
+                            @onchange="args => IsCurrentView(actionForm, actionView) ? ChangeDeveloperDestinationAsync(args) : Task.CompletedTask">
+                        <option value="" disabled>@UiText("ImportChooseFormat")</option>
+                        @foreach (var artifact in DeveloperArtifacts)
+                        {
+                            <option value="@artifact.Id">@artifact.Title / @artifact.FileName</option>
+                        }
+                    </select>
+                </div>
+            }
             <ConfigurationDeveloper @key="(_form, _developerEpoch)" @ref="_developerPanel" Form="_form"
-                                    EnvironmentArtifactId="@(Definition.Artifacts.FirstOrDefault(artifact => artifact.Format == DefinitionArtifactFormat.Dotenv)?.Id)"
+                                    EnvironmentArtifactId="@DeveloperArtifactId"
                                     DirtyChanged="_ => { if (IsCurrentView(actionForm, actionView)) _navigation?.RefreshWork(this, _navigationLease); }"
                                     RequestConsent="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }" />
         }
@@ -192,10 +250,20 @@
                              InvalidFields="_form.InputDiagnostics" SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
                              CorrectField="diagnostic => { if (IsCurrentView(actionForm, actionView)) ChangeReviewField(diagnostic); }"
                              EnableSecrets="() => IsCurrentView(actionForm, actionView) ? EnableSecretsAsync() : Task.CompletedTask" />
+        @if (_prepared.Count > 1)
+        {
+            <div class="actions">
+                <AppButton Variant="Variant.Outlined" data-action="copy-all-files"
+                           OnClick="() => IsCurrentView(actionForm, actionView) ? ExportAllAsync(false) : Task.CompletedTask">@UiText("CopyAllArtifacts")</AppButton>
+                <AppButton data-action="download-all-files"
+                           OnClick="() => IsCurrentView(actionForm, actionView) ? ExportAllAsync(true) : Task.CompletedTask">@UiText("DownloadAllArtifacts")</AppButton>
+            </div>
+        }
         @foreach (var prepared in _prepared)
         {
             <div class="configuration-editor__artifact" @key="prepared">
                 <ConfigurationFiles @ref="prepared.View" Metadata="prepared.Metadata" Form="_form" Locale="@_form.Locale"
+                                    Destination="@Definition.Artifacts.Single(artifact => artifact.Id == prepared.Metadata.ArtifactId)"
                                     Revealed="@prepared.Revealed" StatusKey="@prepared.StatusKey" StatusCode="@prepared.StatusCode"
                                     Copy="() => IsCurrentView(actionForm, actionView) ? CopyAsync(prepared) : Task.CompletedTask"
                                     Download="() => IsCurrentView(actionForm, actionView) ? DownloadAsync(prepared) : Task.CompletedTask"

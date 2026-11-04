@@ -57,7 +57,7 @@ public partial class ConfigurationEditor
             IReadOnlyList<DefinitionArtifact> artifacts;
             if (draft)
             {
-                draftBundle = DefinitionDraftArtifactComposer.ComposeBundle(Definition, Definition.Artifacts.Select(item => item.Id), answers);
+                draftBundle = DefinitionDraftArtifactComposer.ComposeActiveBundle(Definition, answers);
                 if (draftBundle.Artifacts.Count == 0 || draftBundle.Diagnostics.Any(item => item.Code is not ("draft-dependency-unresolved" or "artifact-omitted")))
                 {
                     _diagnostics.AddRange(draftBundle.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
@@ -120,6 +120,35 @@ public partial class ConfigurationEditor
             draftBundle?.Dispose();
             completeBundle?.Dispose();
         }
+    }
+    private async Task ExportAllAsync(bool archive)
+    {
+        DefinitionFormModel form = _form!;
+        long view = _viewGeneration;
+        if (!IsCurrentView(form, view) || !_ready || _activeWorkflowStage != WorkflowStage.Prepare || _prepared.Count == 0) return;
+        if (_prepared.Count == 1)
+        {
+            if (archive) await DownloadAsync(_prepared[0]);
+            else await CopyAsync(_prepared[0]);
+            return;
+        }
+        InvalidateImport();
+        long generation = _generation;
+        _bundleExport ??= new BrowserArtifactBundleExport(Javascript);
+        var snapshot = _prepared.ToArray();
+        var entries = snapshot.Select(artifact => (artifact.Metadata.FileName!, artifact.Workspace.Output)).ToArray();
+        if (!_bundleExport.SetOutput(entries, archive, _mountCancellation.Token))
+        {
+            SetStatus("AggregateExportRejectedStatus");
+            _statusCode = "aggregate-export-rejected";
+            return;
+        }
+        bool exposed = archive ? await _bundleExport.DownloadAsync() : await _bundleExport.CopyAsync();
+        if (!IsCurrentView(form, view) || !_ready || generation != _generation || snapshot.Length != _prepared.Count
+            || !snapshot.SequenceEqual(_prepared)) return;
+        SetStatus(exposed ? archive ? "AggregateDownloadedStatus" : "AggregateCopiedStatus"
+            : archive ? "DownloadUnavailableStatus" : "ClipboardUnavailableStatus");
+        _statusCode = exposed ? archive ? "aggregate-download-requested" : "aggregate-copied" : "aggregate-export-unavailable";
     }
     private async Task CopyAsync(PreparedArtifact artifact)
     {
