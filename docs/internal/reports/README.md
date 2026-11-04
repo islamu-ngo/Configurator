@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Maintainers | Architects | AI agents  
 > **Status:** Maintained index of immutable point-in-time assessments
 > **Owner:** Contributor Experience  
-> **Last Verified:** 2026-10-31
+> **Last Verified:** 2026-11-04
 > **Source Anchors:** `docs/internal/reports/`
 
 This directory archives historical audits, architectural evaluations, point-in-time assessments, and redesign reports across the ISLAMU Configurator repository.
@@ -52,6 +52,7 @@ When implementing new features or verifying invariants, always prioritize the li
 
 | Report | Date | Scope & Primary Focus |
 |---|---|---|
+| [Deployment-aware configuration execution](DEPLOYMENT_AWARE_CONFIGURATION_EXECUTION_2026-11-04.md) | 2026-11-04 | Candidate implementation, invariant-first repairs, executed owner/consumer/package evidence and explicit Browser qualification limits; no target acceptance or release claim. |
 | [Browser UX simplification and Developer view](BROWSER_UX_SIMPLIFICATION_REPORT_2026-10-31.md) | 2026-10-31 | Ten-screenshot investigation, source-confirmed interaction friction, official-source research, compact form and body-height navigation proposal, schema-aware Developer view, priorities and acceptance criteria; not implemented or runtime-qualified. |
 | [Documentation architecture migration](DOCUMENTATION_MIGRATION_2026-10-30.md) | 2026-10-30 | Knowledge inventory, contradiction resolutions, path/heading preservation map, executed documentation checks and navigation exercises; not product-wide runtime qualification. |
 | [Definition Standard and Adoption Audit](DEFINITION_STANDARD_AUDIT_2026-10-28.md) | 2026-10-28 | Source-backed schema semantics, adoption defects, industry comparison, and proposed pre-release redesign; not an implemented replacement standard. |
