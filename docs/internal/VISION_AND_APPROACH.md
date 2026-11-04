@@ -4,8 +4,9 @@
 > **Kind:** Explanation
 > **Status:** Maintained direction; implementation and ambitions distinguished below
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-10-27
-> **Source Anchors:** `docs/internal/universal-configurator.md`, `docs/internal/go-to-market.md`, `AGENTS.md`
+> **Last Verified:** 2026-11-03
+> **Source Anchors:** `docs/internal/universal-configurator.md`, `docs/internal/go-to-market.md`, `docs/internal/adr/ADR-terminal-framework-and-workbench.md`, `src/Configurator.Terminal/`, `AGENTS.md`
+> **Review basis:** Product-owner direction and source review at `97c5a1789545b73a9536a4b9d4fa934976afb16c`; no new runtime or external competitive assessment on 2026-11-03.
 
 ISLAMU Configurator helps maintainers describe configuration requirements once
 and helps operators prepare candidate configuration files locally. A bounded,
@@ -34,6 +35,44 @@ the [knowledge map](KNOWLEDGE_MAP.md), not silently rewritten as current contrac
 
 Independent authoring/runtime, answer, command and family/revision versions are
 explained in the [definition reference](../public/definition-reference.md).
+
+## Adoption priority and terminal ambition
+
+Browser-first development serves the lowest-friction adoption path: a project's
+GitHub README **Configure** link opens static Blazor WebAssembly. Maintainers
+retain their public definitions; operators can start without installing a
+native client. This priority does not reduce Terminal to a small setup wizard.
+Its direction is a full, long-lived operator/developer workbench for large
+configurations, including remote-shell use.
+
+The workbench should combine typed nested forms, field-specific presentation,
+compact/comfortable density, descriptions and consequences, validation and
+correction, secret controls, local file import, comparison and protected save.
+Developer text editing and richer schema comparison remain future depth. The
+current terminal selects one field at a time and has no full document editor.
+Current import comparison assesses configuration against an admitted definition;
+it does not infer schema migrations. Browser developer editing uses public-scope
+answer projections, not arbitrary editing of admitted definition/schema bytes.
+
+The accepted [framework and workbench decision](adr/ADR-terminal-framework-and-workbench.md)
+keeps official Terminal.Gui. Both assessed toolkits have substantial building
+blocks; no demonstrated requirement offsets a migration and requalification of
+the current custody and lifetime safeguards. Higher-level alternative controls
+remain useful tradeoffs. A multi-pane workspace is an evaluation direction,
+not an approved layout or a promise of identical Browser interaction.
+
+### Future native secret-store workflows
+
+The intended longer-term native direction includes explicit opt-in REST
+operations for Infisical and Azure Key Vault to configure, compare, update and
+verify secrets. This is not current provider support, dependency approval or
+write authority. The [existing provider backlog](../../dev/backlog/universal-configurator-followups.md#secret-store-inspection-and-completion)
+requires one concrete pilot before abstractions, and separate connector/privacy
+design for credentials, permissions, inventory versus content validation,
+conflict-safe deliberate writes, partial outcomes, cancellation, redaction and
+recovery. Core and Browser gain no HTTP or native provider authority from this
+direction. The offline/local baseline and the target's semantic/apply authority
+remain intact.
 
 ## The Configuration Experience Problem
 
@@ -80,7 +119,7 @@ Definitions are purely declarative JSON or YAML documents admitted by `Configura
 ### 2. Multi-Surface Rendering
 The configuration experience is completely decoupled from the rendering surface:
 - **CLI (`Configurator.Cli`):** Headless, scriptable execution with machine receipts and stdin/file piping.
-- **Terminal (`Configurator.Terminal`):** Fast, keyboard-driven text user interface built on `Terminal.Gui` v2 for remote shells and headless servers.
+- **Terminal (`Configurator.Terminal`):** Keyboard-driven text user interface built on official `Terminal.Gui` v2, with a sustained workbench direction for local and remote shells; actual-host support remains evidence-scoped.
 - **Desktop (`Configurator.Desktop`):** Full-featured native GUI built on Avalonia for local operator workflows.
 - **Browser (`Configurator.Browser`):** Zero-install, static client-side Blazor WebAssembly running entirely in the operator's browser.
 
@@ -97,7 +136,7 @@ Configurator operates entirely without a backend server or mandatory cloud conne
 Unlike scaffolding platforms that dynamically load plugins to generate files, Configurator uses a built-in projection compiler capable of emitting `.env`, JSON, and YAML formats directly from declarative mappings.
 
 ### 5. Target Authority Separation
-Configurator stops strictly at the artifact boundary. It writes files to designated local paths (or provides them for download/copy in the browser) and steps aside. It never restarts containers, invokes `docker compose up`, issues HTTP management calls, or touches systemd units.
+The current offline product stops at the artifact boundary. It writes files to designated local paths (or provides them for download/copy in the browser) and steps aside. It does not restart containers, invoke `docker compose up`, issue HTTP management calls, or touch systemd units. Future native secret-store operations need the separate connector/privacy design described above; this direction does not authorize target administration or application apply.
 
 ## Why This Approach? Competitive Landscape Analysis
 

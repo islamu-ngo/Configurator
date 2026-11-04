@@ -23,6 +23,12 @@ pin fixes the resolved dependency identity; it does not waive component licenses
 prove behavior compatibility or eliminate ordinary upgrade checks. No floating
 `latest` version or automatic unreviewed upgrade is introduced.
 
+The current [terminal framework and workbench decision](adr/ADR-terminal-framework-and-workbench.md)
+records the 2026-11-03 reaffirmation of official Terminal.Gui after considering
+SharpConsoleUI, including workbench ambitions, tradeoffs and qualification
+boundaries. It is a source/direction review, not renewed licensing or runtime
+evidence. The dated dependency review and execution record below remain intact.
+
 ## Why a fork was originally selected
 
 On 2026-09-01 the Steward approved a temporary downstream build of upstream

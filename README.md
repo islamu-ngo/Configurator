@@ -6,11 +6,11 @@
 
 # ISLAMU Configurator
 
-Open-source, offline configuration preparation software for application authors, operators, and self-hosters.
+Understand your application's settings. Prepare the configuration it needs.
 
-ISLAMU Configurator prepares application-owned configuration artifacts, while the target application retains validation, authorization and apply authority.
+Guided configuration, validation, secret generation and local file preparation through a web app, desktop app, terminal interface or CLI. Open source and built for local processing.
 
-> 🚧 **Active Pre-Release Development:** ISLAMU Configurator has **no official release yet**. Native clients, the static configuration browser and local validation packages are developed here. No public release, signed publication or hosted deployment is claimed.
+> 🚧 **Active Pre-Release Development:** There is **no official release or public hosted Configurator app yet**. You can build the clients or self-host the browser from this repository. Features and platform support are still being developed and verified; see [current status](docs/internal/STATUS.md).
 
 ![GitHub Workflow Status][github-workflow-status-shield]
 [![GitHub License][github-license-shield]][github-license-link]
@@ -28,148 +28,146 @@ ISLAMU Configurator prepares application-owned configuration artifacts, while th
 
 ## About ISLAMU Configurator
 
-ISLAMU Configurator is an **offline configuration preparation utility** for self-hosted applications. A bounded data-only definition describes questions, validation, activation and output. The target application remains responsible for accepting and applying the resulting artifact.
+Setting up an application often means working through long environment-variable lists, nested configuration files and unfamiliar security settings. ISLAMU Configurator turns those requirements into a guided workspace: understand each setting, choose the relevant options, correct errors and prepare the files your application expects.
 
-The software is **purpose-agnostic**: Event is one external definition target, not a compiled dependency of the engine. A family GUID identifies a definition family; it is not authentication, publisher verification or host authority.
+A maintainer supplies a **configuration definition** in YAML or JSON. It describes the settings, explanations, validation rules, secret requirements and output files. Configurator uses that definition across its interfaces to prepare formats such as `.env`, JSON and YAML. Configuration logic stays with the application maintainer, so operators can use familiar deployment tools and hosting environments.
 
-Choosing a client for sensitive configuration? Start with the [safety and trust FAQ](#faq).
+Browser-first development supports a simple adoption path: follow a **Configure** link in an application's README and open its configuration workspace without installing a native client. The native clients serve local and remote-shell workflows, while the CLI supports automation. The longer-term TUI direction is a full configuration workbench; interface capabilities and layout differ today.
+
+Configurator prepares configuration locally. You review and use the resulting files with your application; it remains responsible for accepting them and authorizing changes. Start with the [overview](docs/public/overview.md), [worked quickstart](docs/public/getting-started.md) or [FAQ](#faq).
 
 ## ✨ Who It Serves
 
 ### Application Operators
 
-- **🔍 Definition-Guided Configuration:** Inspect a local definition's questions, constraints and artifact choices before entering answers.
-- **⌨️ Keyboard-Driven Preparation:** Use the retained Terminal.Gui workflow with transient private input and protected native exports — see [Terminal](docs/public/terminal.md).
-- **🖥️ Native Desktop Forms:** Prepare configuration in the Avalonia desktop client using the same admitted definition and shared workspace — see [Desktop](docs/public/desktop.md).
-- **📜 Deterministic Machine Output:** Use generic catalogue, artifact, environment and doctor commands with a closed JSON result envelope — see [CLI](docs/public/cli.md).
-- **🔒 Restricted Native Output:** Answer-derived artifacts remain restricted; verified Linux writes are create-only and unsupported protected-save hosts reject — see [Native Output](docs/public/native-output.md).
+For people setting up an application or reviewing a configuration they already run.
+
+- **Understand what to enter:** Read field explanations and requirements alongside the setting, with related options shown according to the definition.
+- **Find mistakes before deployment:** Review missing settings and invalid values, then follow correction guidance instead of discovering every problem at startup.
+- **Handle credentials deliberately:** Generate supported passwords or key material, reveal values when needed, and keep sensitive entry masked by default. Available recipes come from the definition.
+- **Reuse existing work:** Compare a supported local configuration file with the selected definition and deliberately fill eligible fields. See [import and comparison](docs/public/import-and-compare.md).
+- **Choose how you work:** Use the [Browser](docs/public/browser.md), [Desktop](docs/public/desktop.md), [Terminal](docs/public/terminal.md) or [CLI](docs/public/cli.md), then prepare the application's files for review and use.
 
 ### Application Authors
 
-- **One maintainer source:** Author YAML or JSON once, then check and compile it with native `definition init/check/build/revise`; use `init --fork-from` for a new family. Start with [portable adoption](docs/public/integrating.md), the [definition cookbook](docs/public/definition-cookbook.md), [maintained examples](examples/README.md) and the [portable agent workflow](skills/configurator-integrate/SKILL.md).
-- **🧩 Declarative Definitions:** Describe fields, activation, validation and output using bounded data rather than executable plugins — see [Definitions](docs/public/definitions.md).
-- **🔗 Pinned Public Launch:** Link to a registered family with bounded version, entry, locale and digest selectors; the session retains its admitted revision and digest — see [Launch Integration](docs/public/launch-integration.md).
-- **🌐 Complete Browser Preparation:** The static Blazor app collects ordinary settings and bounded tenant rows, with voluntary workspace-local secret entry or explicit secret-deferred drafts. Copy/download transfers restricted files deliberately — see [Browser Configuration](docs/public/browser.md).
-- **🛡️ Target-Owned Authority:** Keep authentication, semantic acceptance and apply authorization in your application. Local preparation does not grant administration.
+For maintainers who want to offer a useful setup experience without building a separate configuration UI for every interface.
 
-### Platform Owners & Self-Hosters
+- **Describe configuration once:** Maintain one YAML or JSON source for fields, conditions, validation, guidance and file mappings. The clients share the same configuration semantics.
+- **Let an AI agent write your definition:** Give your coding agent the [Configurator Definition skill](skills/configurator-integrate/SKILL.md) to create your application's `configurator.yaml` or `configurator.json` from its public configuration declarations and schemas. The skill guides the agent through authoring and CLI validation, leaving you a definition to review and ship with your application.
+- **Put setup next to your documentation:** Publish a definition with your application and add a **Configure** link to a browser host. You can distribute definitions directly; the optional Definition Store is not required.
+- **Explain the difficult parts:** Add sections, localized help, choice descriptions and credential requirements so operators understand the decisions they are making.
+- **Keep your existing file formats:** Map answers to the files your application reads, including multiple outputs from one configuration workspace.
+- **Evolve definitions with your application:** Check, compile and revise the definition with the authoring CLI, while keeping final application validation and deployment under your control.
 
-- **🆓 Free & Open Source:** ISLAMU-owned material is MIT-licensed; third-party components retain their terms and notices.
-- **🛡️ Local Preparation:** Preparation has no Event API, domain, wire or database dependency. The browser has no target authentication, telemetry or answer persistence; bounded public HTTPS definitions are admitted and pinned before answers.
-- **🧰 Independent Clients:** Choose the machine CLI, Terminal.Gui TUI, Avalonia Desktop or static Blazor WebAssembly browser without installing Event services.
-- **📚 Dual Documentation Tracks:** Public guides explain operator workflows; internal contracts explain architecture, privacy and verification.
-- **📜 Real Reference Target:** Event supplies a neutral source and retains its host validators. The maintained source compiles into canonical runtime; five independent target payload families exercise generic projections. Its historical v1 release receipt is not a current compiler or target-acceptance receipt. See [Event example](examples/islamu-event/README.md).
+Start with [the integration guide](docs/public/integrating.md), [definition cookbook](docs/public/definition-cookbook.md) or [examples](examples/README.md).
 
 ---
 
 ## 🚀 Deployment & Hosting Options
 
-ISLAMU Configurator separates native preparation from public static hosting:
+Choose the interface that fits the task. They share the configuration engine, while their interaction, file access and secret-handling boundaries differ:
 
 | Topology Mode | Target Use Case | Step-by-Step Documentation |
 |---|---|---|
-| **Machine CLI** | Reproducible local automation with explicit definitions and answer workspaces. | 📖 **[CLI Guide](docs/public/cli.md)** |
-| **Terminal Client** | Keyboard-driven native preparation with protected output. | 📖 **[Terminal Guide](docs/public/terminal.md)** |
-| **Desktop Client** | Avalonia native forms over the shared workspace. | 📖 **[Desktop Guide](docs/public/desktop.md)** |
-| **Static Configuration Browser** | Transient local answers, deliberate file export and a public-asset PWA cache. | 📖 **[Browser Hosting](docs/public/browser.md#self-hosting--deployment)** |
+| **Machine CLI** | Validate, compare and prepare files in scripts or automated workflows. | 📖 **[CLI Guide](docs/public/cli.md)** |
+| **Terminal Client** | Configure with the keyboard in a local terminal or remote shell. | 📖 **[Terminal Guide](docs/public/terminal.md)** |
+| **Desktop Client** | Work through native forms with local file access and protected saving. | 📖 **[Desktop Guide](docs/public/desktop.md)** |
+| **Static Configuration Browser** | Open a guided workspace without a native installation; self-host it as static files. | 📖 **[Browser Hosting](docs/public/browser.md#self-hosting--deployment)** |
 
-See [Standalone Packaging](docs/public/packaging.md) for supported RIDs, executable names and package boundaries. Protected native writes are verified on Linux only. Browser offline reopening requires complete public app assets and an explicitly retained admitted definition; answers are never retained. Browser downloads cannot establish native owner-only/create-only protection. No public Configurator deployment is claimed.
+See [packaging](docs/public/packaging.md) for build instructions and platform limits. Protected native saving is currently verified on Linux; unsupported hosts refuse it. Browser downloads use the browser's ordinary download behavior. Offline browser use requires the app assets and a retained definition; answers are not restored between workspaces.
 
 ### Portable definition adoption
 
-Keep a public source and canonical runtime beside your application, including
-on local media; the Definition Store and GitHub are optional distribution
-channels, not runtime dependencies. Product and public contract versions stay
-at `0.0.1` during development, including breaking changes. Authoring, runtime
-(`bounded-v0.0.1`), command, answer and Store formats each have one current
-implementation; old schemas are local archives, not compatibility paths. Native
-tooling allocates family identity; changed canonical content needs a new
-revision, while a fork starts a new family at revision 1.
+Keep the public YAML or JSON definition source with your application. Use
+`definition init`, `check`, `build` and `revise` to create and maintain it, then
+distribute the compiled definition with your release, through a browser host,
+or on local media. GitHub and the optional Definition Store are distribution
+choices, not requirements for local configuration.
 
-The CLI, Terminal.Gui TUI, Avalonia Desktop and Blazor WebAssembly Browser use
-the same admitted definition and Core value semantics. Native clients publish
-restricted files through protected save; Browser transfers files by deliberate
-copy/download and needs workspace-local consent for secret entry. Answers use
-exact configuration property names, not generated field IDs or dot-inferred
-nesting. Standard `default` is descriptive; `x-configurator.initialValue`
-initializes eligible missing values, while `suggestedValue` needs deliberate
-adoption. Omission suppresses initialization; reset restores eligibility.
-Typed null is a supplied value only where nullable. A secret-deferred
-draft remains incomplete and restricted. Neither successful compilation nor
-generated files prove target acceptance or authorize apply/restart.
+One definition can serve the CLI, TUI, Desktop and Browser. It describes
+configuration requirements without running scripts or plugins. Definition
+revisions identify changes, and each open workspace retains the exact revision
+it loaded. Public definitions must never contain your operators' private answers.
 
-See [adoption steps and boundaries](docs/public/integrating.md), the
-[cookbook](docs/public/definition-cookbook.md), [schema generation](schemas/README.md)
-and the [Core mechanism map](docs/internal/CORE_DEFINITIONS.md).
-Actual package/host qualification and target acceptance require separate
-evidence; these guides do not claim final physical completion.
+Start with the [adoption tutorial](docs/public/integrating.md) and
+[cookbook](docs/public/definition-cookbook.md). The
+[definition reference](docs/public/definition-reference.md) explains formats,
+defaults, presence and versioning. Product and public contract versions remain
+`0.0.1` during active development; breaking changes are expected.
 
 ---
 
 ## 🎨 Branding & Customization
 
-Application authors own definition family identity, publisher labels, application versions, entry points and locale metadata. Clients preserve the admitted definition's canonical identity rather than silently changing its revision or content.
+Shape the configuration experience through your application's definition: its name, sections, entry points, field explanations, choices and translations. This lets maintainers present application-specific guidance without writing a separate form for every client.
 
-- **Application Metadata:** Describe your target without hardcoded Event assumptions.
-- **Public Integration:** Bundle safe public definition metadata and link to its pinned launch contract.
-- **Target Governance:** Keep operator permissions, secret authority and configuration acceptance in the application that owns them.
+- **Application Identity:** Give operators a clear application name and explicit version selection.
+- **Guidance & Localization:** Explain settings and choices in the languages declared by your definition.
+- **Launch Experience:** Link to a selected configuration entry and locale using the [launch integration](docs/public/launch-integration.md).
+
+Available presentation features follow the supported definition format. A publisher label or application name is descriptive metadata, not proof of publisher identity.
 
 ---
 
 ## 🛡️ Enterprise Security & Compliance
 
-The implementation enforces specific admission, custody and output boundaries;
-these are not a security certification:
+Configuration can include passwords, private keys and operational details. Configurator's security model focuses on where that data is processed, what a definition may do, and how files leave the workspace:
 
-- **🔐 Definition Admission:** Closed schemas and bounded values reject unsupported definitions before use.
-- **🛡️ Session Integrity:** Family, revision and digest remain pinned; removed revisions cannot return with conflicting content.
-- **🔒 Private Artifacts:** Native answer-derived output is restricted and cannot overwrite an existing protected artifact.
-- **🌐 Browser Custody:** Secret entry requires per-workspace consent; revocation clears secret leaves and output. Drafts visibly defer secrets, public caches exclude answers/artifacts, and neither preparation mode grants host authority.
-- **🗝️ Target Authority:** The target performs semantic validation and authorization; Configurator does not authenticate or apply remotely.
+- **Data-only definitions:** Definitions describe supported fields and output mappings. They cannot execute plugins, scripts or arbitrary network calls.
+- **Stable sessions:** An open workspace keeps its admitted definition revision and content identity, so a later definition update cannot silently change its requirements.
+- **Local browser processing:** Answers and generated files stay out of application network requests and persistent caches. Secret entry requires consent for each workspace; revoking it clears secret fields and prepared output.
+- **Protected native saving:** On verified Linux hosts, native saves create restricted files and refuse to overwrite existing ones. Unsupported hosts refuse protected saving instead of silently using an ordinary file write.
+- **Explicit application control:** Preparing configuration does not log into your application, change a running service or grant administrative access.
 
-See [SECURITY.md](SECURITY.md), [Core Contract](docs/internal/CORE_DEFINITION_CONTRACT.md) and [Protected Artifacts](docs/internal/PROTECTED_ARTIFACTS.md).
+These are specific safeguards, not a security certification or a guarantee against a compromised device. See the [security policy](SECURITY.md), [browser trust guidance](docs/public/browser.md#data-custody--security-architecture) and [native output guide](docs/public/native-output.md).
 
 ---
 
 ## FAQ
 
-### Is it safe to enter my configuration and secrets?
+### What does Configurator actually do?
 
-Choose the interface according to your security needs. **For sensitive configuration, treat the hosted web app as the least safe option among Configurator's interfaces.** You must trust its origin, the code it delivers, your browser and extensions; browser downloads also lack native protected-save guarantees. Prefer a reviewed local [Desktop](docs/public/desktop.md), [TUI](docs/public/terminal.md) (terminal interface) or [CLI](docs/public/cli.md) build on a trusted machine when handling high-value secrets. Native clients still require trust in the software and operating system. Protected native saving is currently verified on Linux only; unsupported hosts refuse it.
+It helps you turn application requirements into usable configuration files. Open a definition, work through its settings, review validation and prepare its declared outputs, such as `.env`, JSON or YAML. A definition can describe nested structures and multiple files, so the workspace can cover much more than a short installation wizard. See the [worked quickstart](docs/public/getting-started.md).
 
-The web app offers a lower-exposure path: leave secret entry disabled, prepare an incomplete **secret-deferred draft**, and fill in the documented secret locations locally. Ordinary settings can also be confidential, so review what you enter even when no passwords are involved. There is no official release or public hosted deployment yet; this is a design choice, not a security certification. See [Browser Configuration](docs/public/browser.md#data-custody--security-architecture).
+### Does it work with any application or any JSON Schema?
 
-### Why did ISLAMU Configurator choose WebAssembly interactivity?
+An application needs a definition describing the settings and file mappings Configurator should use. Maintainers can author one with the [integration tools](docs/public/integrating.md); operators can use an existing definition. Configurator supports a bounded definition format, rather than every JSON Schema feature or automatic understanding of arbitrary applications. Schema import can scaffold a starting point that still needs maintainer review. The optional [Definition Store](docs/public/definition-store.md) helps distribute definitions, but is not required.
 
-**To keep configuration processing in your browser and support offline work.** The static Blazor WebAssembly app runs its interactive forms, validation and file preparation locally. Answers and generated files are excluded from application network requests, persistent storage and public caches. Static hosting describes how the app is delivered; the UI is still interactive.
+### Which interface should I choose?
 
-Interactive Server could provide a smaller initial download and move computation off your device, but bound form values would reach the server and editing would depend on a live connection. Interactive Auto can use the server on initial visits and WebAssembly on later visits, making the processing location less predictable. Configurator chooses a consistent local boundary. WebAssembly costs a larger initial download and uses your device's resources, then avoids server round trips for local interactions. MudBlazor supports WebAssembly; it does not require server interactivity. Read the [hosting rationale and trade-offs](docs/public/browser.md#why-webassembly-interactivity).
+Choose the **Browser** for a guided workspace without native installation, **Desktop** for native forms and local file workflows, **Terminal** for keyboard-driven work in a local or remote shell, or **CLI** for scripts and agents. They share configuration semantics, but feature coverage and platform qualification differ. Browser-first development is the current adoption focus; a richer TUI workbench is part of the [documented direction](docs/internal/adr/ADR-terminal-framework-and-workbench.md).
 
-### Can I use the web app without entering secrets?
+### Where are my answers and secrets processed?
 
-Yes. Secret entry starts disabled in every new workspace. Complete the ordinary required settings and prepare a secret-deferred draft, then finish the indicated secret locations locally. Missing ordinary required values, invalid answers and unresolved secret-dependent conditions still block preparation. A draft is incomplete and may be rejected by the target until completed.
+Locally. The static Blazor WebAssembly app runs forms, validation and file preparation in your browser, rather than sending answers to a Configurator server. It downloads public app assets and may retrieve a public definition before collecting answers. Answers and generated files are excluded from application requests, persistent storage and public caches. This local-processing choice costs a larger initial download; see [why WebAssembly](docs/public/browser.md#why-webassembly-interactivity).
 
-### What changes if I enable secret entry?
+You still need to trust the delivered code, browser, extensions and device. For high-value secrets, prefer a reviewed local native build on a trusted machine. Native software also requires trust in its build and operating system. Browser secret entry is disabled initially and requires consent for each workspace. Enabling it keeps processing local; revoking consent clears secret fields and prepared output. Masking protects against casual viewing, not compromised code. See [browser trust guidance](docs/public/browser.md#data-custody--security-architecture).
 
-You explicitly trust the hosted code and your browser environment with secrets for that workspace. **This enables local processing; it does not switch to server processing.** Revoking consent clears secret fields, including nested values, and invalidates prepared output while retaining ordinary settings. Consent is not remembered for another workspace. Masked controls hide values on screen; they do not protect against compromised code or extensions.
+### Can I work offline or leave secrets out?
 
-### Does offline browser use remove the need for trust?
+Yes. Native clients can work with local definitions. For offline browser use, first load the complete app assets and explicitly retain the definition; installing a PWA shortcut alone is not enough. Browser answers are transient and are not restored in a new workspace. Offline use still requires trust in the downloaded code and device. See the [offline guide](docs/public/browser.md#offline-work--pwa-support).
 
-No. Prepare the public app assets and retain the public definition before entering answers, then physically disconnect for stronger protection against live network transmission. You still need to trust the downloaded code, browser and device. An installed PWA shortcut alone does not prove offline readiness. Answers are not saved between workspaces, and browser-managed update checks can generate public-asset traffic while connected. See [offline work](docs/public/browser.md#offline-work--pwa-support).
+You can also leave browser secret entry disabled and prepare an incomplete **secret-deferred draft**, then complete the indicated secret locations locally. Ordinary required settings must still be valid, and unresolved secret-dependent conditions can block preparation. Ordinary settings may themselves be confidential; a draft is not ready for deployment until completed and checked.
 
-### Are downloaded files and copied secrets protected?
+### Can I reuse existing files or connect a secret manager?
 
-Browser copy/download is an explicit action, but Configurator cannot enforce owner-only permissions, prevent overwriting or control clipboard and download history. Check the saved filename and protect the destination yourself. Clearing the workspace cannot retract files or clipboard content already exported. Native clients offer the [protected save contract](docs/public/native-output.md) on verified Linux hosts; clearing application state is not a forensic-erasure guarantee in either environment.
+Supported local `.json`, `.yaml` and `.env` files can be assessed against a selected definition. Comparison explains recognized values, missing requirements and incompatible content; filling eligible fields is a separate, deliberate action. Import reads the file locally, without uploading it. This is configuration assessment, not arbitrary schema comparison or an automatic migration tool. See [import and comparison](docs/public/import-and-compare.md).
+
+Direct Infisical and Azure Key Vault workflows are longer-term native plans, not available integrations. The intended direction includes explicit secret inspection, comparison, updates and verification, with separately designed credentials, permissions and conflict handling. The current product prepares configuration locally.
 
 ### Does successful preparation mean my application will accept the files?
 
-No. Configurator validates the admitted definition and prepares its declared files. The target application still owns semantic validation, authentication, authorization and applying the configuration. Definition identifiers, publisher labels and digests are not publisher authentication or administrative permission. Review the target's requirements before using the output.
+No. Configurator checks the requirements represented by the definition; it cannot prove every application-specific or deployment constraint. Review the files and use the target application's own validation and deployment process. Configurator does not apply configuration or restart services for you.
+
+Saving and applying are also different steps. Native protected saving is verified on Linux and refuses existing-file conflicts. Browser downloads cannot enforce those protections or control clipboard/download history. Protect exported files yourself; clearing a workspace cannot retract them. See [native output](docs/public/native-output.md).
 
 ---
 
 ## Roadmap
 
-The wider ISLAMU roadmap is tracked publicly in the [Roadmap Kanban View][roadmap-link]. Use it to follow planned work, vote, and comment. Configurator-specific proposals belong in this repository’s [GitHub Discussions][github-discussions-link].
+We are prioritizing the browser so application maintainers can offer an easy Configure link, with guidance, complex configuration editing and comparison in one workspace. The TUI is intended to grow into a full operator/developer workbench, including document editing. Schema-to-schema comparison and direct native secret-manager workflows remain longer-term plans.
+
+Read the [vision and approach](docs/internal/VISION_AND_APPROACH.md), [Terminal decision](docs/internal/adr/ADR-terminal-framework-and-workbench.md) and [current status](docs/internal/STATUS.md) for the distinctions. The wider ISLAMU roadmap is tracked in the [Roadmap Kanban View][roadmap-link]; discuss Configurator proposals in [GitHub Discussions][github-discussions-link].
 
 ---
 
@@ -186,9 +184,9 @@ There are many ways you can contribute to ISLAMU Configurator:
 
 **Technical:**
 - 💻 Fix bugs & implement features
-- 🧪 Author invariant-breaker test suites
-- 📊 Profile & optimize bounded definition processing
-- 🎨 Enhance Blazor, Avalonia and Terminal.Gui accessibility
+- 🧪 Test configuration, privacy and file-saving behavior
+- 📊 Measure and improve responsiveness with large definitions
+- 🎨 Improve forms, keyboard navigation, translations and accessibility across clients
 
 ---
 
@@ -211,12 +209,12 @@ dotnet build Configurator.slnx --configuration Release --verbosity quiet
 dotnet run --project src/Configurator.Cli --configuration Release -- doctor --machine
 ```
 
-The CLI registers `catalogue list|show|describe`,
-`artifact create|open|validate|format|diff|coverage|export|import|check-existing|compare|prefill|bundle-check|bundle-create|preview`,
-`env render|validate`, `definition init|check|lint|schema|build|revise`, and
-`doctor`. Use `--help` for operation-specific options and `--machine` for the
-closed JSON envelope. Select a local definition explicitly; there is no
-implicit Event target or remote apply command.
+The CLI supports definition authoring, configuration validation and comparison,
+local secret operations, and file preparation. Use `--help` for commands and
+options, or `--machine` for structured JSON results. See the
+[CLI guide](docs/public/cli.md) for workflows and the
+[command reference](docs/public/cli-command-reference.md) for the full vocabulary.
+Choose a definition explicitly; no application is selected for you.
 
 | Client | Start from the checkout | Packaged entry point |
 | --- | --- | --- |
@@ -228,17 +226,18 @@ implicit Event target or remote apply command.
 The Desktop row is an invocation template: substitute an admitted local
 definition and an existing trusted output directory. Terminal/Desktop launch
 opens an interactive workspace; saving remains a deliberate later action.
-Doctor only reports writer availability, not whether a chosen mount can save.
+The `doctor` command reports writer availability; it does not test whether a
+particular destination can save files.
 
 The maintained neutral family can be opened on your own Browser host at
 `/launch/4d8950ad-972c-4357-8605-7a7c89c05a17?appVersion=1.0&entry=setup&locale=en`.
-This is a relative route, not an official deployment. Configure a SPA navigation
-fallback for deep links, not missing framework assets. Native preparation
-requires no Aspire, database, Keycloak or Event server.
+This is a relative route for your own host, not a link to an official deployment.
+Configure a SPA navigation fallback for deep links, not missing framework assets.
+Native preparation requires no Configurator backend, database or Event server.
 
 ### Contributor Onboarding Path
 1. Review our [Contribution Guidelines](CONTRIBUTING.md) and [Local Getting Started](#quick-start-for-developers--contributors).
-2. Read the [Project Guide](PROJECTS.md) for the 5-minute mental model and coding patterns.
+2. Read the [Project Guide](PROJECTS.md) for project responsibilities and targeted build/test commands.
 3. Check the authoritative [Quick Reference (Invariants)](docs/internal/QUICK_REFERENCE.md), [Core Contract](docs/internal/CORE_DEFINITION_CONTRACT.md), and [Governance Standards](docs/internal/GOVERNANCE.md).
 4. AI-assisted coding agents must strictly follow [`AGENTS.md`](AGENTS.md) and [`.agents/contract/intents.yaml`](.agents/contract/intents.yaml).
 
@@ -252,23 +251,23 @@ Keep source provenance, attribution and dependency notices intact. Do not assume
 
 ## 📚 Documentation: Public Guides vs. Internal Specifications
 
-ISLAMU Configurator maintains a deliberate separation between **Public Adopter Documentation** (operator/adopter perspective) and **Internal Engineering Specifications** (developer/contributor perspective in GitHub Markdown):
+Start with **Public Guides** to use Configurator or add support to your application. Use **Internal Specifications** when contributing to the engine, clients or security boundaries. Both live in this repository:
 
 ### 🌐 1. Public Operator & Adopter Documentation
 
-> 📖 **Documentation Hub:** Visit [docs/README.md](docs/README.md) for the repository guides. No separate hosted Configurator documentation portal is claimed.
+> 📖 **Documentation Hub:** [docs/README.md](docs/README.md) routes you to the guide for your task.
 
 * **[Overview & Mental Model](docs/public/overview.md)** — What Configurator is, how the 3-step model works, and interface comparisons.
 * **[Quickstart](docs/public/getting-started.md)** — Step-by-step walkthrough preparing configuration offline.
 * **[Glossary](docs/public/glossary.md)** — Plain-language definitions for all domain concepts.
-* **[CLI Reference](docs/public/cli.md)** — Machine operations, answer workspaces and deterministic envelopes.
-* **[Terminal](docs/public/terminal.md)** — Keyboard-driven native preparation with Terminal.Gui.
-* **[Desktop](docs/public/desktop.md)** — Avalonia forms and protected saves.
-* **[Browser Configuration](docs/public/browser.md)** — Transient complete preparation, secret-deferred drafts, deliberate exports and static PWA hosting.
-* **[Launch Integration](docs/public/launch-integration.md)** — Family/version/entry/locale/digest selection.
-* **[Definitions](docs/public/definitions.md)** — Data-only target definition authoring.
-* **[Native Output](docs/public/native-output.md)** — Restricted artifacts and host limits.
-* **[Packaging](docs/public/packaging.md)** — Independent native packages and static WASM output.
+* **[CLI Reference](docs/public/cli.md)** — Automate validation, comparison, secret generation and file preparation.
+* **[Terminal](docs/public/terminal.md)** — Configure with the keyboard and save locally.
+* **[Desktop](docs/public/desktop.md)** — Edit through native forms and use protected saving.
+* **[Browser Configuration](docs/public/browser.md)** — Configure in your browser, choose how to handle secrets, export files or host the app yourself.
+* **[Launch Integration](docs/public/launch-integration.md)** — Add a Configure link that selects a definition, version and starting task.
+* **[Definitions](docs/public/definitions.md)** — Describe your application's fields, rules and output files.
+* **[Native Output](docs/public/native-output.md)** — Save private files, understand conflicts and check platform limits.
+* **[Packaging](docs/public/packaging.md)** — Build native executables or publish the static browser app.
 * **[Troubleshooting](docs/public/troubleshooting.md)** — Diagnostics, recovery steps, and platform limitations.
 * **[Comparison](docs/public/comparison.md)** — Architectural comparison with RunTipi, Backstage, Umbrel, Portainer, and Helm.
 
@@ -284,7 +283,7 @@ from qualification and future work, and the
 
 | Engineering Concern | Authoritative In-Repository Markdown File | What You Will Learn |
 |---|---|---|
-| **Vision & Core Goals** | [VISION_AND_APPROACH.md](docs/internal/VISION_AND_APPROACH.md) | The configuration experience problem, 7 core goals, and product boundaries. |
+| **Vision & Core Goals** | [VISION_AND_APPROACH.md](docs/internal/VISION_AND_APPROACH.md) | Browser-first adoption, the TUI workbench direction and the product's current boundaries. |
 | **Design Alternatives** | [DESIGN_ALTERNATIVES.md](docs/internal/DESIGN_ALTERNATIVES.md) | Structured record of adopted, considered, and rejected architectural attempts. |
 | **Architecture Overview** | [ARCHITECTURE.md](docs/internal/ARCHITECTURE.md) | Mermaid component diagrams, data flow pipeline, and layer dependency rules. |
 | **Developer Mental Model** | [PROJECTS.md](PROJECTS.md) | Actual project ownership and targeted commands. |
@@ -311,7 +310,7 @@ from qualification and future work, and the
 | Machine CLI | Spectre.Console / Spectre.Console.Cli |
 | Terminal | Official Terminal.Gui, centrally pinned with retained component notices |
 | Desktop | Avalonia 12.1.3, CommunityToolkit.Mvvm |
-| Public browser | Static Blazor WebAssembly |
+| Public browser | Static Blazor WebAssembly / MudBlazor |
 | Definition data | Bounded JSON/YAML, canonical SHA-256 identity |
 | Protected output | Linux create-only native writes; other hosts fail closed |
 | Dependencies | Central package versions, generated locks and retained notices |
@@ -321,7 +320,7 @@ from qualification and future work, and the
 
 Join the ISLAMU community on [Discord][discord-link] and our [GitHub Discussions][github-discussions-link]. We follow a [Code of Conduct][code-of-conduct] in all our community channels.
 
-Feel free to ask questions, report bugs, participate in discussions, share ideas, request features, or showcase. We would love to hear from you.
+Ask questions, share definitions, describe configuration problems, or show how you use Configurator. Reports from real application setups help us decide what to improve next.
 
 > Give us a Star ⭐️
 
@@ -380,7 +379,7 @@ We appreciate these generally available public-repository tools. They are not pr
 ## ISLAMU Solutions
 
 - [ISLAMU Event][event-repo-link]: Event Platform & Management System.
-- [ISLAMU Configurator][github-repo-link]: Offline Configuration Preparation Utility.
+- [ISLAMU Configurator][github-repo-link]: Guided application configuration and local file preparation.
 - [I-VSD][ivsd-github-repo-link]: Islamic Value Sensitive Design: A Framework for Provider-Mediated Software Solutions
 - [SecretKit][secretkit-repo-link]: Unified secret management SDK for .NET
 
@@ -402,7 +401,7 @@ These projects support the wider ISLAMU ecosystem. Configurator’s direct libra
 Our codebase is enriched by dozens of community-crafted .NET libraries. For the complete, centrally managed dependency list and version pins, see [`Directory.Packages.props`](Directory.Packages.props).
 
 - [.NET][dotnet-link]: The application runtime.
-- [ASP.NET Core][aspnet-core-link]: The web and API framework.
+- [ASP.NET Core][aspnet-core-link]: Blazor web application tooling and the optional static browser host.
 - [Avalonia][avalonia-link]: Native desktop UI.
 - [Terminal.Gui][terminal-gui-link]: Official pinned terminal UI.
 - [CommunityToolkit.Mvvm][communitytoolkit-link]: Desktop model/viewmodel support.
@@ -450,9 +449,9 @@ The Steward's transfer authority covers ISLAMU-owned material only. Third-party 
 
 ### Standalone Core And Optional Clients
 
-Core admits bounded definitions without Event backend/domain/wire assemblies. Artifacts owns protected native writes, Presentation owns shared immutable workspace generations, and CLI, Terminal.Gui, Avalonia Desktop and Blazor WebAssembly adapt those boundaries independently.
+The configuration engine is independent of Event and any application it configures. The four clients share its definition and validation rules. Interactive clients share workspace behavior; native clients also use the protected file writer. The Browser uses only browser-safe components and keeps file export within browser capabilities.
 
-Terminal.Gui uses its official NuGet package with an exact central pin, generated locks and retained notices for embedded third-party assets. The [dependency decision and history](docs/internal/TERMINAL_GUI_DEPENDENCY.md) explain retirement of the temporary downstream build. Signed publication remains fail-closed until Configurator establishes its own trust authority; unsigned local/CI validation packages do not activate publication.
+Terminal.Gui uses the official pinned package, with dependency locks and retained notices. The [framework decision](docs/internal/adr/ADR-terminal-framework-and-workbench.md) explains its selection for the TUI, and the [dependency history](docs/internal/TERMINAL_GUI_DEPENDENCY.md) records the earlier fork's retirement. Local validation packages are not official releases; publication and signing follow the separate [release process](docs/internal/RELEASE_RUNBOOK.md).
 
 <div align="right">
 
