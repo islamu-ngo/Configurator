@@ -1,0 +1,29 @@
+Change-Id: CHG-01M6K7R9KVCDFPRVB0T8VK1GNT
+Title: "clarify browser hierarchy and default to a light appearance"
+Type: feat
+Scope: accessibility
+Summary: "Refine catalogue cards, navigation, component spacing and theme tokens with an explicit light initial appearance."
+Group: commit-all-design
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Refine catalogue cards, navigation, component spacing and theme tokens with an explicit light initial appearance."
+  Migration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Refine catalogue cards, navigation, component spacing and theme tokens with an explicit light initial appearance."
+  OpenAPI:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Refine catalogue cards, navigation, component spacing and theme tokens with an explicit light initial appearance."

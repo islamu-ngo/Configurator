@@ -1,2 +1,29 @@
 .app-button { display: contents; }
-.app-button ::deep .mud-button-root { min-block-size: var(--isl-target-min); border-radius: var(--isl-radius-sm); padding: var(--isl-button-padding); text-decoration: none; transition-property: box-shadow, border; }
+.app-button ::deep .mud-button-root {
+    min-block-size: var(--isl-target-min);
+    border-radius: var(--isl-radius-sm);
+    padding: var(--isl-button-padding);
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color var(--isl-duration-fast) var(--isl-ease-standard),
+                border-color var(--isl-duration-fast) var(--isl-ease-standard),
+                box-shadow var(--isl-duration-fast) var(--isl-ease-standard),
+                transform var(--isl-duration-fast) var(--isl-ease-standard);
+}
+.app-button ::deep .mud-button-filled.mud-button-filled-primary {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.app-button ::deep .mud-button-filled.mud-button-filled-primary:hover {
+    filter: brightness(1.08);
+}
+.app-button ::deep .mud-button-root:active {
+    transform: scale(0.98);
+}
+.app-button ::deep .mud-button-outlined {
+    border-color: var(--isl-color-border);
+    color: var(--isl-color-text);
+}
+.app-button ::deep .mud-button-outlined:hover {
+    background-color: var(--isl-color-surface-muted);
+    border-color: var(--isl-color-control-border);
+}

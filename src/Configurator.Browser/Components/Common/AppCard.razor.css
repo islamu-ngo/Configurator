@@ -1,2 +1,11 @@
 .app-card { display: contents; }
-.app-card ::deep .mud-card { display: flex; flex-direction: column; min-inline-size: 0; border: var(--isl-card-border); border-radius: var(--isl-radius-card); padding: var(--isl-space-page); }
+.app-card ::deep .mud-card {
+    display: flex;
+    flex-direction: column;
+    min-inline-size: 0;
+    border: 1px solid var(--isl-color-border);
+    border-radius: var(--isl-radius-card);
+    padding: var(--isl-space-page);
+    background-color: var(--isl-color-surface);
+    transition: border-color var(--isl-duration-fast) var(--isl-ease-standard);
+}

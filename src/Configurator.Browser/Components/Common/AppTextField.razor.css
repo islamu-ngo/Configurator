@@ -1,8 +1,11 @@
 .app-text-field { min-inline-size: 0; inline-size: 100%; }
-.app-text-field__textarea { box-sizing: border-box; inline-size: 100%; resize: vertical; color: var(--isl-color-text); background: var(--isl-color-surface); border: var(--isl-card-border); border-radius: var(--isl-radius-sm); padding: var(--isl-space-2); font: inherit; }
+.app-text-field__textarea { box-sizing: border-box; inline-size: 100%; resize: vertical; color: var(--isl-color-text); background: var(--isl-color-surface); border: 1px solid var(--isl-color-control-border); border-radius: var(--isl-radius-sm); padding: var(--isl-space-2) var(--isl-space-3); font-family: var(--isl-font-family-mono); font-size: .875rem; line-height: 1.5; transition: border-color var(--isl-duration-fast) var(--isl-ease-standard); }
+.app-text-field__textarea:focus { outline: none; border-color: var(--isl-color-primary); box-shadow: 0 0 0 2px var(--isl-color-border); }
 .app-text-field ::deep .mud-input-control { margin-block: 0; }
-.app-text-field ::deep .mud-input-slot { box-sizing: border-box; block-size: var(--isl-field-control-height, 2.75rem); min-block-size: var(--isl-field-control-height, 2.75rem); padding-block: var(--isl-space-2); }
-.app-text-field__error { margin-block: var(--isl-space-2) 0; font-size: .875rem; color: var(--isl-color-error); }
+.app-text-field ::deep .mud-input-slot { box-sizing: border-box; block-size: 2.5rem; min-block-size: 2.5rem; padding-inline: var(--isl-space-3); font-size: .875rem; }
+.app-text-field ::deep .mud-input-outlined-border { border-color: var(--isl-color-control-border); border-radius: var(--isl-radius-sm); transition: border-color var(--isl-duration-fast) var(--isl-ease-standard); }
+.app-text-field ::deep .mud-input-outlined.mud-input-focused .mud-input-outlined-border { border-color: var(--isl-color-primary); border-width: 1px; box-shadow: 0 0 0 2px var(--isl-color-border); }
+.app-text-field__error { margin-block: var(--isl-space-1) 0; font-size: .8125rem; color: var(--isl-color-error); }
 @media (pointer: coarse) {
     .app-text-field ::deep .mud-input-slot { min-block-size: 2.75rem; }
 }

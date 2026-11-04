@@ -1,0 +1,7 @@
+h1 { margin-block-end: var(--isl-space-4); font-size: clamp(1.5rem, 1.25rem + .75vw, 2rem); font-weight: 600; letter-spacing: -.015em; }
+:deep(.app-card) h2 { font-size: 1.125rem; font-weight: 600; margin-block: 0 var(--isl-space-2); color: var(--isl-color-text); }
+:deep(.app-card) p { font-size: .875rem; line-height: 1.6; color: var(--isl-color-text-secondary); margin-block: 0 var(--isl-space-4); }
+:deep(.app-card) .mud-button-root { margin-inline-end: var(--isl-space-2); margin-block-end: var(--isl-space-2); }
+section { margin-block-start: var(--isl-space-6); padding-block-start: var(--isl-space-5); border-block-start: 1px solid var(--isl-color-border); max-inline-size: 52rem; }
+section h2 { font-size: 1.125rem; font-weight: 600; color: var(--isl-color-text); margin-block: 0 var(--isl-space-2); }
+section p { font-size: .875rem; line-height: 1.6; color: var(--isl-color-text-secondary); margin-block: var(--isl-space-2); }

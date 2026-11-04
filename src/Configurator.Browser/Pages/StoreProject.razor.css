@@ -1,11 +1,10 @@
-.store-project { display: grid; gap: var(--isl-space-4); min-inline-size: 0; container-type: inline-size; }
-.store-project__metadata { display: grid; grid-template-columns: minmax(8rem, 1fr) minmax(0, 3fr); gap: var(--isl-space-2) var(--isl-space-4); }
-.store-project__metadata dd { margin-inline-start: 0; overflow-wrap: anywhere; }
-.store-project code { overflow-wrap: anywhere; }
-.store-project select { min-block-size: 2.75rem; max-inline-size: 100%; }
-.store-project__metadata { padding: var(--isl-space-5); border: var(--isl-card-border); border-radius: var(--isl-radius-md); background: var(--isl-color-surface); }
-.store-project__metadata dt { color: var(--isl-color-text-secondary); font-size: .875rem; }
-.store-project h2 { font-size: var(--isl-typography-h4-size); margin-block: var(--isl-space-4) 0; }
-.store-project > a { inline-size: fit-content; min-block-size: var(--isl-target-min); display: inline-flex; align-items: center; }
-.store-project summary { cursor: pointer; }
+.store-project { display: grid; gap: var(--isl-space-5); min-inline-size: 0; container-type: inline-size; }
+.store-project__metadata { display: grid; grid-template-columns: minmax(8rem, 1fr) minmax(0, 3fr); gap: var(--isl-space-2) var(--isl-space-4); padding: var(--isl-space-6); border: 1px solid var(--isl-color-border); border-radius: var(--isl-radius-card); background: var(--isl-color-surface); font-size: .8125rem; }
+.store-project__metadata dt { color: var(--isl-color-text-secondary); font-weight: 500; }
+.store-project__metadata dd { margin-inline-start: 0; font-family: var(--isl-font-family-mono); color: var(--isl-color-text); overflow-wrap: anywhere; }
+.store-project code { overflow-wrap: anywhere; font-family: var(--isl-font-family-mono); font-size: .75rem; }
+.store-project select { min-block-size: 2.5rem; max-inline-size: 100%; border: 1px solid var(--isl-color-control-border); border-radius: var(--isl-radius-sm); }
+.store-project h2 { font-size: 1.1875rem; font-weight: 600; margin-block: var(--isl-space-4) 0; }
+.store-project > a { inline-size: fit-content; min-block-size: 2rem; display: inline-flex; align-items: center; }
+.store-project summary { cursor: pointer; font-size: .8125rem; font-weight: 500; color: var(--isl-color-text-secondary); }
 @container (max-width: 36rem) { .store-project__metadata { grid-template-columns: minmax(0, 1fr); } }

@@ -1,5 +1,5 @@
-.configuration-configure-panel { min-inline-size: 0; margin-block: var(--isl-space-4); }
+.configuration-configure-panel { min-inline-size: 0; margin-block: var(--isl-space-3); }
 .configuration-configure-panel__fields { min-inline-size: 0; }
-.configuration-configure-panel__heading { font-size: var(--isl-typography-h5-size); padding-block-end: var(--isl-label-gap); border-block-end: var(--isl-card-border); }
-.configuration-configure-panel__description { color: var(--isl-color-text-secondary); margin-block: 0 var(--isl-field-gap); }
+.configuration-configure-panel__heading { font-size: 1.125rem; font-weight: 600; padding-block-end: var(--isl-space-2); border-block-end: 1px solid var(--isl-color-border); margin-block-end: var(--isl-space-3); color: var(--isl-color-text); }
+.configuration-configure-panel__description { color: var(--isl-color-text-secondary); font-size: .875rem; line-height: 1.5; margin-block: 0 var(--isl-space-5); max-inline-size: 72ch; }
 .configuration-configure-panel--single .configuration-configure-panel__heading { padding-block-end: 0; border: 0; margin-block-end: var(--isl-space-2); }

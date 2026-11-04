@@ -1,5 +1,11 @@
-.configuration-files { min-inline-size: 0; }
-.configuration-files__heading { font-size: var(--isl-typography-h5-size); overflow-wrap: anywhere; }
-.configuration-files__completions { overflow-wrap: anywhere; }
-.configuration-files__status { margin-block: var(--isl-space-3); }
-.configuration-files__preview { max-inline-size: 100%; overflow: auto; white-space: pre; }
+.configuration-files { min-inline-size: 0; border: 1px solid var(--isl-color-border); border-radius: var(--isl-radius-card); background: var(--isl-color-surface); padding: var(--isl-space-5); margin-block: var(--isl-space-4); transition: border-color var(--isl-duration-fast) var(--isl-ease-standard); }
+.configuration-files[data-readiness="draft"] { border-color: rgba(245, 158, 11, 0.3); }
+.configuration-files__heading { font-family: var(--isl-font-family-mono); font-size: 1.125rem; font-weight: 600; margin-block: 0 var(--isl-space-2); overflow-wrap: anywhere; }
+.configuration-files > p { font-size: .875rem; color: var(--isl-color-text-secondary); line-height: 1.5; margin-block: 0 var(--isl-space-3); }
+.configuration-files__completions { list-style: none; padding: 0; margin-block: var(--isl-space-3); display: grid; gap: var(--isl-space-2); overflow-wrap: anywhere; }
+.configuration-files__completions li { padding: var(--isl-space-2) var(--isl-space-3); border: 1px solid var(--isl-color-border); border-radius: var(--isl-radius-sm); background: var(--isl-color-surface-muted); font-size: .8125rem; }
+.configuration-files__completions details { margin-block-start: var(--isl-space-1); font-family: var(--isl-font-family-mono); font-size: .75rem; }
+.configuration-files .actions { display: flex; flex-wrap: wrap; gap: var(--isl-space-2); margin-block: var(--isl-space-3); }
+.configuration-files__status { padding: var(--isl-space-2) var(--isl-space-3); border: 1px solid var(--isl-color-border); border-radius: var(--isl-radius-sm); font-size: .8125rem; background: var(--isl-color-surface-muted); color: var(--isl-color-text-secondary); margin-block: var(--isl-space-3); }
+.configuration-files__preview { max-inline-size: 100%; max-block-size: 24rem; overflow: auto; border: 1px solid var(--isl-color-border); border-radius: var(--isl-radius-sm); padding: var(--isl-space-4); margin-block: var(--isl-space-3); background: #0e0e10; color: #e4e4e7; font-family: var(--isl-font-family-mono); font-size: .8125rem; line-height: 1.6; white-space: pre; }
+

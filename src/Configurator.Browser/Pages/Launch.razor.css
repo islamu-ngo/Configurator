@@ -1,4 +1,15 @@
-.launch-header h1 { margin-block-end: var(--isl-space-3); }
-.launch-header > p { color: var(--isl-color-text-secondary); margin-block-end: var(--isl-space-2); }
-.launch-header details { color: var(--isl-color-text-secondary); font-size: .875rem; }
-.launch-header code { overflow-wrap: anywhere; }
+.launch-header { margin-block-end: var(--isl-space-5); }
+.launch-header h1 { margin-block-end: var(--isl-space-2); font-size: clamp(1.5rem, 1.25rem + .75vw, 2rem); font-weight: 600; }
+.launch-header > p { color: var(--isl-color-text-secondary); margin-block-end: var(--isl-space-2); font-size: .875rem; }
+.launch-header details { border: 1px solid var(--isl-color-border); border-radius: var(--isl-radius-card); background: var(--isl-color-surface); margin-block-start: var(--isl-space-3); overflow: hidden; transition: border-color var(--isl-duration-fast) var(--isl-ease-standard); }
+.launch-header details[open] { border-color: var(--isl-color-control-border); }
+.launch-header summary { display: flex; align-items: center; justify-content: space-between; padding: var(--isl-space-3) var(--isl-space-4); font-size: .875rem; font-weight: 500; color: var(--isl-color-text); cursor: pointer; user-select: none; transition: background-color var(--isl-duration-fast) var(--isl-ease-standard); list-style: none; }
+.launch-header summary::-webkit-details-marker { display: none; }
+.launch-header summary::after { content: ""; display: inline-block; inline-size: .4375rem; block-size: .4375rem; border-inline-end: 1.5px solid var(--isl-color-text-secondary); border-block-end: 1.5px solid var(--isl-color-text-secondary); transform: rotate(45deg); transition: transform var(--isl-duration-fast) var(--isl-ease-standard); margin-inline-start: var(--isl-space-3); flex-shrink: 0; }
+.launch-header details[open] > summary::after { transform: rotate(-135deg); }
+.launch-header details > summary:hover { background: var(--isl-color-surface-muted); }
+.launch-header details[open] > summary { border-block-end: 1px solid var(--isl-color-border); }
+.launch-header details > p { padding-inline: var(--isl-space-4); margin-block: var(--isl-space-2); font-size: .8125rem; color: var(--isl-color-text-secondary); line-height: 1.5; }
+.launch-header details > p:last-child { padding-block-end: var(--isl-space-3); }
+.launch-header code { overflow-wrap: anywhere; font-family: var(--isl-font-family-mono); font-size: .75rem; padding: 1px 6px; border-radius: 3px; background: var(--isl-color-surface-muted); border: 1px solid var(--isl-color-border); }
+

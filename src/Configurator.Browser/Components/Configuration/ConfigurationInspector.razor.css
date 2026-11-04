@@ -1,6 +1,10 @@
 .configuration-inspector { overflow-wrap: anywhere; }
-.configuration-inspector p { white-space: pre-line; }
-.configuration-inspector ul { padding-inline-start: var(--isl-space-5); }
-.configuration-inspector a { display: inline-block; min-block-size: var(--isl-target-min); }
-.configuration-inspector dt { font-weight: 600; margin-block-start: var(--isl-space-3); }
-.configuration-inspector dd { margin-inline: 0; }
+.configuration-inspector [data-help-title] { font-size: 1.125rem; font-weight: 600; color: var(--isl-color-text); margin-block: 0 var(--isl-space-2); }
+.configuration-inspector p { white-space: pre-line; font-size: .875rem; line-height: 1.5; color: var(--isl-color-text-secondary); margin-block: var(--isl-space-2); }
+.configuration-inspector dl { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(0, 2fr); gap: var(--isl-space-2) var(--isl-space-3); padding: var(--isl-space-3) var(--isl-space-4); border: 1px solid var(--isl-color-border); border-radius: var(--isl-radius-card); background: var(--isl-color-surface-muted); margin-block: var(--isl-space-3); font-size: .8125rem; }
+.configuration-inspector dt { color: var(--isl-color-text-secondary); font-weight: 500; margin: 0; }
+.configuration-inspector dd { margin: 0; color: var(--isl-color-text); }
+.configuration-inspector code { font-family: var(--isl-font-family-mono); font-size: .75rem; padding: 1px 6px; border-radius: 3px; background: var(--isl-color-surface); border: 1px solid var(--isl-color-border); }
+.configuration-inspector ul { padding-inline-start: var(--isl-space-5); margin-block: var(--isl-space-2); }
+.configuration-inspector a { display: inline-block; min-block-size: var(--isl-target-min); color: var(--isl-color-primary); }
+

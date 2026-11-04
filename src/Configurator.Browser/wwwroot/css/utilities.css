@@ -1,4 +1,6 @@
-:is(a, button, input, select, textarea, [tabindex]):focus-visible { outline: 3px solid var(--isl-focus-ring); outline-offset: 3px; }
+:is(a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible { outline: 2px solid var(--isl-focus-ring); outline-offset: 2px; }
+:is(h1, h2, h3, h4, h5, h6, [tabindex="-1"]):focus,
+:is(h1, h2, h3, h4, h5, h6, [tabindex="-1"]):focus-visible { outline: none; }
 :is(a, button, input, select, textarea, [tabindex]) { scroll-margin-block: calc(var(--isl-shell-header-height) + var(--isl-space-4)); }
 .skip-link { position: absolute; inset-block-start: .5rem; inset-inline-start: .5rem; z-index: 1500; padding: .75rem 1rem; background: var(--isl-color-surface); transform: translateY(-150%); }
 .skip-link:focus { transform: translateY(0); }

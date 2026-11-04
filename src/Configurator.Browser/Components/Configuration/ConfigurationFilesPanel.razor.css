@@ -1,2 +1,5 @@
 .configuration-files-panel { border-block-start: var(--isl-card-border); padding-block-start: var(--isl-space-6); margin-block-start: var(--isl-space-6); }
-.configuration-files-panel__heading { font-size: var(--isl-typography-h5-size); margin-block-end: var(--isl-space-2); }
+.configuration-files-panel__heading { font-size: 1.25rem; font-weight: 600; letter-spacing: -.015em; margin-block-end: var(--isl-space-2); }
+.configuration-files-panel p.form-help { font-size: .875rem; color: var(--isl-color-text-secondary); line-height: 1.5; margin-block: var(--isl-space-1); max-inline-size: 70ch; }
+.configuration-files-panel__actions { display: flex; flex-wrap: wrap; gap: var(--isl-space-3); align-items: center; margin-block: var(--isl-space-4); }
+

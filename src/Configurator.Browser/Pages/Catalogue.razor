@@ -8,39 +8,52 @@
 <PageTitle>@T("CatalogueTitle") · Configurator</PageTitle>
 <div class="catalogue" lang="@Culture.Locale">
     <header class="page-header catalogue__hero" aria-labelledby="catalogue-heading">
-        <p class="eyebrow">@T("LocalWorkspace")</p>
+        <p class="eyebrow"><span class="eyebrow__dot" aria-hidden="true"></span>@T("LocalWorkspace")</p>
         <h1 id="catalogue-heading">@T("CatalogueTitle")</h1>
         <p class="lede">@T("CatalogueIntro")</p>
     </header>
-    <div class="catalogue__search">
-        <label for="catalogue-search">@T("ProjectSearch")</label>
-        <input class="form-control" id="catalogue-search" type="search" maxlength="256"
-               @bind="_query" @bind:event="oninput" />
+    <div class="catalogue__controls">
+        <div class="catalogue__search">
+            <label for="catalogue-search">@T("ProjectSearch")</label>
+            <input class="form-control" id="catalogue-search" type="search" maxlength="256"
+                   placeholder="@T("ProjectSearch")"
+                   @bind="_query" @bind:event="oninput" />
+        </div>
+        <p class="catalogue__count" role="status"><span class="catalogue__count-num">@Visible.Count()</span> @T("ProjectCount")</p>
     </div>
-    <p role="status">@T("ProjectCount"): @Visible.Count()</p>
     <div class="catalogue__definitions">
         @foreach (CatalogueProject project in Visible)
         {
             <article class="catalogue__definition" @key="project.ApplicationId">
-                <h2><bdi>@project.Title</bdi></h2>
-                @if (project.Primary is { Local: { } local })
-                {
-                    <p>@T("AvailableInApp")</p>
-                    <AppButton Href="@($"launch/{local.FamilyId:D}?digest={local.Digest.Value}")"
-                               aria-label="@string.Format(System.Globalization.CultureInfo.GetCultureInfo(Culture.Locale), T("ConfigureProject"), local.Title)">@T("Configure")</AppButton>
-                }
-                else if (project.Primary is { } directory)
-                {
-                    <p>@T("DirectorySource")</p>
-                    <AppButton data-action="open-directory" OnClick="() => OpenDirectoryAsync(directory)" Disabled="@_opening">@T(_opening ? "CheckingSnapshot" : "Configure")</AppButton>
-                }
-                <details open="@(project.Primary is null)">
-                    <summary>@T("SourceDetails")</summary>
-                    <p>@T("TrustBoundary")</p>
+                <div class="catalogue__definition-header">
+                    <h2><bdi>@project.Title</bdi></h2>
+                    @if (project.Primary is { Local: { } local })
+                    {
+                        <span class="catalogue__badge catalogue__badge--local"><span class="catalogue__badge-dot" aria-hidden="true"></span>@T("AvailableInApp")</span>
+                    }
+                    else if (project.Primary is { })
+                    {
+                        <span class="catalogue__badge"><span class="catalogue__badge-dot" aria-hidden="true"></span>@T("DirectorySource")</span>
+                    }
+                </div>
+                <div class="catalogue__card-actions">
+                    @if (project.Primary is { Local: { } localAction })
+                    {
+                        <AppButton Href="@($"launch/{localAction.FamilyId:D}?digest={localAction.Digest.Value}")"
+                                   aria-label="@string.Format(System.Globalization.CultureInfo.GetCultureInfo(Culture.Locale), T("ConfigureProject"), localAction.Title)">@T("Configure")</AppButton>
+                    }
+                    else if (project.Primary is { } directory)
+                    {
+                        <AppButton data-action="open-directory" OnClick="() => OpenDirectoryAsync(directory)" Disabled="@_opening">@T(_opening ? "CheckingSnapshot" : "Configure")</AppButton>
+                    }
+                </div>
+                <details class="catalogue__details" open="@(project.Primary is null)">
+                    <summary class="catalogue__summary"><span class="catalogue__summary-chevron" aria-hidden="true"></span>@T("SourceDetails")</summary>
+                    <p class="catalogue__trust-note">@T("TrustBoundary")</p>
                     @foreach (CatalogueDefinition choice in project.Choices)
                     {
-                        <section @key="choice">
-                            <h3><bdi>@choice.Title</bdi> · @T(choice.Local is null ? "DirectorySource" : "AvailableInApp")</h3>
+                        <section class="catalogue__choice" @key="choice">
+                            <h3><bdi>@choice.Title</bdi> <span class="catalogue__choice-source">· @T(choice.Local is null ? "DirectorySource" : "AvailableInApp")</span></h3>
                             <dl class="catalogue__metadata">
                                 <dt>@T("Family")</dt><dd><bdi dir="ltr">@choice.Family.ToString("D")</bdi></dd>
                                 <dt>@T("Revision")</dt><dd><bdi dir="ltr">@choice.Revision</bdi></dd>
@@ -53,17 +66,19 @@
                             {
                                 @if (choice.Local is { } alternative)
                                 {
-                                    <AppButton Href="@($"launch/{alternative.FamilyId:D}?digest={alternative.Digest.Value}")">@T("ConfigureRevision")</AppButton>
+                                    <div class="catalogue__choice-action"><AppButton Href="@($"launch/{alternative.FamilyId:D}?digest={alternative.Digest.Value}")">@T("ConfigureRevision")</AppButton></div>
                                 }
                                 else
                                 {
-                                    <AppButton OnClick="() => OpenDirectoryAsync(choice)" Disabled="@_opening">@T("ConfigureRevision")</AppButton>
+                                    <div class="catalogue__choice-action"><AppButton OnClick="() => OpenDirectoryAsync(choice)" Disabled="@_opening">@T("ConfigureRevision")</AppButton></div>
                                 }
                             }
                             @foreach (DefinitionStoreProject source in choice.Sources)
                             {
-                                <p><a href="@($"store/{source.ProjectId}?revision={choice.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)}")">@T("DirectorySource"): <bdi>@source.Name</bdi></a></p>
-                                <p><bdi>@source.Description</bdi></p>
+                                <div class="catalogue__choice-source-link">
+                                    <a href="@($"store/{source.ProjectId}?revision={choice.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)}")">@T("DirectorySource"): <bdi>@source.Name</bdi></a>
+                                    <p><bdi>@source.Description</bdi></p>
+                                </div>
                             }
                         </section>
                     }
@@ -87,8 +102,10 @@
     </p>
     <aside class="catalogue__recovery" aria-labelledby="catalogue-recovery-heading">
         <h2 id="catalogue-recovery-heading">@T("OtherSources")</h2>
-        <a href="open">@T("OpenFileOrLink")</a>
-        <a href="help">@T("HelpPrivacy")</a>
+        <div class="catalogue__recovery-links">
+            <a href="open">@T("OpenFileOrLink")</a>
+            <a href="help">@T("HelpPrivacy")</a>
+        </div>
     </aside>
 </div>
 
