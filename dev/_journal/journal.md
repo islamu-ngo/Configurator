@@ -651,3 +651,24 @@ heading over revealing a hidden label in document flow.
 
 **Promotion Consideration**:
 - [x] Stays in journal; re-evaluate the boundary when upgrading bUnit.
+
+[2026-11-04 Europe/Brussels] — Global validation errors have no field ownership
+
+**Context**: Deployment-aware configuration adds whole-workspace diagnostics when recipe/scope selection is invalid or unresolved.
+
+**Symptom / Observation**: Two existing Event form scenarios crashed while calculating progress because a Core diagnostic had an empty `FieldId`. The same diagnostic is valid independently of any editable field.
+
+**Root Cause**: `DefinitionFormFacts.CountProgress` converted every diagnostic into a field path through the form index. That index contains declared fields, whereas admission, resource-limit and context diagnostics can describe the workspace itself.
+
+**Resolution**: Global diagnostics map to the root `DefinitionPath`; field diagnostics retain their existing indexed paths. Section filtering checks actual ownership rather than indexing an empty field. `dotnet test --project tests/Configurator.Presentation.Tests/Configurator.Presentation.Tests.csproj --configuration Release --no-build --verbosity quiet -- --minimum-expected-tests 1` passed 318/318 with no skips after the fix, including the Event and context cases.
+
+**Why This Matters for Future Work**: A value-safe global error must remain actionable without inventing field ownership. Adding a new Core error code can reveal a client indexing assumption even when validation itself fails closed correctly; progress and correction summaries need a workspace-level path.
+
+**References**:
+- `src/Configurator.Presentation/Form/DefinitionFormFacts.cs:94`
+- `tests/Configurator.Presentation.Tests/Form/EventDefinitionFormTests.cs:10`
+- `tests/Configurator.Presentation.Tests/Form/DefinitionConfigurationContextTests.cs`
+- `docs/internal/PRESENTATION_STATE.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal; the shared state contract remains the implementation authority.

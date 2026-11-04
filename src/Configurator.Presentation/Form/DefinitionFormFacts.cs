@@ -25,8 +25,15 @@ internal sealed class DefinitionFormFacts
             .ToHashSet(StringComparer.Ordinal);
         DefinitionFieldInput[] activeInputs = validation.Fields.Where(state => state.IsActive)
             .Select(state => form.GetFieldEditor(state.Id).Input).ToArray();
-        InputDiagnostics = Array.AsReadOnly(activeInputs.SelectMany(field => field.InputDiagnostics).ToArray());
-        HasInputErrors = activeInputs.Any(field => field.InputDiagnosticCode is not null);
+        IEnumerable<DefinitionDiagnostic> inputDiagnostics = activeInputs.SelectMany(field => field.InputDiagnostics);
+        if (validation.ConfigurationContext is { } context)
+        {
+            var relevant = context.RelevantLocations.ToHashSet();
+            inputDiagnostics = inputDiagnostics.Where(diagnostic => relevant.Contains(DefinitionPath.FromSegments([
+                form.Fields[index.FieldPositions[diagnostic.FieldId]].Definition.Name, .. diagnostic.RelativePath])));
+        }
+        InputDiagnostics = Array.AsReadOnly(inputDiagnostics.ToArray());
+        HasInputErrors = InputDiagnostics.Count > 0;
         var resolvedNodes = new List<(DefinitionNodeState Node, IReadOnlyList<string> Path)>(validation.Nodes.Count);
         foreach (DefinitionNodeState node in validation.Nodes)
         {
@@ -86,7 +93,8 @@ internal sealed class DefinitionFormFacts
             IEnumerable<DefinitionDiagnostic> diagnostics, IReadOnlyList<DefinitionDiagnostic> inputErrors)
         {
             DefinitionPath Key(DefinitionDiagnostic diagnostic) =>
-                _index.PathKey([diagnostic.FieldId, .. diagnostic.RelativePath]);
+                diagnostic.FieldId.Length == 0 ? DefinitionPath.FromSegments([])
+                    : _index.PathKey([diagnostic.FieldId, .. diagnostic.RelativePath]);
             var invalidPaths = diagnostics.Where(diagnostic => diagnostic.Code != "value-required")
                 .Concat(inputErrors).Select(Key).ToHashSet();
             bool HasInputError(DefinitionNodeState node)

@@ -159,7 +159,7 @@ public sealed class DefinitionImportTests
         {
             """{"a":{"op":"copy","reference":{"scope":"root","path":"/options"}},"b":{"op":"copy","reference":{"scope":"root","path":"/options/db~1host"}}}""",
             """{"a":{"op":"copy","reference":{"scope":"root","path":"/options/db~1host"}},"b":{"op":"copy","reference":{"scope":"root","path":"/options"}}}""",
-            """{"a":{"op":"copy","reference":{"scope":"root","path":"/options/db~1host"}},"b":{"op":"copy","reference":{"scope":"root","path":"/options/db~1host"}}}""",
+            """{"a":{"op":"copy","reference":{"scope":"root","path":"/options"}},"b":{"op":"copy","reference":{"scope":"root","path":"/options"}}}""",
             """{"a":{"op":"copy","reference":{"scope":"root","path":"/tags/0"}}}"""
         })
         {

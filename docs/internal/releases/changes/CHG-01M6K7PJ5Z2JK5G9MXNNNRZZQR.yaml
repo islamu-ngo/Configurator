@@ -1,0 +1,31 @@
+Change-Id: CHG-01M6K7PJ5Z2JK5G9MXNNNRZZQR
+Title: "apply deployment choices atomically across workspace operations"
+Type: feat
+Scope: self-hosting
+Summary: "Retain inactive answers privately and invalidate stale preparation, document and import work when the selected context changes."
+Group: commit-all-workspace
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: documented
+    Detail: "Pass explicit public deployment context to scoped imports and migrate callers to the captured input revision contract."
+  Security:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: documented
+    Detail: "Pass explicit public deployment context to scoped imports and migrate callers to the captured input revision contract."
+  Migration:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: documented
+    Detail: "Pass explicit public deployment context to scoped imports and migrate callers to the captured input revision contract."
+  Configuration:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: documented
+    Detail: "Pass explicit public deployment context to scoped imports and migrate callers to the captured input revision contract."
+  OpenAPI:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: documented
+    Detail: "Pass explicit public deployment context to scoped imports and migrate callers to the captured input revision contract."

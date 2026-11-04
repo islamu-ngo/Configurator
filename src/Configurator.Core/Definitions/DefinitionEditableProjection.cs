@@ -17,6 +17,7 @@ public sealed class DefinitionEditableProjection
         DefinitionRevision = definition.Revision;
         DefinitionDigest = definition.Digest;
         ArtifactId = artifactId;
+        EnvironmentDialect = definition.Artifacts.FirstOrDefault(item => item.Id == artifactId)?.EnvironmentDialect;
         InputRevision = inputRevision;
         Coverage = Array.AsReadOnly(coverage.ToArray());
         Mappings = Array.AsReadOnly(Coverage.Where(item => item.Kind == DefinitionEditableCoverageKind.Editable)
@@ -29,6 +30,7 @@ public sealed class DefinitionEditableProjection
     public long DefinitionRevision { get; }
     public ArtifactDigest DefinitionDigest { get; }
     public string ArtifactId { get; }
+    public EnvironmentDestinationDialect? EnvironmentDialect { get; }
     public long InputRevision { get; }
     public IReadOnlyList<DefinitionEditableMapping> Mappings { get; }
     public IReadOnlyList<DefinitionEditableCoverage> Coverage { get; }
@@ -78,6 +80,14 @@ public sealed class DefinitionEditableProjection
             artifact.Projection.GetProperty("op").GetString() != "object") return Result();
 
         DefinitionValidationResult validation = DefinitionValidator.ValidateDraft(definition, answers, cancellationToken);
+        if (validation.ConfigurationContext is { } context &&
+            (!context.IsReady || !context.EligibleArtifactIds.Contains(artifactId, StringComparer.Ordinal))) return Result();
+        if (validation.ConfigurationContext is not null && definition.Deployment is { } deployment)
+        {
+            controllers.Add(DefinitionPath.Parse(deployment.RecipePointer));
+            controllers.Add(DefinitionPath.Parse(deployment.ScopePointer));
+            if (deployment.When is { } condition) CollectReferences(condition);
+        }
         var unknown = validation.UnresolvedFields.Concat(validation.DeferredFields)
             .Concat(validation.Fields.Where(field => field.HasError).Select(field => field.Definition.Name))
             .ToHashSet(StringComparer.Ordinal);
@@ -135,7 +145,7 @@ public sealed class DefinitionEditableProjection
                 if (artifactActive is null || active is null) kind = DefinitionEditableCoverageKind.ConditionUnresolved;
                 else if (artifactActive == false || active == false) kind = DefinitionEditableCoverageKind.Inactive;
             }
-            if (!DotenvCodec.IsKey(member.Name)) kind = DefinitionEditableCoverageKind.Unsupported;
+            if (!DotenvCodec.IsEnvironmentKey(member.Name)) kind = DefinitionEditableCoverageKind.Unsupported;
             candidates.Add((member.Name, path, schema, kind));
         }
 

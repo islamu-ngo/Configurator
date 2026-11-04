@@ -4,7 +4,7 @@
 > **Status:** Implemented bounded comparison; qualification is candidate-specific
 > **Owner:** Presentation
 > **Contributing reviewers:** Core owns inverse compilation and semantic evaluation
-> **Last Verified:** 2026-11-01
+> **Last Verified:** 2026-11-04
 > **Source Anchors:** `src/Configurator.Core/Definitions/DefinitionImport.cs`, `src/Configurator.Core/Definitions/DefinitionValidator.cs`, `src/Configurator.Presentation/Form/DefinitionFormModel.cs`
 
 ## Purpose And Authority
@@ -38,18 +38,38 @@ It reuses the existing JSON, YAML and dotenv parsers; no second import grammar,
 serializer package or application configuration binder participates.
 
 The supported algebra is direct root/item copies, objects, structural literals,
-fixed lists, complete one-to-one repeats and ordinal checks. A single unambiguous,
-schema-valid public scalar equality selector may supply artifact context.
-Filtered repetitions, overlapping assignments and guessed hidden values refuse.
+fixed lists, complete one-to-one repeats and ordinal checks. Deployment imports
+receive the workspace's captured answers explicitly. The selected recipe and
+component scope must be valid and the destination must be eligible. Public
+scalar context can resolve compound root guards and conditional object members;
+unresolved, secret or item-relative guards refuse strict inversion. Inactive
+members stay outside the inverse and supplied inactive keys refuse adoption.
+Definitions without deployment metadata may still establish one unambiguous,
+schema-valid public scalar equality selector from their artifact guard.
+Filtered repetitions, overlapping containers and guessed hidden values refuse.
 Human-readable documents and lossy projections do not acquire a universal inverse.
+
+Context validation is lazy: ordinary context-free projections and their
+inferable root selector do not traverse current answers. Their comparison
+findings and work counters therefore remain independent of unrelated drafts or
+accepted values. Capturing the input revision still fences later adoption.
 
 Assignment overlap is checked in a compilation-local ordinal segment index, not
 by comparing every new source path against every earlier unrelated copy. Each
-traversed segment charges the existing inverse-work budget. Duplicate,
+traversed segment charges the existing inverse-work budget. Container overlaps,
 ancestor/descendant and selector conflicts still refuse, and each repeated row
 has its own assignment scope. The size, inverse, validation and combined-work
 ceilings are unchanged. Wide flat Environment mappings therefore do not exhaust
 the inverse budget through an incidental quadratic scan.
+
+Exact non-nullable root scalar copies may share an inverse assignment only when
+they are sibling members of the same output object and their own guards match.
+The shared output parent fixes the inherited guard contract; different parents,
+containers, ancestors/descendants and repeated-item overlaps still refuse.
+During each recovery, all aliases must have matching presence and equal decoded,
+typed values. Disagreement yields `alias-conflict` and refuses atomic adoption;
+no key wins by order. Observations remain recovery-local, so concurrent
+assessments never share partial group state.
 
 Every input member must be accounted for as recovered data, structural metadata,
 or unrecognized/unassessed input. Literal mismatches can coexist with assessment
@@ -87,8 +107,9 @@ paths kept outside editing. This is partial scope, never full inverse support.
 The [Core contract](CORE_DEFINITION_CONTRACT.md#captured-editable-environment-projection)
 owns path eligibility, controller exclusion and scalar conversion.
 
-The scope captures definition family/revision/digest, artifact ID and answer input
-revision. `IsCurrent` rechecks identity, revision and recomputed coverage. Callers
+The scope captures definition family/revision/digest, artifact ID, environment
+dialect and answer input revision. Deployment selectors are controllers outside
+document editing. `IsCurrent` rechecks identity, revision and recomputed coverage. Callers
 must also enforce workspace lifetime and consent. Neither capture nor conversion
 provides mutation, merge/replace semantics or atomic application. Browser Developer
 editing and atomic Apply are not established by these Core APIs.
@@ -127,11 +148,13 @@ any BOM), 16,384 bytes per source line (excluding LF but including CR), 128 key
 characters, 8,192 decoded value bytes and 2,048 entries. No editable-purpose budget
 relaxation is implied.
 
-Ordinary `DefinitionImport` still explicitly selects `TemplatePlaceholders`,
-rejects BOM/CRLF and refuses null placeholder entries, including decoded empty
-assignments. Its whole-file inverse compilation, assessment and strict atomic
-prefill semantics above are unchanged. Editable parsing does not turn an
-unsupported artifact into an importable one.
+Ordinary `DefinitionImport` parses environment content using the selected
+artifact's admitted destination dialect and `EditableValues`. A supplied empty
+assignment remains an empty value, distinct from absence. Docker run literals
+and Compose interpolation inputs therefore use their own syntax in both export
+and inverse import. Unsupported input and unresolved interpolation refuse
+without partial adoption. Editable parsing does not turn an unsupported
+artifact into an importable one.
 
 ## Observation Evidence
 

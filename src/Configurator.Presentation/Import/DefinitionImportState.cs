@@ -77,8 +77,8 @@ public sealed partial class DefinitionFormModel
                 defaults = ReplaceableImportDefaults();
             }
             assessment = cooperativeYield is null
-                ? DefinitionImport.Inspect(Definition, artifactId, bytes, cancellationToken)
-                : await DefinitionImport.InspectAsync(Definition, artifactId, bytes, YieldCurrent, cancellationToken);
+                ? DefinitionImport.Inspect(Definition, artifactId, bytes, context: snapshot, cancellationToken: cancellationToken)
+                : await DefinitionImport.InspectAsync(Definition, artifactId, bytes, YieldCurrent, context: snapshot, cancellationToken: cancellationToken);
             DefinitionImportResult? autofill = assessment.Report.ExecutionCompleted
                 ? cooperativeYield is null
                     ? assessment.AssessAutofill(snapshot, defaults, cancellationToken)

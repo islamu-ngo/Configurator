@@ -97,6 +97,39 @@ do not qualify other hosts, assistive technologies, translation quality,
 stakeholder/usability or scholarly proof, or target acceptance. See the
 [qualification map](DEFINITION_PROFILE.md) for scenario obligations.
 
+### Deployment context and input lifetimes
+
+`DefinitionFormModel.ConfigurationContext` projects the Core evaluation for the
+current input revision. Its recipe and scope IDs identify ordinary public
+answers; `ConfigurationRecipes`, `ConfigurationScopes` and `EligibleArtifacts`
+expose admitted choices without creating another answer store. A null context
+means deployment selection does not apply to the current task. An unresolved
+context retains its correction controls while readiness and output remain blocked.
+
+`SelectConfigurationContext` validates the complete compatible pair before
+adopting either selector. Acceptance advances one input revision and raises one
+`InputChanged` notification. Rejection preserves accepted answers, omissions,
+document leases and prepared output. Clients resolve pending document edits
+through their existing Apply/Discard/Stay interaction before calling this
+mutation; Stay never reaches it. Detail and locale remain view state.
+
+The accepted edit uses the same document/import retirement and operation
+generation fences as any other input change. A late preparation or comparison
+cannot become current after a context edit. Scope changes retain inactive
+answers for deliberate switch-back, while Core excludes those answers from
+effective values and complete/draft output. Secret revocation traverses all
+accepted secret locations, including inactive recipients. It clears the
+workspace's private leaves and output eligibility; immutable managed copies and
+already released clipboard/download bytes carry no recall or complete-erasure
+guarantee. Canonical document coverage splits fixed objects at selected public
+leaves. A dynamic container is editable as a whole only when its current public
+values and omissions all belong to that scope; otherwise its coverage remains
+unavailable rather than exposing or deleting another recipient's retained data.
+Known inactive editor drafts likewise remain available for switch-back without
+counting as current input errors. Global malformed-input and context diagnostics
+still block readiness; they are counted without assuming a field-owned path.
+See the [public definition guide](../public/definitions.md).
+
 ### Secret operations and field feedback
 
 `DefinitionFormModel.GenerateSecretAsync` owns one bounded generation or derivation

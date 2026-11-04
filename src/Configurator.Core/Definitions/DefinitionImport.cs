@@ -15,37 +15,40 @@ public static class DefinitionImport
         AnswerSnapshot answers, CancellationToken cancellationToken = default) =>
         DefinitionEditableProjection.Capture(definition, artifactId, answers, cancellationToken);
 
-    public static DefinitionImportCapability GetCapability(Definition definition, string artifactId)
+    /// <summary>Resolves strict inverse support under the captured answers; deployment destinations require explicit context.</summary>
+    public static DefinitionImportCapability GetCapability(Definition definition, string artifactId,
+        AnswerSnapshot? context = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         try
         {
             var compiled = DefinitionImportWork.CompleteSynchronously(
-                DefinitionImportProjection.CompileAsync(definition, artifactId, new(CancellationToken.None)));
+                DefinitionImportProjection.CompileAsync(definition, artifactId, new(CancellationToken.None), context));
             return new(compiled.Projection is not null, compiled.Code);
         }
         catch (DefinitionImportLimitException) { return new(false, "inverse-limit"); }
     }
 
-    public static bool CanImport(Definition definition, string artifactId) =>
-        GetCapability(definition, artifactId).StrictAutofillSupported;
+    public static bool CanImport(Definition definition, string artifactId, AnswerSnapshot? context = null) =>
+        GetCapability(definition, artifactId, context).StrictAutofillSupported;
 
-    /// <summary>Inspects one ordinary artifact without initialization or workspace mutation.</summary>
+    /// <summary>Inspects one ordinary artifact under captured context without initializing imported values or mutating the workspace.</summary>
     public static DefinitionImportAssessment Inspect(Definition definition, string artifactId,
-        ReadOnlyMemory<byte> bytes, CancellationToken cancellationToken = default) =>
-        DefinitionImportWork.CompleteSynchronously(InspectCoreAsync(definition, artifactId, bytes, null, cancellationToken));
+        ReadOnlyMemory<byte> bytes, AnswerSnapshot? context = null, CancellationToken cancellationToken = default) =>
+        DefinitionImportWork.CompleteSynchronously(InspectCoreAsync(definition, artifactId, bytes, context, null, cancellationToken));
 
     /// <summary>Yields before inspection and in bounded traversal, normalization and materialization slices; completed callbacks keep execution synchronous.</summary>
     public static ValueTask<DefinitionImportAssessment> InspectAsync(Definition definition, string artifactId,
         ReadOnlyMemory<byte> bytes, Func<CancellationToken, ValueTask> cooperativeYield,
-        CancellationToken cancellationToken = default)
+        AnswerSnapshot? context = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(cooperativeYield);
-        return InspectCoreAsync(definition, artifactId, bytes, cooperativeYield, cancellationToken);
+        return InspectCoreAsync(definition, artifactId, bytes, context, cooperativeYield, cancellationToken);
     }
 
     private static async ValueTask<DefinitionImportAssessment> InspectCoreAsync(Definition definition, string artifactId,
-        ReadOnlyMemory<byte> bytes, Func<CancellationToken, ValueTask>? cooperativeYield, CancellationToken cancellationToken)
+        ReadOnlyMemory<byte> bytes, AnswerSnapshot? context,
+        Func<CancellationToken, ValueTask>? cooperativeYield, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
         cancellationToken.ThrowIfCancellationRequested();
@@ -66,10 +69,10 @@ public static class DefinitionImport
         string? refusal = null;
         try
         {
-            var (projection, code) = await DefinitionImportProjection.CompileAsync(definition, artifactId, work);
+            var (projection, code) = await DefinitionImportProjection.CompileAsync(definition, artifactId, work, context);
             if (projection is null)
                 return Terminal(code, DefinitionImportCompatibility.Unsupported);
-            JsonElement input = await ParseAsync(projection!.Artifact.Format, bytes, work, cancellationToken);
+            JsonElement input = await ParseAsync(projection!.Artifact, bytes, work, cancellationToken);
             DefinitionImportEvidence recovered = await projection.RecoverAsync(definition, input, work, Add);
             evidence = recovered;
             DefinitionValidationResult validation = await DefinitionValidator.ValidateSuppliedAsync(definition, evidence, work,
@@ -123,7 +126,7 @@ public static class DefinitionImport
         };
         return new(new(definition.Digest.ToString(), publicArtifact, resultCode, compatibility, true,
             coverage && inventory, inventory, autofill && inventory, findings, work.Units, work.InverseNodes,
-            work.ValidationNodes), definition, evidence, refusal);
+            work.ValidationNodes), definition, evidence, refusal, context?.InputRevision);
 
         async ValueTask Add(DefinitionImportFinding finding)
         {
@@ -155,8 +158,9 @@ public static class DefinitionImport
                     diagnostic.Location?.Segments ?? [], work),
                 field is null ? null : new(field.Id, safe)));
         }
-        string? StructuralRefusal() => findings.Any(item => item.Kind == DefinitionImportFindingKind.StructuralOutputChange ||
-            item.Code == "input-unrecognized") ? "inverse-unsupported" : null;
+        string? StructuralRefusal() => findings.Any(item => item.Code == "alias-conflict") ? "alias-conflict"
+            : findings.Any(item => item.Kind == DefinitionImportFindingKind.StructuralOutputChange ||
+                item.Code == "input-unrecognized") ? "inverse-unsupported" : null;
         DefinitionImportAssessment Terminal(string code, DefinitionImportCompatibility compatibility) =>
             new(new(definition.Digest.ToString(), publicArtifact, code, compatibility, false, false, true,
                 false, [], work.Units, work.InverseNodes, work.ValidationNodes), refusal: code);
@@ -165,7 +169,7 @@ public static class DefinitionImport
     public static DefinitionImportResult Assess(Definition definition, string artifactId,
         ReadOnlyMemory<byte> bytes, AnswerSnapshot current, IReadOnlySet<string>? replaceableDefaults = null)
     {
-        using DefinitionImportAssessment assessment = Inspect(definition, artifactId, bytes);
+        using DefinitionImportAssessment assessment = Inspect(definition, artifactId, bytes, context: current);
         return assessment.AssessAutofill(current, replaceableDefaults);
     }
 
@@ -333,15 +337,17 @@ public static class DefinitionImport
         return false;
     }
 
-    private static async ValueTask<JsonElement> ParseAsync(DefinitionArtifactFormat format, ReadOnlyMemory<byte> bytes,
+    private static async ValueTask<JsonElement> ParseAsync(ArtifactDefinition artifact, ReadOnlyMemory<byte> bytes,
         DefinitionImportWork work, CancellationToken cancellationToken)
     {
         if (bytes.IsEmpty || bytes.Length > CompositionLimits.DefaultAggregateSourceBytes)
             throw new DefinitionException("input-invalid");
         cancellationToken.ThrowIfCancellationRequested();
+        DefinitionArtifactFormat format = artifact.Format;
         if (format == DefinitionArtifactFormat.Dotenv)
         {
-            DotenvParseResult parsed = DotenvCodec.Parse(bytes, DotenvPurpose.TemplatePlaceholders, cancellationToken);
+            DotenvParseResult parsed = DotenvCodec.Parse(bytes, artifact.EnvironmentDialect!.Value,
+                DotenvPurpose.EditableValues, cancellationToken);
             if (!parsed.Succeeded) throw new DefinitionException("input-invalid");
             var entries = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (DotenvEntry entry in parsed.Document!.Entries)

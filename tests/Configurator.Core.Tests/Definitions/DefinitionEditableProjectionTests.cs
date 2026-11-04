@@ -199,14 +199,15 @@ public sealed class DefinitionEditableProjectionTests
         using var buffer = new MemoryStream();
         source.CopyTo(buffer);
         Definition definition = DefinitionCodec.ParseJson(buffer.ToArray());
-        var scope = DefinitionImport.CaptureEditableScope(definition, "environment",
-            DefinitionFixture.Answers("""{"operation":"environment","select.feature.deployment-config":true}"""));
+        AnswerSnapshot context = DefinitionFixture.Answers("""{"operation":"environment","deployment.recipe":"standalone","deployment.scope":"all","select.feature.deployment-config":true,"env.AUTHENTICATION_PROVIDER":"local","env.SECRET_PROVIDER":"Environment"}""");
+        var scope = DefinitionImport.CaptureEditableScope(definition, "environment-standalone", context);
         await Assert.That(scope.IsSupported).IsTrue();
         await Assert.That(scope.Mappings.Single(item => item.Key == "ASPNETCORE_ENVIRONMENT").Path.ToPointer())
             .IsEqualTo("/env.ASPNETCORE_ENVIRONMENT");
         await Assert.That(scope.Coverage.Any(item => item.Kind == DefinitionEditableCoverageKind.Protected)).IsTrue();
         await Assert.That(scope.Mappings.Any(item => item.Path.ToPointer() == "/operation")).IsFalse();
-        await Assert.That(DefinitionImport.CanImport(definition, "environment")).IsTrue();
+        DefinitionImportCapability capability = DefinitionImport.GetCapability(definition, "environment-standalone", context);
+        await Assert.That(capability.StrictAutofillSupported).IsTrue().Because(capability.Code);
     }
 
     [Test]

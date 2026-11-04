@@ -97,7 +97,9 @@ public sealed class DefinitionFormProjection
         Lazy<DefinitionDiscoverySnapshot> discovery, Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> entries,
         Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> relevantEntries,
         IReadOnlyList<DefinitionFormSection> sections, IEnumerable<string> visibleFields,
-        IReadOnlyDictionary<string, DefinitionFormProgress> sectionProgress)
+        IReadOnlyDictionary<string, DefinitionFormProgress> sectionProgress,
+        DefinitionConfigurationContext? configurationContext,
+        IReadOnlyList<ArtifactDefinition> eligibleArtifacts)
     {
         Progress = progress;
         _discovery = discovery;
@@ -106,6 +108,8 @@ public sealed class DefinitionFormProjection
         Sections = sections;
         SectionProgress = sectionProgress;
         _visibleFields = visibleFields.ToHashSet(StringComparer.Ordinal);
+        ConfigurationContext = configurationContext;
+        EligibleArtifacts = eligibleArtifacts;
     }
 
     private DefinitionFormProjection(DefinitionFormProjection current, Lazy<DefinitionDiscoverySnapshot> discovery)
@@ -117,11 +121,15 @@ public sealed class DefinitionFormProjection
         SectionProgress = current.SectionProgress;
         _relevantEntries = current._relevantEntries;
         _visibleFields = current._visibleFields;
+        ConfigurationContext = current.ConfigurationContext;
+        EligibleArtifacts = current.EligibleArtifacts;
     }
 
     internal DefinitionFormProjection WithDiscovery(Lazy<DefinitionDiscoverySnapshot> discovery) => new(this, discovery);
 
     public DefinitionFormProgress Progress { get; }
+    public DefinitionConfigurationContext? ConfigurationContext { get; }
+    public IReadOnlyList<ArtifactDefinition> EligibleArtifacts { get; }
     public DefinitionDiscoverySnapshot Discovery => _discovery.Value;
     public IReadOnlyList<DefinitionDiscoveryMatch> Matches => Discovery.Matches;
     public IReadOnlyList<DefinitionDiscoveryEntry> Entries => _entries.Value;
@@ -134,8 +142,13 @@ public sealed class DefinitionFormProjection
     internal static DefinitionFormProjection Create(DefinitionFormModel form)
     {
         DefinitionFormFacts facts = form.Facts;
-        return new(facts.Progress, form.CurrentDiscovery, form.OrderedEntries, form.CurrentRelevantEntries, form.OrderedSections,
+        IReadOnlyList<DefinitionFormSection> sections = form.OrderedSections;
+        if (facts.Validation.ConfigurationContext is not null)
+            sections = Array.AsReadOnly(sections.Select(section => new DefinitionFormSection(section.Id,
+                section.Title, section.Description, section.Fields.Where(fieldId => !form.IsConfigurationSelector([fieldId])),
+                section.Disclosure)).Where(section => section.Fields.Count > 0).ToArray());
+        return new(facts.Progress, form.CurrentDiscovery, form.OrderedEntries, form.CurrentRelevantEntries, sections,
             facts.Validation.Fields.Where(state => state.IsActive && form.IsEditorVisible([state.Id])).Select(state => state.Id),
-            facts.SectionProgress);
+            facts.SectionProgress, facts.Validation.ConfigurationContext, form.EligibleArtifacts);
     }
 }

@@ -38,7 +38,7 @@ public sealed class DefinitionImportAssessmentTests
             if (++callbacks != previousYieldCount + 1) return ValueTask.CompletedTask;
             entered.TrySetResult();
             return new(resume.Task);
-        }, cancellation.Token).AsTask();
+        }, cancellationToken: cancellation.Token).AsTask();
         try
         {
             await Assert.That(pending.IsCompleted).IsFalse();
@@ -141,7 +141,7 @@ public sealed class DefinitionImportAssessmentTests
         int yields = 0;
         using var cancellation = new CancellationTokenSource();
         Task<DefinitionImportAssessment> pending = DefinitionImport.InspectAsync(definition, "config", input,
-            Yield, cancellation.Token).AsTask();
+            Yield, cancellationToken: cancellation.Token).AsTask();
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         await Assert.That(pending.IsCompleted).IsFalse();
         cancellation.Cancel();
@@ -235,7 +235,7 @@ public sealed class DefinitionImportAssessmentTests
         int yields = 0;
         await Assert.That(async () =>
         {
-            using var result = await DefinitionImport.InspectAsync(definition, "config", input, Yield, cancellation.Token);
+            using var result = await DefinitionImport.InspectAsync(definition, "config", input, Yield, cancellationToken: cancellation.Token);
         }).Throws<OperationCanceledException>();
         await Assert.That(async () =>
         {
@@ -426,11 +426,12 @@ public sealed class DefinitionImportAssessmentTests
         using var bytes = new MemoryStream();
         await source.CopyToAsync(bytes);
         Definition definition = DefinitionCodec.ParseJson(bytes.ToArray());
-        DefinitionImportCapability capability = DefinitionImport.GetCapability(definition, "environment");
+        AnswerSnapshot context = DefinitionFixture.Answers("""{"operation":"environment","deployment.recipe":"separate-images","deployment.scope":"blazor","env.AUTHENTICATION_PROVIDER":"local","env.SECRET_PROVIDER":"Environment"}""");
+        DefinitionImportCapability capability = DefinitionImport.GetCapability(definition, "environment-blazor", context);
         Console.WriteLine($"COMPARISON_PROJECTION family={definition.FamilyId:D} digest={definition.Digest.Value} code={capability.Code}");
         await Assert.That(capability.StrictAutofillSupported).IsTrue().Because(capability.Code);
-        using var assessment = DefinitionImport.Inspect(definition, "environment",
-            "API_ENDPOINT=https://comparison.synthetic.example\nPUBLIC_BASE_URL=https://comparison.synthetic.example\n"u8.ToArray());
+        using var assessment = DefinitionImport.Inspect(definition, "environment-blazor",
+            "API_ENDPOINT=https://comparison.synthetic.example\nPUBLIC_BASE_URL=https://comparison.synthetic.example\n"u8.ToArray(), context: context);
         await Assert.That(assessment.Report.ExecutionCompleted).IsTrue();
         await Assert.That(assessment.Report.InverseNodes).IsLessThanOrEqualTo(65_536);
         await Assert.That(assessment.Report.WorkUnits).IsLessThanOrEqualTo(131_072);
@@ -484,7 +485,7 @@ public sealed class DefinitionImportAssessmentTests
         cancellation.Cancel();
         await Assert.That(() => DefinitionImport.Inspect(Definition("""{"x":{"type":"string"}}""",
             """{"x":{"op":"copy","reference":{"scope":"root","path":"/x"}}}"""), "config", "{}"u8.ToArray(),
-            cancellation.Token)).Throws<OperationCanceledException>();
+            cancellationToken: cancellation.Token)).Throws<OperationCanceledException>();
     }
 
     [Test]

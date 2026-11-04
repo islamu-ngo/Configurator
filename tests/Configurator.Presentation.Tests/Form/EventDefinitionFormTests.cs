@@ -18,7 +18,9 @@ public sealed class EventDefinitionFormTests
         await Assert.That(form.Validate().TryGetEffectiveValue(inclusion, out JsonElement initialInclusion)).IsTrue();
         await Assert.That(initialInclusion.GetBoolean()).IsTrue();
         await Assert.That(string.Join(',', form.Definition.Artifacts.Select(artifact => artifact.Id).Order(StringComparer.Ordinal)))
-            .IsEqualTo("configuration-manifest,environment,legal-drafts,operator-identity,tenant-package");
+            .IsEqualTo("configuration-manifest,environment-api,environment-blazor,environment-compose,environment-compose-api,environment-compose-blazor,environment-standalone,legal-drafts,operator-identity,tenant-package");
+        await Assert.That(form.ConfigurationContext!.RecipeId).IsEqualTo("standalone");
+        await Assert.That(form.ConfigurationContext.ScopeId).IsEqualTo("all");
         await Assert.That(form.SetValue(["operation"], JsonSerializer.SerializeToElement("configuration-manifest"))).IsTrue();
         await Assert.That(form.SetValue(["select.feature.platform-config"], JsonSerializer.SerializeToElement(false))).IsTrue();
         await Assert.That(form.Validate().TryGetEffectiveValue(output, out JsonElement deliberateOutput)).IsTrue();
@@ -68,7 +70,7 @@ public sealed class EventDefinitionFormTests
     }
 
     [Test]
-    [Arguments("environment", "event.env")]
+    [Arguments("environment", "event-standalone.env")]
     [Arguments("configuration-manifest", "configuration-manifest.json")]
     [Arguments("tenant-package", "tenant-package.json")]
     [Arguments("operator-identity", "operator-identity.json")]
@@ -80,11 +82,17 @@ public sealed class EventDefinitionFormTests
         await Assert.That(selector.Location.ToPointer()).IsEqualTo("/operation");
         await Assert.That(selector.Options.Count).IsEqualTo(5);
         DefinitionOutputOption option = selector.Options.Single(option => option.Value == choice);
-        await Assert.That(option.ArtifactIds.SequenceEqual([choice])).IsTrue();
-        await Assert.That(form.Definition.Artifacts.Single(artifact => artifact.Id == choice).FileName).IsEqualTo(fileName);
+        string artifactId = choice == "environment" ? "environment-standalone" : choice;
+        string[] expectedArtifacts = choice == "environment"
+            ? ["environment-standalone", "environment-api", "environment-blazor", "environment-compose", "environment-compose-api", "environment-compose-blazor"]
+            : [choice];
+        await Assert.That(option.ArtifactIds.SequenceEqual(expectedArtifacts)).IsTrue();
+        await Assert.That(form.Definition.Artifacts.Single(artifact => artifact.Id == artifactId).FileName).IsEqualTo(fileName);
         await Assert.That(form.SetValue(["operation"], JsonSerializer.SerializeToElement(choice))).IsTrue();
         await Assert.That(form.SelectLocale("ar")).IsTrue();
         await Assert.That(form.Snapshot().Values["operation"].GetString()).IsEqualTo(choice);
+        await Assert.That(form.EligibleArtifacts.Count).IsEqualTo(1);
+        await Assert.That(form.EligibleArtifacts.Single().Id).IsEqualTo(artifactId);
         await Assert.That(form.Validate().TryGetEffectiveValue(
             DefinitionPath.Parse("/operation"), out JsonElement effective)).IsTrue();
         await Assert.That(effective.GetString()).IsEqualTo(choice);

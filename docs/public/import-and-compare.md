@@ -22,6 +22,17 @@ Select the application definition and the declared output artifact that matches
 your JSON, YAML or dotenv file. Use an ordinary configuration export; no special
 Configurator import envelope or older definition is required.
 
+For definitions with deployment choices, select the recipe and component scope
+first, then choose one of its eligible destinations. Import uses that captured
+context; filenames and imported keys do not select or broaden the scope.
+Environment files use the destination's declared Docker run or Compose syntax,
+including explicit empty assignments. Switching context retires the comparison
+and any pending adoption.
+
+Some destinations repeat one setting for distinct consumers. Those keys must
+appear together and agree after decoding. Conflicting or partly missing copies
+refuse filling fields; correct the file rather than relying on key order.
+
 A matching filename does not authenticate a file or establish its source release.
 Some outputs intentionally omit information and cannot be reversed. The tool
 must show unsupported or incomplete coverage rather than guess missing values.

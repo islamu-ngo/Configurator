@@ -68,7 +68,9 @@ public sealed partial class DefinitionFormModel
                     entries.Add(new(mapping.Key, DefinitionDocumentEditing.Display(value),
                         DotenvEntryKind.LocalHumanValue, false, DotenvProvenance.UserInput));
             cancellationToken.ThrowIfCancellationRequested();
-            DotenvRenderResult rendered = DotenvCodec.Render(new(entries), true, DotenvPurpose.EditableValues);
+            DotenvRenderResult rendered = environment.EnvironmentDialect is { } dialect
+                ? DotenvCodec.Render(new(entries), true, dialect, DotenvPurpose.EditableValues)
+                : DotenvCodec.Render(new(entries), true, DotenvPurpose.EditableValues);
             if (!rendered.Succeeded) throw new InvalidOperationException("document-source-invalid");
             return rendered.Bytes.ToArray();
         }
@@ -149,9 +151,11 @@ public sealed partial class DefinitionFormModel
 
 internal static class DefinitionDocumentEditing
 {
-    internal static IReadOnlyList<DefinitionDocumentCoverage> CaptureCoverage(DefinitionNode root)
+    internal static IReadOnlyList<DefinitionDocumentCoverage> CaptureCoverage(DefinitionNode root,
+        DefinitionConfigurationContext? context = null, AnswerSnapshot? answers = null)
     {
         var result = new List<DefinitionDocumentCoverage>();
+        HashSet<DefinitionPath>? selected = context?.RelevantLocations.ToHashSet();
         foreach ((string name, DefinitionNode node) in root.Properties)
             Visit(node, DefinitionPath.FromSegments([name]), DefinitionSensitivityPolicy.SensitivityOf(root));
         return Array.AsReadOnly(result.ToArray());
@@ -160,12 +164,29 @@ internal static class DefinitionDocumentEditing
         {
             bool ownPublic = inherited == FieldSensitivity.Public
                 && DefinitionSensitivityPolicy.SensitivityOf(node) == FieldSensitivity.Public;
-            if (ownPublic && EntirelyPublic(node)) result.Add(new(path, true));
+            if (selected is not null && !selected.Contains(path)) result.Add(new(path, false));
+            else if (ownPublic && EntirelyPublic(node) && (selected is null ||
+                node.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence))) result.Add(new(path, true));
             else if (ownPublic && node.Type == DefinitionNodeType.Mapping && node.AdditionalProperties is null
                 && node.Variants.Count == 0)
                 foreach ((string name, DefinitionNode child) in node.Properties)
                     Visit(child, DefinitionPath.FromSegments([.. path.Segments, name]), FieldSensitivity.Public);
+            else if (ownPublic && EntirelyPublic(node) && answers is not null &&
+                TryRead(answers.Values, path, out JsonElement supplied) && SelectedTree(supplied, path) &&
+                answers.Omitted.Where(omitted => Prefix(path, omitted)).All(omitted => selected!.Contains(omitted)))
+                result.Add(new(path, true));
             else result.Add(new(path, false));
+        }
+        bool SelectedTree(JsonElement value, DefinitionPath path)
+        {
+            if (!selected!.Contains(path)) return false;
+            if (value.ValueKind == JsonValueKind.Object)
+                return value.EnumerateObject().All(member => SelectedTree(member.Value,
+                    DefinitionPath.FromSegments([.. path.Segments, member.Name])));
+            if (value.ValueKind == JsonValueKind.Array)
+                return value.EnumerateArray().Select((item, index) => SelectedTree(item,
+                    DefinitionPath.FromSegments([.. path.Segments, index.ToString(System.Globalization.CultureInfo.InvariantCulture)]))).All(active => active);
+            return true;
         }
         static bool EntirelyPublic(DefinitionNode node) =>
             DefinitionSensitivityPolicy.SensitivityOf(node) == FieldSensitivity.Public
@@ -207,7 +228,9 @@ internal static class DefinitionDocumentEditing
         }
         else
         {
-            DotenvParseResult parsed = DotenvCodec.Parse(source, DotenvPurpose.EditableValues, cancellationToken);
+            DotenvParseResult parsed = session.EnvironmentScope!.EnvironmentDialect is { } dialect
+                ? DotenvCodec.Parse(source, dialect, DotenvPurpose.EditableValues, cancellationToken)
+                : DotenvCodec.Parse(source, DotenvPurpose.EditableValues, cancellationToken);
             if (!parsed.Succeeded)
                 return new(null, parsed.Diagnostics.Select((item, index) => new DefinitionDocumentDiagnostic(
                     item.Code, parsed.DiagnosticLocations[index].Line, parsed.DiagnosticLocations[index].Column)),

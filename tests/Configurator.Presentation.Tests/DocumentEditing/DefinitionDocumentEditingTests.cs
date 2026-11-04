@@ -189,7 +189,7 @@ public sealed class DefinitionDocumentEditingTests
         form.SetValue(["count"], JsonSerializer.SerializeToElement(7));
         using (var session = form.OpenDocument(DefinitionDocumentRepresentation.Environment, "env"))
         {
-            using var parsed = session.Parse(Encoding.UTF8.GetBytes("\uFEFF# comment\r\nTEXT=\"\"\r\nDOT=\"a#b=c\\\\d\\\"e\"\r\n"));
+            using var parsed = session.Parse(Encoding.UTF8.GetBytes("\uFEFF# comment\r\nTEXT=\r\nDOT=a#b=c\\d\"e\r\n"));
             await Assert.That(parsed.Succeeded).IsTrue();
             await Assert.That(session.Apply(parsed.Candidate!).Succeeded).IsTrue();
             await Assert.That(form.Snapshot().Values["count"].GetInt32()).IsEqualTo(7);

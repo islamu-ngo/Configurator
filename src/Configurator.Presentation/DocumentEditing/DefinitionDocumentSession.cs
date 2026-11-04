@@ -105,7 +105,8 @@ public sealed class DefinitionDocumentSession : IDisposable
         Privacy = form.SessionPrivacy;
         if (representation == DefinitionDocumentRepresentation.Environment)
             EnvironmentScope = DefinitionImport.CaptureEditableScope(form.Definition, artifactId!, form.Snapshot());
-        Coverage = DefinitionDocumentEditing.CaptureCoverage(form.Definition.Configuration);
+        Coverage = DefinitionDocumentEditing.CaptureCoverage(form.Definition.Configuration,
+            form.ConfigurationContext, form.Snapshot());
         Scope = representation == DefinitionDocumentRepresentation.Canonical
             ? Array.AsReadOnly(Coverage.Where(item => item.Editable).Select(item => item.Path).ToArray())
             : Array.AsReadOnly(EnvironmentScope!.Mappings.Select(item => item.Path).ToArray());

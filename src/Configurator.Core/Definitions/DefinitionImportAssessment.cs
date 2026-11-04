@@ -9,15 +9,17 @@ public sealed class DefinitionImportAssessment : IDisposable
     private Definition? _definition;
     private DefinitionImportEvidence? _evidence;
     private readonly string? _refusal;
+    private readonly long? _inputRevision;
     private bool _disposed;
 
     internal DefinitionImportAssessment(DefinitionImportReport report, Definition? definition = null,
-        DefinitionImportEvidence? evidence = null, string? refusal = null)
+        DefinitionImportEvidence? evidence = null, string? refusal = null, long? inputRevision = null)
     {
         Report = report;
         _definition = definition;
         _evidence = evidence;
         _refusal = refusal;
+        _inputRevision = inputRevision;
 #if CONFIGURATOR_IMPORT_OWNERSHIP_PROBE
         Configurator.Engineering.ImportComparisonOwnershipProbe.ObserveProposal(this, evidence, evidence?.Answers, evidence?.Assignments);
 #endif
@@ -52,6 +54,8 @@ public sealed class DefinitionImportAssessment : IDisposable
         }
         if (evidence is null || definition is null || _refusal is not null)
             return new(false, null, _refusal ?? Report.Code);
+        if (_inputRevision is { } revision && current.InputRevision != revision)
+            return new(false, null, "context-stale");
         return await DefinitionImport.MergeAsync(definition, evidence, current, replaceableDefaults, cancellationToken,
             cooperativeYield: cooperativeYield);
     }

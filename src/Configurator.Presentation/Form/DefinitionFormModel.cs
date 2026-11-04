@@ -211,6 +211,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryMetadataNode(path, out DefinitionFormIndex.Node indexed, out _)) return false;
+            if (IsConfigurationSelector(path)) return false;
             DefinitionFormFacts facts = Facts;
             if (!facts.IsActive(path[0])) return false;
             bool needsCorrection = facts.NeedsCorrection(path);
@@ -950,6 +951,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HasAnswerBudgetError));
         OnPropertyChanged(nameof(VisibleFields));
         Notify(RaiseInputChanged);
+        OnPropertyChanged(nameof(ConfigurationContext));
+        OnPropertyChanged(nameof(ConfigurationScopes));
+        OnPropertyChanged(nameof(EligibleArtifacts));
     }
 
     private void RaiseInputChanged()
