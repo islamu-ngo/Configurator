@@ -7,6 +7,7 @@ using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using CommunityToolkit.Mvvm.Input;
+using Configurator.Desktop.ViewModels.Fields;
 
 /// <summary>Bridges declarative focus requests to native controls without exposing controls to viewmodels.</summary>
 public sealed class FocusBehavior : AvaloniaObject
@@ -64,25 +65,39 @@ public sealed class FocusBehavior : AvaloniaObject
         static Control Resolve(Control owner) => owner is Window window && GetTarget(owner) is { } name
             ? window.GetLogicalDescendants().OfType<Control>().FirstOrDefault(item => item.Name == name) ?? owner : owner;
         Control target = Resolve(control);
-        if (target.IsEffectivelyVisible && target.IsEffectivelyEnabled && target.Focus()) return;
+        bool Current() => target.DataContext is not FieldViewModel field || field.IsFocusRequestCurrent;
+        if (!Current()) return;
+        if (target.IsLoaded && target.IsEffectivelyVisible && target.IsEffectivelyEnabled && target.Focus())
+        {
+            target.BringIntoView();
+            return;
+        }
 
         void Cancel()
         {
             target.PropertyChanged -= Ready;
             target.AttachedToVisualTree -= Attached;
+            target.LayoutUpdated -= LayoutReady;
             control.DetachedFromVisualTree -= Detached;
             control.ClearValue(CancelPendingProperty);
         }
         void TryFocus()
         {
-            if (target.IsAttachedToVisualTree() && target.IsEffectivelyVisible &&
-                target.IsEffectivelyEnabled && target.Focus()) Cancel();
+            if (!Current()) { Cancel(); return; }
+            if (target.IsLoaded && target.IsAttachedToVisualTree() && target.IsEffectivelyVisible &&
+                target.IsEffectivelyEnabled && target.Focus())
+            {
+                target.BringIntoView();
+                Cancel();
+            }
         }
         void Ready(object? sender, AvaloniaPropertyChangedEventArgs args) => TryFocus();
         void Attached(object? sender, VisualTreeAttachmentEventArgs args) => TryFocus();
+        void LayoutReady(object? sender, EventArgs args) => TryFocus();
         void Detached(object? sender, VisualTreeAttachmentEventArgs args) => Cancel();
         target.PropertyChanged += Ready;
         target.AttachedToVisualTree += Attached;
+        target.LayoutUpdated += LayoutReady;
         control.DetachedFromVisualTree += Detached;
         Action cancel = Cancel;
         control.SetValue(CancelPendingProperty, cancel);

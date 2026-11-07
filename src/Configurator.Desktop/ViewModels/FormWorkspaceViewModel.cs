@@ -41,7 +41,10 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         messenger.Register<FormWorkspaceViewModel, DefinitionClearedMessage>(this,
             static (workspace, _) => workspace.Replace(null));
         messenger.Register<FormWorkspaceViewModel, DefinitionLoadedMessage>(this,
-            static (workspace, message) => workspace.Replace(new DefinitionFormModel(message.Definition)));
+            static (workspace, message) =>
+            {
+                workspace.Replace(new DefinitionFormModel(message.Definition));
+            });
         messenger.Register<FormWorkspaceViewModel, OperationStateMessage>(this,
             static (workspace, message) => workspace.IsBusy = message.IsBusy);
         messenger.Register<FormWorkspaceViewModel, FormValidationRequestedMessage>(this,
@@ -51,6 +54,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     }
 
     public DefinitionFormModel? Form => _form;
+    internal event Action<FieldViewModel>? EditorFocusRequested;
     public IReadOnlyList<FieldViewModel> Fields => _fields;
     public IReadOnlyList<ConfigurationContextChoice> ConfigurationChoices => _configurationChoices;
     public bool HasConfigurationContext => Form?.ConfigurationContext is not null;
@@ -91,7 +95,9 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
             if (!_disposed) Form?.SetAllSectionsExpanded(value);
         }
     }
-    public FlowDirection FlowDirection => (FollowLocaleDirection ? Form?.Direction == "rtl" : IsRightToLeft)
+    public FlowDirection FlowDirection => (FollowLocaleDirection
+        ? Form is null ? Strings.Culture.TextInfo.IsRightToLeft : Form.Direction == "rtl"
+        : IsRightToLeft)
         ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
     public FieldViewModel? FirstError => Fields.FirstOrDefault(item => item.IsVisible && item.HasError);
     public FieldViewModel? FirstVisible => Fields.FirstOrDefault(item => item.IsVisible && item.IsRequired)
@@ -115,6 +121,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         if (form is not null)
         {
             _fields = _factory.Create(form);
+            foreach (FieldViewModel field in _fields) field.FocusRequested += RevealEditor;
             form.InputChanged += InputChanged;
             form.ViewChanged += ViewChanged;
         }
@@ -189,6 +196,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         }
         try
         {
+            foreach (FieldViewModel field in Fields) field.RequestValidationFeedback();
             DefinitionValidationResult result = Form.Validate();
             bool ready = result.IsReady && !Form.HasInputErrors;
             NotifyFieldState();
@@ -197,17 +205,26 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
                     .Concat(Form.Fields.Where(item => item.InputDiagnosticCode is not null || !item.TryValue(out _))
                         .Select(item => $"{item.Definition.Id}:input-invalid"))), Guidance:
                 ready ? DesktopStatusGuidance.General : DesktopStatusGuidance.ValidationInvalid));
-            if (!ready) FirstError?.RequestFocus();
+            if (!ready) FocusFirstError();
             return ready;
         }
         catch (DefinitionException exception)
         {
             NotifyFieldState();
-            FirstError?.RequestFocus();
+            FocusFirstError();
             _messenger.Send(new StatusChangedMessage($"validation-invalid:{exception.Code}", Guidance: DesktopStatusGuidance.ValidationInvalid));
             return false;
         }
     }
+
+    private void FocusFirstError()
+    {
+        if (FirstError is not { } field) return;
+        EditorFocusRequested?.Invoke(field);
+        field.RequestFocus();
+    }
+
+    private void RevealEditor(FieldViewModel field) => EditorFocusRequested?.Invoke(field);
 
     public void Dispose()
     {

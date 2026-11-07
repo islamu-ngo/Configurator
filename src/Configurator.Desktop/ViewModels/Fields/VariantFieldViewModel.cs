@@ -10,16 +10,29 @@ public sealed class VariantFieldViewModel : FieldViewModel
     private DefinitionNode? _branch;
     private VariantChoice? _selectedChoice;
     private bool _loading;
+    private readonly ObservableCollection<FieldViewModel> _visibleChildren = [];
+    private bool _isExpanded;
 
     internal VariantFieldViewModel(DefinitionNode schema, string name, bool required,
         FieldViewModel? parent, bool listItem, bool inheritedMasking = false)
         : base(schema, name, required, parent, listItem, inheritedMasking)
     {
+        _isExpanded = parent is null or RootFieldViewModel;
+        VisibleChildren = new(_visibleChildren);
         Children = new(_children);
         Choices = Array.AsReadOnly(schema.Variants.Select((_, index) => new VariantChoice(index)).ToArray());
     }
 
     public ReadOnlyObservableCollection<FieldViewModel> Children { get; }
+    public ReadOnlyObservableCollection<FieldViewModel> VisibleChildren { get; }
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            if (!IsDisposed && SetProperty(ref _isExpanded, value)) RefreshChildren();
+        }
+    }
     internal override IEnumerable<FieldViewModel> Descendants => Children;
     public IReadOnlyList<VariantChoice> Choices { get; }
     public VariantChoice? SelectedChoice
@@ -27,7 +40,7 @@ public sealed class VariantFieldViewModel : FieldViewModel
         get => _selectedChoice;
         set
         {
-            if (IsDisposed || _loading) return;
+            if (IsDisposed || !CanEdit || _loading) return;
             if (value is null) Form.SetValue(FullPath(), null);
             else Form.SelectVariant(FullPath(), value.Index);
         }
@@ -53,11 +66,19 @@ public sealed class VariantFieldViewModel : FieldViewModel
             SetProperty(ref _selectedChoice, branch is null ? null :
                 Choices.Single(choice => ReferenceEquals(Schema.Variants[choice.Index], branch)), nameof(SelectedChoice));
             base.Load(value);
+            RefreshChildren();
         }
         finally { _loading = false; }
     }
 
-    public override void RequestFocus() => SignalFocus();
+    private void RefreshChildren() =>
+        FieldProjectionCollection.Synchronize(_visibleChildren, IsExpanded ? Children.ToArray() : []);
+    public override void RequestFocus()
+    {
+        IsExpanded = true;
+        if (Children.Any(child => child.IsVisible && child.HasError)) base.RequestFocus();
+        else SignalFocus();
+    }
     private FieldViewModel CreateChild(string name, DefinitionNode schema, bool required)
     {
         var child = FormFieldFactory.Project(schema, name, required, this, false);
@@ -67,6 +88,7 @@ public sealed class VariantFieldViewModel : FieldViewModel
     public override void Dispose()
     {
         if (IsDisposed) return;
+        _visibleChildren.Clear();
         base.Dispose();
         _children.Clear();
         _branch = null;

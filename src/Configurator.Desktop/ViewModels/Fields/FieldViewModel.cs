@@ -14,7 +14,7 @@ using Configurator.Presentation;
 /// </summary>
 public abstract class FieldViewModel : ObservableObject, IDisposable
 {
-    private static readonly string[] ConstraintNames = ["minimum", "maximum", "minLength", "maxLength", "minItems", "maxItems"];
+    private readonly bool _requiresMasking;
     private string _text = string.Empty;
     private bool _provided;
     private bool _hasError;
@@ -23,6 +23,10 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     private bool _editing;
     private int _focusRequestVersion;
     private int _supplyFocusRequestVersion;
+    private long _focusInputRevision = -1;
+    private string? _focusIdentity;
+    private bool _wasEdited;
+    private bool _feedbackRequested;
     private DefinitionFormModel? _form;
     private DefinitionFieldInput? _input;
     private FieldViewModel? _root;
@@ -38,12 +42,18 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         _id = name;
         Parent = parent;
         IsListItem = listItem;
-        RequiresMasking = inheritedMasking || parent?.RequiresMasking == true || HasNonPublicSchema(schema);
+        _requiresMasking = inheritedMasking || parent?.RequiresMasking == true || HasNonPublicSchema(schema);
         _isRequired = required;
-        ClearCommand = new RelayCommand(Clear, () => !IsDisposed);
-        SupplyCommand = new RelayCommand(Supply, () => !IsDisposed && IsContainer);
+        ClearCommand = new RelayCommand(Clear, () => !IsDisposed && CanClear);
+        BlurCommand = new RelayCommand(() =>
+        {
+            if (!_wasEdited || IsDisposed) return;
+            _feedbackRequested = true;
+            OnPropertyChanged(nameof(ShowError));
+        });
+        SupplyCommand = new RelayCommand(Supply, () => !IsDisposed && CanEdit && IsContainer);
         ApplySuggestionCommand = new RelayCommand(ApplySuggestion, () => !IsDisposed && HasSuggestion);
-        ResetCommand = new RelayCommand(() => { if (!IsDisposed) { Form.ResetValue(FullPath()); RequestFocus(); } }, () => !IsDisposed);
+        ResetCommand = new RelayCommand(() => { if (!IsDisposed) { Form.ResetValue(FullPath()); RequestFocus(); } }, () => !IsDisposed && Validation?.CanReset == true);
         SetNullCommand = new RelayCommand(() => { if (!IsDisposed) { Form.SetNull(FullPath()); RequestFocus(); } }, () => !IsDisposed && CanSetNull);
         RemoveCommand = new RelayCommand(() =>
         {
@@ -56,6 +66,8 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     protected DefinitionNode Schema { get; }
     protected FieldViewModel? Parent { get; }
     public bool IsListItem { get; }
+    /// <summary>Opaque automation identity for this retained editor, independent of private paths and answers.</summary>
+    public string AutomationId { get; } = "field-" + Guid.NewGuid().ToString("N");
     protected bool IsDisposed { get; private set; }
     protected bool IsProvided => _provided;
     protected FieldViewModel Root => _root ?? this;
@@ -65,11 +77,17 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     protected ISecretClipboardService? SecretClipboard => Root.Clipboard;
     internal virtual IEnumerable<FieldViewModel> Descendants => [];
     internal string EditorIdentity { get; set; } = string.Empty;
+    internal DefinitionPath EditorPath => FullPath();
+    internal FieldViewModel RootEditor => Root;
+    internal event Action<FieldViewModel>? FocusRequested;
+    internal bool IsFocusRequestCurrent => !IsDisposed && Root._form is { } form &&
+        form.InputRevision == _focusInputRevision && form.GetEditorIdentity(FullPath()) == _focusIdentity;
     public string Id => _id;
     public string Title
     {
         get
         {
+            if (Parent is RootFieldViewModel) return Parent.Title;
             if (Parent is MapFieldViewModel map && !map.Schema.Properties.ContainsKey(Id))
             {
                 string key = string.IsNullOrWhiteSpace(_name) || _name.Any(char.IsControl) ? JsonSerializer.Serialize(_name) : _name;
@@ -100,7 +118,19 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public string ResetHelp => Strings.ResetHelp;
     public string NullLabel => Strings.NullLabel;
     public string NullName => Strings.NullName(Title);
-    public bool CanSetNull => Schema.IsNullable;
+    private DefinitionFieldValidation? Validation => Root._form?.GetFieldValidation(FullPath());
+    public bool CanClear => IsListItem && Schema.Type == DefinitionNodeType.Text
+        ? CanEdit : Validation?.CanOmit == true;
+    public bool CanReset => Validation?.CanReset == true;
+    public bool CanEdit => Validation?.CanEdit == true;
+    public bool CanSetNull => Validation?.CanSetNull == true;
+    public bool CanRemove => !IsDisposed && (Parent is ListFieldViewModel list && list.RemoveItemCommand.CanExecute(this) ||
+        Parent is MapFieldViewModel map && map.RemoveEntryCommand.CanExecute(this));
+    public bool HasFieldActions => CanClear || HasSuggestion || CanReset || CanSetNull || CanRemove;
+    public string RemoveLabel => Parent is MapFieldViewModel ? Strings["RemoveEntry"] : Strings["RemoveItem"];
+    public string RemoveName => Parent is MapFieldViewModel
+        ? $"{Strings["RemoveEntry"].Replace("_", "", StringComparison.Ordinal)}: {Title}"
+        : RemoveItemName;
     public string RemoveItemName => Strings.Format("RemoveItemName", Parent?.Title ?? Title);
     public string Help => _presentation?.Description ?? ReadMetadata("description");
     public string HelpText
@@ -115,19 +145,24 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         }
     }
     public string Format => ReadMetadata("format");
-    public string ConstraintsSummary => string.Join(" | ", ConstraintNames
-        .Where(name => Schema.Keywords.TryGetProperty(name, out _))
-        .Select(name => Strings[name] + ": " + (Schema.Keywords.GetProperty(name).TryGetDecimal(out decimal bound)
-            ? bound.ToString(Strings.Culture) : Schema.Keywords.GetProperty(name).GetRawText())));
-    public bool RequiresMasking { get; }
+    public string ConstraintsSummary => string.Join(" | ", Validation?.Bounds.Select(bound =>
+        PresentationStrings.Format("Field" + bound.Kind, Form.Locale, bound.Value)) ?? []);
+    public bool RequiresMasking => Validation?.RequiresMasking ?? _requiresMasking;
     public virtual char PasswordChar => RequiresMasking ? '●' : '\0';
     public bool IsPublic => !RequiresMasking;
-    public bool HasProtectedDescendants => RequiresMasking || Descendants.Any(child => child.HasProtectedDescendants);
-    public bool HasSuggestion => !HasProtectedDescendants && TryExtensionValue("suggestedValue", out _);
-    public bool HasError { get => _hasError; private set => SetProperty(ref _hasError, value); }
+    public bool HasProtectedDescendants => Validation?.HasProtectedDescendants ?? RequiresMasking;
+    public bool HasSuggestion => Validation?.CanApplySuggestion == true;
+    public bool HasError
+    {
+        get => _hasError;
+        private set { if (SetProperty(ref _hasError, value)) OnPropertyChanged(nameof(ShowError)); }
+    }
+    public bool ShowError => HasError && _feedbackRequested;
     public bool IsVisible { get => _isVisible; private set => SetProperty(ref _isVisible, value); }
     public bool IsRequired { get => _isRequired; private set => SetProperty(ref _isRequired, value); }
-    public virtual string ErrorText => Strings[HasError ? "InvalidValue" : IsRequired ? "Required" : "Optional"];
+    public virtual string ErrorText => Validation is { Reasons.Count: > 0 } facts
+        ? PresentationStrings.FieldCorrection(facts, Form.Locale)
+        : Strings[HasError ? "InvalidValue" : IsRequired ? "Required" : "Optional"];
     public int FocusRequestVersion => _focusRequestVersion;
     public int SupplyFocusRequestVersion => _supplyFocusRequestVersion;
     public IRelayCommand ClearCommand { get; }
@@ -136,6 +171,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public IRelayCommand ResetCommand { get; }
     public IRelayCommand SetNullCommand { get; }
     public IRelayCommand RemoveCommand { get; }
+    public IRelayCommand BlurCommand { get; }
 
     /// <summary>Native draft text; every deliberate edit goes to the shared literal path.</summary>
     public string Text
@@ -144,7 +180,8 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         set
         {
             value ??= string.Empty;
-            if (IsDisposed || _editing || Root._form is null) return;
+            if (IsDisposed || _editing || Root._form is null || !CanEdit) return;
+            if (value != _text) MarkEdited();
             _editing = true;
             try
             {
@@ -166,6 +203,13 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         AdoptRoot(this);
     }
 
+    internal void AttachRoot(DefinitionFormModel form)
+    {
+        _root = this;
+        _form = form;
+        AdoptRoot(this);
+    }
+
     internal void AdoptRoot(FieldViewModel root)
     {
         _root = root;
@@ -181,10 +225,19 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     }
 
     protected virtual void NotifyValue() { }
+    internal void MarkEdited() => _wasEdited = true;
+    internal void RequestValidationFeedback()
+    {
+        if (IsDisposed) return;
+        _feedbackRequested = true;
+        OnPropertyChanged(nameof(ShowError));
+        foreach (FieldViewModel child in Descendants) child.RequestValidationFeedback();
+    }
     /// <summary>Signals the View focus bridge; structured nodes route to the first visible descendant.</summary>
     public virtual void RequestFocus()
     {
         if (IsDisposed) return;
+        RevealForFocus();
         if ((Descendants.FirstOrDefault(child => child.IsVisible && child.HasError) ??
             Descendants.FirstOrDefault(child => child.IsVisible)) is { } first)
         {
@@ -193,6 +246,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         }
         if (IsContainer && (this is not ListFieldViewModel list || !list.AddItemCommand.CanExecute(null)))
         {
+            CaptureFocusRequest();
             _supplyFocusRequestVersion++;
             OnPropertyChanged(nameof(SupplyFocusRequestVersion));
         }
@@ -202,18 +256,40 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     protected void SignalFocus()
     {
         if (IsDisposed) return;
+        RevealForFocus();
+        CaptureFocusRequest();
         _focusRequestVersion++;
         OnPropertyChanged(nameof(FocusRequestVersion));
     }
 
+    /// <summary>Reveals only the collection ancestors and pages containing this existing editor.</summary>
+    internal void RevealForFocus()
+    {
+        FieldViewModel child = this;
+        for (FieldViewModel? parent = Parent; parent is not null; child = parent, parent = parent.Parent)
+        {
+            if (parent is ListFieldViewModel list) list.RevealChild(child);
+            else if (parent is MapFieldViewModel map) map.RevealChild(child);
+            else if (parent is ObjectFieldViewModel mapping) mapping.IsExpanded = true;
+            else if (parent is VariantFieldViewModel variant) variant.IsExpanded = true;
+        }
+    }
+
+    private void CaptureFocusRequest()
+    {
+        _focusInputRevision = Form.InputRevision;
+        _focusIdentity = Form.GetEditorIdentity(FullPath());
+        Root.FocusRequested?.Invoke(this);
+    }
+
     /// <summary>Projects one settled root and its literal diagnostics without replacing surviving editors.</summary>
-    internal void Refresh(FieldState state, IReadOnlyList<DefinitionDiagnostic> diagnostics)
+    internal void Refresh(FieldState state)
     {
         if (IsDisposed || _input is null) return;
         // A malformed root denies stale collection projection, but its own raw correction text remains available.
         bool valid = _input.TryValue(out JsonElement? value);
         if (!valid) value = null;
-        RefreshNode([Id], value, state.IsActive, diagnostics);
+        RefreshNode(FullPath(), value, state.IsActive);
         IsRequired = state.IsRequired;
         HasError |= state.IsActive && state.HasError;
         if (!_editing)
@@ -223,19 +299,24 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void RefreshNode(IReadOnlyList<string> path, JsonElement? value, bool active,
-        IReadOnlyList<DefinitionDiagnostic> diagnostics)
+    internal void RefreshRoot()
+    {
+        if (IsDisposed) return;
+        RefreshNode(DefinitionPath.FromSegments([]),
+            JsonSerializer.SerializeToElement(Form.Snapshot().Values), true);
+    }
+
+    private void RefreshNode(DefinitionPath path, JsonElement? value, bool active)
     {
         _presentation = Form.GetEditorPresentation(path);
-        if (Form.GetEditorState(path) is { } nodeState) IsRequired = nodeState.IsRequired;
+        if (Form.GetEditorState(path) is { } nodeState)
+        {
+            IsRequired = nodeState.IsRequired;
+            active = nodeState.IsActive;
+        }
         Load(value);
         IsVisible = Form.IsEditorVisible(path);
-        HasError = active && (Form.HasInputError(path) || diagnostics.Any(diagnostic =>
-            diagnostic.FieldId == path[0] && (diagnostic.Location is { } location
-                ? Form.TryResolveCorrection(diagnostic.FieldId, location, out IReadOnlyList<string> resolved) &&
-                    resolved.Take(path.Count).SequenceEqual(path, StringComparer.Ordinal)
-                : diagnostic.RelativePath.Count >= path.Count - 1 &&
-                    diagnostic.RelativePath.Take(path.Count - 1).SequenceEqual(path.Skip(1)))));
+        HasError = active && (Form.HasInputError(path) || Form.GetFieldValidation(path).Reasons.Count > 0);
         if (!IsContainer && !_editing && Form.ReadDraftText(path) is { } draft)
         {
             SetProperty(ref _text, draft, nameof(Text));
@@ -245,13 +326,16 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         foreach (var child in Descendants)
         {
             int row = this is ListFieldViewModel list ? list.Items.IndexOf(child) : -1;
-            IReadOnlyList<string> childPath = [.. path, row >= 0
-                ? row.ToString(CultureInfo.InvariantCulture) : child.Id];
-            JsonElement? childValue = value is { ValueKind: JsonValueKind.Object } mapping &&
+            DefinitionPath childPath = this is RootFieldViewModel ? path :
+                DefinitionPath.FromSegments([.. path.Segments, row >= 0
+                    ? row.ToString(CultureInfo.InvariantCulture) : child.Id]);
+            JsonElement? childValue = this is RootFieldViewModel ? value :
+                value is { ValueKind: JsonValueKind.Object } mapping &&
                 mapping.TryGetProperty(child.Id, out var property) ? property
                 : value is { ValueKind: JsonValueKind.Array } items && row >= 0 ? items[row] : null;
-            child.RefreshNode(childPath, childValue, active, diagnostics);
+            child.RefreshNode(childPath, childValue, active);
         }
+        HasError |= active && Descendants.Any(child => child.IsVisible && child.HasError);
         OnPropertyChanged(nameof(ErrorText));
         OnPropertyChanged(nameof(Strings));
         OnPropertyChanged(nameof(ConstraintsSummary));
@@ -273,8 +357,20 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(SuggestionName));
         OnPropertyChanged(nameof(ResetName));
         OnPropertyChanged(nameof(NullName));
+        OnPropertyChanged(nameof(RemoveLabel));
+        OnPropertyChanged(nameof(RemoveName));
         OnPropertyChanged(nameof(RemoveItemName));
         OnPropertyChanged(nameof(HasSuggestion));
+        OnPropertyChanged(nameof(CanClear));
+        OnPropertyChanged(nameof(CanReset));
+        OnPropertyChanged(nameof(CanSetNull));
+        OnPropertyChanged(nameof(CanRemove));
+        OnPropertyChanged(nameof(HasFieldActions));
+        OnPropertyChanged(nameof(CanEdit));
+        ClearCommand.NotifyCanExecuteChanged();
+        SupplyCommand.NotifyCanExecuteChanged();
+        ResetCommand.NotifyCanExecuteChanged();
+        SetNullCommand.NotifyCanExecuteChanged();
         ApplySuggestionCommand.NotifyCanExecuteChanged();
         RemoveCommand.NotifyCanExecuteChanged();
         OnRefreshed();
@@ -282,13 +378,16 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
 
     protected virtual void OnRefreshed() { }
 
-    protected IReadOnlyList<string> FullPath() => Parent is null ? [Id]
-        : [.. Parent.FullPath(), Parent is ListFieldViewModel list
-            ? list.Items.IndexOf(this).ToString(CultureInfo.InvariantCulture) : Id];
+    protected DefinitionPath FullPath() => Parent is RootFieldViewModel
+        ? DefinitionPath.FromSegments([])
+        : Parent is null
+            ? DefinitionPath.FromSegments(_input is null ? [] : [_input.Definition.Name])
+            : DefinitionPath.FromSegments([.. Parent.FullPath().Segments, Parent is ListFieldViewModel list
+                ? list.Items.IndexOf(this).ToString(CultureInfo.InvariantCulture) : Id]);
 
     private void Clear()
     {
-        if (IsDisposed) return;
+        if (IsDisposed || !CanClear) return;
         if (IsListItem && Schema.Type == DefinitionNodeType.Text)
             Form.EditValue(FullPath(), "");
         else Form.SetValue(FullPath(), null);
@@ -302,17 +401,11 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     }
     private void Supply()
     {
-        if (IsDisposed) return;
+        if (IsDisposed || !CanEdit) return;
         bool supplied = Schema.Type == DefinitionNodeType.Mapping ? Form.SupplyObject(FullPath()) : Form.SupplyList(FullPath());
         if (supplied) RequestFocus();
     }
     private string ReadMetadata(string name) => Schema.Keywords.TryGetProperty(name, out var value) ? value.GetString() ?? "" : "";
-    private bool TryExtensionValue(string name, out JsonElement value)
-    {
-        value = default;
-        return Schema.Keywords.TryGetProperty("x-configurator", out var extension) &&
-            extension.TryGetProperty(name, out value);
-    }
     private static bool HasNonPublicSchema(DefinitionNode schema) =>
         DefinitionSensitivityPolicy.SensitivityOf(schema) != FieldSensitivity.Public ||
         schema.Properties.Values.Any(HasNonPublicSchema) ||
@@ -330,6 +423,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         _input = null;
         _root = null;
         _text = string.Empty;
+        FocusRequested = null;
         ClearCommand.NotifyCanExecuteChanged();
         SupplyCommand.NotifyCanExecuteChanged();
         ApplySuggestionCommand.NotifyCanExecuteChanged();

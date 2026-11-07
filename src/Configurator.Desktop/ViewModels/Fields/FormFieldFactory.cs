@@ -15,7 +15,15 @@ public sealed class FormFieldFactory(ISecretClipboardService? clipboard = null) 
         ArgumentNullException.ThrowIfNull(form);
         Dispose();
         _form = form;
-        _fields = Array.AsReadOnly(form.Fields.Select(input =>
+        if (form.Definition.Configuration is { } schema &&
+            (schema.AdditionalProperties is not null || schema.Variants.Count > 0))
+        {
+            var root = new RootFieldViewModel(schema, form.Definition.Title);
+            root.AttachRoot(form);
+            root.Clipboard = clipboard;
+            _fields = Array.AsReadOnly<FieldViewModel>([root]);
+        }
+        else _fields = Array.AsReadOnly(form.Fields.Select(input =>
         {
             var field = Project(input.Definition.Node, input.Definition.Name, input.Definition.Required,
                 null, false, input.RequiresMasking);
@@ -34,9 +42,9 @@ public sealed class FormFieldFactory(ISecretClipboardService? clipboard = null) 
         if (_form is null) return;
         var validation = _form.Validate();
         var roots = validation.Fields.ToDictionary(state => state.Id, StringComparer.Ordinal);
-        var diagnostics = validation.Diagnostics.Concat(_form.InputDiagnostics)
-            .ToLookup(diagnostic => diagnostic.FieldId, StringComparer.Ordinal);
-        foreach (var field in _fields) field.Refresh(roots[field.Id], diagnostics[field.Id].ToArray());
+        foreach (var field in _fields)
+            if (field is RootFieldViewModel) field.RefreshRoot();
+            else field.Refresh(roots[field.Id]);
     }
 
     private void FormChanged(object? sender, EventArgs args) => Refresh();

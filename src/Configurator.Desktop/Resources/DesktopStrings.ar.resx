@@ -1,6 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
   <data name="Settings" xml:space="preserve"><value>إعدادات العرض</value></data>
+  <data name="OutputNotEvaluated" xml:space="preserve"><value>لم يُقيّم الاكتمال بعد</value></data>
+  <data name="OutputPreparedComplete" xml:space="preserve"><value>مجهّز؛ المخرج مكتمل</value></data>
+  <data name="OutputPreparedIncomplete" xml:space="preserve"><value>مسودة مجهّزة؛ ما زالت قيم مؤجلة</value></data>
+  <data name="OutputPreparationInvalid" xml:space="preserve"><value>فشل التجهيز؛ المخرج غير مكتمل</value></data>
+  <data name="SelectedOutputs" xml:space="preserve"><value>المخرجات المراد تجهيزها</value></data>
+  <data name="ImportSourceArtifact" xml:space="preserve"><value>تنسيق الملف المصدر</value></data>
+  <data name="PrepareSelection" xml:space="preserve"><value>تجهيز المخرجات المحددة</value></data>
+  <data name="SaveSelection" xml:space="preserve"><value>حفظ المخرجات المجهزة</value></data>
+  <data name="SingleFileNameHelp" xml:space="preserve"><value>يستخدم المخرج الواحد اسم الملف هذا.</value></data>
+  <data name="MultipleFileNamesHelp" xml:space="preserve"><value>تستخدم المخرجات المتعددة أسماء ملفاتها المعلنة.</value></data>
+  <data name="OptionalImport" xml:space="preserve"><value>مقارنة ملف موجود أو تعبئة الحقول منه</value></data>
+  <data name="DiscoveryLabel" xml:space="preserve"><value>البحث عن الإعدادات</value></data>
+  <data name="DiscoveryHelp" xml:space="preserve"><value>ابحث في بيانات الإعدادات العامة، بحد أقصى 256 حرفاً و16 كلمة. لا يشمل البحث الإجابات أو أسماء الإدخالات الخاصة.</value></data>
+  <data name="DiscoveryIncludeInactive" xml:space="preserve"><value>تضمين الإعدادات غير النشطة</value></data>
+  <data name="DiscoveryCount" xml:space="preserve"><value>الإعدادات المطابقة</value></data>
+  <data name="DiscoveryActive" xml:space="preserve"><value>نشط</value></data>
+  <data name="DiscoveryInactiveStatus" xml:space="preserve"><value>غير نشط</value></data>
+  <data name="DiscoveryLimit" xml:space="preserve"><value>استخدم 256 حرفاً و16 كلمة بحث كحد أقصى.</value></data>
+  <data name="DiscoveryInactive" xml:space="preserve"><value>هذا الإعداد غير نشط في التكوين الحالي. غيّر الإعدادات المتحكمة به عمداً عند الحاجة.</value></data>
+  <data name="DiscoveryUnavailable" xml:space="preserve"><value>افتح الإعداد الحاوي واختر إدخالاً موجوداً. لا يوفّر البحث حاويات اختيارية ولا يختار الإدخالات الخاصة.</value></data>
+  <data name="CollectionPageFormat" xml:space="preserve"><value>الصفوف {0}-{1} من {2}؛ الصفحة {3} من {4}</value></data>
+  <data name="FieldActions" xml:space="preserve"><value>الإجراءات</value></data>
+  <data name="OmitAnswer" xml:space="preserve"><value>عدم توفير الإجابة</value></data>
+  <data name="ClearText" xml:space="preserve"><value>مسح النص</value></data>
+  <data name="Open" xml:space="preserve"><value>فتح</value></data>
+  <data name="Configure" xml:space="preserve"><value>إعداد</value></data>
+  <data name="ReviewOutputs" xml:space="preserve"><value>مراجعة المخرجات</value></data>
+  <data name="Section" xml:space="preserve"><value>القسم</value></data>
+  <data name="PreviousPage" xml:space="preserve"><value>الصفحة السابقة</value></data>
+  <data name="NextPage" xml:space="preserve"><value>الصفحة التالية</value></data>
+  <data name="Page" xml:space="preserve"><value>الصفحة</value></data>
+  <data name="RequiredCount" xml:space="preserve"><value>المطلوب</value></data>
+  <data name="MissingCount" xml:space="preserve"><value>الناقص</value></data>
+  <data name="InvalidCount" xml:space="preserve"><value>غير الصالح</value></data>
+  <data name="ReadyCount" xml:space="preserve"><value>الجاهز</value></data>
+  <data name="DeferredCount" xml:space="preserve"><value>الأسرار المؤجلة</value></data>
+  <data name="Disclosure" xml:space="preserve"><value>مستوى التفاصيل</value></data>
+  <data name="Guided" xml:space="preserve"><value>إرشادي</value></data>
+  <data name="Advanced" xml:space="preserve"><value>متقدم</value></data>
+  <data name="Expert" xml:space="preserve"><value>خبير</value></data>
   <data name="AppearanceLabel" xml:space="preserve"><value>المظهر</value></data>
   <data name="AppearanceSystem" xml:space="preserve"><value>النظام</value></data>
   <data name="AppearanceLight" xml:space="preserve"><value>فاتح</value></data>

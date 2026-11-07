@@ -1,6 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
   <data name="Settings" xml:space="preserve"><value>Display settings</value></data>
+  <data name="OutputNotEvaluated" xml:space="preserve"><value>Completeness not evaluated</value></data>
+  <data name="OutputPreparedComplete" xml:space="preserve"><value>Prepared; complete output</value></data>
+  <data name="OutputPreparedIncomplete" xml:space="preserve"><value>Prepared draft; deferred values remain</value></data>
+  <data name="OutputPreparationInvalid" xml:space="preserve"><value>Preparation failed; output incomplete</value></data>
+  <data name="SelectedOutputs" xml:space="preserve"><value>Outputs to prepare</value></data>
+  <data name="ImportSourceArtifact" xml:space="preserve"><value>Source output format</value></data>
+  <data name="PrepareSelection" xml:space="preserve"><value>Prepare selected outputs</value></data>
+  <data name="SaveSelection" xml:space="preserve"><value>Save prepared outputs</value></data>
+  <data name="SingleFileNameHelp" xml:space="preserve"><value>A single output uses this filename.</value></data>
+  <data name="MultipleFileNamesHelp" xml:space="preserve"><value>Multiple outputs use their declared filenames.</value></data>
+  <data name="OptionalImport" xml:space="preserve"><value>Compare or fill from an existing file</value></data>
+  <data name="DiscoveryLabel" xml:space="preserve"><value>Find settings</value></data>
+  <data name="DiscoveryHelp" xml:space="preserve"><value>Search public setting metadata, up to 256 characters and 16 terms. Answers and private entry names are excluded.</value></data>
+  <data name="DiscoveryIncludeInactive" xml:space="preserve"><value>Include inactive settings</value></data>
+  <data name="DiscoveryCount" xml:space="preserve"><value>Matching settings</value></data>
+  <data name="DiscoveryActive" xml:space="preserve"><value>Active</value></data>
+  <data name="DiscoveryInactiveStatus" xml:space="preserve"><value>Inactive</value></data>
+  <data name="DiscoveryLimit" xml:space="preserve"><value>Use at most 256 characters and 16 search terms.</value></data>
+  <data name="DiscoveryInactive" xml:space="preserve"><value>This setting is inactive in the current configuration. Change its controlling settings deliberately if needed.</value></data>
+  <data name="DiscoveryUnavailable" xml:space="preserve"><value>Open the containing setting and choose an existing entry. Search does not supply optional containers or choose private entries.</value></data>
+  <data name="CollectionPageFormat" xml:space="preserve"><value>Rows {0}-{1} of {2}; page {3} of {4}</value></data>
+  <data name="FieldActions" xml:space="preserve"><value>Actions</value></data>
+  <data name="OmitAnswer" xml:space="preserve"><value>Omit answer</value></data>
+  <data name="ClearText" xml:space="preserve"><value>Clear text</value></data>
+  <data name="Open" xml:space="preserve"><value>Open</value></data>
+  <data name="Configure" xml:space="preserve"><value>Configure</value></data>
+  <data name="ReviewOutputs" xml:space="preserve"><value>Review outputs</value></data>
+  <data name="Section" xml:space="preserve"><value>Section</value></data>
+  <data name="PreviousPage" xml:space="preserve"><value>Previous page</value></data>
+  <data name="NextPage" xml:space="preserve"><value>Next page</value></data>
+  <data name="Page" xml:space="preserve"><value>Page</value></data>
+  <data name="RequiredCount" xml:space="preserve"><value>Required</value></data>
+  <data name="MissingCount" xml:space="preserve"><value>Missing</value></data>
+  <data name="InvalidCount" xml:space="preserve"><value>Invalid</value></data>
+  <data name="ReadyCount" xml:space="preserve"><value>Ready</value></data>
+  <data name="DeferredCount" xml:space="preserve"><value>Deferred secrets</value></data>
+  <data name="Disclosure" xml:space="preserve"><value>Detail level</value></data>
+  <data name="Guided" xml:space="preserve"><value>Guided</value></data>
+  <data name="Advanced" xml:space="preserve"><value>Advanced</value></data>
+  <data name="Expert" xml:space="preserve"><value>Expert</value></data>
   <data name="AppearanceLabel" xml:space="preserve"><value>Appearance</value></data>
   <data name="AppearanceSystem" xml:space="preserve"><value>System</value></data>
   <data name="AppearanceLight" xml:space="preserve"><value>Light</value></data>

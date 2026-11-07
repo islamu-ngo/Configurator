@@ -11,6 +11,7 @@
     </ResourceDictionary>
   </Application.Resources>
   <Application.DataTemplates>
+    <StaticResource ResourceKey="RootFieldTemplate" />
     <StaticResource ResourceKey="StringFieldTemplate" />
     <StaticResource ResourceKey="EnumFieldTemplate" />
     <StaticResource ResourceKey="NumericFieldTemplate" />

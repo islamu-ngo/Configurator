@@ -1,12 +1,56 @@
 namespace Configurator.Desktop.Tests.ViewModels;
 
 using System.Text.Json;
+using System.Text;
 using Configurator.Core.Definitions;
 using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Presentation;
 
 public sealed class DefinitionEditingTests
 {
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task FactoryAdmitsRootPlacementAndRetiresPreviousBindings(bool variant)
+    {
+        using var current = new DefinitionFormModel(Definition());
+        using var factory = new FormFieldFactory();
+        StringFieldViewModel text = (StringFieldViewModel)factory.Create(current).Single(field => field.Id == "text");
+        using JsonDocument original = JsonDocument.Parse(Definition().CanonicalBytes);
+        string schema = variant ? original.RootElement.GetProperty("configuration").GetProperty("properties").GetProperty("provider").GetRawText()
+            : """{"type":"object","additionalProperties":{"type":"integer"}}""";
+        using var next = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes($$$$"""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151620","revision":1},
+             "project":{"id":"root-admission","name":"Root admission"},"applicationVersions":["1"],
+             "configuration":{{{{schema}}}},"outputs":{"config.json":{"id":"config","format":"json"}}}
+            """)));
+        long revision = current.InputRevision;
+        var root = (RootFieldViewModel)factory.Create(next).Single();
+        await Assert.That(root.Editor is VariantFieldViewModel).IsEqualTo(variant);
+        await Assert.That(root.Editor is MapFieldViewModel).IsEqualTo(!variant);
+        text.Text = "retired-binding";
+        await Assert.That(text.ClearCommand.CanExecute(null)).IsFalse();
+        await Assert.That(current.InputRevision).IsEqualTo(revision);
+        await Assert.That(next.Snapshot().Values.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task DocumentAdoptionRefreshesStableOrdinaryDesktopFields()
+    {
+        using var form = new DefinitionFormModel(Definition());
+        using var factory = new FormFieldFactory();
+        StringFieldViewModel text = (StringFieldViewModel)factory.Create(form).Single(field => field.Id == "text");
+        using var document = form.OpenDocument();
+        using var parsed = document.Parse(
+            """{"answerContractVersion":"0.0.1","values":{"text":"document"},"omitted":[]}"""u8.ToArray());
+        await Assert.That(parsed.Succeeded).IsTrue();
+        await Assert.That(document.Apply(parsed.Candidate!).Succeeded).IsTrue();
+        await Assert.That(text.Text).IsEqualTo("document");
+        text.Text = "typed";
+        await Assert.That(form.Snapshot().Values["text"].GetString()).IsEqualTo("typed");
+    }
+
     [Test]
     public async Task WorkspaceLocalesRefreshActionsIndependentlyOfHostCulture()
     {

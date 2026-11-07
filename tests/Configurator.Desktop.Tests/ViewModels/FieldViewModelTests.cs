@@ -10,10 +10,26 @@ using Avalonia.LogicalTree;
 using Avalonia.Threading;
 using Configurator.Core.Definitions;
 using Configurator.Desktop.ViewModels.Fields;
+using Configurator.Desktop.Views;
 using Configurator.Presentation;
 
 public sealed class FieldViewModelTests
 {
+    private static readonly string[] PublicBooleanLabels = ["Not supplied", "Yes", "No"];
+
+    [Test]
+    public async Task ReadonlyNullableFieldDoesNotOfferNullOrReset()
+    {
+        using var form = Form("""
+            {"value":{"title":"Fixed","type":["integer","null"],"readOnly":true,
+             "x-configurator":{"sensitivity":"public","initialValue":4}}}
+            """, ["projection.literal", "schema.integer", "schema.nullable", "schema.object", "values.initial"]);
+        using var factory = new FormFieldFactory();
+        var field = factory.Create(form).Single();
+        await Assert.That(field.SetNullCommand.CanExecute(null)).IsFalse();
+        await Assert.That(field.ResetCommand.CanExecute(null)).IsFalse();
+    }
+
     [Test]
     public async Task ImportedSiblingsAndRetainedDraftSurviveAnUnrelatedImportAndPathEdit()
     {
@@ -343,6 +359,100 @@ public sealed class FieldViewModelTests
     }
 
     [Test]
+    [NotInParallel]
+    public async Task PublicBooleanUsesExplicitChoicesWhileProtectedBooleanStaysMasked()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopApplicationTests));
+        try
+        {
+            var result = await session.Dispatch(() =>
+            {
+                using var form = Form("""
+                    {"public":{"title":"Public choice","type":"boolean","x-configurator":{"sensitivity":"public","detail":"basic"}},
+                     "protected":{"title":"Protected choice","type":"boolean","x-configurator":{"sensitivity":"sensitive","detail":"basic"}}}
+                    """, ["projection.literal", "schema.boolean", "schema.object"]);
+                using var factory = new FormFieldFactory();
+                var fields = factory.Create(form);
+                var publicChoice = (BooleanFieldViewModel)fields.Single(field => field.Id == "public");
+                var protectedChoice = (BooleanFieldViewModel)fields.Single(field => field.Id == "protected");
+                var window = new Window { Content = new ItemsControl { ItemsSource = fields } };
+                try
+                {
+                    window.Show();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    ComboBox choice = window.GetLogicalDescendants().OfType<ComboBox>()
+                        .Single(control => ReferenceEquals(control.DataContext, publicChoice));
+                    string[] labels = choice.Items.Cast<object>().Select(item => item.ToString() ?? "").ToArray();
+                    choice.SelectedIndex = 1;
+                    Dispatcher.UIThread.RunJobs();
+                    bool yes = form.Snapshot().Values["public"].GetBoolean();
+                    choice.SelectedIndex = 2;
+                    Dispatcher.UIThread.RunJobs();
+                    bool no = !form.Snapshot().Values["public"].GetBoolean();
+                    choice.SelectedIndex = 0;
+                    Dispatcher.UIThread.RunJobs();
+                    TextBox protectedInput = window.GetLogicalDescendants().OfType<TextBox>()
+                        .Single(control => ReferenceEquals(control.DataContext, protectedChoice));
+                    bool protectedChoices = window.GetLogicalDescendants().OfType<ComboBox>()
+                        .Any(control => ReferenceEquals(control.DataContext, protectedChoice) &&
+                            (control.IsEffectivelyVisible || control.Items.Cast<object>().Any()));
+                    return (labels, yes, no,
+                        omitted: !form.Snapshot().Values.ContainsKey("public"),
+                        protectedChoices, masked: protectedInput.PasswordChar == '●');
+                }
+                finally { window.Close(); Dispose(fields); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            await Assert.That(result.labels).IsEquivalentTo(PublicBooleanLabels);
+            await Assert.That(result.yes).IsTrue();
+            await Assert.That(result.no).IsTrue();
+            await Assert.That(result.omitted).IsTrue();
+            await Assert.That(result.protectedChoices).IsFalse();
+            await Assert.That(result.masked).IsTrue();
+        }
+        finally { await Task.Run(session.Dispose).ConfigureAwait(false); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task OrdinaryStringsDoNotMountSecretActionsAndSecondaryActionsUseAMenu()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopApplicationTests));
+        try
+        {
+            var result = await session.Dispatch(() =>
+            {
+                using var form = Form("""
+                    {"value":{"title":"Value","type":["string","null"],
+                     "x-configurator":{"sensitivity":"public","detail":"basic","initialValue":"initial","suggestedValue":"suggested"}}}
+                    """, ["projection.literal", "schema.nullable", "schema.object", "schema.string", "values.initial", "values.suggested"]);
+                using var factory = new FormFieldFactory();
+                var field = factory.Create(form).Single();
+                var window = new Window { Content = new ContentControl { Content = field } };
+                try
+                {
+                    window.Show();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    string[] actions = window.GetLogicalDescendants().OfType<MenuItem>()
+                        .Select(item => item.Header?.ToString() ?? "").ToArray();
+                    return (
+                        secretActions: window.GetLogicalDescendants().OfType<SecretActionsView>()
+                            .Any(control => control.IsEffectivelyVisible),
+                        actions);
+                }
+                finally { window.Close(); field.Dispose(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            await Assert.That(result.secretActions).IsFalse();
+            await Assert.That(result.actions).Contains("_Clear");
+            await Assert.That(result.actions).Contains("_Use suggestion");
+            await Assert.That(result.actions).Contains("_Reset");
+            await Assert.That(result.actions).Contains("Supply _null");
+        }
+        finally { await Task.Run(session.Dispose).ConfigureAwait(false); }
+    }
+
+    [Test]
     public async Task SensitivityIsInheritedThroughObjectListRows()
     {
         using var form = Form("""
@@ -645,9 +755,9 @@ public sealed class FieldViewModelTests
                     recursive &= cleared.RootElement.GetProperty("aliases")[0].GetString() == "";
                     var add = window.GetLogicalDescendants().OfType<Button>()
                         .Single(control => AutomationProperties.GetName(control) == "Add item to Aliases");
-                    bool actionNames = window.GetLogicalDescendants().OfType<Button>()
+                    bool actionNames = window.GetLogicalDescendants().OfType<MenuItem>()
                         .Any(control => AutomationProperties.GetName(control) == "Remove item from Aliases") &&
-                        window.GetLogicalDescendants().OfType<Button>()
+                        window.GetLogicalDescendants().OfType<MenuItem>()
                         .Any(control => AutomationProperties.GetName(control) == "Clear Settings");
                     list.RemoveItemCommand.Execute(list.Items.Single());
                     Dispatcher.UIThread.RunJobs();
