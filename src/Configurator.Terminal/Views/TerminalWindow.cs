@@ -143,7 +143,7 @@ internal sealed partial class TerminalWindow : Window
         _optionalEditors = Button("Choose", 1, 3, ToggleOptionalEditors);
         _optionalEditors.Width = Dim.Fill(2);
         _fieldLabel = new Label { X = 1, Y = 4, Width = Dim.Fill(2), HotKeySpecifier = (Rune)0xffff };
-        _value = new TextField { X = 1, Y = 5, Width = Dim.Fill(2) };
+        _value = new TextField { X = 1, Y = 5, Width = Dim.Fill(2), Height = 1 };
         _masked = new SecretTextField(secret) { X = 1, Y = 5, Width = Dim.Fill(2), Visible = false };
         _help = new Label { X = 1, Y = 6, Width = Dim.Fill(2), Height = 2, HotKeySpecifier = (Rune)0xffff };
         _experience.HotKeySpecifier = (Rune)0xffff;

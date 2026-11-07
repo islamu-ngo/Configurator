@@ -1,0 +1,25 @@
+Change-Id: CHG-01M6V3TDX3YKE3H81V5EXH6KQ0
+Title: "Keep long terminal scalar input usable through locale changes"
+Type: fix
+Scope: accessibility
+Summary: "Keep public scalar input on one native row and avoid replacing unchanged text during refresh, preserving the caret and complete prepared values."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable

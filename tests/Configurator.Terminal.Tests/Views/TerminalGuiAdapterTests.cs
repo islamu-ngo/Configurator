@@ -17,6 +17,73 @@ public sealed class TerminalGuiAdapterTests
 {
     [Test]
     [NotInParallel]
+    public async Task LongPublicScalarLaysOutAsOneRowAndRetainsCompletePreparedOutput()
+    {
+        Task regression = Task.Run(async () =>
+        {
+            string initial = new('x', 65536);
+            var source = EditingSource("""
+                "payload":{"title":"Payload","type":"string",
+                  "x-configurator":{"sensitivity":"public","initialValue":""}}
+                """);
+            source["configuration"]!["properties"]!["payload"]!["x-configurator"]!["initialValue"] = initial;
+            source["localization"] = System.Text.Json.Nodes.JsonNode.Parse("""
+                {"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}
+                """);
+            source["outputs"]!["config.json"]!["projection"] = System.Text.Json.Nodes.JsonNode.Parse("""
+                {"op":"object","members":{
+                  "a":{"op":"copy","reference":{"scope":"root","path":"/payload"}},
+                  "b":{"op":"copy","reference":{"scope":"root","path":"/payload"}},
+                  "c":{"op":"copy","reference":{"scope":"root","path":"/payload"}},
+                  "d":{"op":"copy","reference":{"scope":"root","path":"/payload"}}}}
+                """);
+            using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+                System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+            using var harness = new Harness(initialize: true, form: form, manualDispatch: true);
+            var window = harness.Window;
+            var laidOut = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            window.SubViewsLaidOut += (_, _) => laidOut.TrySetResult();
+            window.BeginInit();
+            window.EndInit();
+            window.Frame = new Rectangle(0, 0, 120, 40);
+            window.ApplyViewportPolicy(window.Frame.Size);
+            bool resolved = window.Layout(window.Frame.Size);
+            await laidOut.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            await Assert.That(resolved).IsTrue();
+            await Assert.That(window.PublicInput.Visible).IsTrue();
+            await Assert.That(window.PublicInput.Frame.Height).IsEqualTo(1);
+            await Assert.That(window.SubViews.Where(view => view.Visible && view != window.PublicInput)
+                .All(view => Rectangle.Intersect(view.Frame, window.PublicInput.Frame) is { Width: 0 } or { Height: 0 }))
+                .IsTrue();
+            await Assert.That(window.PublicInput.Text).IsEqualTo(initial);
+            window.PublicInput.InsertionPoint = 137;
+            await Assert.That(form.SelectLocale("ar")).IsTrue();
+            harness.DrainCallbacks();
+            await Assert.That(window.PublicInput.Text).IsEqualTo(initial);
+            await Assert.That(window.PublicInput.InsertionPoint).IsEqualTo(137);
+
+            string edited = initial[..^1] + "y";
+            window.PublicInput.Text = edited;
+            await Assert.That(window.CommitField()).IsTrue();
+            await Assert.That(form.Snapshot().Values["payload"].GetString()).IsEqualTo(edited);
+            window.Prepare();
+            await window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            harness.DrainCallbacks();
+            await Assert.That(harness.Operation.IsPrepared).IsTrue();
+            using var bundle = Configurator.Core.Artifacts.DefinitionBundleComposer.Compose(
+                form.Definition, ["config"], form.Snapshot());
+            await Assert.That(bundle.Succeeded).IsTrue();
+            string expected = "{\"a\":\"" + edited + "\",\"b\":\"" + edited +
+                "\",\"c\":\"" + edited + "\",\"d\":\"" + edited + "\"}";
+            await Assert.That(System.Text.Encoding.UTF8.GetString(bundle.Artifacts.Single().Bytes.Span))
+                .IsEqualTo(expected);
+        });
+        await regression.WaitAsync(TimeSpan.FromSeconds(15));
+    }
+
+    [Test]
+    [NotInParallel]
     public async Task EarlyScopeActionChangesOneRevisionAndRestrictsDestinationNavigation()
     {
         using var form = new DefinitionFormModel(DeploymentDefinition());

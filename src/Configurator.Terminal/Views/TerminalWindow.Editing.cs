@@ -170,7 +170,7 @@ internal sealed partial class TerminalWindow
             _draftEdited = false;
             _draftValid = true;
             _masked.ClearSensitiveState();
-            _value.Text = string.Empty;
+            string publicText = string.Empty;
             var slots = VisibleSlots;
             if (preserveLocation && _slot is not null)
             {
@@ -188,8 +188,9 @@ internal sealed partial class TerminalWindow
                 _draftValid = !_operation.Form.HasInputError(_slot.IsList
                     ? [.. _slot.FullPath, _itemIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)] : _slot.FullPath);
                 if (_slot.RequiresMasking && text.Length > 0) _masked.TryReplaceSensitiveInput(text);
-                else if (!_slot.RequiresMasking) _value.Text = text;
+                else if (!_slot.RequiresMasking) publicText = text;
             }
+            if (_value.Text != publicText) _value.Text = publicText;
             SetEditorVisibility();
             var experience = _operation.Form.DisplayExperiences.Single(item => item.Id == _operation.Form.SelectedExperienceId);
             _experience.Text = Safe(experience.Title);
