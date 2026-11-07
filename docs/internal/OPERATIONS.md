@@ -38,6 +38,100 @@ is recorded separately.
 Earlier machine delivery evidence below remains evidence for its recorded
 candidate and does not qualify the current payload.
 
+## Desktop redesign execution (2026-11-07)
+
+The approved `avalonia-desktop-ui-ux-redesign` workstream changes the native
+composition over existing Presentation/Core answers and Artifacts publication.
+Open/Configure/Review, semantic appearance, bounded collection projections,
+metadata discovery and unified selected-output preparation remain view and
+adapter responsibilities. Save stays a separate create-only operation.
+
+Executed with SDK `10.0.302`, `TMPDIR="$HOME/.cache/agent-tmp"`:
+
+```bash
+dotnet build tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --verbosity quiet --tl:off -m:1 -nr:false
+dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --no-build -- --minimum-expected-tests 395
+```
+
+Both exit 0; the final owner passes 395 tests, zero failed/skipped. This includes native headless
+keyboard/automation, raw-draft/control identity, metadata privacy and held
+publication/import/close invariants. A prior 391/392 run exposed publication
+notification access to the process-global dispatcher. Capturing the operation
+owner context corrected that cause; physical receipt settlement remains
+independent of visual delivery.
+The added root-variant regression requires validation to reveal and focus the
+invalid child, not its branch selector. A staged-close test initially observed
+save-task return before asynchronous window closure; it now awaits the actual
+Closed event and additionally asserts workspace disposal. Its focused case and
+the final full owner pass (395/395, exit 0). The keyboard cases explicitly
+verify visible forward Tab and reverse traversal in both en/ar at enlarged text.
+Rendered intake regression first failed for Arabic, then passed after null
+workspace locale correctly used host UI culture and direction. Loaded workspaces
+still own their explicit locale; the application does not change process culture.
+
+The local publication target also exited 0, including current ratchets 3/3:
+
+```bash
+dotnet msbuild eng/configurator/Configurator.Release.proj -t:PublishConfigurator -p:Configuration=Release -p:ConfiguratorSurface=desktop -p:ConfiguratorRid=linux-x64 -p:ConfiguratorOutputRoot="$PWD/.tmp/avalonia-desktop-ui-ux-redesign/publish"
+```
+
+The actual single-file executable SHA-256 is
+`3b0cf1f08cea6198cb58d59d05ed35870e81dfcc34855410238d7b8688f34e40`.
+It launched on a dedicated Xvfb display with Arabic host UI culture before
+admission, then in English with public
+`examples/minimal-self-hosted/configurator.yaml`. Inspected current captures
+under `.tmp/desktop-ux-published-r3/` show Arabic RTL intake and the loaded
+English Configure workspace. Earlier `.tmp/desktop-ux-published-r2/` shortcut
+captures belong to the earlier payload, not this identity. Injected X11 events
+are not physical-keyboard or IME certification. Synthetic applications
+and displays were explicitly terminated after inspection. Xvfb reported
+nonfatal keymap/AMDGPU warnings; no GPU or performance qualification is claimed.
+
+Final native startup cohorts each exit 0 with exact required/completed name-set
+equality, 30/30, under `.tmp/desktop-ux-final-r2/attempt4/{en,ar}`.
+The actual run durations were 30,898.006 ms and 31,988.1732 ms; these are suite
+durations, not responsiveness or performance qualification.
+
+```bash
+CONFIGURATOR_NATIVE_UI_CULTURE=en xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 30 --capture-directory "$PWD/.tmp/desktop-ux-final-r2/attempt4/en"
+CONFIGURATOR_NATIVE_UI_CULTURE=ar xvfb-run -a dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 30 --capture-directory "$PWD/.tmp/desktop-ux-final-r2/attempt4/ar"
+```
+
+The source inventory SHA-256 is
+`c04ccdb1110db1e4dbacdc286107bf2175036365519deb7c5c9f40ca888ba086`.
+Capture sidecars retain actual viewport, locale, appearance, body/heading/title
+font sizes, text scale, render scale and loaded assembly SHA-256/MVID identities.
+The Desktop assembly in native qualification has SHA-256
+`56a2edc9e5a33cab2ff77f7e0fdbd609192e454d410ef5bbef10f1fcefd36f9a`.
+This local observation inventory is not release provenance or a signer receipt.
+Earlier failed diagnostic captures remain under `attempt1`/`attempt2`.
+Independent English review passed 54 Open/Configure frames. Arabic review first
+failed 90 of 162 frames; its 90 newly affected attempt3 frames then passed,
+retaining 72 unchanged-view passes. Parent inspection covered appearance,
+popup roots, correction, real 200% text, collection/search and review/save frames
+across all three sizes and palettes. All 36 final middle-scroll import-purpose
+frames were inspected, closing the previously unseen minimum-width label case.
+No local visual finding remains in those named cohorts. No actual Windows/macOS,
+real-session Linux screen-reader speech, IME/device or participant qualification
+is inferred from headless checks. All remain explicit maintainer-owned gates
+inside the workstream. No release signing, installer or external publication
+was executed.
+
+Remaining qualification stays inside the Desktop redesign task:
+
+| Cohort | Current limit | Responsible role |
+| --- | --- | --- |
+| Real-session Linux accessibility | No screen-reader speech, user/device or participant observation; Xvfb automation properties do not prove it | Desktop maintainer and accessibility evaluator |
+| Windows x64 | No actual host supplied for input, IME, contrast and assistive-technology observations | Desktop maintainer |
+| macOS arm64 | No actual host supplied for Command mapping, IME or assistive-technology observations | Desktop maintainer |
+| OS contrast and hardware DPI | Capture contrast is injected; 200% text roles are separate from actual host DPI | Desktop maintainer and accessibility evaluator |
+| Physical keyboard and native pickers | Injected events and synthetic streams do not certify physical controls or platform dialogs | Desktop maintainer |
+| Linux arm64 | Conditional on advertised Desktop support; the current release target remains Linux x64 only | Packaging maintainer |
+
+These pending cohorts do not activate additional release targets or protected
+save hosts. Local I-VSD alignment and successful preparation grant no target
+acceptance, signing or publication authority.
+
 ## Desktop build-statistics verification
 
 The approved Desktop dependency policy excludes build-statistics assets through
@@ -55,6 +149,28 @@ to execution evidence. Central props changes require refreshing affected
 consumed-input capture/check receipts. Earlier receipts remain historical
 evidence for their original inputs; they do not qualify changed build inputs.
 
+## Validate contributor intents
+
+Run `dotnet run --project eng/agent-workflow/src/Configurator.AgentWorkflow/Configurator.AgentWorkflow.csproj --configuration Release -- validate-intents .agents/contract/intents.yaml`
+from the repository root. The command admits one UTF-8 YAML document, bounded
+to 4 MiB, 100,000 parser events and 64 collection levels. Anchors, aliases,
+explicit tags and duplicate mapping keys reject before semantic evaluation.
+
+The owning `.agents/contract/schema.json` supplies required/known fields,
+types, enums, patterns and minimum sizes. The native validator implements that
+closed vocabulary without a schema-library dependency. It also rejects duplicate
+intent IDs, unsafe relative paths and unresolved document, rule, skill, agent,
+test-project and related-intent references. Scope and routing globs describe
+possible future edits and need not match existing files. Metadata commands are
+data and are never executed. The schema is located by walking the supplied
+registry's ancestors; a registry outside a repository contract fails closed.
+
+Success emits `intents_valid` and exits 0. Rejection exits 2 with one fixed
+diagnostic: `invalid_intents_yaml`, `invalid_intents_contract` or
+`invalid_intents_reference`. Diagnostics omit input text, values, paths and
+exception details. Verify changes with the AgentWorkflow build/test commands in
+[PROJECTS.md](../../PROJECTS.md), then validate the actual current registry.
+
 ## Operational Runbooks
 
 - [Packaging technical anchor](PACKAGING.md) and [adopter guide](../public/packaging.md)
@@ -69,6 +185,74 @@ evidence for their original inputs; they do not qualify changed build inputs.
 
 Do not use service-recovery or direct-database instructions from Event as
 Configurator operating procedures.
+
+## Validate synthetic interaction records
+
+Use `dotnet run --file eng/configurator/MeasureInteractiveWork.cs -- --self-test`
+to check the measurement parser/aggregator, or pass
+`--input FILE --fixture SHA256 --payload SHA256 --host SHA256` to validate an
+explicit synthetic record set. The [Browser ownership contract](BROWSER_UI.md#synthetic-interaction-evidence)
+defines the bounded format, required journeys, sample cardinality, thresholds
+and exit codes. Keep the returned raw samples and every outlier with their
+exact fixture/payload/host identities. This command does not run a Browser,
+authenticate the producer or supply actual-host, participant or AT evidence.
+
+The [public fixture generator](BROWSER_UI.md#public-collection-fixtures) supplies
+five nested/collection/correction/multi-output inputs separately from that
+result validator. On 2026-11-05 its Release self-check and create-only generation
+both exited 0. The generated completion manifest under
+`.tmp/eaq-interactive-fixtures-20261105/` records all five definitions and their
+independent expected-output identities. Baseline map/list bounds were corrected
+from fixed 256 to 255–257 before the accepted self-check so add/remove/reverse
+can actually run. No Browser performance result follows from those commands.
+
+## Retain safe evidence and qualify explicit receipts
+
+The [safe archive procedure](TESTING.md#local-safe-evidence-archive) creates
+hash-addressed report/index sets and checks a copied archive without depending
+on the original CI state. Local creation, retrieval and tamper rejection are
+verified mechanisms; seven-day uploads remain transient transport. The release
+steward still supplies the actual custody destination, custodian, retention
+policy and retrieval/tamper drill before the corresponding release claim.
+
+The [support receipt procedure](PACKAGING.md#detached-support-qualification-receipts)
+validates explicit source/build/payload identities and outcome relationships.
+Accepted failed and unexecuted rows remain failed and unexecuted. Synthetic
+validator tests do not establish actual-host qualification or release authority.
+
+The [detached provenance procedure](PACKAGING.md#detached-package-provenance)
+checks explicit payload inventories, retained native capture sessions and
+typed evidence against independently retained identities. Its synthetic
+consumer checks are separate from the capture owner's actual consumption proof.
+Keep candidate bytes unchanged while producing later detached receipts and
+support matrices; changing relevant inputs or payloads invalidates affected
+qualification.
+
+The static Host admits the SDK PWA asset inventory and fixed packaging artifacts,
+with explicit MIME mappings and framing denied. Run `BrowserHostPolicyTests`
+against `CONFIGURATOR_HOST_URL` with an isolated publication containing the
+documented synthetic attack files. The workflow owns its local process,
+bounded readiness and cleanup. Local rootless read-only containers passed
+22 HTTP cases for each existing Store/no-Store tree; this does not establish
+a fresh Browser AOT payload, complete image rebuild, real PWA journey or
+remote CI execution.
+
+## Native directory composition ownership
+
+Core accepts ordered path-free JSON/YAML sources and charges their aggregate
+input, node, scalar, parser-event, merge and serialization ceilings once per
+compilation. Standalone definition admission/import receive fresh parser budgets.
+Artifacts owns Linux directory acquisition and fixed-layout `statx` identity.
+It captures input, privately serializes through Core, invokes one barrier only
+for a valid candidate, then checks cancellation and recaptured identity before
+returning output. Earlier serialization/limit failures invoke no barrier; all
+failed results expose empty output.
+
+The current Linux x64 native cohort covers real directory mutations and refusals;
+arm64 checks establish literal flags/layout only. Actual other-host qualification
+and final published Browser/package exclusion remain separate requirements.
+See the [native acquisition ADR](adr/ADR-native-directory-acquisition.md) and
+[protected contract](PROTECTED_ARTIFACTS.md).
 
 ## Historical evidence boundary
 
@@ -2234,3 +2418,86 @@ storage was empty and no console warning or error was reported on that page.
 
 No remote publication, signing, trust promotion or target application acceptance
 is implied by these local checks.
+
+## Enterprise architecture Browser image verification (2026-11-06)
+
+The actual Dockerfile initially failed publication because its context filter
+excluded `Configurator.BuildCapture`, now referenced by the ratchet generator.
+The filter admits that first-party project's top-level C# sources and project
+file while retaining its private, task, artifact and compiled-output exclusions.
+No task-host exception or runtime dependency was added. Both resulting web
+payloads exclude the native capture, Artifacts and MSBuild assembly families.
+
+Both local image builds used SDK 10.0.302, the pinned Dockerfile bases,
+repository-root context, the Dockerfile-specific ignore file, linux/amd64,
+`--layers --jobs 1`, and the two `INCLUDE_DEFINITION_STORE` values:
+
+```bash
+podman build --layers --jobs 1 \
+  --ignorefile src/Configurator.Browser/Dockerfile.dockerignore \
+  --platform linux/amd64 --build-arg BUILDPLATFORM=linux/amd64 \
+  --build-arg INCLUDE_DEFINITION_STORE=false \
+  --iidfile .tmp/eaq-current-image-verification/no-store.iid \
+  -f src/Configurator.Browser/Dockerfile \
+  -t localhost/configurator-eaq-no-store:20261106 .
+podman build --layers --jobs 1 \
+  --ignorefile src/Configurator.Browser/Dockerfile.dockerignore \
+  --platform linux/amd64 --build-arg INCLUDE_DEFINITION_STORE=true \
+  --iidfile .tmp/eaq-current-image-verification/store.iid \
+  -f src/Configurator.Browser/Dockerfile \
+  -t localhost/configurator-eaq-store:20261106 .
+```
+
+Both exited 0 and passed all three ratchets. The no-Store Host build reported
+zero compiler warnings/errors; Podman separately warned that its explicit
+`BUILDPLATFORM` argument was unconsumed. The Store command omitted that redundant
+argument. The failed build log remains alongside the successful logs.
+
+| Variant | Local image ID | Worker-manifest SHA-256 |
+| --- | --- | --- |
+| No Store | `317c8dbc7c8e0517ca46911821100f3b9de6ebdc6e760c55c2b303cdabbf1166` | `0001dc5e49ea05d5236368442f315540e93a4ee356d72573bbec6dbd82ddad29` |
+| Store | `1da4ea6bea4c428f8fb8485bb3fad08a3cd70e1b70ce79b092ad0e24e68e9304` | `eba3dc1a0aba7a22e3390340ccdfd5e26e2cd79de0374194ee1ce4dfa7f1bc6c` |
+
+Both Host DLLs hash to
+`924a87742971aaaab6f51a19cf72aae2298eb84fa082873d91e71a86fd327524`.
+Clean public trees were extracted from never-started containers for the package
+checks, without their runtime attack mounts.
+
+Each actual image ran read-only as UID/GID 1654 with all capabilities dropped
+and `no-new-privileges`. Kernel observations confirmed zero effective
+capabilities and `NoNewPrivs: 1`. Three synthetic unpublished files were physically
+mounted in `wwwroot` before HTTP verification. The existing
+`BrowserHostPolicyTests` passed 22 cases against each image; all four
+`BrowserStorePackageTests` passed against the exact extracted pair, with zero
+failures/skips. Host logs contained zero bytes.
+
+Fresh pinned Chrome 151 profiles exercised the published runtime. Ten bridge
+cases covered missing/unchecked/wrong-lifetime consent and retirement of owned
+buffers. The bridge and editor bundle bytes match across both images. A real
+Store Form/editor journey used synthetic values: accepted secrets were not
+prepopulated in the public document, pending private text retired on revocation,
+and a fresh consent grant did not restore the cleared credential.
+
+Cache checks matched 95 no-Store responses, then 96 Store responses plus one
+deliberately admitted public revision. All compared bytes matched public
+inventory; storage, IndexedDB and cookies were empty. The first Store audit used
+the launch URL instead of the document base and classified all entries unknown.
+That result is retained; the corrected identity comparison uses the observed
+application base. A separate outgoing-channel observation during a synthetic
+edit/discard saw one ServiceWorker and one MessagePort send, no canary payload,
+no truncated/unsupported scan and 97 unchanged public cache responses. Temporary
+observers were restored afterward.
+
+Both origins were stopped for real offline journeys. The no-Store catalogue
+opened a built-in workspace. Store reload correctly rejected its transient
+launch with `family-unknown`; deliberate reopening from the cached catalogue
+admitted the pinned public revision into a fresh workspace with secret consent
+off. Cached definitions did not imply persisted answers or registry authority.
+All owned browsers, profiles and runtime/extraction containers were retired.
+
+Task-local logs, raw reports and value-free observation records are under
+`.tmp/eaq-current-image-verification/`; these are not a durable release archive.
+The checks qualify these local image/privacy mechanisms. They do not establish
+complete build-input capture, frozen candidate provenance, performance,
+assistive-technology, other-host or participant qualification, signing, trust
+activation or publication. Those remaining workstream gates stay explicit.

@@ -1,6 +1,6 @@
 # Presentation & Clients Findings
 
-Last Updated: 2026-10-27 Europe/Brussels
+Last Updated: 2026-11-07 Europe/Brussels
 
 Use [journal guidance](../README.md), [the finding template](../FINDING_TEMPLATE.md)
 and [promotion rules](../PROMOTION_RULES.md) for recording and promotion.
@@ -553,3 +553,80 @@ history or infer installed/other-host support.
 
 **Promotion Consideration**: Keep the reusable evidence-attribution lesson here;
 Operations owns exact commands and final qualification identities.
+
+[2026-11-05 Europe/Brussels] - Single-line sizing can govern Terminal startup liveness
+
+**Context**: Native preparation observation used an admitted public definition
+with one 65,536-character string and four output copies on Terminal.Gui 2.5.0.
+
+**Symptom / Observation**: The application stayed blank before its observer ran.
+The same executable rendered normally when only the initial string length was
+reduced to sixteen characters. Stage-only diagnostics showed that value reading,
+assignment and construction returned; first subview layout did not complete.
+
+**Root Cause**: The public scalar input constrained width but left height
+implicit. Explicit one-row sizing, with the original value unchanged, restored
+layout, initialization and drawing. This counterfactual identifies the owning
+layout boundary without asserting an uninspected framework algorithm.
+
+**Resolution**: Set `Height = 1` in the existing scalar input initializer.
+Remove all temporary diagnostics. The normal test-owner and diagnostic builds
+passed; `LongPublicScalarLaysOutAsOneRowAndRetainsCompletePreparedOutput` passed,
+followed by all 61 `TerminalGuiAdapterTests`. The regression checks resolved
+layout, non-overlap, full-value editing/commit, preparation readiness and an
+independent exact four-copy artifact oracle.
+
+The marker-free diagnostic rebuild executed successfully:
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+dotnet build src/Configurator.Terminal/Configurator.Terminal.csproj --configuration Release --verbosity quiet --tl:off --artifacts-path /tmp/configurator-p04n-terminal -p:CustomAfterMicrosoftCommonTargets="$PWD/eng/configurator/NativeImportComparisonProbe.targets" -p:ConfiguratorNativeImportComparisonProbe=true
+```
+
+**Why This Matters for Future Work**: A completed text assignment does not prove
+first layout can finish. Test large admitted values through resolved layout and
+actual rendering before replacing controls or rewriting shared computation.
+The observed cold assignment cost and full native latency qualification remain
+separate; this repair does not establish either performance acceptance or AT.
+
+**References**:
+- `src/Configurator.Terminal/Views/TerminalWindow.cs:146`
+- `tests/Configurator.Terminal.Tests/Views/TerminalGuiAdapterTests.cs:811`
+- `dev/active/enterprise-architecture-quality/enterprise-architecture-quality-context.md`
+
+**Promotion Consideration**: Stays in this domain journal as a bounded native
+layout lesson; do not generalize it into a framework-wide sizing rule.
+
+[2026-11-07 Europe/Brussels] — Retained models need retained native collection projections
+
+**Context**: While implementing the approved Desktop workspace redesign,
+root/collection paging retained shared editor identities and field adapters.
+
+**Symptom / Observation**: Rendered integration tests still lost surviving
+TextBox instances, focus and selection after edits, disclosure and removal.
+The section selector also lost its caption after projection refresh.
+
+**Root Cause**: Replacing section records or mounted slice arrays asks native
+ItemsControls to replace their presentation even when the underlying field
+references survive. Semantic model identity alone did not preserve controls.
+
+**Resolution**: Update section metadata in place and synchronize bounded
+ObservableCollection slices with removals, inserts and moves of existing field
+references. Closed object/variant branches expose no mounted children.
+`dotnet test --project tests/Configurator.Desktop.Tests/Configurator.Desktop.Tests.csproj --configuration Release --no-build -- --minimum-expected-tests 392`
+passed 392/392 after the coherent Release build. The suite retains actual
+control-instance, focus, selection, raw-draft and answer assertions.
+
+**Why This Matters for Future Work**: Preserve both semantic editor identity
+and the collection notifications that retain its native control. A new focus
+retry or cache would hide the remount cause and add another owner.
+
+**References**:
+- `src/Configurator.Desktop/ViewModels/Fields/FieldProjectionCollection.cs`
+- `src/Configurator.Desktop/ViewModels/DesktopNavigationViewModel.cs`
+- `tests/Configurator.Desktop.Tests/DesktopApplicationTests.cs`
+- `tests/Configurator.Desktop.Tests/DesktopCollectionPagingTests.cs`
+- `docs/internal/adr/ADR-desktop-workspace-composition.md`
+
+**Promotion Consideration**: The composition ADR already records the decision;
+retain this observed cause and verification as its journal evidence.

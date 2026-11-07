@@ -17,6 +17,11 @@ Read [Contributing](../../CONTRIBUTING.md) for contribution and licensing
 expectations. Use the [developer guide](DEVELOPER_GUIDE.md) if the product's
 owners are unfamiliar. For a code contribution instead, choose the matching
 [worked recipe](CONTRIBUTOR_RECIPES.md) and follow its larger verification scope.
+For a supported application field, condition, translation or output binding,
+start with the [maintenance owner routes](CONTRIBUTOR_RECIPES.md#maintenance-owner-routes).
+The synthetic library example demonstrates definition-only authoring; its
+separately dated execution record does not turn this proposed tutorial into an
+executed contribution.
 
 ## 1. Define one reader problem
 

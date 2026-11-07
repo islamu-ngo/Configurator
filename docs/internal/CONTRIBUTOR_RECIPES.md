@@ -2,11 +2,11 @@
 
 > **Audience:** Contributors | AI agents
 > **Kind:** Guide
-> **Status:** Current source-grounded recipes; example edits and commands unexecuted
+> **Status:** Current source-grounded recipes with separately identified maintenance execution evidence
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-10-30
+> **Last Verified:** 2026-11-05
 > **Source Anchors:** `PROJECTS.md`, `docs/internal/TESTING.md`, `eng/configurator/ValidateDefinitionDocumentation.cs`, `tests/Configurator.Core.Tests/Definitions/DefinitionSemanticTests.cs`, `tests/Configurator.Cli.Tests/Contracts/CliContractTests.cs`, `tests/Configurator.Browser.Tests/Configuration/BrowserEditingTests.cs`, `tests/Configurator.Artifacts.Tests/ProtectedArtifactBundleTests.cs`, `tests/Configurator.Desktop.Tests/DesktopPublicationLifetimeTests.cs`
-> **Review basis:** Named source, test bodies and project files inspected on 2026-10-30; no recipe execution, builds, tests or host exercises
+> **Review basis:** Original proposed recipes inspected on 2026-10-30 and remain unexecuted; the maintenance section records only the separately executed 2026-11-05 checks and their limits
 
 Choose the behavior you want to change, then follow its owner, example edit and
 proportional check. These recipes show small, coherent contributions using
@@ -17,8 +17,9 @@ synthetic data. They are not requests to change working product behavior.
 
 ## Before using a recipe
 
-All commands below are **runnable current command forms, source-inspected but
-not executed for these guides**. Run them only as part of an authorized
+Commands in the original worked recipes are **runnable current command forms,
+source-inspected but not executed for these guides**. The separately dated
+maintenance evidence below identifies actual executions. Run commands only as part of an authorized
 contribution, from the repository root in a POSIX shell. Use SDK 10.0.302 from
 [`global.json`](../../global.json), restored project dependencies and an existing
 writable `"$HOME/.cache/agent-tmp"`. Product test projects are executable TUnit/MTP
@@ -47,6 +48,26 @@ for authoritative project scope.
 | Guard the machine envelope | [CLI contract](#cli-contract) |
 | Reject an obsolete editor callback | [Interactive editor](#interactive-editor) |
 | Preserve installation facts through interruption | [Native cancellation and publication](#native-cancellation-and-publication) |
+
+## Maintenance owner routes
+
+This execution record is dated **2026-11-05**. It complements the proposed
+recipes below; source inspection, controlled tests and actual host behavior
+remain distinct kinds of evidence.
+
+| Change | Owner and actual edit burden | Evidence and remaining limits |
+| --- | --- | --- |
+| Add a supported field, condition or translation | Public definition authoring. `tests/Conformance/synthetic-library.definition.json` adds lending-dependent `loanDays` and Arabic metadata. One definition, seven independently authored case rows, six existing consumers and their resource entries; no production exporter. | Six targeted owner builds and 62 conformance cases passed: Core 1, Presentation 1, CLI 19, Terminal 19, Desktop 21, Browser 1. These are owner API/entrypoint checks, not six packaged-host qualifications. |
+| Change correction eligibility or validation guidance | Presentation's `DefinitionFieldValidation.cs` and owned resources derive shared facts. Desktop `FieldViewModel` and Terminal `TerminalFieldEditor` consume those facts. Change semantics once in their owner, then test affected adapters. | Shared correction facts and native adapter cohorts passed earlier in this workstream. A client caption or layout change still needs its rendered surface check. |
+| Extend an existing output binding | The library definition repeats branch rows with item-scoped activation and output. Expected complete/draft bytes are literal independent cases in the conformance inventory. | The same 62-case cohort covers row scope, disabled rows, missing/type/choice refusals and noninvertible output. Unsupported binding vocabulary requires a Core contract change and generator checks. |
+| Repair a lifecycle race | Desktop operation/publication owners separate physical settlement from owner notifications; Terminal workers consume captured inputs and adopt typed outcomes. Root branch/document/preparation races remain in Presentation. Direct async callers and owned tests migrated with the mechanism. | Actual stopped-owner Desktop settlement and native consumer-context regressions failed before repair; subsequent native chains passed Terminal 138 and Desktop 205 cases. Existing root fences already prevented some other tested resurrection cases; passing characterization is not proof of a former disclosure. Actual latency still needs separate measurement. |
+| Qualify another admitted native host | The existing release target published CLI `linux-musl-x64`; no source, definition, editor, dependency or RID admission change was needed. An existing local Alpine image supplied required C++ and ICU libraries. | The exact standalone executable ran help, validation, protected creation and existing-file conflict on actual x64 musl in an isolated network-disabled container. Output matched the independent map case, mode 0600; conflict returned 74 and preserved bytes. This bounded maintenance exercise does not qualify every scenario, architecture, final candidate or assistive technology. |
+
+The [independent corpus](../../tests/Conformance/README.md) explains the literal
+case inventory and import limitations. [PROJECTS.md](../../PROJECTS.md#schema-and-dependency-probe-contracts)
+routes generator and dependency work to its existing engineering owner.
+Run only affected classes during implementation, then the required owner and
+boundary checks at exit. Do not repeat settled suites to validate prose.
 
 ## Documentation
 

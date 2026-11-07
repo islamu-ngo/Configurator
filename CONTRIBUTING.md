@@ -29,6 +29,11 @@ flow; the [documentation style guide](docs/internal/DOCUMENTATION_STYLE_GUIDE.md
 helps you write and verify source-grounded guidance. Contribution policy below
 still governs scope and submission.
 
+For definition, correction, output, lifecycle or native-host work, use the
+[maintenance owner routes](docs/internal/CONTRIBUTOR_RECIPES.md#maintenance-owner-routes).
+They identify the smallest owning change, independent checks and the limits of
+the evidence already executed.
+
 > [!IMPORTANT]
 > These guidelines may feel stricter than in many open-source projects. That is intentional.
 > Clear structure, architectural boundaries, and legal hygiene prevent maintainer burnout and keep the project sustainable long-term.
@@ -346,6 +351,10 @@ Before submitting a pull request, verify your changes locally.
 > - **Ring 3:** Verify relevant package/architecture/schema boundaries once at workstream exit. No Event database or service matrix belongs here.
 
 ### 1. Solution Build
+At workstream exit, use the solution build when project wiring or shared
+boundaries changed. During a coherent change, build the affected owner from
+[PROJECTS.md](PROJECTS.md); pure prose needs no product build.
+
 ```bash
 dotnet build Configurator.slnx --configuration Release --verbosity quiet
 ```

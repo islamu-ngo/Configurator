@@ -215,21 +215,51 @@ use their native engineering owner; no unrelated product or Event suites.
 
 ## Standalone packaging
 
+### Schema and dependency probe contracts
+
+Both schema freshness owners ran successfully on 2026-11-05:
+
+```bash
+dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator --configuration Release -- --check
+dotnet run --project eng/configurator/Configurator.CommandSchemaGenerator --configuration Release -- --check
+```
+
+Definition generation accepts exact switches for schema write/check and example
+write/check/family renewal; no arguments emit the runtime schema, invalid
+arguments return 2, stale schemas return 1. Command generation requires exactly
+one of `--write`, `--check`, `--stdout`; invalid arguments return 64 and stale
+schemas return 1. Regenerate through these owners after an affected contract
+change; never edit generated schema bytes to satisfy freshness.
+
+The four probes under `eng/configurator/probes/` have narrower contracts than
+product qualification. CommunityToolkit exercises generated observable-property
+and relay-command compilation. DI's `ProbeComposition.cs` constructs a provider
+with a transient registration; compilation alone does not prove resolution.
+YamlDotNet's executable checks one mapping document with a `root` key.
+Cryptography exercises 37 bounded profiles and known vectors; its colocated
+README requires actual AOT/browser execution and network observation.
+No probe contract changed in the recursive-root work, so it requires no new
+probe execution. Existing probe evidence does not qualify a changed product
+payload. See the [maintenance routes](docs/internal/CONTRIBUTOR_RECIPES.md#maintenance-owner-routes)
+for independently authored definition cases and actual execution limits.
+
 Desktop native qualification runs separately from MTP/headless tests:
 
 ```bash
 dotnet build tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --verbosity quiet
-dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 22
+dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 30
 ```
 
-Its twenty-two required named scenarios preserve all twenty existing guards,
-including `D18-shared-editing-presence-localized-actions` and
-`D19-typed-map-variant-null-reset-locale`, and add
-`D20-read-only-import-comparison`, and add `D21-secret-generation-validation`.
-The new scenario exercises rendered generation, validation correction, reveal,
-explicit clipboard transfer and separate generated-password dismissal.
+Its exact thirty-name set preserves the original twenty-four guards, including
+shared editing, typed maps/variants, import comparison and secret generation.
+The generation scenario exercises rendered generation, validation correction,
+reveal, explicit clipboard transfer and separate generated-password dismissal.
 `D22-deployment-context-destinations` exercises the rendered atomic recipe/scope
 selection and eligible destination refresh.
+`D23-root-map-literal-controls` and `D24-root-variant-retirement` retain root
+editing and retirement checks. D25-D30 cover appearance/contrast, guided root
+correction, responsive text/focus, collection identity, metadata-only discovery
+and selected-output review. Completion requires exact name-set equality.
 The count is the actual required name set,
 not a claim that the current source has passed native qualification.
 Parent-owned startup cohorts use
