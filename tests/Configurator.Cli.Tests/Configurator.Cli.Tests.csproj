@@ -16,5 +16,9 @@
     <PackageReference Include="TUnit" />
     <EmbeddedResource Include="../../examples/islamu-event/definition.json" LogicalName="EventDefinition" />
     <EmbeddedResource Include="../../examples/islamu-event/answers/environment-standalone.json" LogicalName="EventStandaloneAnswers" />
+    <EmbeddedResource Include="../Conformance/root-map.definition.json" LogicalName="Conformance.RootMap" />
+    <EmbeddedResource Include="../Conformance/root-variant.definition.json" LogicalName="Conformance.RootVariant" />
+    <EmbeddedResource Include="../Conformance/recursive-cases.json" LogicalName="Conformance.Cases" />
+    <EmbeddedResource Include="../Conformance/synthetic-library.definition.json" LogicalName="Conformance.Library" />
   </ItemGroup>
 </Project>
