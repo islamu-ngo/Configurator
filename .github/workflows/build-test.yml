@@ -185,6 +185,25 @@ jobs:
           dotnet run .ci/scripts/validate-cli-package.cs -- --self-test
           dotnet run .ci/scripts/validate-cli-package.cs -- --package-directory artifacts/configurator/cli/linux-x64 --expected-rid linux-x64
           dotnet run .ci/scripts/validate-dependency-license-policy.cs -- .
+          # Serve an isolated copy of the current publication; this is HTTP
+          # policy evidence, not container qualification or a changed candidate.
+          host_root=$(mktemp -d "$RUNNER_TEMP/host-policy-XXXXXXXX")
+          cp -a artifacts/configurator/browser/wwwroot "$host_root/wwwroot"
+          printf 'synthetic-unpublished\n' | tee "$host_root/wwwroot/host-attack.json" \
+            "$host_root/wwwroot/host-attack.unknown" "$host_root/wwwroot/host-attack" > /dev/null
+          port=$(shuf -i 49152-65535 -n 1)
+          export CONFIGURATOR_HOST_URL="http://127.0.0.1:$port"
+          dotnet src/Configurator.Browser.Host/bin/Release/net10.0/Configurator.Browser.Host.dll \
+            --urls "$CONFIGURATOR_HOST_URL" --webroot "$host_root/wwwroot" > /dev/null 2>&1 &
+          host_pid=$!
+          trap 'kill "$host_pid" 2>/dev/null || true; wait "$host_pid" 2>/dev/null || true; rm -rf "$host_root"' EXIT
+          ready=0
+          for attempt in {1..100}; do
+            kill -0 "$host_pid" 2>/dev/null || break
+            if curl --silent --fail --max-time 1 "$CONFIGURATOR_HOST_URL/" > /dev/null; then ready=1; break; fi
+            sleep 0.1
+          done
+          if [[ "$ready" -ne 1 ]]; then printf 'HOST_READINESS_FAILED\n'; exit 1; fi
           overall=0
           for project in tests/Configurator.*.Tests/*.csproj \
             eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj \

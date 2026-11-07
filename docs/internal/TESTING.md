@@ -182,8 +182,10 @@ durable custody. The selftest exercises copied retrieval, tampering, missing
 bytes, collisions, host mismatch and raw-data exclusion using synthetic inputs.
 
 The workflow transports safe archives with `always()` and seven-day retention.
-The release steward owns actual archive custody; see the
-[release custody gate](RELEASE_RUNBOOK.md#safe-evidence-custody-gate).
+It also starts a bounded, cleaned-up localhost Host against an isolated copy of
+the current Browser publication for Architecture HTTP policy tests. That run is
+HTTP evidence, not container qualification. The release steward owns actual
+archive custody; see the [release custody gate](RELEASE_RUNBOOK.md#safe-evidence-custody-gate).
 
 ### Initial collection and resolved Core instrumentation prerequisite
 
