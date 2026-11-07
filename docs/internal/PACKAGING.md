@@ -38,6 +38,12 @@ LF before writing bytes or computing frozen-contract hashes. Native package
 freshness checks compare those canonical bytes on every host; Windows must not
 introduce CRLF differences into unchanged contracts.
 
+`Configurator.Release.proj` explicitly declares the five operator schemas copied
+to native and Browser packages. Engineering capture, check-execution,
+test-evidence, provenance and qualification schemas are separate tool contracts;
+adding one under `schemas/` must not expand the operator package inventory.
+The existing standalone package assertion verifies that exact inventory.
+
 `eng/configurator/Configurator.Release.proj` owns native surface/RID admission,
 standalone publication and independent static browser publication. Its default
 `Build` target restores locked development dependencies and builds the selected

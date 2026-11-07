@@ -27,7 +27,7 @@
     <ConfiguratorRuntimeIdentifier Include="linux-musl-x64;linux-musl-arm64;osx-x64" Condition="'$(ConfiguratorSurface)' == 'cli'" />
     <ConfiguratorNotice Include="$(ConfiguratorRoot)/LICENSE;$(ConfiguratorRoot)/THIRD-PARTY-NOTICES.md" />
     <ConfiguratorCapability Include="$(MSBuildThisFileDirectory)generated/*.json" />
-    <ConfiguratorSchema Include="$(ConfiguratorRoot)/schemas/*.schema.json" />
+    <ConfiguratorSchema Include="$(ConfiguratorRoot)/schemas/configurator-authoring.schema.json;$(ConfiguratorRoot)/schemas/setup-definition.schema.json;$(ConfiguratorRoot)/schemas/configurator-answers.schema.json;$(ConfiguratorRoot)/schemas/configurator-cli.schema.json;$(ConfiguratorRoot)/schemas/definition-store-curation.schema.json" />
     <ConfiguratorIntegrationSkill Include="$(ConfiguratorRoot)/skills/configurator-integrate/**/*" />
   </ItemGroup>
 
