@@ -43,9 +43,12 @@
       <_DefinitionStoreOutput>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)definition-store'))</_DefinitionStoreOutput>
     </PropertyGroup>
     <RemoveDir Directories="$(_DefinitionStoreOutput)" />
-    <Exec Condition="'$(DefinitionStoreSourceRoot)' != ''"
+    <Exec Condition="'$(DefinitionStoreSourceRoot)' != '' and '$(ConfiguratorCaptureSession)' == ''"
           WorkingDirectory="$(MSBuildProjectDirectory)/../.."
           Command="dotnet run --file &quot;$(MSBuildProjectDirectory)/../../eng/configurator/BuildDefinitionStore.cs&quot; -- --source &quot;$(DefinitionStoreSourceRoot)&quot; --output &quot;$(_DefinitionStoreOutput)&quot; --write" />
+    <BuildCaptureTask Condition="'$(DefinitionStoreSourceRoot)' != '' and '$(ConfiguratorCaptureSession)' != ''"
+      Session="$(ConfiguratorCaptureSession)" Project="$(MSBuildProjectFullPath)" Operation="store"
+      Arguments="--source;$(DefinitionStoreSourceRoot);--output;$(_DefinitionStoreOutput);--write" />
     <ItemGroup Condition="'$(DefinitionStoreSourceRoot)' != ''">
       <_DefinitionStoreAsset Include="$(_DefinitionStoreOutput)/**/*" />
       <Content Include="@(_DefinitionStoreAsset)">
@@ -63,7 +66,9 @@
   </Target>
 
   <Target Name="VerifyBrowserEditorAssets" BeforeTargets="PrepareForPublish">
-    <Exec WorkingDirectory="$(MSBuildProjectDirectory)/../.."
+    <Exec Condition="'$(ConfiguratorCaptureSession)' == ''" WorkingDirectory="$(MSBuildProjectDirectory)/../.."
           Command="dotnet run --file &quot;$(MSBuildProjectDirectory)/../../eng/configurator/BuildBrowserEditor.cs&quot; -- --check &quot;$(MSBuildProjectDirectory)/../..&quot;" />
+    <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''" Session="$(ConfiguratorCaptureSession)"
+      Project="$(MSBuildProjectFullPath)" Operation="editor" Arguments="--check;$(MSBuildProjectDirectory)/../.." />
   </Target>
 </Project>

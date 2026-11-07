@@ -4,6 +4,7 @@
 #:property JsonSerializerIsReflectionEnabledByDefault=true
 #:property AssemblyName=Configurator.BrowserEditorBuilder
 #:property RootNamespace=Configurator.Engineering
+#:project Configurator.BuildCapture/Configurator.BuildCapture.csproj
 
 using System.Formats.Tar;
 using System.Diagnostics;
@@ -11,6 +12,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Configurator.BuildCapture;
 
 return await BrowserEditorBuilder.RunAsync(args);
 
@@ -185,15 +187,15 @@ internal static class BrowserEditorBuilder
         string input = Path.Combine(root, "eng/configurator/editor");
         string packagePath = Path.Combine(input, "package.json");
         if (!File.Exists(packagePath)) throw new EditorAssetException("editor-approval-required");
-        using JsonDocument package = JsonDocument.Parse(await File.ReadAllBytesAsync(packagePath));
+        using JsonDocument package = JsonDocument.Parse(await ReadCapturedAsync(packagePath));
         if (!package.RootElement.TryGetProperty("configuratorEditor", out JsonElement recipe)
             || recipe.GetProperty("approval").GetString() != "approved")
             throw new EditorAssetException("editor-approval-required");
         string record = Path.Combine(root, "docs/internal/legal/dependencies/codemirror.md");
         string lockPath = Path.Combine(input, "package-lock.json");
         string closure = recipe.GetProperty("closureSha256").GetString()!;
-        if (Hash(await File.ReadAllBytesAsync(record)) != recipe.GetProperty("recordSha256").GetString()
-            || Hash(await File.ReadAllBytesAsync(lockPath)) != recipe.GetProperty("lockSha256").GetString())
+        if (Hash(await ReadCapturedAsync(record)) != recipe.GetProperty("recordSha256").GetString()
+            || Hash(await ReadCapturedAsync(lockPath)) != recipe.GetProperty("lockSha256").GetString())
             throw new EditorAssetException("editor-approval-binding");
         var inputs = new SortedDictionary<string, string>(StringComparer.Ordinal);
         foreach (string path in new[]
@@ -204,13 +206,13 @@ internal static class BrowserEditorBuilder
             "eng/configurator/BuildBrowserEditor.cs",
             "docs/internal/legal/dependencies/codemirror.md"
         })
-            inputs.Add(path, Hash(await File.ReadAllBytesAsync(Path.Combine(root, path))));
+            inputs.Add(path, Hash(await ReadCapturedAsync(Path.Combine(root, path))));
         string vendor = Path.Combine(root, "src/Configurator.Browser/wwwroot/vendor");
         string manifestPath = Path.Combine(vendor, "configuration-editor.manifest.json");
         if (check)
         {
             if (!File.Exists(manifestPath)) throw new EditorAssetException("editor-output-missing");
-            using JsonDocument generated = JsonDocument.Parse(await File.ReadAllBytesAsync(manifestPath));
+            using JsonDocument generated = JsonDocument.Parse(await ReadCapturedAsync(manifestPath));
             JsonElement metadata = generated.RootElement;
             if (metadata.GetProperty("schemaVersion").GetInt32() != 1
                 || metadata.GetProperty("closureSha256").GetString() != closure)
@@ -244,7 +246,7 @@ internal static class BrowserEditorBuilder
                 if (output.Name is not ("configuration-editor.js" or "configuration-editor.LICENSE.txt")
                     || !outputNames.Add(output.Name))
                     throw new EditorAssetException("editor-output-invalid");
-                byte[] bytes = await File.ReadAllBytesAsync(Path.Combine(vendor, output.Name));
+                byte[] bytes = await ReadCapturedAsync(Path.Combine(vendor, output.Name));
                 if (Hash(bytes) != output.Value.GetProperty("sha256").GetString()
                     || bytes.LongLength != output.Value.GetProperty("bytes").GetInt64())
                     throw new EditorAssetException("editor-output-stale");
@@ -362,6 +364,12 @@ internal static class BrowserEditorBuilder
         await File.WriteAllBytesAsync(Path.Combine(vendor, "configuration-editor.LICENSE.txt"), terms);
         await File.WriteAllBytesAsync(manifestPath, manifest.ToArray());
         Console.WriteLine($"EDITOR_ASSET_BUILT closure={closure} components={components.Count} bytes={bundle.Length}");
+    }
+
+    private static Task<byte[]> ReadCapturedAsync(string path)
+    {
+        CaptureSession.Consume(path);
+        return File.ReadAllBytesAsync(path);
     }
 
     private static async Task<string> RunProcessAsync(string command, string[] arguments, string directory)

@@ -124,6 +124,7 @@ jobs:
             tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj \
             eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj \
             eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj \
+            eng/configurator/Configurator.BuildCapture/Configurator.BuildCapture.csproj \
             eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj \
             eng/configurator/Configurator.CommandSchemaGenerator/Configurator.CommandSchemaGenerator.csproj
           do
@@ -141,6 +142,7 @@ jobs:
       - name: Validate dependency rights and compiled contracts
         run: |
           dotnet run .ci/scripts/validate-dependency-license-policy.cs -- .
+          dotnet eng/configurator/Configurator.BuildCapture/bin/Release/net10.0/Configurator.BuildCapture.dll --schema-check .
           dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator --configuration Release --no-build -- --check
           dotnet run --file eng/configurator/ValidateConfiguratorSkill.cs -- .agents/skills/configurator-integrate/SKILL.md
           dotnet run --file eng/configurator/ValidateConfiguratorSkill.cs -- --portable skills/configurator-integrate/SKILL.md

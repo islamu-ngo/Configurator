@@ -1,4 +1,5 @@
 <Project DefaultTargets="Build">
+  <Import Project="Configurator.BuildCapture.targets" Condition="'$(ConfiguratorCaptureSession)' != ''" />
   <PropertyGroup>
     <Configuration>Release</Configuration>
     <ConfiguratorRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../..'))</ConfiguratorRoot>
@@ -61,7 +62,9 @@
   </Target>
 
   <Target Name="CheckConfiguratorRatchets">
-    <Exec WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run eng/configurator/GenerateConfiguratorRatchets.cs -- --check" />
+    <Exec Condition="'$(ConfiguratorCaptureSession)' == ''" WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run eng/configurator/GenerateConfiguratorRatchets.cs -- --check" />
+    <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''" Session="$(ConfiguratorCaptureSession)"
+      Project="$(MSBuildProjectFullPath)" Operation="ratchets" Arguments="--check" />
   </Target>
 
   <Target Name="RefreshConfiguratorSchemas" DependsOnTargets="ValidateConfiguratorRelease">
@@ -75,7 +78,10 @@
     <!-- RID restore locks are separate from the framework-only development locks. -->
     <MSBuild Projects="$(ConfiguratorProject)" Targets="Restore"
       Properties="Configuration=$(Configuration);RuntimeIdentifier=$(ConfiguratorRid);SelfContained=true;PublishSingleFile=true;RestoreLockedMode=false;NuGetLockFilePath=obj/configurator-release/$(ConfiguratorRid)/packages.lock.json" />
-    <Exec Command="dotnet publish &quot;$(ConfiguratorProject)&quot; --no-restore --configuration &quot;$(Configuration)&quot; --runtime &quot;$(ConfiguratorRid)&quot; --self-contained true --output &quot;$(ConfiguratorPublishDirectory)&quot; --tl:off -p:RestoreLockedMode=true -p:NuGetLockFilePath=obj/configurator-release/$(ConfiguratorRid)/packages.lock.json -p:PublishSingleFile=true -p:PublishTrimmed=false -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:UseAppHost=true -p:DebugSymbols=false -p:DebugType=none" />
+    <Exec Condition="'$(ConfiguratorCaptureSession)' == ''" Command="dotnet publish &quot;$(ConfiguratorProject)&quot; --no-restore --configuration &quot;$(Configuration)&quot; --runtime &quot;$(ConfiguratorRid)&quot; --self-contained true --output &quot;$(ConfiguratorPublishDirectory)&quot; --tl:off -p:RestoreLockedMode=true -p:NuGetLockFilePath=obj/configurator-release/$(ConfiguratorRid)/packages.lock.json -p:PublishSingleFile=true -p:PublishTrimmed=false -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:UseAppHost=true -p:DebugSymbols=false -p:DebugType=none" />
+    <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''" Session="$(ConfiguratorCaptureSession)"
+      Project="$(ConfiguratorProject)" Target="Publish"
+      Properties="Configuration=$(Configuration);RuntimeIdentifier=$(ConfiguratorRid);SelfContained=true;PublishDir=$(ConfiguratorPublishDirectory);RestoreLockedMode=true;NuGetLockFilePath=obj/configurator-release/$(ConfiguratorRid)/packages.lock.json;PublishSingleFile=true;PublishTrimmed=false;EnableCompressionInSingleFile=true;IncludeNativeLibrariesForSelfExtract=true;UseAppHost=true;DebugSymbols=false;DebugType=none" />
     <PropertyGroup>
       <_ExecutableExtension Condition="'$(ConfiguratorRid)' == 'win-x64'">.exe</_ExecutableExtension>
     </PropertyGroup>
@@ -87,7 +93,14 @@
       DestinationFiles="@(ConfiguratorIntegrationSkill->'$(ConfiguratorPublishDirectory)skills/configurator-integrate/%(RecursiveDir)%(Filename)%(Extension)')" />
     <!-- Replace the generated inventory so retired dependency notices cannot survive a republish. -->
     <RemoveDir Directories="$(ConfiguratorPublishDirectory)dependency-notices" />
-    <Exec WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run .ci/scripts/write-dependency-notices.cs -- &quot;$(ConfiguratorRoot)/src/$(ConfiguratorAssemblyName)/obj/project.assets.json&quot; &quot;$(ConfiguratorPublishDirectory)dependency-notices&quot; &quot;$(ConfiguratorProject)&quot; &quot;$(ConfiguratorRid)&quot;" />
+    <Exec Condition="'$(ConfiguratorCaptureSession)' == ''" WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run .ci/scripts/write-dependency-notices.cs -- &quot;$(ConfiguratorRoot)/src/$(ConfiguratorAssemblyName)/obj/project.assets.json&quot; &quot;$(ConfiguratorPublishDirectory)dependency-notices&quot; &quot;$(ConfiguratorProject)&quot; &quot;$(ConfiguratorRid)&quot;" />
+    <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''" Session="$(ConfiguratorCaptureSession)"
+      Project="$(ConfiguratorProject)" Operation="assets">
+      <Output TaskParameter="ProjectAssetsFile" PropertyName="_ConfiguratorCaptureAssetsFile" />
+    </BuildCaptureTask>
+    <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''" Session="$(ConfiguratorCaptureSession)"
+      Project="$(ConfiguratorProject)" Operation="notices"
+      Arguments="$(_ConfiguratorCaptureAssetsFile);$(ConfiguratorPublishDirectory)dependency-notices;$(ConfiguratorProject);$(ConfiguratorRid)" />
     <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="WriteConfiguratorReleaseContract"
       Properties="ConfiguratorContractOutput=$(ConfiguratorPublishDirectory)contracts/package.json" />
   </Target>
@@ -95,8 +108,12 @@
   <Target Name="PublishConfiguratorBrowser" DependsOnTargets="ValidateConfiguratorProductionInputs;CheckConfiguratorRatchets">
     <!-- Native release properties must never leak into static WASM publication. -->
     <RemoveDir Directories="$(ConfiguratorOutputRoot)/browser" />
-    <MSBuild Projects="$(ConfiguratorRoot)/src/Configurator.Browser/Configurator.Browser.csproj" Targets="Restore;Publish"
+    <MSBuild Condition="'$(ConfiguratorCaptureSession)' == ''"
+      Projects="$(ConfiguratorRoot)/src/Configurator.Browser/Configurator.Browser.csproj" Targets="Restore;Publish"
       RemoveProperties="RuntimeIdentifier;SelfContained;PublishSingleFile;PublishTrimmed;UseAppHost;EnableCompressionInSingleFile;IncludeNativeLibrariesForSelfExtract;DebugSymbols;DebugType"
+      Properties="Configuration=$(Configuration);PublishDir=$(ConfiguratorOutputRoot)/browser/;RestoreLockedMode=true;DefinitionStoreSourceRoot=$(DefinitionStoreSourceRoot)" />
+    <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''" Session="$(ConfiguratorCaptureSession)"
+      Project="$(ConfiguratorRoot)/src/Configurator.Browser/Configurator.Browser.csproj" Target="Publish"
       Properties="Configuration=$(Configuration);PublishDir=$(ConfiguratorOutputRoot)/browser/;RestoreLockedMode=true;DefinitionStoreSourceRoot=$(DefinitionStoreSourceRoot)" />
     <Error Condition="!Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/index.html')" Text="Static browser index is missing." />
     <Error Condition="!Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/js/configuration-developer.js') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/vendor/configuration-editor.js') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/vendor/configuration-editor.manifest.json') or !Exists('$(ConfiguratorOutputRoot)/browser/wwwroot/vendor/configuration-editor.LICENSE.txt')" Text="Reviewed local editor assets and original terms are incomplete." />
@@ -104,7 +121,14 @@
     <Copy SourceFiles="@(ConfiguratorNotice)" DestinationFolder="$(ConfiguratorOutputRoot)/browser/wwwroot" />
     <Copy SourceFiles="@(ConfiguratorCapability)" DestinationFolder="$(ConfiguratorOutputRoot)/browser/wwwroot/contracts" />
     <Copy SourceFiles="@(ConfiguratorSchema)" DestinationFolder="$(ConfiguratorOutputRoot)/browser/wwwroot/schemas" />
-    <Exec WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run .ci/scripts/write-dependency-notices.cs -- &quot;$(ConfiguratorRoot)/src/Configurator.Browser/obj/project.assets.json&quot; &quot;$(ConfiguratorOutputRoot)/browser/wwwroot/dependency-notices&quot; &quot;$(ConfiguratorRoot)/src/Configurator.Browser/Configurator.Browser.csproj&quot; browser-wasm" />
+    <Exec Condition="'$(ConfiguratorCaptureSession)' == ''" WorkingDirectory="$(ConfiguratorRoot)" Command="dotnet run .ci/scripts/write-dependency-notices.cs -- &quot;$(ConfiguratorRoot)/src/Configurator.Browser/obj/project.assets.json&quot; &quot;$(ConfiguratorOutputRoot)/browser/wwwroot/dependency-notices&quot; &quot;$(ConfiguratorRoot)/src/Configurator.Browser/Configurator.Browser.csproj&quot; browser-wasm" />
+    <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''" Session="$(ConfiguratorCaptureSession)"
+      Project="$(ConfiguratorRoot)/src/Configurator.Browser/Configurator.Browser.csproj" Operation="assets">
+      <Output TaskParameter="ProjectAssetsFile" PropertyName="_ConfiguratorCaptureAssetsFile" />
+    </BuildCaptureTask>
+    <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''" Session="$(ConfiguratorCaptureSession)"
+      Project="$(MSBuildProjectFullPath)" Operation="notices"
+      Arguments="$(_ConfiguratorCaptureAssetsFile);$(ConfiguratorOutputRoot)/browser/wwwroot/dependency-notices;$(ConfiguratorRoot)/src/Configurator.Browser/Configurator.Browser.csproj;browser-wasm" />
   </Target>
 
   <Target Name="PublishAllConfiguratorRids" DependsOnTargets="ValidateConfiguratorRelease">

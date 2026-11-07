@@ -5,6 +5,7 @@
 #:property AssemblyName=Configurator.DefinitionStoreBuilder
 #:property RootNamespace=Configurator.Engineering
 #:project ../../src/Configurator.Core/Configurator.Core.csproj
+#:project Configurator.BuildCapture/Configurator.BuildCapture.csproj
 
 using System.Text;
 using System.Text.Json;
@@ -13,6 +14,7 @@ using System.Globalization;
 using Configurator.Core;
 using Configurator.Core.Definitions;
 using Configurator.Core.Definitions.Authoring;
+using Configurator.BuildCapture;
 
 return DefinitionStoreBuilder.Run(args);
 
@@ -247,6 +249,7 @@ internal static class DefinitionStoreBuilder
 
     private static byte[] ReadBounded(string path, int maximum, string limitCode)
     {
+        CaptureSession.Consume(path);
         using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var output = new MemoryStream();
         byte[] buffer = new byte[8192];

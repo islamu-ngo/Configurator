@@ -141,6 +141,10 @@ src/Configurator.Browser/wwwroot/vendor/*
 eng/**
 !eng/configurator/
 eng/configurator/**
+!eng/configurator/Configurator.BuildCapture/
+eng/configurator/Configurator.BuildCapture/**
+!eng/configurator/Configurator.BuildCapture/*.cs
+!eng/configurator/Configurator.BuildCapture/Configurator.BuildCapture.csproj
 !eng/configurator/generated/
 eng/configurator/generated/*
 !eng/configurator/editor/

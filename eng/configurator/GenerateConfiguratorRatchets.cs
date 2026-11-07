@@ -5,6 +5,7 @@
 #:property RootNamespace=Configurator.Engineering
 #:project ../../src/Configurator.Core/Configurator.Core.csproj
 #:project ../../src/Configurator.Cli/Configurator.Cli.csproj
+#:project Configurator.BuildCapture/Configurator.BuildCapture.csproj
 
 using System.Diagnostics;
 using System.Security.Cryptography;
@@ -14,6 +15,7 @@ using System.Text.Json.Nodes;
 using Configurator.Core.Definitions;
 using Configurator.Core;
 using Configurator.Cli;
+using Configurator.BuildCapture;
 
 if (args is not ["--write"] and not ["--check"])
 {
@@ -70,10 +72,14 @@ foreach (string surface in new[] { "cli", "terminal", "desktop" })
             "-target:WriteConfiguratorReleaseContract", $"-property:ConfiguratorSurface={surface}",
             $"-property:ConfiguratorContractOutput={temporary}"
         }) start.ArgumentList.Add(argument);
+        CaptureSession.Instrument(start);
         using Process process = Process.Start(start)!;
         process.WaitForExit();
         if (process.ExitCode != 0) return process.ExitCode;
+        CaptureSession.Consume(temporary);
         surfaces[surface] = JsonNode.Parse(File.ReadAllText(temporary));
+        if (Environment.GetEnvironmentVariable("CONFIGURATOR_CAPTURE_SESSION") is not null)
+            CaptureSession.RetireContractOutput(temporary);
     }
     finally { if (File.Exists(temporary)) File.Delete(temporary); }
 }
@@ -92,6 +98,7 @@ foreach ((string name, JsonObject value) in outputs)
     string path = Path.Combine(outputRoot, name);
     if (args[0] == "--check")
     {
+        if (File.Exists(path)) CaptureSession.Consume(path);
         if (!File.Exists(path) || !File.ReadAllBytes(path).AsSpan().SequenceEqual(bytes))
         {
             Console.Error.WriteLine($"Configurator ratchet missing or stale: {name}");

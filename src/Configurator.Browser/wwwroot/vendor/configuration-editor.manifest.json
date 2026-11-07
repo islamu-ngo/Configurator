@@ -8,7 +8,7 @@
   },
   "inputs": {
     "docs/internal/legal/dependencies/codemirror.md": "6de435ddbfc05c43e6983b0882892142794073d0d99f1c99d753473f163a50f2",
-    "eng/configurator/BuildBrowserEditor.cs": "3a8d01397f350436f9524fc6b2363dab5176718128a5c8d4b93443ae79f46af3",
+    "eng/configurator/BuildBrowserEditor.cs": "81ac87d0d967f3f4cdd240a853ce69585ff4adafb655d446a98073003081c092",
     "eng/configurator/editor/editor-entry.js": "398b09d14d271186dfd985c5812249c8690abd3705f20635f36ade9ab57031b7",
     "eng/configurator/editor/package-lock.json": "fe664dfbbf3eeac5f530e172ef7125fefced26ae3b016cfef142fe838217a6bd",
     "eng/configurator/editor/package.json": "5c70a0e7d8440fcd7c0bb97b3a8532c60fa496a2bc1e795748b8e540d14bd7f1"

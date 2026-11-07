@@ -229,6 +229,11 @@ restores, public schemas/contracts, dependency notices or the SDK's PWA asset
 inventory. The Dockerfile-specific `Dockerfile.dockerignore` admits only build
 inputs and public definitions, excluding `.git`, task workspaces, environment
 files and host `bin`/`obj`/artifact output.
+Ratchet verification references the first-party `Configurator.BuildCapture`
+project to record consumed inputs. Its project file and top-level C# sources
+therefore belong to the image build context; generated capture sessions and
+compiled outputs remain excluded. This build dependency does not enter the
+final static Host image.
 The admitted inputs include feature-folder source, English/Arabic resources and
 the editor's reviewed manifest, license, recipe and approval record. The editor
 verifier checks these existing inputs inside the image; it does not rebuild or

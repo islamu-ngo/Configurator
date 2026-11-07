@@ -195,6 +195,11 @@ The browser output in `artifacts/configurator/browser/wwwroot/` consists entirel
 - No backend API, application server, or database is required.
 - Detailed hosting guidance, Content Security Policy (CSP) headers, and Docker container instructions are documented in the [Browser Guide](browser.md).
 
+Container builds use the Dockerfile-specific context filter. It includes the
+first-party capture project's source needed by ratchet verification, while
+excluding local capture sessions and build outputs. The final image contains
+the static Host and published Browser assets.
+
 The optional .NET Host denies framing (`frame-ancestors 'none'`) and accepts
 only GET and HEAD. It serves application assets named in the published SDK
 `service-worker-assets.js` inventory, the worker and its inventory, root license

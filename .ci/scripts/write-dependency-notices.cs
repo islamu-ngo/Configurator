@@ -2,11 +2,14 @@
 #:property PublishAot=false
 #:property AssemblyName=Configurator.DependencyNotices
 #:property RootNamespace=Configurator.Ci
+#:project ../../eng/configurator/Configurator.BuildCapture/Configurator.BuildCapture.csproj
 
 using System.Text.Json;
 using System.Diagnostics;
+using Configurator.BuildCapture;
 
 if (args is not [var assetsPath, var outputPath, var projectPath, var runtime]) return 64;
+CaptureSession.Consume(assetsPath);
 using JsonDocument assets = JsonDocument.Parse(File.ReadAllBytes(assetsPath));
 string[] caches = assets.RootElement.GetProperty("packageFolders").EnumerateObject().Select(item => item.Name).ToArray();
 DirectoryInfo? root = new(Path.GetDirectoryName(Path.GetFullPath(projectPath))!);
@@ -29,7 +32,10 @@ foreach (JsonProperty library in assets.RootElement.GetProperty("libraries").Enu
         return RejectSupplementalReview(library.Name);
     Directory.CreateDirectory(destination);
     foreach (string nuspec in Directory.EnumerateFiles(package, "*.nuspec"))
+    {
+        CaptureSession.Consume(nuspec, "legal");
         File.Copy(nuspec, Path.Combine(destination, Path.GetFileName(nuspec)), overwrite: true);
+    }
     foreach (JsonElement entry in library.Value.GetProperty("files").EnumerateArray())
     {
         string file = entry.GetString()!;
@@ -39,6 +45,7 @@ foreach (JsonProperty library in assets.RootElement.GetProperty("libraries").Enu
             && !name.StartsWith("COPYING", StringComparison.OrdinalIgnoreCase)
             && !name.StartsWith("COPYRIGHT", StringComparison.OrdinalIgnoreCase)) continue;
         string source = Path.Combine(package, file);
+        CaptureSession.Consume(source, "legal");
         if (!File.Exists(source)) throw new InvalidDataException("A package notice is missing.");
         string target = Path.Combine(destination, file);
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
@@ -48,6 +55,9 @@ foreach (JsonProperty library in assets.RootElement.GetProperty("libraries").Enu
 }
 if (count == 0) return 1;
 // SDK runtime packs are download dependencies, not ordinary assets libraries.
+string? frameworkInventory = CaptureSession.FrameworkInventory(projectPath, runtime);
+if (frameworkInventory is null)
+{
 var start = new ProcessStartInfo("dotnet")
 {
     UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true
@@ -64,7 +74,11 @@ using (Process process = Process.Start(start)!)
     try { await process.WaitForExitAsync(deadline.Token); }
     catch (OperationCanceledException) { process.Kill(entireProcessTree: true); throw; }
     if (process.ExitCode != 0) { Console.Error.WriteLine(await error); return process.ExitCode; }
-    using JsonDocument evaluated = JsonDocument.Parse(await output);
+    frameworkInventory = await output;
+}
+}
+{
+    using JsonDocument evaluated = JsonDocument.Parse(frameworkInventory);
     JsonElement items = evaluated.RootElement.GetProperty("Items");
     var frameworks = items.GetProperty("FrameworkReference").EnumerateArray()
         .Select(item => item.GetProperty("Identity").GetString()!).ToHashSet(StringComparer.Ordinal);
@@ -87,6 +101,7 @@ using (Process process = Process.Start(start)!)
                 && !name.Contains("license", StringComparison.OrdinalIgnoreCase)
                 && !name.Contains("notice", StringComparison.OrdinalIgnoreCase)) continue;
             string target = Path.Combine(destination, Path.GetRelativePath(package, file));
+            CaptureSession.Consume(file, "legal");
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             File.Copy(file, target, overwrite: true);
         }
@@ -117,10 +132,12 @@ static bool WriteSupplementalNotices(string supplementalRoot, string packageIden
     string review = Path.Combine(reviewRoot, version);
     string manifestPath = Path.Combine(review, "manifest.json");
     if (!File.Exists(manifestPath)) return false;
+    CaptureSession.Consume(manifestPath, "legal");
     using JsonDocument manifest = JsonDocument.Parse(File.ReadAllBytes(manifestPath));
     string? reviewedHash = manifest.RootElement.GetProperty("contentHash").GetString();
     string metadataPath = Path.Combine(package, ".nupkg.metadata");
     if (!File.Exists(metadataPath)) return false;
+    CaptureSession.Consume(metadataPath, "legal");
     using JsonDocument metadata = JsonDocument.Parse(File.ReadAllBytes(metadataPath));
     string? restoredHash = metadata.RootElement.GetProperty("contentHash").GetString();
     if (reviewedHash is null || restoredHash != reviewedHash || (assetsHash is not null && assetsHash != reviewedHash)
@@ -139,7 +156,10 @@ static bool WriteSupplementalNotices(string supplementalRoot, string packageIden
     string supplementalDestination = Path.Combine(destination, "supplemental");
     Directory.CreateDirectory(supplementalDestination);
     foreach (string notice in notices)
+    {
+        CaptureSession.Consume(notice, "legal");
         File.Copy(notice, Path.Combine(supplementalDestination, Path.GetFileName(notice)), overwrite: true);
+    }
     return true;
 }
 
