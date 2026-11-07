@@ -173,6 +173,10 @@ compilation. It does not change the application's offline configuration workflow
 The [internal packaging contract](../internal/PACKAGING.md#desktop-build-statistics-policy)
 owns the package configuration and verification requirements.
 
+Packages include the operator schemas declared by the release owner.
+Contributor capture, test-evidence and qualification schemas stay with their
+verification tools.
+
 ### 1. Prepare Your Environment
 
 Set your temporary directory and ensure workloads are up to date:
