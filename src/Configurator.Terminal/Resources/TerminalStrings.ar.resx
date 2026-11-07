@@ -4,6 +4,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="WindowTitle" xml:space="preserve"><value>المهيئ - تعريف محلي</value></data>
+  <data name="ConfigurationRoot" xml:space="preserve"><value>جذر الإعداد</value></data>
   <data name="ImportFile" xml:space="preserve"><value>ملف الاستيراد:</value></data>
   <data name="Close" xml:space="preserve"><value>إ_غلاق / إلغاء</value></data>
   <data name="Ready" xml:space="preserve"><value>إعداد محلي فقط. لا تُستبدل الملفات الموجودة.</value></data>
@@ -125,4 +126,7 @@
   <data name="CompletionCancelled" xml:space="preserve"><value>أُلغيت العملية</value></data>
   <data name="CompletionObserverFailed" xml:space="preserve"><value>فشل عرض نتيجة الحفظ</value></data>
   <data name="Preparing" xml:space="preserve"><value>جارٍ إعداد المخرجات المحددة. يؤدي التحرير أو المسح إلى إبطال هذه النتيجة.</value></data>
-</root>
+  <data name="PreparationFailed" xml:space="preserve"><value>تعذر التحضير. أعد المحاولة؛ لم يتم تصنيف إجاباتك على أنها غير صالحة.</value></data>
+  <data name="PreparationCancelled" xml:space="preserve"><value>أُلغي التحضير. لا توجد مخرجات جاهزة للحفظ.</value></data>
+  <data name="PreparationRetired" xml:space="preserve"><value>تغيرت المدخلات أثناء التحضير. أعد تحضير الإجابات الحالية.</value></data>
+ </root>

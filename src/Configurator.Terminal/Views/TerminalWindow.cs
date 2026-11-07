@@ -85,6 +85,15 @@ internal sealed partial class TerminalWindow : Window
     private string? _renderedLocale;
     private string _statusKey = "Ready";
     private DefinitionDiagnostic[] _statusDiagnostics = [];
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+    internal View ProbeStatusView => _status;
+    internal int ProbeOwnerGeneration => _callbackGeneration;
+    internal event Action<int, int, bool>? ProbeStatusMutation;
+    private int _probeStatusMutation;
+
+    private void ObserveProbeStatusMutation(bool progress) =>
+        ProbeStatusMutation?.Invoke(++_probeStatusMutation, _callbackGeneration, progress);
+#endif
 
     private string LocalizedText(string key) => TerminalStrings.Get(key, _operation.Form.Locale);
     private string LocalizedNumber(int value) => value.ToString(TerminalStrings.Culture(_operation.Form.Locale));
@@ -119,7 +128,9 @@ internal sealed partial class TerminalWindow : Window
             cooperativeYield: cooperativeYield ?? YieldToApplicationAsync);
         _importOperation.Settled += ImportSettled;
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
-        _application.Invoke(() => Configurator.Engineering.MeasureNativeImportComparison.Attach(this));
+        if (Environment.GetEnvironmentVariable("CONFIGURATOR_NATIVE_PROBE_MODE") == "preparation"
+            || Environment.GetEnvironmentVariable("CONFIGURATOR_NATIVE_PROBE_INPUT") is { Length: > 0 })
+            _application.Invoke(() => Configurator.Engineering.MeasureNativeImportComparison.Attach(this));
 #endif
         _editor = new(operation.Form);
         Title = LocalizedText("WindowTitle");
@@ -171,9 +182,9 @@ internal sealed partial class TerminalWindow : Window
         _prepare = Button("PreparePreview", 26, 16, Prepare);
         _save = Button("SaveProtected", 51, 16, Save);
         _nextOutcome = Button("NextOutcome", 1, 17, NextOutcome);
-        _nextOutcome.Visible = false;
+        _nextOutcome.Enabled = false;
         _nextAttempt = Button("NextAttempt", 34, 17, NextAttempt);
-        _nextAttempt.Visible = false;
+        _nextAttempt.Enabled = false;
         _status = new TextField
         {
             X = 1,
@@ -247,7 +258,7 @@ internal sealed partial class TerminalWindow : Window
     internal Task SaveCompletion => _saveObservation;
     internal Task PreparationCompletion => _preparationCompletion;
     private TerminalFieldEditor.Slot[] VisibleSlots =>
-        _editor.Slots.Where(slot => _operation.Form.IsEditorVisible(slot.FullPath)).ToArray();
+        _editor.Slots.Where(slot => _operation.Form.IsEditorVisible(slot.Location)).ToArray();
 
     private Button Button(string key, int x, int y, Action action)
     {
@@ -335,6 +346,9 @@ internal sealed partial class TerminalWindow : Window
         _status.Text = RenderStatus(_operation.Form.Locale);
         _status.ClearHistoryChanges();
         _status.SetNeedsDraw();
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        ObserveProbeStatusMutation(key is "Preparing" or "Writing");
+#endif
     }
 
     private void RefreshCommands()
@@ -350,7 +364,7 @@ internal sealed partial class TerminalWindow : Window
             ? !string.IsNullOrWhiteSpace(_importPath.Text) : _operation.Form.CanAdoptImportComparison);
         _nextFinding.Enabled = available && _operation.Form.ImportComparison is { Findings.Count: > 0 };
         _generateSecret.Enabled = available && _slot is not null && _operation.Form.CanGenerateSecret(
-            TerminalFieldEditor.EditPath(_slot, _itemIndex));
+            TerminalFieldEditor.EditLocation(_slot, _itemIndex));
         _generateSecret.Text = LocalizedText(_secret.Count > 0 ? "RegenerateSecret" : "GenerateSecret");
         _revealSecret.Enabled = available && _secret.Count > 0;
         _copySecret.Enabled = available && _secret.Count > 0;
@@ -370,8 +384,8 @@ internal sealed partial class TerminalWindow : Window
     {
         _tooSmall = size.Width < MinimumTerminalWidth || size.Height < MinimumTerminalHeight;
         foreach (View view in _normal) view.Visible = !_tooSmall;
-        _nextOutcome.Visible = !_tooSmall && _receipt is { Outcomes.Count: > 1 };
-        _nextAttempt.Visible = !_tooSmall && _receipt is not null;
+        _nextOutcome.Enabled = _receipt is { Outcomes.Count: > 1 };
+        _nextAttempt.Enabled = _receipt is not null;
         _smallNotice.Visible = _tooSmall;
         if (_operation.Form.ImportComparison is null) ShowHelp();
         else ShowComparison();

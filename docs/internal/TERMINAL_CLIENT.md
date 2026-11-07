@@ -84,6 +84,13 @@ Its generation/revision checks reject readiness after edits, clearing, selection
 changes or disposal. The dispatcher observes completion, and close cancellation
 includes preparation in the existing bounded drain. Composition bytes remain
 scoped to the worker's disposable bundle.
+`TerminalApplication` configures a maximum loop rate of 120 iterations per
+second before initialization. Dispatch and drawing can occupy separate
+iterations; the shorter cap interval leaves room for terminal output within
+the feedback budget. This setting alone is not latency evidence.
+`TerminalPreparationOutcome` separates `Ready`, `Invalid`, `Cancelled`, `Retired`
+and `Failed`. The publication caller renders cancellation and retirement
+guidance separately from invalid drafts and implementation failures.
 
 The content scrolls within an 80×24 outer terminal. Relative button columns and
 focus-driven scrolling keep controls reachable after resize. Masked controls
@@ -216,6 +223,13 @@ item. Safe current coordinates are resolved locally; stale coordinates cannot
 restore an earlier answer revision. The native editor receives focus without
 putting private map keys or values into diagnostics.
 
+Ordinary correction feedback and null/reset/suggestion affordances consume
+shared `GetFieldValidation` facts. English/Arabic feedback includes applicable
+authored bounds and public allowed values without echoing supplied answers;
+protected descendants withhold suggestions and allowed-value disclosure.
+Activation, readonly metadata and workspace consent determine the available
+actions rather than a separate Terminal policy.
+
 The artifact cursor cycles admitted outputs; a separate keyboard button toggles
 each output in the selected set. At least one must be selected. `PrepareAsync`
 checks `DefinitionBundleComposer` over one immutable answer snapshot, then keeps
@@ -229,6 +243,19 @@ target still cancels a pending import. On save, the operation recomposes the sel
 revision and passes it to `ProtectedArtifactBundlePublisher` in the workspace
 generation. Declared filenames stay inside the selected working directory; the
 definition's filename is never treated as an arbitrary path authority.
+
+Preparation captures the pinned definition, snapshot and selection before
+dispatching work. The worker returns an immutable `TerminalPreparationOutcome`;
+the window adopts it on its owner thread only while cancellation, generation
+and revision still match. Adoption cannot be repeated. Save retains physical
+ownership of its scoped bundle until the consumer settles, even if the window
+has already retired the operation. These boundaries separate owner notification
+from cleanup rather than relying on a late UI callback to release bytes.
+
+`TerminalRootEditor` uses the empty `DefinitionPath` for admitted root maps and
+variants. Its slot carries literal coordinates and logical identity rather than
+a fabricated ordinary field input. Root omission and array-row field reset are
+unavailable according to shared action facts; collection removal remains explicit.
 
 The import field accepts a local file for the artifact at the cursor, whether or
 not that artifact is selected for output. `TerminalImportOperation` starts
@@ -313,6 +340,12 @@ installations, marks verification failure and explicitly disclaims continued
 integrity; it never claims the destination still contains the expected file.
 The read-only, focusable status field supports horizontal keyboard navigation so
 long receipts remain inspectable without expanding the minimum terminal size.
+Receipt navigation occupies a stable action row. Actions are disabled until
+their receipt facts exist, rather than revealing controls during publication;
+this avoids invalidating the unchanged public editor's layout on the first save.
+Field refresh assigns public text only when it changes, preserving the current
+caret and avoiding an empty-and-reload cycle for unchanged values. Protected
+editors still clear their sensitive buffers before replacing their contents.
 The window coalesces receipt refresh through its weak owner
 dispatcher and checks lifetime again inside the callback. Save history cycles
 attempts; outcome navigation only inspects that receipt and cannot change exit

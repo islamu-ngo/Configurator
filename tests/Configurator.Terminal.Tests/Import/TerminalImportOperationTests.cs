@@ -681,7 +681,7 @@ public sealed class TerminalImportOperationTests
                 {
                     harness.Form.Fields.Single(field => field.Definition.Id == "name").Text = "sample";
                     harness.Form.Fields.Single(field => field.Definition.Id == "token").Text = "synthetic-private";
-                    harness.Operation.PrepareAsync().GetAwaiter().GetResult();
+                    harness.Operation.AdoptPreparation(harness.Operation.PrepareAsync().GetAwaiter().GetResult());
                     publication = harness.Operation.ExecuteAsync(CancellationToken.None);
                 }
             });

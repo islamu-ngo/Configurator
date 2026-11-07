@@ -157,6 +157,12 @@ old result stale rather than applying it to a different field or row.
 
 Structured fields require explicit lifecycle management:
 
+Definitions may place a typed map or a discriminated branch at the configuration
+root. Its controls appear as the root slot; entries and selected branch fields
+follow it. The root cannot be omitted. **Reset value** clears its supplied
+override and retires the previous child editors. Array rows use the collection's
+remove action rather than field omission or reset.
+
 - **Objects:** Use **Supply container** to include an object container, even if empty (`{}`). Browsing blank properties does not create the object. Use **Clear container** to explicitly omit it and re-evaluate field requirements.
 - **Lists:** Navigate rows with **Previous item** and **Next/add item**. When list capacity allows, the slot past the last row becomes a new-item slot.
 - **Adding Items:** Leaving a new-item slot empty skips adding it. Activating **Add item** commits the typed item, including empty strings.
@@ -177,6 +183,11 @@ the previous payload; the shared engine supplies only eligible initialization.
 Choice labels and translated branch titles never determine typed answer identity.
 
 ### Guidance, language and corrections
+
+Correction guidance uses the current shared field state and includes authored
+limits and public choices in English or Arabic without repeating the entered
+answer. Readonly or inactive fields do not offer null or suggestions; protected
+fields and their containers withhold suggestions and choice disclosure.
 
 Use **Help** to page through admitted descriptions, instructions, units, choice
 explanations and static guidance links. These are inert public text: no links
@@ -260,6 +271,13 @@ Once answers are completed, verify and export your configuration bundle:
 3. **Prepare Artifact:** Activate **Prepare artifact** to stage the output bundle. The TUI validates complete composition and calculates cryptographic digests without displaying secret bytes.
 4. **Save Protected:** Activate **Save protected** to create files in the current working directory.
 
+Cancellation or edits can retire preparation without making the answers
+invalid. Wait for active work to settle, review the current answers and prepare
+again. A preparation failure is separate from a validation error and does not
+identify a field that needs correction.
+Preparation runs outside the interface owner; the terminal loop remains
+available for cancellation and feedback while that work runs.
+
 > [!IMPORTANT]
 > **Create-Only Protection (Linux x64):**
 > On Linux, Configurator writes files using a strict create-only native writer with owner-only (`0600`) permissions. Existing files are never overwritten. If an output file already exists, resolve the conflict or choose a different directory before retrying.
@@ -268,9 +286,17 @@ Outputs distinguish between two independent milestones:
 - `installation-established`: The file was securely written to the publication path.
 - `verification-failed`: An immediate post-write integrity check failed.
 
-Configurator never deletes or rolls back previously written files. If a later file in a multi-artifact bundle fails, earlier installed files remain safely on disk. Review them in the working directory before re-running.
+Configurator never deletes or rolls back previously installed files. If a later
+file in a bundle fails, review each recorded outcome and inspect destinations
+manually. Immediate verification does not guarantee a file's current integrity.
+Select only failed or unattempted outputs, resolve the conflict and prepare again
+using fresh destinations.
 
 Use **Save history** to cycle through the 16 most recent save attempts to inspect artifact outcomes and error codes.
+The history and outcome actions stay in place and are disabled until the
+corresponding receipt facts are available.
+Changing the interface language preserves the caret in an unchanged public
+value.
 
 ---
 

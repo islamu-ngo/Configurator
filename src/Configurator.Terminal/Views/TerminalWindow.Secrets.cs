@@ -45,7 +45,7 @@ internal sealed partial class TerminalWindow
     private void GenerateSecret()
     {
         if (_slot is null || !CommitField()) return;
-        string[] path = TerminalFieldEditor.EditPath(_slot, _itemIndex);
+        DefinitionPath path = TerminalFieldEditor.EditLocation(_slot, _itemIndex);
         if (!_operation.Form.CanGenerateSecret(path)) return;
         DefinitionSecretSpecification? policy = (_slot.IsList ? _slot.Schema.Items : _slot.Schema)?.Secret;
         char[] input = [];
@@ -77,7 +77,11 @@ internal sealed partial class TerminalWindow
         Observe(_secretCompletion);
     }
 
-    internal async Task GenerateSecretAsync(IReadOnlyList<string> path, char[]? input = null)
+    internal Task GenerateSecretAsync(IReadOnlyList<string> path, char[]? input = null) =>
+        GenerateSecretAsync(DefinitionPath.FromSegments([
+            _operation.Form.Fields.Single(field => field.Definition.Id == path[0]).Definition.Name, .. path.Skip(1)]), input);
+
+    private async Task GenerateSecretAsync(DefinitionPath path, char[]? input = null)
     {
         input ??= [];
         try

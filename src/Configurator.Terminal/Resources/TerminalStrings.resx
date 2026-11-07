@@ -4,6 +4,7 @@
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
   <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
   <data name="WindowTitle" xml:space="preserve"><value>Configurator - local definition</value></data>
+  <data name="ConfigurationRoot" xml:space="preserve"><value>Configuration root</value></data>
   <data name="ImportFile" xml:space="preserve"><value>Import file:</value></data>
   <data name="Close" xml:space="preserve"><value>Cl_ose / cancel</value></data>
   <data name="Ready" xml:space="preserve"><value>Local preparation only. Existing files are never overwritten.</value></data>
@@ -125,4 +126,7 @@
   <data name="CompletionCancelled" xml:space="preserve"><value>Cancelled</value></data>
   <data name="CompletionObserverFailed" xml:space="preserve"><value>Save reporting failed</value></data>
   <data name="Preparing" xml:space="preserve"><value>Preparing selected outputs. Editing or clearing invalidates this result.</value></data>
-</root>
+  <data name="PreparationFailed" xml:space="preserve"><value>Preparation failed. Retry the operation; your answers have not been classified as invalid.</value></data>
+  <data name="PreparationCancelled" xml:space="preserve"><value>Preparation cancelled. No output is ready to save.</value></data>
+  <data name="PreparationRetired" xml:space="preserve"><value>Inputs changed during preparation. Prepare the current answers again.</value></data>
+ </root>

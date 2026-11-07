@@ -27,7 +27,7 @@ public sealed class TerminalSecurityTests
             using var form = TerminalDefinitionFixture.Form();
             using var operation = new TerminalArtifactOperation(form, new ProtectedArtifactWriter(), directory);
             operation.ToggleCurrentArtifact();
-            await Assert.That(await operation.PrepareAsync()).IsFalse();
+            await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Invalid);
             var outcome = await operation.ExecuteAsync(CancellationToken.None);
             await Assert.That(((TerminalArtifactResult)outcome.CoreResult).Succeeded).IsFalse();
             await Assert.That(operation.IsPrepared).IsFalse();
@@ -97,7 +97,7 @@ public sealed class TerminalSecurityTests
     {
         using var form = TerminalDefinitionFixture.Form();
         using var operation = new TerminalArtifactOperation(form, new ProtectedArtifactWriter(), Path.GetTempPath());
-        await Assert.That(await operation.PrepareAsync()).IsTrue();
+        await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         await Assert.That(async () => await operation.ExecuteAsync(cancellation.Token)).Throws<OperationCanceledException>();
@@ -119,7 +119,7 @@ public sealed class TerminalSecurityTests
             using var cancellation = new CancellationTokenSource();
             using var operation = new TerminalArtifactOperation(form, new ProtectedArtifactWriter(), directory,
                 async token => { reached.TrySetResult(); await resume.Task.WaitAsync(token); });
-            await Assert.That(await operation.PrepareAsync()).IsTrue();
+            await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
             secret.TryReplace("opaque");
             using var signals = new TerminalSignalScope(secret, cancellation.Cancel);
             Task execution = operation.ExecuteAsync(cancellation.Token);
@@ -143,7 +143,7 @@ public sealed class TerminalSecurityTests
         {
             using var form = TerminalDefinitionFixture.Form();
             using var operation = new TerminalArtifactOperation(form, new ProtectedArtifactWriter(), directory);
-            await Assert.That(await operation.PrepareAsync()).IsTrue();
+            await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
             var outcome = await operation.ExecuteAsync(CancellationToken.None);
             await Assert.That(((TerminalArtifactResult)outcome.CoreResult).Outcomes[0].Result?.Succeeded)
                 .IsEqualTo(true);

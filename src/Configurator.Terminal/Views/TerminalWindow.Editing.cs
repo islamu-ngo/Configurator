@@ -63,13 +63,13 @@ internal sealed partial class TerminalWindow
         var slots = VisibleSlots;
         if (slots.Length == 0) { ShowField(); return; }
         int current = _slot is null ? 0 : slots.ToList().FindIndex(slot =>
-            slot.Input == _slot.Input && slot.Path.SequenceEqual(_slot.Path));
+            slot.Identity == _slot.Identity);
         _fieldIndex = (Math.Max(0, current) + delta + slots.Length) % slots.Length;
         if (_slot is { IsObjectList: true } collection && delta > 0)
         {
-            string[] rowPath = [.. collection.Path, _itemIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)];
-            int firstRowField = slots.ToList().FindIndex(slot => slot.Input == collection.Input &&
-                slot.Path.Length > rowPath.Length && slot.Path.Take(rowPath.Length).SequenceEqual(rowPath));
+            string[] rowPath = [.. collection.Location.Segments, _itemIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+            int firstRowField = slots.ToList().FindIndex(slot =>
+                slot.Location.Segments.Count > rowPath.Length && slot.Location.Segments.Take(rowPath.Length).SequenceEqual(rowPath));
             if (firstRowField >= 0) _fieldIndex = firstRowField;
         }
         _itemIndex = 0;
@@ -114,10 +114,10 @@ internal sealed partial class TerminalWindow
             {
                 string key = Encoding.UTF8.GetString(keyBytes);
                 if (!TerminalFieldEditor.AddMapEntry(map, key)) { Status("MapKeyInvalid"); return; }
-                string[] path = [.. map.FullPath, key];
+                DefinitionPath path = DefinitionPath.FromSegments([.. map.Location.Segments, key]);
                 _operation.Form.FocusEditor(path);
                 var slots = VisibleSlots;
-                _fieldIndex = slots.ToList().FindIndex(slot => slot.FullPath.SequenceEqual(path));
+                _fieldIndex = slots.ToList().FindIndex(slot => slot.Location.Equals(path));
                 ShowField(preserveLocation: false);
                 FocusInput();
             }
@@ -174,7 +174,7 @@ internal sealed partial class TerminalWindow
             var slots = VisibleSlots;
             if (preserveLocation && _slot is not null)
             {
-                int current = slots.ToList().FindIndex(slot => slot.Input == _slot.Input && slot.Path.SequenceEqual(_slot.Path));
+                int current = slots.ToList().FindIndex(slot => slot.Identity == _slot.Identity);
                 if (current >= 0) _fieldIndex = current;
             }
             _fieldIndex = Math.Clamp(_fieldIndex, 0, Math.Max(0, slots.Length - 1));
@@ -185,8 +185,7 @@ internal sealed partial class TerminalWindow
             if (_slot is not null)
             {
                 string text = TerminalFieldEditor.Read(_slot, _itemIndex);
-                _draftValid = !_operation.Form.HasInputError(_slot.IsList
-                    ? [.. _slot.FullPath, _itemIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)] : _slot.FullPath);
+                _draftValid = !_operation.Form.HasInputError(TerminalFieldEditor.EditLocation(_slot, _itemIndex));
                 if (_slot.RequiresMasking && text.Length > 0) _masked.TryReplaceSensitiveInput(text);
                 else if (!_slot.RequiresMasking) publicText = text;
             }
@@ -212,9 +211,9 @@ internal sealed partial class TerminalWindow
     private void ShowFieldLabel(int count) => _fieldLabel.Text = _slot is null ? LocalizedText("NoFields")
         : Safe($"{LocalizedNumber(_fieldIndex + 1)}/{LocalizedNumber(count)} {_slot.Title} ({_slot.ScalarType})"
             + (_slot.IsList ? $" [{LocalizedNumber(_itemIndex + 1)}/{LocalizedNumber(TerminalFieldEditor.ItemCount(_slot) + 1)}]" : "")
-            + (_operation.Form.GetEditorState(_slot.FullPath)?.IsRequired == true ? " | " + LocalizedText("Required") : "")
+            + (_operation.Form.GetEditorState(_slot.Location)?.IsRequired == true ? " | " + LocalizedText("Required") : "")
             + (TerminalFieldEditor.Value(_slot) is { ValueKind: JsonValueKind.Null } ? " | " + LocalizedText("NullValue")
-                : _operation.Form.AnswerOrigin(_slot.FullPath) switch
+                : _operation.Form.AnswerOrigin(_slot.Location) switch
                 {
                     DefinitionAnswerOrigin.Omitted => " | " + LocalizedText("Omitted"),
                     DefinitionAnswerOrigin.Generated => " | " + LocalizedText("GeneratedValue"),
@@ -230,18 +229,23 @@ internal sealed partial class TerminalWindow
         _addItem.Visible = !_tooSmall && (_slot is { IsList: true } or { IsMap: true });
         _addItem.Text = LocalizedText(_slot is { IsMap: true } ? "AddMapEntry" : "AddItem");
         _supplyContainer.Visible = !_tooSmall && _slot is { IsContainer: true } && _slot.Schema.Variants.Count == 0;
-        _clearContainer.Visible = !_tooSmall && _slot is not null;
+        _clearContainer.Visible = !_tooSmall && _slot is not null && _slot.Location.Segments.Count > 0;
         _clearContainer.Text = LocalizedText("OmitValue");
         _choice.Visible = !_tooSmall && _slot is not null &&
             (_slot.Schema.Variants.Count > 0 || TerminalFieldEditor.Choices(_slot).Count > 0);
         _choice.Text = LocalizedText(_slot is not null && _slot.Schema.Variants.Count > 0 ? "ChooseVariant" : "Choose");
-        _null.Visible = !_tooSmall && _slot is not null && _slot.Schema.IsNullable;
-        _reset.Visible = !_tooSmall && _slot is not null;
-        _suggest.Visible = !_tooSmall && _slot is not null && HasSuggestion(_slot.Schema);
+        DefinitionFieldValidation? facts = _slot is null ? null : _operation.Form.GetFieldValidation(_slot.Location);
+        _value.ReadOnly = _masked.ReadOnly = facts?.CanEdit != true;
+        _addItem.Enabled = _supplyContainer.Enabled = _choice.Enabled = facts?.CanEdit == true;
+        _clearContainer.Enabled = facts?.CanOmit == true;
+        _null.Visible = !_tooSmall && facts?.CanSetNull == true;
+        _reset.Visible = !_tooSmall && facts?.CanReset == true;
+        _suggest.Visible = !_tooSmall && facts?.CanApplySuggestion == true;
         for (int index = 0; index < _itemActions.Length; index++)
             _itemActions[index].Visible = !_tooSmall && _slot is { IsList: true, IsObjectList: false } &&
                 TerminalFieldEditor.HasItem(_slot, _itemIndex) &&
-                (index == 0 ? _slot.Schema.Items!.IsNullable : HasSuggestion(_slot.Schema.Items!));
+                (index == 0 ? _operation.Form.GetFieldValidation(TerminalFieldEditor.EditLocation(_slot, _itemIndex)).CanSetNull
+                    : _operation.Form.GetFieldValidation(TerminalFieldEditor.EditLocation(_slot, _itemIndex)).CanApplySuggestion);
         foreach (var button in _listButtons) button.Visible = !_tooSmall && _slot is { IsList: true };
         bool secret = scalar && _slot is { RequiresMasking: true };
         _generateSecret.Visible = secret;
@@ -252,8 +256,8 @@ internal sealed partial class TerminalWindow
 
     private void FocusInput()
     {
-        if (_slot?.IsMap == true) _masked.SetFocus();
-        else if (_slot is not null && _slot.Schema.Variants.Count > 0) _choice.SetFocus();
+        if (_slot is not null && _slot.Schema.Variants.Count > 0) _choice.SetFocus();
+        else if (_slot?.IsMap == true) _masked.SetFocus();
         else if (_slot?.IsObject == true) _supplyContainer.SetFocus();
         else if (_slot?.IsObjectList == true) _addItem.SetFocus();
         else if (_slot is { IsList: true } && TerminalFieldEditor.MaximumItems(_slot) == 0) _supplyContainer.SetFocus();
@@ -285,9 +289,9 @@ internal sealed partial class TerminalWindow
         {
             int currentVariant = _slot.Schema.Variants.ToList().FindIndex(variant => ReferenceEquals(variant, _slot.ObjectSchema));
             int nextVariant = (currentVariant + 1) % _slot.Schema.Variants.Count;
-            if (!_operation.Form.SelectVariant(_slot.FullPath, nextVariant)) { Status("DraftInvalid"); return; }
+            if (!_operation.Form.SelectVariant(_slot.Location, nextVariant)) { Status("DraftInvalid"); return; }
             ShowField();
-            _status.Text = Safe(_operation.Form.GetVariantTitle(_slot.FullPath, nextVariant) ?? "");
+            _status.Text = Safe(_operation.Form.GetVariantTitle(_slot.Location, nextVariant) ?? "");
             FocusInput();
             return;
         }
@@ -308,14 +312,16 @@ internal sealed partial class TerminalWindow
         FocusInput();
     }
 
-    private static bool HasSuggestion(DefinitionNode schema) =>
-        schema.Keywords.TryGetProperty("x-configurator", out JsonElement extension) &&
-        extension.TryGetProperty("suggestedValue", out _);
-
     private void EditTyped(string action, bool item = false)
     {
         if (_slot is null) return;
-        string[] path = item ? TerminalFieldEditor.EditPath(_slot, _itemIndex) : _slot.FullPath;
+        DefinitionPath path = item ? TerminalFieldEditor.EditLocation(_slot, _itemIndex) : _slot.Location;
+        DefinitionFieldValidation facts = _operation.Form.GetFieldValidation(path);
+        if (!(action switch { "SetNull" => facts.CanSetNull, "ResetValue" => facts.CanReset, _ => facts.CanApplySuggestion }))
+        {
+            Status("DraftInvalid");
+            return;
+        }
         bool accepted = action switch
         {
             "SetNull" => _operation.Form.SetNull(path),
@@ -340,21 +346,28 @@ internal sealed partial class TerminalWindow
     private void ShowHelp()
     {
         string text = _slot is null ? "" : _slot.Title + " (" + _slot.Type + ")\n" + _slot.Help;
+        if (_slot is not null)
+        {
+            DefinitionPath path = _slot.IsList && TerminalFieldEditor.HasItem(_slot, _itemIndex)
+                ? TerminalFieldEditor.EditLocation(_slot, _itemIndex) : _slot.Location;
+            string correction = PresentationStrings.FieldCorrection(_operation.Form.GetFieldValidation(path), _operation.Form.Locale);
+            if (correction.Length > 0) text += "\n" + correction;
+        }
         if (_slot is not null && _slot.Schema.Variants.Count > 0)
         {
             int selected = _slot.Schema.Variants.ToList().FindIndex(variant => ReferenceEquals(variant, _slot.ObjectSchema));
             if (selected >= 0)
                 text += $"\n{LocalizedNumber(selected + 1)}/{LocalizedNumber(_slot.Schema.Variants.Count)} " +
-                    _operation.Form.GetVariantTitle(_slot.FullPath, selected);
+                    _operation.Form.GetVariantTitle(_slot.Location, selected);
         }
         if (_slot is { IsMap: true }) text = LocalizedText("MapKeyHelp") + "\n" + text;
         if (_slot is { IsList: true } list && TerminalFieldEditor.HasItem(list, _itemIndex))
             text += "\n" + TerminalStrings.FormatHelp(
-                _operation.Form.GetEditorPresentation(TerminalFieldEditor.EditPath(list, _itemIndex)), list.Schema.Items!.Keywords, _operation.Form.Locale);
+                _operation.Form.GetEditorPresentation(TerminalFieldEditor.EditLocation(list, _itemIndex)), list.Schema.Items!.Keywords, _operation.Form.Locale);
         if (_slot is { RequiresMasking: true, IsObject: false, IsObjectList: false })
         {
             DefinitionSecretValidation rules = _operation.Form.GetSecretValidation(
-                TerminalFieldEditor.EditPath(_slot, _itemIndex));
+                TerminalFieldEditor.EditLocation(_slot, _itemIndex));
             text += "\n" + string.Join("\n", rules.Requirements.Select(rule => rule.Message)
                 .Concat(rules.Failures.Select(rule => LocalizedText("SecretRuleFailed") + " " + rule.Message)));
         }
@@ -374,30 +387,33 @@ internal sealed partial class TerminalWindow
         {
             _correctionIndex = (_correctionIndex + 1) % diagnostics.Length;
             DefinitionDiagnostic diagnostic = diagnostics[_correctionIndex];
-            IReadOnlyList<string> path;
+            DefinitionPath literal;
             if (diagnostic.Location is { } location)
             {
-                if (!form.TryResolveCorrection(diagnostic.FieldId, location, out path) ||
-                    !form.FocusCorrection(diagnostic.FieldId, location)) continue;
+                if (!form.TryResolveCorrectionPath(diagnostic.FieldId, location, out literal)) continue;
             }
             else
             {
-                path = new[] { diagnostic.FieldId }.Concat(diagnostic.RelativePath).ToArray();
-                if (!form.FocusEditor(path)) continue;
+                if (diagnostic.FieldId.Length == 0) literal = DefinitionPath.FromSegments(diagnostic.RelativePath);
+                else literal = DefinitionPath.FromSegments([
+                    form.Fields.Single(input => input.Definition.Id == diagnostic.FieldId).Definition.Name, .. diagnostic.RelativePath]);
             }
+            if (!form.FocusEditor(literal)) continue;
             var slots = VisibleSlots;
-            int index = slots.ToList().FindIndex(slot => slot.FullPath.SequenceEqual(path));
-            if (index < 0 && path.Count > 1)
+            int index = slots.ToList().FindIndex(slot => slot.Location.Equals(literal));
+            if (index < 0 && literal.Segments.Count > 0)
             {
-                index = slots.ToList().FindIndex(slot => slot.IsList && slot.FullPath.SequenceEqual(path.SkipLast(1)));
-                if (index >= 0 && int.TryParse(path[^1], out int row)) _itemIndex = row;
+                index = slots.ToList().FindIndex(slot => slot.IsList &&
+                    slot.Location.Segments.SequenceEqual(literal.Segments.SkipLast(1)));
+                if (index >= 0 && int.TryParse(literal.Segments[^1], out int row)) _itemIndex = row;
             }
             if (index < 0) continue;
             _fieldIndex = index;
             _helpPage = 0;
             ShowField(preserveLocation: false);
             StatusCode = diagnostic.Code;
-            _status.Text = PresentationStrings.Diagnostic(diagnostic.Code, _operation.Form.Locale);
+            string guidance = PresentationStrings.FieldCorrection(form.GetFieldValidation(literal), form.Locale);
+            _status.Text = guidance.Length > 0 ? guidance : PresentationStrings.Diagnostic(diagnostic.Code, form.Locale);
             FocusInput();
             return;
         }

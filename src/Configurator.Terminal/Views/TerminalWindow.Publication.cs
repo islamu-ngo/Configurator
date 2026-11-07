@@ -10,28 +10,40 @@ internal sealed partial class TerminalWindow
         if (!CommitField()) return;
         _preparing = true;
         Status("Preparing");
-        Task<bool> preparation = _operation.PrepareAsync(_preparationCancellation.Token);
+        Task<TerminalPreparationOutcome> preparation = _operation.PrepareAsync(
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            Configurator.Engineering.MeasureNativePreparation.RequestedToken ??
+#endif
+            _preparationCancellation.Token);
         _preparationCompletion = ObservePreparationAsync(preparation, _dispatch, _owner, _callbackGeneration);
         Observe(_preparationCompletion);
         RefreshCommands();
     }
 
-    private static async Task ObservePreparationAsync(Task<bool> preparation, Action<Action> dispatch,
+    private static async Task ObservePreparationAsync(Task<TerminalPreparationOutcome> preparation, Action<Action> dispatch,
         WeakReference<TerminalWindow> owner, int generation)
     {
-        bool ready;
-        try
-        {
-            ready = await preparation.ConfigureAwait(false);
-        }
-        catch (Exception) when (preparation.IsFaulted || preparation.IsCanceled) { ready = false; }
+        TerminalPreparationOutcome outcome = await preparation.ConfigureAwait(false);
         TryDispatch(dispatch, () =>
         {
             if (!owner.TryGetTarget(out TerminalWindow? window) || window._disposed
                 || window._callbackGeneration != generation || Volatile.Read(ref window._closeRequested) != 0) return;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            Configurator.Engineering.MeasureNativePreparation.Mark("adoption-start");
+#endif
             window._preparing = false;
-            window.Status(ready && window._operation.IsPrepared ? "PreviewReady" : "DraftInvalid");
+            window.Status(window._operation.AdoptPreparation(outcome) switch
+            {
+                TerminalPreparationCode.Ready => "PreviewReady",
+                TerminalPreparationCode.Invalid => "DraftInvalid",
+                TerminalPreparationCode.Cancelled => "PreparationCancelled",
+                TerminalPreparationCode.Retired => "PreparationRetired",
+                _ => "PreparationFailed"
+            });
             window.RefreshCommands();
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            Configurator.Engineering.MeasureNativePreparation.Mark("adoption-end");
+#endif
         });
     }
 
@@ -140,10 +152,31 @@ internal sealed partial class TerminalWindow
     private void ShowOutcome()
     {
         if (_receipt is null) return;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        ProbePublicationDrawState("receipt-before");
+#endif
         _status.Text = TerminalStrings.FormatReceipt(_receipt, _outcomeIndex, _operation.Form.Locale);
-        _nextOutcome.Visible = !_tooSmall && _receipt.Outcomes.Count > 1;
-        _nextAttempt.Visible = !_tooSmall;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        ProbePublicationDrawState("receipt-status");
+#endif
+        _nextOutcome.Enabled = _receipt.Outcomes.Count > 1;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        ProbePublicationDrawState("receipt-outcome");
+#endif
+        _nextAttempt.Enabled = true;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        ProbePublicationDrawState("receipt-attempt");
+#endif
         _status.SetNeedsDraw();
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        ObserveProbeStatusMutation(false);
+#endif
     }
+
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+    private void ProbePublicationDrawState(string stage) =>
+        Configurator.Engineering.MeasureNativePreparation.Mark(
+            $"{stage}-{NeedsLayout}-{_value.NeedsLayout}-{_value.NeedsDraw}");
+#endif
 
 }

@@ -11,8 +11,140 @@ using Configurator.Terminal;
 
 public sealed class TerminalOfflineWorkflowTests
 {
+    [Test]
+    public async Task RootMapEditsLiteralCoordinatesWithoutPropertyProjection()
+    {
+        Definition definition = DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"e2871ba9-4ab8-43f6-b552-e1e6c4225bdd","revision":1},
+             "project":{"id":"root-map","name":"Root map"},"applicationVersions":["1"],
+             "configuration":{"type":"object","maxProperties":3,"x-configurator":{"sensitivity":"public"},
+               "additionalProperties":{"type":["integer","null"],"x-configurator":{"sensitivity":"public"}}},
+             "outputs":{"config.json":{"id":"config","format":"json"}}}
+            """));
+        using var form = new DefinitionFormModel(definition);
+        var editor = new TerminalFieldEditor(form);
+        var root = editor.Slots.Single(slot => slot.FullPath.Length == 0);
+        foreach ((string key, string text) in new[] { ("a/b", "7"), ("a~b", "30"), ("0", "0") })
+        {
+            await Assert.That(TerminalFieldEditor.AddMapEntry(root, key)).IsTrue();
+            var leaf = editor.Slots.Single(slot => slot.FullPath.SequenceEqual([key]));
+            await Assert.That(TerminalFieldEditor.Write(leaf, text)).IsTrue();
+        }
+        await Assert.That(TerminalFieldEditor.AddMapEntry(root, "a/b")).IsFalse();
+        await Assert.That(TerminalFieldEditor.AddMapEntry(root, "extra")).IsFalse();
+        string identity = form.GetEditorIdentity(DefinitionPath.FromSegments(["0"]));
+        var slash = editor.Slots.Single(slot => slot.FullPath.SequenceEqual(["a/b"]));
+        await Assert.That(TerminalFieldEditor.Clear(slash)).IsTrue();
+        await Assert.That(form.GetEditorIdentity(DefinitionPath.FromSegments(["0"]))).IsEqualTo(identity);
+        await Assert.That(form.Snapshot().Values.Keys).IsEquivalentTo(["0", "a~b"]);
+        await Assert.That(form.Snapshot().Values["0"].GetInt32()).IsEqualTo(0);
+        await Assert.That(form.Snapshot().Values["a~b"].GetInt32()).IsEqualTo(30);
+        await Assert.That(form.Fields).IsEmpty();
+    }
+
+    [Test]
+    public async Task RootContainerDescendantsKeepSurvivingRowIdentityAndLiteralMapKeys()
+    {
+        Definition definition = DefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"6b140cf6-bd9c-4fd8-9cee-fc00cc28d1fe","revision":1},
+             "project":{"id":"root-container","name":"Root container"},"applicationVersions":["1"],
+             "configuration":{"type":"object","x-configurator":{"sensitivity":"public"},
+              "additionalProperties":{"type":"object","additionalProperties":false,"properties":{
+               "rows":{"type":"array","maxItems":2,"items":{"type":"object","additionalProperties":false,
+                "properties":{"options":{"type":"object","maxProperties":2,"additionalProperties":{"type":"integer"}}}}}}}},
+             "outputs":{"config.json":{"id":"config","format":"json"}}}
+            """u8.ToArray());
+        using var form = new DefinitionFormModel(definition);
+        var editor = new TerminalFieldEditor(form);
+        var root = editor.Slots.Single(slot => slot.FullPath.Length == 0);
+        await Assert.That(TerminalFieldEditor.AddMapEntry(root, "0")).IsTrue();
+        var rows = editor.Slots.Single(slot => slot.FullPath.SequenceEqual(["0", "rows"]));
+        await Assert.That(TerminalFieldEditor.AddItem(rows)).IsTrue();
+        await Assert.That(TerminalFieldEditor.AddItem(rows)).IsTrue();
+        await Assert.That(TerminalFieldEditor.AddItem(rows)).IsFalse();
+        var map = editor.Slots.Single(slot => slot.FullPath.SequenceEqual(["0", "rows", "1", "options"]));
+        await Assert.That(TerminalFieldEditor.AddMapEntry(map, "a/b")).IsTrue();
+        var leaf = editor.Slots.Single(slot => slot.FullPath.SequenceEqual(["0", "rows", "1", "options", "a/b"]));
+        await Assert.That(TerminalFieldEditor.Write(leaf, "7")).IsTrue();
+        string identity = leaf.Identity;
+        TerminalFieldEditor.Remove(rows, 0);
+        var survivor = editor.Slots.Single(slot => slot.FullPath.SequenceEqual(["0", "rows", "0", "options", "a/b"]));
+        await Assert.That(survivor.Identity).IsEqualTo(identity);
+        await Assert.That(TerminalFieldEditor.Value(survivor)!.Value.GetInt32()).IsEqualTo(7);
+        await Assert.That(form.Snapshot().Values["0"].GetProperty("rows").GetArrayLength()).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task RootVariantNestedMapEntriesUseSelectedBranchBounds()
+    {
+        Definition definition = DefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"0c9b57a1-aedd-40e8-94e9-058087d7a740","revision":1},
+             "project":{"id":"root-variant-map","name":"Root variant map"},"applicationVersions":["1"],
+             "configuration":{"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
+              {"type":"object","maxProperties":2,"required":["kind"],"x-configurator":{"sensitivity":"public"},
+               "properties":{"kind":{"type":"string","const":"first","x-configurator":{"sensitivity":"public"}},
+                "entries":{"type":"object","maxProperties":1,"additionalProperties":{"type":"integer"}}},
+               "additionalProperties":false},
+              {"type":"object","maxProperties":2,"required":["kind"],"x-configurator":{"sensitivity":"public"},
+               "properties":{"kind":{"type":"string","const":"second","x-configurator":{"sensitivity":"public"}},
+                "entries":{"type":"object","maxProperties":1,"additionalProperties":{"type":"integer"}}},
+               "additionalProperties":false}]},
+             "outputs":{"config.json":{"id":"config","format":"json"}}}
+            """u8.ToArray());
+        using var form = new DefinitionFormModel(definition);
+        var editor = new TerminalFieldEditor(form);
+        await Assert.That(form.SelectVariant(DefinitionPath.FromSegments([]), 0)).IsTrue();
+        var map = editor.Slots.Single(slot => slot.Location.Segments.SequenceEqual(["entries"]));
+        await Assert.That(TerminalFieldEditor.AddMapEntry(map, "a/b")).IsTrue();
+        var leaf = editor.Slots.Single(slot => slot.Location.Segments.SequenceEqual(["entries", "a/b"]));
+        await Assert.That(TerminalFieldEditor.Write(leaf, "7")).IsTrue();
+        await Assert.That(TerminalFieldEditor.AddMapEntry(map, "extra")).IsFalse();
+        await Assert.That(form.Snapshot().Values["entries"].GetProperty("a/b").GetInt32()).IsEqualTo(7);
+        await Assert.That(form.Validate().IsReady).IsTrue();
+    }
+
     private static readonly string[] EqualChoiceLabels = ["Equal", "Equal"];
     private static readonly string[] TranslatedChoiceLabels = ["Translated", "Equal"];
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task RootRendererAdmitsLiteralRootWithoutCollectingAnswers(bool variant)
+    {
+        using JsonDocument original = JsonDocument.Parse(TypedDefinition().CanonicalBytes);
+        string schema = variant ? original.RootElement.GetProperty("configuration").GetProperty("properties").GetProperty("provider").GetRawText()
+            : """{"type":"object","additionalProperties":{"type":"integer"}}""";
+        Definition definition = DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes($$$$"""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151620","revision":1},
+             "project":{"id":"root-admission","name":"Root admission"},"applicationVersions":["1"],
+             "configuration":{{{{schema}}}},"outputs":{"config.json":{"id":"config","format":"json"}}}
+            """));
+        using var form = new DefinitionFormModel(definition);
+        var editor = new TerminalFieldEditor(form);
+        await Assert.That(editor.Slots[0].FullPath).IsEmpty();
+        await Assert.That(form.Fields).IsEmpty();
+        await Assert.That(form.InputRevision).IsEqualTo(0);
+        await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task DocumentAdoptionUpdatesExistingOrdinaryTerminalSlots()
+    {
+        using var form = new DefinitionFormModel(TypedDefinition());
+        var editor = new TerminalFieldEditor(form);
+        TerminalFieldEditor.Slot slot = editor.Slots.Single(item => item.FullPath.SequenceEqual(["choice"]));
+        using var document = form.OpenDocument();
+        using var parsed = document.Parse(
+            """{"answerContractVersion":"0.0.1","values":{"choice":2},"omitted":[]}"""u8.ToArray());
+        await Assert.That(parsed.Succeeded).IsTrue();
+        await Assert.That(document.Apply(parsed.Candidate!).Succeeded).IsTrue();
+        await Assert.That(TerminalFieldEditor.Value(slot)!.Value.GetInt32()).IsEqualTo(2);
+        await Assert.That(ReferenceEquals(slot.Input, form.Fields.Single(field => field.Definition.Name == "choice"))).IsTrue();
+    }
+
     [Test]
     [NotInParallel]
     public async Task NativeButtonsEditTypedMapNullAndBranchesWithoutLocaleAnswerChanges()
@@ -158,7 +290,7 @@ public sealed class TerminalOfflineWorkflowTests
             WorkspaceId.TryCreate("definition", out var workspaceId);
             using var workspace = session.CreateWorkspace(workspaceId, operation);
             workspace.Activate();
-            await Assert.That(await operation.PrepareAsync()).IsTrue();
+            await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
             await Assert.That(operation.Preparation!.ToString()).DoesNotContain("privateValue");
             await workspace.ExecuteAsync(Guid.NewGuid());
             var result = (TerminalArtifactResult)workspace.Result!;
@@ -168,7 +300,7 @@ public sealed class TerminalOfflineWorkflowTests
             await Assert.That(File.GetUnixFileMode(path)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
             await Assert.That(operation.IsPrepared).IsFalse();
             await Assert.That(workspace.Output).IsEmpty();
-            await Assert.That(await operation.PrepareAsync()).IsTrue();
+            await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
             var repeated = await operation.ExecuteAsync(CancellationToken.None);
             await Assert.That(((TerminalArtifactResult)repeated.CoreResult).Outcomes[0].Result?.Status)
                 .IsEqualTo(ProtectedArtifactStatus.TargetExists);
@@ -182,13 +314,13 @@ public sealed class TerminalOfflineWorkflowTests
     {
         using var form = TerminalDefinitionFixture.Form();
         using var operation = new TerminalArtifactOperation(form, new ProtectedArtifactWriter(), Path.GetTempPath());
-        await Assert.That(await operation.PrepareAsync()).IsTrue();
+        await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
         form.Fields.Single(input => input.Definition.Id == "name").Text = "changed";
         await Assert.That(operation.IsPrepared).IsFalse();
         var result = await operation.ExecuteAsync(CancellationToken.None);
         await Assert.That(((TerminalArtifactResult)result.CoreResult).Outcomes[0].Result?.Status)
             .IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
-        await Assert.That(await operation.PrepareAsync()).IsTrue();
+        await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
         operation.ArtifactId = "legal";
         await Assert.That(operation.IsPrepared).IsTrue();
         await Assert.That(form.Definition.Artifacts.Single(item => item.Id == operation.ArtifactId).FileName)
@@ -203,12 +335,12 @@ public sealed class TerminalOfflineWorkflowTests
         using var form = TerminalDefinitionFixture.Form();
         using var operation = new TerminalArtifactOperation(form, new ProtectedArtifactWriter(), Path.GetTempPath());
         form.Fields.Single(input => input.Definition.Id == "count").Text = "not an integer";
-        await Assert.That(await operation.PrepareAsync()).IsFalse();
+        await Assert.That((await operation.PrepareAsync()).Code).IsEqualTo(TerminalPreparationCode.Invalid);
         form.Fields.Single(input => input.Definition.Id == "count").Text = "2";
         form.Fields.Single(input => input.Definition.Id == "mode").Text = "external";
-        await Assert.That(await operation.PrepareAsync()).IsFalse();
+        await Assert.That((await operation.PrepareAsync()).Code).IsEqualTo(TerminalPreparationCode.Invalid);
         form.Fields.Single(input => input.Definition.Id == "endpoint").Text = "example.test";
-        await Assert.That(await operation.PrepareAsync()).IsTrue();
+        await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
     }
 
     [Test]
@@ -255,7 +387,7 @@ public sealed class TerminalOfflineWorkflowTests
     {
         using var form = ExperienceForm();
         using var harness = new ExperienceHarness(form);
-        await Assert.That(await harness.Operation.PrepareAsync()).IsTrue();
+        await Assert.That(harness.Operation.AdoptPreparation(await harness.Operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
         var preparation = harness.Operation.Preparation;
         long revision = form.InputRevision;
         int answerChanges = 0;
@@ -300,7 +432,7 @@ public sealed class TerminalOfflineWorkflowTests
         await Assert.That(harness.Operation.IsPrepared).IsFalse();
         form.EditValue(["token"], null);
         await Assert.That(form.IsEditorVisible(["token"])).IsTrue();
-        await Assert.That(await harness.Operation.PrepareAsync()).IsFalse();
+        await Assert.That((await harness.Operation.PrepareAsync()).Code).IsEqualTo(TerminalPreparationCode.Invalid);
     }
 
     [Test]
@@ -378,7 +510,7 @@ public sealed class TerminalOfflineWorkflowTests
     {
         using var form = TerminalDefinitionFixture.Form();
         using var operation = new TerminalArtifactOperation(form, new UnavailableWriter(), Path.GetTempPath());
-        await Assert.That(await operation.PrepareAsync()).IsTrue();
+        await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
         await Assert.That(operation.ProtectedOutputAvailable).IsFalse();
         var outcome = await operation.ExecuteAsync(CancellationToken.None);
         await Assert.That(((TerminalArtifactResult)outcome.CoreResult).Outcomes[0].Result?.Status)
@@ -440,7 +572,7 @@ public sealed class TerminalOfflineWorkflowTests
             await Assert.That(System.Text.Encoding.UTF8.GetString(artifact!.Bytes.Span)).IsEqualTo("""{"HOST":"example.test"}""");
             await Assert.That(artifact!.Sensitivity).IsEqualTo(Configurator.Core.ArtifactSensitivity.Restricted);
             using var operation = new TerminalArtifactOperation(form, new UnavailableWriter(), directory);
-            await Assert.That(await operation.PrepareAsync()).IsTrue();
+            await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
             await Assert.That(operation.ProtectedOutputAvailable).IsFalse();
             var outcome = await operation.ExecuteAsync(CancellationToken.None);
             await Assert.That(((TerminalArtifactResult)outcome.CoreResult).Outcomes[0].Result?.Status)

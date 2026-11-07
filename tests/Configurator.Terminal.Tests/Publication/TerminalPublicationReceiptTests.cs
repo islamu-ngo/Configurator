@@ -8,6 +8,62 @@ using Configurator.Terminal;
 public sealed class TerminalPublicationReceiptTests
 {
     [Test]
+    public async Task PreparedWorkRequiresOwnerAdoptionAndRejectsRetiredSelection()
+    {
+        using var form = TerminalDefinitionFixture.Form();
+        using var operation = new TerminalArtifactOperation(form, new ProtectedArtifactWriter(), Path.GetTempPath());
+        TerminalPreparationOutcome outcome = await operation.PrepareAsync();
+        await Assert.That(outcome.Code).IsEqualTo(TerminalPreparationCode.Ready);
+        await Assert.That(operation.IsPrepared).IsFalse();
+        operation.ToggleCurrentArtifact();
+        operation.ToggleCurrentArtifact();
+        await Assert.That(form.InputRevision).IsEqualTo(outcome.InputRevision);
+        await Assert.That(operation.AdoptPreparation(outcome)).IsEqualTo(TerminalPreparationCode.Retired);
+        await Assert.That(operation.IsPrepared).IsFalse();
+        TerminalPreparationOutcome current = await operation.PrepareAsync();
+        await Assert.That(operation.AdoptPreparation(current)).IsEqualTo(TerminalPreparationCode.Ready);
+        await Assert.That(operation.AdoptPreparation(current)).IsEqualTo(TerminalPreparationCode.Retired);
+        await Assert.That(operation.IsPrepared).IsTrue();
+    }
+
+    [Test]
+    public async Task CancellationBetweenWorkerSettlementAndOwnerAdoptionRejectsReadiness()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var form = TerminalDefinitionFixture.Form();
+        using var operation = new TerminalArtifactOperation(form, new ProtectedArtifactWriter(), Path.GetTempPath());
+        TerminalPreparationOutcome outcome = await operation.PrepareAsync(cancellation.Token);
+        await cancellation.CancelAsync();
+        await Assert.That(operation.AdoptPreparation(outcome)).IsEqualTo(TerminalPreparationCode.Cancelled);
+        await Assert.That(operation.IsPrepared).IsFalse();
+    }
+
+    [Test]
+    public async Task SaveConsumerRunsOutsideOwnerSynchronizationContext()
+    {
+        using var form = TerminalDefinitionFixture.Form();
+        SynchronizationContext? consumerContext = null;
+        using var operation = new TerminalArtifactOperation(form, new UnavailableWriter(available: true),
+            Path.GetTempPath(), beforePublication: _ =>
+            {
+                consumerContext = SynchronizationContext.Current;
+                return Task.CompletedTask;
+            }, publishBundle: (artifacts, _, _, _) => Task.FromResult(new TerminalArtifactResult(
+                artifacts.Select(artifact => new ProtectedArtifactBundleOutcome(artifact.ArtifactId,
+                    ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsupportedPlatform))))));
+        await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
+        SynchronizationContext? previous = SynchronizationContext.Current;
+        var owner = new SynchronizationContext();
+        Task execution;
+        SynchronizationContext.SetSynchronizationContext(owner);
+        try { execution = operation.ExecuteAsync(CancellationToken.None); }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        await execution.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(consumerContext).IsNull();
+        await Assert.That(operation.PublicationHistory.Single().IsSettled).IsTrue();
+    }
+
+    [Test]
     public async Task CancelledSuspendedPreparationDoesNotPublishReadinessOrEraseAnswers()
     {
         using var cancellation = new CancellationTokenSource();
@@ -21,10 +77,10 @@ public sealed class TerminalPublicationReceiptTests
                 entered.SetResult();
                 await release.Task.WaitAsync(token);
             });
-        Task<bool> preparing = operation.PrepareAsync(cancellation.Token);
+        Task<TerminalPreparationOutcome> preparing = operation.PrepareAsync(cancellation.Token);
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await cancellation.CancelAsync();
-        await Assert.That(async () => await preparing.WaitAsync(TimeSpan.FromSeconds(5))).Throws<OperationCanceledException>();
+        await Assert.That((await preparing.WaitAsync(TimeSpan.FromSeconds(5))).Code).IsEqualTo(TerminalPreparationCode.Cancelled);
         await Assert.That(operation.IsPrepared).IsFalse();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.Snapshot().Values.ContainsKey("token")).IsTrue();
@@ -71,7 +127,7 @@ public sealed class TerminalPublicationReceiptTests
         active = operation;
         operation.ArtifactId = "environment";
         operation.ToggleCurrentArtifact();
-        await Assert.That(await operation.PrepareAsync()).IsTrue();
+        await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
         await Assert.That(async () => await operation.ExecuteAsync(cancellation.Token)).Throws<OperationCanceledException>();
         ProtectedArtifactPublicationReceipt receipt = operation.PublicationHistory.Single();
         await Assert.That(receipt.CompletionCode).IsEqualTo(ProtectedArtifactBundleCompletionCode.Cancelled);
@@ -98,7 +154,7 @@ public sealed class TerminalPublicationReceiptTests
         using var form = TerminalDefinitionFixture.Form();
         using var operation = new TerminalArtifactOperation(form, new UnavailableWriter(available: true), Path.GetTempPath(),
             beforePublication: _ => throw new InvalidOperationException("synthetic-private-path"));
-        await Assert.That(await operation.PrepareAsync()).IsTrue();
+        await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
         await Assert.That(async () => await operation.ExecuteAsync(CancellationToken.None)).Throws<InvalidOperationException>();
         ProtectedArtifactPublicationReceipt receipt = operation.PublicationHistory.Single();
         await Assert.That(receipt.Failed).IsTrue();
@@ -119,7 +175,7 @@ public sealed class TerminalPublicationReceiptTests
         var attempts = new List<Guid>();
         for (int attempt = 0; attempt < 18; attempt++)
         {
-            await Assert.That(await operation.PrepareAsync()).IsTrue();
+            await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
             await operation.ExecuteAsync(CancellationToken.None);
             attempts.Add(operation.PublicationHistory[^1].AttemptId);
         }
@@ -153,7 +209,7 @@ public sealed class TerminalPublicationReceiptTests
         using var operation = new TerminalArtifactOperation(form, new UnavailableWriter(available: true), Path.GetTempPath(),
             beforePublication: async _ => { reached.TrySetResult(); await release.Task; });
         using var cancellation = new CancellationTokenSource();
-        await Assert.That(await operation.PrepareAsync()).IsTrue();
+        await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
         Task execution = operation.ExecuteAsync(cancellation.Token);
         try
         {
@@ -161,7 +217,7 @@ public sealed class TerminalPublicationReceiptTests
             await cancellation.CancelAsync();
             operation.ClearPrivateState();
             await Assert.That(operation.IsPublishing).IsTrue();
-            await Assert.That(await operation.PrepareAsync()).IsFalse();
+            await Assert.That((await operation.PrepareAsync()).Code).IsEqualTo(TerminalPreparationCode.Retired);
             await Assert.That(async () => { await operation.ExecuteAsync(CancellationToken.None); }).Throws<InvalidOperationException>();
             operation.MarkPublicationUnknown();
             await Assert.That(operation.CurrentPublication!.IsUnknown).IsTrue();
@@ -189,7 +245,7 @@ public sealed class TerminalPublicationReceiptTests
                 outcomeObserver: _ => throw new InvalidOperationException("synthetic-private-exception"));
             operation.ArtifactId = "environment";
             operation.ToggleCurrentArtifact();
-            await Assert.That(await operation.PrepareAsync()).IsTrue();
+            await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
             await operation.ExecuteAsync(CancellationToken.None);
             ProtectedArtifactPublicationReceipt receipt = operation.PublicationHistory.Single();
             await Assert.That(receipt.CompletionCode).IsEqualTo(ProtectedArtifactBundleCompletionCode.ObserverFailed);
@@ -234,7 +290,7 @@ public sealed class TerminalPublicationReceiptTests
             WorkspaceId.TryCreate("definition", out var id);
             using var workspace = session.CreateWorkspace(id, operation);
             workspace.Activate();
-            await Assert.That(await operation.PrepareAsync()).IsTrue();
+            await Assert.That(operation.AdoptPreparation(await operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
             Task execution = Task.Run(() => workspace.ExecuteAsync(Guid.NewGuid()));
             try
             {

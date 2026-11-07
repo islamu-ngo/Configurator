@@ -15,71 +15,258 @@ using global::Terminal.Gui.Views;
 
 public sealed class TerminalGuiAdapterTests
 {
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
     [Test]
     [NotInParallel]
-    public async Task LongPublicScalarLaysOutAsOneRowAndRetainsCompletePreparedOutput()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task DiagnosticNaturalStatusDrawCompletesWithoutDependingOnDeferredSentinel(bool coalescing)
     {
-        Task regression = Task.Run(async () =>
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var harness = new Harness(initialize: true, beforePreparation: token => release.Task.WaitAsync(token));
+        var window = harness.Window;
+        IApplication application = window.ProbeApplication;
+        Task<bool> proof = Configurator.Engineering.MeasureNativePreparation.VerifyTerminalFeedbackOrderingAsync(window, () =>
         {
-            string initial = new('x', 65536);
-            var source = EditingSource("""
-                "payload":{"title":"Payload","type":"string",
-                  "x-configurator":{"sensitivity":"public","initialValue":""}}
-                """);
-            source["configuration"]!["properties"]!["payload"]!["x-configurator"]!["initialValue"] = initial;
-            source["localization"] = System.Text.Json.Nodes.JsonNode.Parse("""
-                {"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}
-                """);
-            source["outputs"]!["config.json"]!["projection"] = System.Text.Json.Nodes.JsonNode.Parse("""
-                {"op":"object","members":{
-                  "a":{"op":"copy","reference":{"scope":"root","path":"/payload"}},
-                  "b":{"op":"copy","reference":{"scope":"root","path":"/payload"}},
-                  "c":{"op":"copy","reference":{"scope":"root","path":"/payload"}},
-                  "d":{"op":"copy","reference":{"scope":"root","path":"/payload"}}}}
-                """);
-            using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
-                System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
-            using var harness = new Harness(initialize: true, form: form, manualDispatch: true);
-            var window = harness.Window;
-            var laidOut = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            window.SubViewsLaidOut += (_, _) => laidOut.TrySetResult();
-            window.BeginInit();
-            window.EndInit();
-            window.Frame = new Rectangle(0, 0, 120, 40);
-            window.ApplyViewportPolicy(window.Frame.Size);
-            bool resolved = window.Layout(window.Frame.Size);
-            await laidOut.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            if (coalescing) window.Prepare();
+            window.Validate();
+        }, coalescing);
+        Task stop = proof.ContinueWith(_ =>
+        {
+            application.AddTimeout(TimeSpan.Zero, () =>
+            {
+                application.RequestStop(window);
+                return false;
+            });
+        }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        object watchdog = application.AddTimeout(TimeSpan.FromSeconds(12), () =>
+        {
+            application.RequestStop(window);
+            return false;
+        }) ?? throw new InvalidOperationException("diagnostic-owner-loop-required");
+        try
+        {
+            application.Run(window);
+            await Assert.That(await proof.WaitAsync(TimeSpan.FromSeconds(1))).IsTrue();
+            await stop.WaitAsync(TimeSpan.FromSeconds(1));
+        }
+        finally
+        {
+            release.TrySetResult();
+            application.RemoveTimeout(watchdog);
+        }
+    }
+#endif
 
-            await Assert.That(resolved).IsTrue();
-            await Assert.That(window.PublicInput.Visible).IsTrue();
-            await Assert.That(window.PublicInput.Frame.Height).IsEqualTo(1);
-            await Assert.That(window.SubViews.Where(view => view.Visible && view != window.PublicInput)
-                .All(view => Rectangle.Intersect(view.Frame, window.PublicInput.Frame) is { Width: 0 } or { Height: 0 }))
-                .IsTrue();
-            await Assert.That(window.PublicInput.Text).IsEqualTo(initial);
-            window.PublicInput.InsertionPoint = 137;
-            await Assert.That(form.SelectLocale("ar")).IsTrue();
-            harness.DrainCallbacks();
-            await Assert.That(window.PublicInput.Text).IsEqualTo(initial);
-            await Assert.That(window.PublicInput.InsertionPoint).IsEqualTo(137);
+    [Test]
+    [NotInParallel]
+    [Arguments("en")]
+    [Arguments("ar")]
+    public async Task RootSecretGenerationUsesLiteralDynamicKeyAndStaysMasked(string locale)
+    {
+        var source = EditingSource("");
+        source.Remove("presentation");
+        source["configuration"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"type":"object","x-configurator":{"sensitivity":"public"},"additionalProperties":{
+             "type":"string","x-configurator":{"sensitivity":"secret","secret":{
+              "kind":"password","acquisition":"local","generation":{"length":32}}}}}
+            """);
+        source["localization"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}
+            """);
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+            System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.SelectLocale(locale);
+        using var harness = new Harness(initialize: true, manualDispatch: true, form: form);
+        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("literal/key")).IsTrue();
+        harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("AddMapEntry", locale))
+            .InvokeCommand(Command.Accept);
+        harness.DrainCallbacks();
+        Button generate = harness.Window.SubViews.OfType<Button>()
+            .Single(button => button.Text == TerminalStrings.Get("GenerateSecret", locale));
+        await Assert.That(generate.Enabled).IsTrue();
+        generate.InvokeCommand(Command.Accept);
+        await harness.Window.SecretCompletion.WaitAsync(TimeSpan.FromSeconds(10));
+        harness.DrainCallbacks();
+        string generated = form.Snapshot().Values["literal/key"].GetString()!;
+        await Assert.That(generated.Length).IsEqualTo(32);
+        await Assert.That(harness.Window.MaskedInput.Visible).IsTrue();
+        await Assert.That(harness.Window.PublicInput.Text.Contains(generated, StringComparison.Ordinal)).IsFalse();
+        await Assert.That(harness.Window.StatusText.Contains(generated, StringComparison.Ordinal)).IsFalse();
+        await Assert.That(form.Fields).IsEmpty();
+    }
 
-            string edited = initial[..^1] + "y";
-            window.PublicInput.Text = edited;
-            await Assert.That(window.CommitField()).IsTrue();
-            await Assert.That(form.Snapshot().Values["payload"].GetString()).IsEqualTo(edited);
-            window.Prepare();
-            await window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
-            harness.DrainCallbacks();
-            await Assert.That(harness.Operation.IsPrepared).IsTrue();
-            using var bundle = Configurator.Core.Artifacts.DefinitionBundleComposer.Compose(
-                form.Definition, ["config"], form.Snapshot());
-            await Assert.That(bundle.Succeeded).IsTrue();
-            string expected = "{\"a\":\"" + edited + "\",\"b\":\"" + edited +
-                "\",\"c\":\"" + edited + "\",\"d\":\"" + edited + "\"}";
-            await Assert.That(System.Text.Encoding.UTF8.GetString(bundle.Artifacts.Single().Bytes.Span))
-                .IsEqualTo(expected);
-        });
-        await regression.WaitAsync(TimeSpan.FromSeconds(15));
+    [Test]
+    [NotInParallel]
+    [Arguments("en")]
+    [Arguments("ar")]
+    public async Task RootRecursiveActionsPreserveNullOmissionResetAndSuggestion(string locale)
+    {
+        var source = EditingSource("");
+        source["configuration"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
+             {"type":"object","additionalProperties":false,"required":["mode"],"x-configurator":{"sensitivity":"public"},
+              "properties":{"mode":{"type":"string","const":"disk","x-configurator":{"sensitivity":"public"}},
+               "batch":{"type":["integer","null"],"x-configurator":{"sensitivity":"public","initialValue":2,"suggestedValue":3}}}},
+             {"type":"object","additionalProperties":false,"required":["mode"],"x-configurator":{"sensitivity":"public"},
+              "properties":{"mode":{"type":"string","const":"queue","x-configurator":{"sensitivity":"public"}}}}]}
+            """);
+        source.Remove("presentation");
+        source["localization"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}
+            """);
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+            System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.SelectLocale(locale);
+        form.SetAllSectionsExpanded(true);
+        using var harness = new Harness(initialize: true, form: form);
+        void Click(string key) => harness.Window.SubViews.OfType<Button>()
+            .Single(button => button.Text == TerminalStrings.Get(key, locale)).InvokeCommand(Command.Accept);
+        Click("ChooseVariant");
+        for (int step = 0; step < 3 && !(harness.Window.PublicInput.Visible && harness.Window.PublicInput.Text == "2"); step++)
+            harness.Window.MoveField(1);
+        await Assert.That(harness.Window.PublicInput.Text).IsEqualTo("2");
+        Click("ApplySuggestion");
+        await Assert.That(form.Snapshot().Values["batch"].GetInt32()).IsEqualTo(3);
+        Click("SetNull");
+        await Assert.That(form.Snapshot().Values["batch"].ValueKind).IsEqualTo(System.Text.Json.JsonValueKind.Null);
+        Click("OmitValue");
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/batch"), out _)).IsFalse();
+        Click("ResetValue");
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/batch"), out var initialized)).IsTrue();
+        await Assert.That(initialized.GetInt32()).IsEqualTo(2);
+        await Assert.That(harness.Window.PublicInput.Visible).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments("en")]
+    [Arguments("ar")]
+    public async Task RootProtectedContainersMaskOrdinaryChildrenAndKeepKeyboardNavigationOutOfBuffers(string locale)
+    {
+        var source = EditingSource("");
+        source.Remove("presentation");
+        source["configuration"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"type":"object","x-configurator":{"sensitivity":"public"},"additionalProperties":{
+             "type":"object","x-configurator":{"sensitivity":"secret"},"additionalProperties":false,
+             "properties":{"child":{"type":"string","x-configurator":{"sensitivity":"public"}}}}}
+            """);
+        source["localization"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}
+            """);
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+            System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.SelectLocale(locale);
+        form.SetAllSectionsExpanded(true);
+        using var harness = new Harness(initialize: true, form: form);
+        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("private/key")).IsTrue();
+        harness.Window.SubViews.OfType<Button>().Single(button => button.Text == TerminalStrings.Get("AddMapEntry", locale))
+            .InvokeCommand(Command.Accept);
+        harness.Window.MoveField(1);
+        await Assert.That(harness.Window.MaskedInput.Visible).IsTrue();
+        await Assert.That(harness.Window.PublicInput.Visible).IsFalse();
+        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("synthetic-protected-child")).IsTrue();
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        await Assert.That(form.Snapshot().Values["private/key"].GetProperty("child").GetString()).IsEqualTo("synthetic-protected-child");
+        harness.Window.MaskedInput.NewKeyDownEvent(Key.Tab);
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        await Assert.That(form.Snapshot().Values["private/key"].GetProperty("child").GetString()).IsEqualTo("synthetic-protected-child");
+        await Assert.That(harness.Window.StatusText).DoesNotContain("synthetic-protected-child");
+        await Assert.That(harness.Window.SubViews.OfType<Label>().Any(label =>
+            label.Text.Contains("private/key", StringComparison.Ordinal))).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments("en")]
+    [Arguments("ar")]
+    public async Task RootVariantSwitchRetiresOldBranchAndReachesCorrection(string locale)
+    {
+        var source = EditingSource("");
+        source["configuration"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
+             {"type":"object","additionalProperties":false,"required":["mode","directory"],"x-configurator":{"sensitivity":"public"},
+              "properties":{"mode":{"type":"string","const":"disk","x-configurator":{"sensitivity":"public"}},
+               "directory":{"type":"string","minLength":1,"x-configurator":{"sensitivity":"public"}}}},
+             {"type":"object","additionalProperties":false,"required":["mode","endpoint","token"],"x-configurator":{"sensitivity":"public"},
+              "properties":{"mode":{"type":"string","const":"queue","x-configurator":{"sensitivity":"public"}},
+               "endpoint":{"title":"Endpoint","type":"string","minLength":1,"x-configurator":{"sensitivity":"public"}},
+               "token":{"title":"Token","type":"string","minLength":1,"writeOnly":true,"x-configurator":{"sensitivity":"secret"}}}}]}
+            """);
+        source.Remove("presentation");
+        source["localization"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}
+            """);
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+            System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.SelectLocale(locale);
+        form.SetAllSectionsExpanded(true);
+        using var harness = new Harness(initialize: true, form: form);
+        void ChooseBranch() => harness.Window.SubViews.OfType<Button>()
+            .Single(button => button.Text == TerminalStrings.Get("ChooseVariant", locale))
+            .InvokeCommand(Command.Accept);
+        ChooseBranch();
+        harness.Window.FocusNextCorrection();
+        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("spool")).IsTrue();
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        await Assert.That(form.Snapshot().Values["directory"].GetString()).IsEqualTo("spool");
+        bool AtBranch() => harness.Window.SubViews.OfType<Button>().Any(button =>
+            button.Visible && button.Text == TerminalStrings.Get("ChooseVariant", locale));
+        for (int step = 0; step < 4 && !AtBranch(); step++) harness.Window.MoveField(1);
+        await Assert.That(AtBranch()).IsTrue();
+        ChooseBranch();
+        await Assert.That(form.Snapshot().Values.ContainsKey("directory")).IsFalse();
+        bool FocusCorrection(string title)
+        {
+            for (int step = 0; step < 2; step++)
+            {
+                harness.Window.FocusNextCorrection();
+                if (harness.Window.SubViews.OfType<Label>().Any(label =>
+                    label.Text.Contains($" {title} (", StringComparison.Ordinal))) return true;
+            }
+            return false;
+        }
+        await Assert.That(FocusCorrection("Endpoint")).IsTrue();
+        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("queue.example.invalid")).IsTrue();
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        await Assert.That(FocusCorrection("Token")).IsTrue();
+        await Assert.That(harness.Window.MaskedInput.Visible).IsTrue();
+        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("synthetic-root-token")).IsTrue();
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        await Assert.That(form.Snapshot().Values["token"].GetString()).IsEqualTo("synthetic-root-token");
+        await Assert.That(form.Snapshot().Values["mode"].GetString()).IsEqualTo("queue");
+        await Assert.That(form.Validate().IsReady).IsTrue();
+        await Assert.That(harness.Window.PublicInput.Text).DoesNotContain("synthetic-root-token");
+        await Assert.That(harness.Window.StatusText).DoesNotContain("synthetic-root-token");
+        await Assert.That(harness.Window.SubViews.OfType<Label>().Any(label =>
+            label.Text.Contains("synthetic-root-token", StringComparison.Ordinal))).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ReadonlyNullableFieldHidesSharedNullResetAndSuggestionActions()
+    {
+        using var harness = new Harness(initialize: true, form: new DefinitionFormModel(EditingDefinition("""
+            "value":{"title":"Fixed","type":["integer","null"],"readOnly":true,
+              "x-configurator":{"sensitivity":"public","detail":"basic","initialValue":4,"suggestedValue":7}}
+            """)));
+        foreach (string key in new[] { "SetNull", "ResetValue", "ApplySuggestion" })
+            await Assert.That(harness.Window.SubViews.OfType<Button>()
+                .Single(button => button.Text == TerminalStrings.Get(key)).Visible).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task PreparationFaultDoesNotAskForAnswerCorrections()
+    {
+        using var harness = new Harness(manualDispatch: true,
+            beforePreparation: _ => throw new InvalidOperationException("synthetic-fault"));
+        harness.Window.Prepare();
+        await harness.Window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+        harness.DrainCallbacks();
+        await Assert.That(harness.Window.StatusText).IsEqualTo(TerminalStrings.Get("PreparationFailed"));
+        await Assert.That(harness.Window.StatusText).DoesNotContain("synthetic-fault");
+        await Assert.That(harness.Operation.IsPrepared).IsFalse();
     }
 
     [Test]
@@ -664,6 +851,73 @@ public sealed class TerminalGuiAdapterTests
 
     [Test]
     [NotInParallel]
+    public async Task LongPublicScalarLaysOutAsOneRowAndRetainsCompletePreparedOutput()
+    {
+        Task regression = Task.Run(async () =>
+        {
+            string initial = new('x', 65536);
+            var source = EditingSource("""
+                "payload":{"title":"Payload","type":"string",
+                  "x-configurator":{"sensitivity":"public","initialValue":""}}
+                """);
+            source["configuration"]!["properties"]!["payload"]!["x-configurator"]!["initialValue"] = initial;
+            source["localization"] = System.Text.Json.Nodes.JsonNode.Parse("""
+                {"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}
+                """);
+            source["outputs"]!["config.json"]!["projection"] = System.Text.Json.Nodes.JsonNode.Parse("""
+                {"op":"object","members":{
+                  "a":{"op":"copy","reference":{"scope":"root","path":"/payload"}},
+                  "b":{"op":"copy","reference":{"scope":"root","path":"/payload"}},
+                  "c":{"op":"copy","reference":{"scope":"root","path":"/payload"}},
+                  "d":{"op":"copy","reference":{"scope":"root","path":"/payload"}}}}
+                """);
+            using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+                System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+            using var harness = new Harness(initialize: true, form: form, manualDispatch: true);
+            var window = harness.Window;
+            var laidOut = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            window.SubViewsLaidOut += (_, _) => laidOut.TrySetResult();
+            window.BeginInit();
+            window.EndInit();
+            window.Frame = new Rectangle(0, 0, 120, 40);
+            window.ApplyViewportPolicy(window.Frame.Size);
+            bool resolved = window.Layout(window.Frame.Size);
+            await laidOut.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            await Assert.That(resolved).IsTrue();
+            await Assert.That(window.PublicInput.Visible).IsTrue();
+            await Assert.That(window.PublicInput.Frame.Height).IsEqualTo(1);
+            await Assert.That(window.SubViews.Where(view => view.Visible && view != window.PublicInput)
+                .All(view => Rectangle.Intersect(view.Frame, window.PublicInput.Frame) is { Width: 0 } or { Height: 0 }))
+                .IsTrue();
+            await Assert.That(window.PublicInput.Text).IsEqualTo(initial);
+            window.PublicInput.InsertionPoint = 137;
+            await Assert.That(form.SelectLocale("ar")).IsTrue();
+            harness.DrainCallbacks();
+            await Assert.That(window.PublicInput.Text).IsEqualTo(initial);
+            await Assert.That(window.PublicInput.InsertionPoint).IsEqualTo(137);
+
+            string edited = initial[..^1] + "y";
+            window.PublicInput.Text = edited;
+            await Assert.That(window.CommitField()).IsTrue();
+            await Assert.That(form.Snapshot().Values["payload"].GetString()).IsEqualTo(edited);
+            window.Prepare();
+            await window.PreparationCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            harness.DrainCallbacks();
+            await Assert.That(harness.Operation.IsPrepared).IsTrue();
+            using var bundle = Configurator.Core.Artifacts.DefinitionBundleComposer.Compose(
+                form.Definition, ["config"], form.Snapshot());
+            await Assert.That(bundle.Succeeded).IsTrue();
+            string expected = "{\"a\":\"" + edited + "\",\"b\":\"" + edited +
+                "\",\"c\":\"" + edited + "\",\"d\":\"" + edited + "\"}";
+            await Assert.That(System.Text.Encoding.UTF8.GetString(bundle.Artifacts.Single().Bytes.Span))
+                .IsEqualTo(expected);
+        });
+        await regression.WaitAsync(TimeSpan.FromSeconds(15));
+    }
+
+    [Test]
+    [NotInParallel]
     [Arguments("en")]
     [Arguments("ar")]
     public async Task MinimumOuterViewportKeepsEveryActionReachable(string locale)
@@ -863,7 +1117,7 @@ public sealed class TerminalGuiAdapterTests
             using var harness = new Harness(initialize: true, form: form, directory: directory, manualDispatch: true);
             harness.Window.PublicInput.Text = text;
             AnswerSnapshot original = form.Snapshot();
-            bool prepared = await harness.Operation.PrepareAsync();
+            bool prepared = harness.Operation.AdoptPreparation(await harness.Operation.PrepareAsync()) == TerminalPreparationCode.Ready;
             TextField path = harness.Window.SubViews.OfType<TextField>().Single(field => field.Y == 14);
             path.Text = input;
             Button compare = harness.Window.SubViews.OfType<Button>()
@@ -913,7 +1167,7 @@ public sealed class TerminalGuiAdapterTests
                 .Single(button => button.Text == TerminalStrings.Get("SelectOutput"));
             await Assert.That(cycle.InvokeCommand(Command.Accept)).IsTrue();
             await Assert.That(select.InvokeCommand(Command.Accept)).IsTrue();
-            await Assert.That(harness.Operation.PrepareAsync().GetAwaiter().GetResult()).IsTrue();
+            await Assert.That(harness.Operation.AdoptPreparation(harness.Operation.PrepareAsync().GetAwaiter().GetResult())).IsEqualTo(TerminalPreparationCode.Ready);
             await Assert.That(harness.Window.StatusText).DoesNotContain("privateValue");
             await harness.Workspace.ExecuteAsync(Guid.NewGuid());
             await Assert.That(Directory.EnumerateFiles(directory).Select(Path.GetFileName))
@@ -949,6 +1203,37 @@ public sealed class TerminalGuiAdapterTests
             await Assert.That(importPath.Text).IsEmpty();
         }
         finally { Directory.Delete(directory, true); }
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments("en")]
+    [Arguments("ar")]
+    public async Task ReceiptActionsRemainVisibleAndEnableOnlyForAvailableFacts(string locale)
+    {
+        using var form = TerminalDefinitionFixture.Form();
+        form.SelectLocale(locale);
+        using var harness = new Harness(initialize: true, form: form);
+        Button outcome = harness.Window.SubViews.OfType<Button>()
+            .Single(button => button.Text == TerminalStrings.Get("NextOutcome", locale));
+        Button attempt = harness.Window.SubViews.OfType<Button>()
+            .Single(button => button.Text == TerminalStrings.Get("NextAttempt", locale));
+        await Assert.That(outcome.Visible && attempt.Visible).IsTrue();
+        await Assert.That(outcome.Enabled || attempt.Enabled).IsFalse();
+        string initial = harness.Window.StatusText;
+        outcome.InvokeCommand(Command.Accept);
+        attempt.InvokeCommand(Command.Accept);
+        await Assert.That(harness.Window.StatusText).IsEqualTo(initial);
+
+        harness.Window.PresentReceipt(new(Guid.NewGuid(), [new("config", null)], false));
+        await Assert.That(outcome.Visible && attempt.Visible).IsTrue();
+        await Assert.That(outcome.Enabled).IsFalse();
+        await Assert.That(attempt.Enabled).IsTrue();
+        harness.Window.PresentReceipt(new(Guid.NewGuid(),
+            [new("config", ProtectedArtifactCommitResult.Installed(true)), new("yaml", null)], true));
+        await Assert.That(outcome.Visible && attempt.Visible && outcome.Enabled && attempt.Enabled).IsTrue();
+        outcome.InvokeCommand(Command.Accept);
+        await Assert.That(harness.Window.StatusText).Contains("yaml: " + TerminalStrings.Get("NotAttempted", locale));
     }
 
     [Test]
@@ -1022,7 +1307,7 @@ public sealed class TerminalGuiAdapterTests
             using var harness = new Harness(initialize: true, directory: directory, manualDispatch: true);
             for (int attempt = 0; attempt < 2; attempt++)
             {
-                await Assert.That(await harness.Operation.PrepareAsync()).IsTrue();
+                await Assert.That(harness.Operation.AdoptPreparation(await harness.Operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
                 await harness.Operation.ExecuteAsync(CancellationToken.None);
                 harness.DrainCallbacks();
             }
@@ -1064,7 +1349,7 @@ public sealed class TerminalGuiAdapterTests
             using var harness = new Harness(initialize: true, directory: directory,
                 beforePublication: async token => { reached.TrySetResult(); await resume.Task.WaitAsync(token); },
                 manualDispatch: true);
-            await Assert.That(await harness.Operation.PrepareAsync()).IsTrue();
+            await Assert.That(harness.Operation.AdoptPreparation(await harness.Operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
             Task execution = harness.Workspace.ExecuteAsync(Guid.NewGuid());
             await reached.Task.WaitAsync(TimeSpan.FromSeconds(5));
             if (signal)
@@ -1093,7 +1378,7 @@ public sealed class TerminalGuiAdapterTests
     public async Task UncommittedFieldEditsInvalidatePreparedArtifactImmediately()
     {
         using var harness = new Harness();
-        await Assert.That(await harness.Operation.PrepareAsync()).IsTrue();
+        await Assert.That(harness.Operation.AdoptPreparation(await harness.Operation.PrepareAsync())).IsEqualTo(TerminalPreparationCode.Ready);
         harness.Window.PublicInput.Text = "changed but not applied";
         await Assert.That(harness.Operation.IsPrepared).IsFalse();
         await Assert.That(harness.Workspace.Output).IsEmpty();

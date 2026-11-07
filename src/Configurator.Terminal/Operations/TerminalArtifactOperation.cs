@@ -25,6 +25,9 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
     private string[] _eligibleArtifactIds;
     private bool _disposed;
     private long _preparationGeneration;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+    internal string? ProbeDirectory { get; set; }
+#endif
 
     internal TerminalArtifactOperation(
         DefinitionFormModel form, IProtectedArtifactWriter writer, string baseDirectory,
@@ -95,30 +98,69 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
         Invalidate();
     }
 
-    internal async Task<bool> PrepareAsync(CancellationToken cancellationToken = default)
+    internal async Task<TerminalPreparationOutcome> PrepareAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (IsPublishing) return false;
+        if (IsPublishing) return new(TerminalPreparationCode.Retired);
         Invalidate();
-        cancellationToken.ThrowIfCancellationRequested();
-        if (Form.HasInputErrors) return false;
+        if (cancellationToken.IsCancellationRequested) return new(TerminalPreparationCode.Cancelled);
+        if (Form.HasInputErrors) return new(TerminalPreparationCode.Invalid);
         long generation = Volatile.Read(ref _preparationGeneration);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("capture-start");
+#endif
         var snapshot = Form.Snapshot();
         var definition = Form.Definition;
         string[] selected = SelectedArtifactIds.ToArray();
-        int count = await Task.Run(async () =>
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("capture-end");
+        Configurator.Engineering.MeasureNativePreparation.Mark("dispatch");
+#endif
+        try
         {
-            if (_beforePreparation is not null) await _beforePreparation(cancellationToken).ConfigureAwait(false);
-            using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(
-                definition, selected, snapshot, cancellationToken);
-            return bundle.Succeeded ? bundle.Artifacts.Count : 0;
-        }, cancellationToken).ConfigureAwait(false);
+            int count = await Task.Run(async () =>
+            {
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+                Configurator.Engineering.MeasureNativePreparation.Mark("worker-start");
+#endif
+                if (_beforePreparation is not null) await _beforePreparation(cancellationToken).ConfigureAwait(false);
+                using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(
+                    definition, selected, snapshot, cancellationToken);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+                Configurator.Engineering.MeasureNativePreparation.Mark("composition-end");
+#endif
+                return bundle.Succeeded ? bundle.Artifacts.Count : 0;
+            }, cancellationToken).ConfigureAwait(false);
+            return new(count > 0 ? TerminalPreparationCode.Ready : TerminalPreparationCode.Invalid,
+                snapshot.InputRevision, generation, count, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return new(TerminalPreparationCode.Cancelled);
+        }
+        catch (Exception)
+        {
+            return new(TerminalPreparationCode.Failed);
+        }
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        finally
+        {
+            Configurator.Engineering.MeasureNativePreparation.Mark("physical-settled");
+        }
+#endif
+    }
+
+    internal TerminalPreparationCode AdoptPreparation(TerminalPreparationOutcome outcome)
+    {
         lock (_receiptGate)
         {
-            if (_disposed || _publishing || cancellationToken.IsCancellationRequested || count == 0
-                || generation != _preparationGeneration || snapshot.InputRevision != Form.InputRevision) return false;
-            Preparation = new(snapshot.InputRevision, count);
-            return true;
+            if (outcome.Code != TerminalPreparationCode.Ready) return outcome.Code;
+            if (outcome.CancellationToken.IsCancellationRequested) return TerminalPreparationCode.Cancelled;
+            if (_disposed || _publishing || outcome.Generation != _preparationGeneration
+                || outcome.InputRevision != Form.InputRevision) return TerminalPreparationCode.Retired;
+            _preparationGeneration++;
+            Preparation = new(outcome.InputRevision, outcome.ArtifactCount);
+            return TerminalPreparationCode.Ready;
         }
     }
 
@@ -150,27 +192,61 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
             SettlePublication(attemptId, null, null, failed: true);
             throw;
         }
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        finally
+        {
+            Configurator.Engineering.MeasureNativePreparation.Mark("physical-settled");
+        }
+#endif
     }
 
-    private async Task<TerminalArtifactResult> PublishAsync(string[] selected, CancellationToken cancellationToken)
+    private Task<TerminalArtifactResult> PublishAsync(string[] selected, CancellationToken cancellationToken)
     {
         TerminalPreparation? prepared = Preparation;
         Preparation = null;
         cancellationToken.ThrowIfCancellationRequested();
         if (prepared?.InputRevision != Form.InputRevision || selected.Length == 0)
-            return Outcome(selected, ProtectedArtifactStatus.InvalidRequest);
+            return Task.FromResult(Outcome(selected, ProtectedArtifactStatus.InvalidRequest));
         if (!_writer.IsAvailable)
-            return Outcome(selected, ProtectedArtifactStatus.UnsupportedPlatform);
+            return Task.FromResult(Outcome(selected, ProtectedArtifactStatus.UnsupportedPlatform));
 
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("capture-start");
+#endif
         var snapshot = Form.Snapshot();
         if (snapshot.InputRevision != prepared.InputRevision)
-            return Outcome(selected, ProtectedArtifactStatus.InvalidRequest);
-        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(Form.Definition, selected, snapshot, cancellationToken);
-        if (!bundle.Succeeded || Form.InputRevision != snapshot.InputRevision)
-            return Outcome(selected, ProtectedArtifactStatus.InvalidRequest);
-        if (_beforePublication is not null) await _beforePublication(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        return await _publishBundle(bundle.Artifacts, _baseDirectory, RecordOutcome, cancellationToken).ConfigureAwait(false);
+            return Task.FromResult(Outcome(selected, ProtectedArtifactStatus.InvalidRequest));
+        Definition definition = Form.Definition;
+        long generation = Volatile.Read(ref _preparationGeneration);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("capture-end");
+        Configurator.Engineering.MeasureNativePreparation.Mark("dispatch");
+#endif
+        return Task.Run(async () =>
+        {
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            Configurator.Engineering.MeasureNativePreparation.Mark("worker-start");
+#endif
+            using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(definition, selected, snapshot, cancellationToken);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            Configurator.Engineering.MeasureNativePreparation.Mark("composition-end");
+#endif
+            if (!bundle.Succeeded || generation != Volatile.Read(ref _preparationGeneration))
+                return Outcome(selected, ProtectedArtifactStatus.InvalidRequest);
+            if (_beforePublication is not null) await _beforePublication(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            Configurator.Engineering.MeasureNativePreparation.Mark("consumer-start");
+#endif
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            TerminalArtifactResult result = await _publishBundle(bundle.Artifacts, ProbeDirectory ?? _baseDirectory,
+                RecordOutcome, cancellationToken).ConfigureAwait(false);
+            Configurator.Engineering.MeasureNativePreparation.Mark("consumer-end");
+            return result;
+#else
+            return await _publishBundle(bundle.Artifacts, _baseDirectory, RecordOutcome, cancellationToken).ConfigureAwait(false);
+#endif
+        }, cancellationToken);
     }
 
     private static TerminalArtifactResult Outcome(IEnumerable<string> selected, ProtectedArtifactStatus status) =>

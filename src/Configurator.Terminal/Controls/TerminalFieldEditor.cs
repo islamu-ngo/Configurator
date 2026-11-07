@@ -9,13 +9,17 @@ using Configurator.Presentation;
 /// <summary>Expands object rows into typed leaves with independent navigation for each nested list.</summary>
 internal sealed class TerminalFieldEditor
 {
-    internal sealed record Slot(DefinitionFormModel Form, DefinitionFieldInput Input, string[] Path, DefinitionNode Schema,
+    internal sealed record Slot(DefinitionFormModel Form, DefinitionFieldInput? Field, string[] Path, DefinitionNode Schema,
         string? FallbackTitle = null)
     {
+        internal DefinitionFieldInput Input => Field ?? throw new InvalidOperationException("root-editor-has-no-field");
         internal JsonElement Metadata => Schema.Keywords;
-        internal DefinitionEditorPresentation? Presentation => Form.GetEditorPresentation(FullPath);
+        internal DefinitionPath Location => DefinitionPath.FromSegments(Field is null ? Path : [Field.Definition.Name, .. Path]);
+        internal string Identity { get; } = Form.GetEditorIdentity(
+            DefinitionPath.FromSegments(Field is null ? Path : [Field.Definition.Name, .. Path]));
+        internal DefinitionEditorPresentation? Presentation => Form.GetEditorPresentation(Location);
         internal string Title => FallbackTitle is not null && !Metadata.TryGetProperty("title", out _)
-            ? FallbackTitle : Presentation?.Title ?? Input.Definition.Title;
+            ? FallbackTitle : Presentation?.Title ?? Field?.Definition.Title ?? TerminalStrings.Get("ConfigurationRoot", Form.Locale);
         internal string Type => Schema.JsonType;
         internal bool IsList => Schema.Type == DefinitionNodeType.Sequence;
         internal bool IsObject => Type == "object";
@@ -25,58 +29,30 @@ internal sealed class TerminalFieldEditor
         internal DefinitionNode ObjectSchema => Value(this) is { } value
             ? DefinitionValidator.SelectVariant(Schema, value) ?? Schema : Schema;
         internal string ScalarType => IsList ? Schema.Items!.JsonType : Type;
-        internal bool RequiresMasking => Input.RequiresMasking ||
-            Form.GetEditorState(FullPath)?.Sensitivity is { } sensitivity && sensitivity != FieldSensitivity.Public;
-        internal string[] FullPath => [Input.Definition.Id, .. Path];
+        internal bool RequiresMasking => Form.GetFieldValidation(Location).RequiresMasking;
+        internal string[] FullPath => Field is null ? Path : [Field.Definition.Id, .. Path];
         internal string Help => TerminalStrings.FormatHelp(Presentation, Metadata, Form.Locale);
     }
 
     private readonly DefinitionFormModel _form;
-    internal TerminalFieldEditor(DefinitionFormModel form) => _form = form;
-    internal IReadOnlyList<Slot> Slots => _form.Projection.Sections.SelectMany(section => section.Fields)
+    private readonly TerminalRootEditor _root;
+    internal TerminalFieldEditor(DefinitionFormModel form)
+    {
+        _form = form;
+        _root = new(form);
+    }
+    internal IReadOnlyList<Slot> Slots => !DefinitionEditingSupport.HasPropertyRoot(_form.Definition) ? _root.Slots
+        : _form.Projection.Sections.SelectMany(section => section.Fields)
         .Distinct(StringComparer.Ordinal).Where(_form.Projection.IsFieldVisible).SelectMany(id =>
         {
             var (input, schema) = _form.GetFieldEditor(id);
-            return Expand(input, schema, []);
+            return _root.Expand(new(_form, input, [], schema));
         }).ToArray();
-
-    private IEnumerable<Slot> Expand(DefinitionFieldInput input, DefinitionNode schema, string[] path,
-        string? fallbackTitle = null)
-    {
-        var current = new Slot(_form, input, path, schema, fallbackTitle);
-        if (_form.GetEditorState(current.FullPath) is { IsActive: false }) yield break;
-        yield return current;
-        if (Value(current) is { ValueKind: JsonValueKind.Null }) yield break;
-        if (schema.Type == DefinitionNodeType.Mapping)
-        {
-            DefinitionNode active = current.ObjectSchema;
-            foreach ((string name, DefinitionNode property) in active.Properties)
-                foreach (Slot slot in Expand(input, property, [.. path, name]))
-                    yield return slot;
-            if (active.AdditionalProperties is { } entry && Value(current) is { ValueKind: JsonValueKind.Object } mapping)
-            {
-                int index = 0;
-                foreach (JsonProperty property in mapping.EnumerateObject().Where(property =>
-                    !active.Properties.ContainsKey(property.Name)))
-                    foreach (Slot slot in Expand(input, entry, [.. path, property.Name],
-                        TerminalStrings.Get("MapEntry", _form.Locale) + " " + (++index).ToString(TerminalStrings.Culture(_form.Locale))))
-                        yield return slot;
-            }
-            yield break;
-        }
-        if (!current.IsList || schema.Items!.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence)) yield break;
-        int count = ItemCount(current);
-        for (int index = 0; index < count; index++)
-            foreach (Slot slot in Expand(input, schema.Items!,
-                [.. path, index.ToString(CultureInfo.InvariantCulture)]))
-                yield return slot;
-    }
 
     internal static string Read(Slot slot, int listIndex = 0)
     {
         if (slot.IsObject || slot.IsObjectList) return string.Empty;
-        string[] path = slot.IsList
-            ? [.. slot.FullPath, listIndex.ToString(CultureInfo.InvariantCulture)] : slot.FullPath;
+        DefinitionPath path = EditLocation(slot, listIndex);
         if (slot.Form.ReadDraftText(path) is { } draft) return draft;
         JsonNode? value = Node(slot);
         if (slot.IsList)
@@ -86,33 +62,41 @@ internal sealed class TerminalFieldEditor
     }
 
     internal static int ItemCount(Slot slot) => Node(slot) is JsonArray array ? array.Count : 0;
-    internal static int MaximumItems(Slot slot) => slot.Metadata.TryGetProperty("maxItems", out JsonElement bound)
-        ? bound.GetInt32() : 4096;
+    internal static int MaximumItems(Slot slot) => (int)(slot.Form.GetFieldValidation(slot.Location).Bounds
+        .FirstOrDefault(bound => bound.Kind == DefinitionFieldBoundKind.MaxItems)?.Value ?? 4096);
     internal static int LastItemPosition(Slot slot)
     {
         int count = ItemCount(slot);
         return slot.IsObjectList || count >= MaximumItems(slot) ? Math.Max(0, count - 1) : count;
     }
-    internal static bool Supply(Slot slot) => slot.IsObject ? slot.Form.SupplyObject(slot.FullPath)
-        : slot.IsList && slot.Form.SupplyList(slot.FullPath);
-    internal static bool Clear(Slot slot) => slot.Form.EditValue(slot.FullPath, null);
+    internal static bool Supply(Slot slot) => slot.Form.GetFieldValidation(slot.Location).CanEdit &&
+        (slot.IsObject ? slot.Form.SupplyObject(slot.Location) : slot.IsList && slot.Form.SupplyList(slot.Location));
+    internal static bool Clear(Slot slot) => slot.Form.GetFieldValidation(slot.Location).CanOmit &&
+        slot.Form.EditValue(slot.Location, null);
     internal static bool HasItem(Slot slot, int index) => Node(slot) is JsonArray items && index >= 0 && index < items.Count;
-    internal static bool AddItem(Slot slot) => slot.IsList && slot.Form.AddListItem(slot.FullPath);
+    internal static bool AddItem(Slot slot) => slot.IsList && slot.Form.GetFieldValidation(slot.Location).CanEdit &&
+        slot.Form.AddListItem(slot.Location);
 
     internal static IReadOnlyList<string> Choices(Slot slot)
     {
-        string[] path = EditPath(slot, 0);
+        DefinitionPath path = EditLocation(slot, 0);
+        bool append = slot.IsList && !HasItem(slot, 0);
+        DefinitionFieldValidation facts = slot.Form.GetFieldValidation(append ? slot.Location : path);
+        JsonElement metadata = slot.IsList ? slot.Schema.Items!.Keywords : slot.Metadata;
+        if (metadata.TryGetProperty("enum", out JsonElement declared) && facts.HasProtectedDescendants) return [];
         IReadOnlyList<DefinitionChoicePresentation>? choices = slot.Form.GetEditorPresentation(path)?.Choices;
         if (choices is { Count: > 0 }) return choices.Select(choice => choice.Label).ToArray();
-        JsonElement metadata = slot.IsList ? slot.Schema.Items!.Keywords : slot.Metadata;
-        if (metadata.TryGetProperty("enum", out JsonElement declared))
+        if (facts.AllowedValues.Count > 0)
+            return facts.AllowedValues.Select(choice => choice.ValueKind == JsonValueKind.String
+                ? choice.GetString()! : choice.GetRawText()).ToArray();
+        if (append && declared.ValueKind == JsonValueKind.Array)
             return declared.EnumerateArray().Select(choice => choice.ValueKind == JsonValueKind.String
                 ? choice.GetString()! : choice.GetRawText()).ToArray();
         return slot.ScalarType == "boolean" ? ["false", "true"] : [];
     }
 
-    internal static string[] EditPath(Slot slot, int index) => slot.IsList
-        ? [.. slot.FullPath, index.ToString(CultureInfo.InvariantCulture)] : slot.FullPath;
+    internal static DefinitionPath EditLocation(Slot slot, int index) => slot.IsList
+        ? DefinitionPath.FromSegments([.. slot.Location.Segments, index.ToString(CultureInfo.InvariantCulture)]) : slot.Location;
 
     internal static int ChoiceIndex(Slot slot, int index = 0)
     {
@@ -132,8 +116,9 @@ internal sealed class TerminalFieldEditor
 
     internal static bool SelectChoice(Slot slot, int choice, int index = 0)
     {
+        if (!slot.Form.GetFieldValidation(slot.Location).CanEdit) return false;
         if (slot.IsList && !HasItem(slot, index) && !AddItem(slot)) return false;
-        string[] path = EditPath(slot, index);
+        DefinitionPath path = EditLocation(slot, index);
         JsonElement metadata = slot.IsList ? slot.Schema.Items!.Keywords : slot.Metadata;
         return metadata.TryGetProperty("enum", out _)
             ? slot.Form.SelectChoice(path, choice)
@@ -141,10 +126,11 @@ internal sealed class TerminalFieldEditor
     }
 
     internal static bool AddMapEntry(Slot slot, string key) =>
-        slot.IsMap && slot.Form.AddMapEntry(slot.FullPath, key);
+        slot.IsMap && slot.Form.GetFieldValidation(slot.Location).CanEdit && slot.Form.AddMapEntry(slot.Location, key);
 
     internal static bool Write(Slot slot, string text, int listIndex = 0)
     {
+        if (!slot.Form.GetFieldValidation(slot.Location).CanEdit) return false;
         if (slot.IsObject || slot.IsObjectList) return text.Length == 0;
         if (slot.IsList)
         {
@@ -152,7 +138,7 @@ internal sealed class TerminalFieldEditor
             if (listIndex < 0 || listIndex > array.Count) return false;
             if (listIndex == array.Count && text.Length == 0) return true;
             if (array.Count >= MaximumItems(slot) && listIndex == array.Count) return false;
-            string[] itemPath = [.. slot.FullPath, listIndex.ToString(CultureInfo.InvariantCulture)];
+            DefinitionPath itemPath = EditLocation(slot, listIndex);
             if (listIndex < array.Count) return slot.Form.EditValue(itemPath, text);
             if (!DefinitionScalarEditing.TryParse(slot.ScalarType, text, slot.Schema.Items!.Keywords, out JsonElement? scalar))
             {
@@ -161,27 +147,19 @@ internal sealed class TerminalFieldEditor
             if (scalar is null) return true;
             return AddItem(slot) && slot.Form.EditValue(itemPath, text);
         }
-        return slot.Form.EditValue(slot.FullPath, text);
+        return slot.Form.EditValue(slot.Location, text);
     }
 
     internal static void Remove(Slot slot, int listIndex)
     {
-        if (slot.IsList) slot.Form.RemoveListItem(slot.FullPath, listIndex);
-        else slot.Form.SetValue(slot.FullPath, null);
+        if (!slot.Form.GetFieldValidation(slot.Location).CanEdit) return;
+        if (slot.IsList) slot.Form.RemoveListItem(slot.Location, listIndex);
+        else slot.Form.SetValue(slot.Location, null);
     }
 
     internal static JsonElement? Value(Slot slot)
     {
-        if (!slot.Input.TryValue(out JsonElement? value) || value is null) return null;
-        JsonElement node = value.Value;
-        foreach (string key in slot.Path)
-        {
-            if (node.ValueKind == JsonValueKind.Object && node.TryGetProperty(key, out JsonElement child)) node = child;
-            else if (node.ValueKind == JsonValueKind.Array && int.TryParse(key, out int index)
-                && index >= 0 && index < node.GetArrayLength()) node = node[index];
-            else return null;
-        }
-        return node;
+        return slot.Form.Validate().TryGetEffectiveValue(slot.Location, out JsonElement value) ? value : null;
     }
 
     private static JsonNode? Node(Slot slot) => Value(slot) is { } value ? JsonNode.Parse(value.GetRawText()) : null;
