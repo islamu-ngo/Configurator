@@ -497,6 +497,72 @@ owners. The design deliberately reuses the surface RID list as the admission
 authority instead of introducing a second host allowlist. Raw research remains
 outside the repository; this source register retains only identities and facts.
 
+## Detached support qualification receipts
+
+`eng/configurator/ValidateSupportQualification.cs` admits bounded assertions
+about an exact payload; it does not run the claimed scenario or authenticate
+its producer. Supply independently retained product-source, build-recipe and
+payload SHA-256 identities, rather than trusting the receipt's own claims:
+
+```bash
+dotnet run --file eng/configurator/ValidateSupportQualification.cs -- \
+  --receipt "$RECEIPT" --source "$SOURCE_SHA256" \
+  --build "$BUILD_SHA256" --payload "$PAYLOAD_SHA256"
+```
+
+The receipt records full commit identity, optional dirty-input digest and tool
+version. Its records distinguish client, package RID, actual runner RID,
+host identity, capability, English/Arabic locale, scenario and UTC observation
+time. Native target admission comes from the generated release capabilities.
+Executed native receipts require matching runner/target RIDs; a glibc process
+does not establish musl execution. Browser records use the static WASM target
+and a separately identified native runner host.
+
+Statuses remain `passed`, `failed`, `verified-unsupported` and `unexecuted`.
+A passed protected save requires a Linux host and observed artifact creation.
+Verified unsupported macOS/Windows save requires observed refusal and no
+artifact. Unexecuted records cannot contain execution identities, counts or
+artifacts. Missing, unknown or duplicate fields, duplicate claims, mismatched
+identities and contradictory outcome/count/exit combinations reject.
+
+Input is limited to 1 MiB, JSON depth eight and 512 records. Exit 0 means
+structural/semantic acceptance, including accepted failed or unexecuted
+evidence; it does not mean every scenario passed. Exit 1 emits only
+`SUPPORT_QUALIFICATION_REJECTED`; malformed operands return 64. Status counts
+remain separate in successful output.
+
+Run the tool with `--self-test`, `--schema-write` or `--schema-check` from the
+repository root to exercise synthetic specifications, generate
+`schemas/configurator-support-qualification.schema.json`, or reject schema
+drift. The native validator enforces cross-field and identity constraints beyond
+the structural schema. Keep receipts outside the payload and retain independent
+expected digests; neither unsigned integrity nor parser acceptance activates
+support, signing, host, participant or accessibility claims.
+
+`--projection --source SHA256 --build SHA256 --payload SHA256` exposes the
+same validated receipt records together with the current admitted
+client/RID/capability/locale/scenario vocabulary. Add one `--receipt FILE`
+operand per receipt, or supply none to inspect missing coverage. Duplicate
+coverage across receipts rejects; no second parser or RID registry determines
+acceptance.
+
+Render detached evidence with:
+
+```bash
+dotnet run --file eng/configurator/RenderSupportMatrix.cs -- \
+  --source "$SOURCE_SHA256" --build "$BUILD_SHA256" \
+  --payload "$PAYLOAD_SHA256" --receipt "$RECEIPT"
+```
+
+The renderer calls that native projection and sorts rows deterministically.
+Every admitted scenario gets a row; absent evidence stays `missing`, and
+`failed`, `verified-unsupported` and `unexecuted` retain their distinct meanings.
+A passed row does not qualify sibling scenarios, locales or hosts. Receipt
+digests bind original bytes and each observed row retains its record. Keep
+this matrix outside the candidate payload so later qualification does not
+change the bytes it describes. `--self-test` tests rendering with synthetic
+projections; it does not execute support scenarios.
+
 ## Generated contracts and package verification
 
 `GenerateConfiguratorRatchets.cs` uses compiled Core definition schema and CLI

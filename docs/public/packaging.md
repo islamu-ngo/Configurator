@@ -35,6 +35,13 @@ measurements are bounded by [cryptography limits](../internal/SECRET_CRYPTOGRAPH
 
 ## Quick Install & Binary Matrix
 
+The matrix below declares package targets. Actual scenario evidence is separate:
+the [detached support receipt procedure](../internal/PACKAGING.md#detached-support-qualification-receipts)
+binds observations to exact source, recipe and payload identities and renders
+each admitted client, target, language and scenario. Missing, failed,
+unsupported and unexecuted rows remain explicit; one passing scenario does
+not qualify the remaining rows.
+
 | Surface | Target Platform / Architecture | Runtime Identifier (RID) | Package Executable / Output Root |
 |---|---|---|---|
 | **[CLI](cli.md)** | Linux (glibc) x64 / Arm64<br/>Linux (musl) x64 / Arm64<br/>macOS Intel / Apple Silicon<br/>Windows 10/11 x64 | `linux-x64`<br/>`linux-arm64`<br/>`linux-musl-x64`<br/>`linux-musl-arm64`<br/>`osx-x64`, `osx-arm64`<br/>`win-x64` | `artifacts/configurator/cli/<rid>/islamu-configurator`<br/>*(Windows: `.exe`)* |

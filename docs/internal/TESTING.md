@@ -133,6 +133,16 @@ Choose a new run token for every invocation. Inspect the safe report and record
 the source/build identity before interpreting it. No global percentage or
 mutation gate is imposed.
 
+### Payload-bound qualification versus owner tests
+
+The [support receipt validator](PACKAGING.md#detached-support-qualification-receipts)
+checks explicitly supplied source/build/payload identities, scenario relevance
+and distinct passed, failed, verified-unsupported and unexecuted assertions.
+Its focused `SupportQualificationTests` use synthetic receipts; their pass is
+not a native-host, Browser, participant or AT qualification. Pre-package owner
+reports stay payload-unbound. Exact-payload qualification requires the actual
+frozen artifact and independently retained observation evidence.
+
 ### Local safe evidence archive
 
 The native emitter owns `schemas/configurator-test-evidence.schema.json`.
