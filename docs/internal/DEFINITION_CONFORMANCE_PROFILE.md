@@ -27,6 +27,21 @@ the semantic contract. Editorial changes do not renew execution evidence.
 
 ## Admission and control flow
 
+Core's admitted root map and root variant semantics are also available through
+Presentation's recursive accepted root. Ordinary field facades project into that
+root without owning another accepted answer store. Whole-file import and public
+document adoption retain additional root entries rather than discarding entries
+outside `Definition.Fields`. Dynamic correction locations remain typed map
+ordinals; private entry names do not become diagnostic identifiers.
+
+Terminal, Desktop and Browser place their recursive controls at the empty
+literal path for admitted root maps and variants, alongside ordinary property
+roots and supported nested shapes. The earlier property-root-only rollout
+boundary is historical; rendering, accessibility and actual-host qualification
+still require their own evidence.
+See the [root ownership ADR](adr/ADR-recursive-workspace-root.md) and
+[Presentation state](PRESENTATION_STATE.md).
+
 1. `DefinitionSourceCodec` selects an explicit content contract after the
    caller selects JSON or YAML syntax. Exact authoring `$schema` selects
    `DefinitionAuthoringCodec` and `DefinitionAuthoringCompiler`; otherwise

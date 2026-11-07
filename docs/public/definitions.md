@@ -37,11 +37,17 @@ configuration root as well as nested inside ordinary properties. Its accepted
 answers have one owner: imports, document edits, secret consent and snapshots
 operate on the same recursive configuration. Missing values, explicit nulls,
 omissions and resets retain their distinct meanings.
-
 Literal root coordinates remain separate from declared field metadata IDs.
 Local secret generation resolves root-map entries and selected root-variant
 properties under the same consent and stale-result protections as ordinary
 properties. Public document edits reject supplied protected values.
+
+Terminal, Desktop and Browser expose root maps and variants through their
+recursive controls, alongside ordinary property roots and supported nested
+shapes. Shared editing support alone does not establish a client's rendering,
+accessibility or actual-host qualification. The
+[technical state contract](../internal/PRESENTATION_STATE.md) describes ownership
+and stale-result protection.
 
 Four separate documents have different custody and version rules:
 

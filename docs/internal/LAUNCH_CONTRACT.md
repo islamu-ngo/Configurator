@@ -19,6 +19,10 @@ does not overwrite Core initialization, and rerendering does not reapply entry
 selection over later edits or omissions. Definitions without a matching selector
 continue to use their entry as metadata, not a guessed answer path.
 The shared form checks the same capability set before allocating answer editors.
+Admitted root maps and discriminated root variants now enter the same workspace
+as ordinary property roots. `ConfigurationRoot` renders them at the empty literal
+path; admission no longer rejects those placements. The renderer does not create
+a wrapper answer, another workspace or additional launch authority.
 The Browser capability set includes `schema.secret`. Admitted secret metadata
 establishes a sensitivity floor even without an explicit sensitivity string.
 Local generation uses the same per-workspace consent and edit eligibility as

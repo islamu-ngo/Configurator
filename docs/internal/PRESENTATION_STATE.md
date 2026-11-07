@@ -8,12 +8,26 @@
 
 ## Recursive editing and localized display
 
+Desktop's guided navigation consumes `DefinitionFormProjection.Sections`,
+`SectionProgress` and global `Progress`. Its section/page lists reference
+factory-owned native editor projections, while this shared form retains the
+only accepted answers, raw drafts, input revision and correction authority.
+Changing Desktop stage or page introduces no shared state mutation or second
+answer tree. Root maps and variants remain reachable through their existing
+literal-root editor.
+
 `DefinitionAcceptedEditingState.Root` owns the supplied recursive configuration.
 Stable `DefinitionFieldInput` facades read and write their ordinary property
 through that root; field state retains editor text, origins and drafts, not
 another accepted value. Detached document candidates copy the complete root
 and its metadata before one gated adoption. Snapshot, import, document and
 privacy operations therefore share the same accepted payload.
+
+Desktop's import-review view model owns acquisition and report presentation;
+`DefinitionImportState` remains the only private proposal authority. Extracting
+review from publication introduces no second answer tree, proposal or selection
+state. Shell operation leases span physical input cleanup even after review
+retirement.
 
 The empty structural path addresses the configuration root. `DefinitionPath`
 overloads use literal configuration names; ordinary facade paths use declared
@@ -26,6 +40,21 @@ and root variants delegate selection to Core. Branch replacement allocates
 fresh logical authority even when a later branch reuses the same coordinates.
 Existing revision and operation-generation checks still reject late work and
 retire its buffers; logical identity does not replace those checks.
+
+Desktop `RootFieldViewModel`, Terminal `TerminalRootEditor` and Browser
+`ConfigurationRoot` expose admitted root maps and variants through their
+existing recursive controls at the empty literal path. Ordinary property
+facades remain available to their callers. Branch replacement retires the
+previous editor identity; an A-to-B-to-A switch creates fresh authority.
+Renderer source and owner tests do not qualify every packaged host or
+assistive technology. The decision and ownership are recorded in the
+[recursive root ADR](adr/ADR-recursive-workspace-root.md).
+
+`eng/configurator/MeasureInteractiveWork.cs` validates only supplied synthetic
+samples. It separates feedback, completion and physical settlement and preserves
+every sample and outlier. It neither authenticates the producer nor qualifies
+Browser, assistive technology or a host. See
+[synthetic interaction evidence](BROWSER_UI.md#synthetic-interaction-evidence).
 
 Discovery carries the admitted `DefinitionNodeType` and a typed
 `DefinitionDiscoveryMatchReason`. Match reasons use explicit public tokens at
@@ -52,6 +81,25 @@ private map keys never become serialized correction names.
 renderer; it applies the same revision fence and is not a diagnostic or transport
 projection. `GetVariantTitle` localizes only a declared branch's public title or
 discriminator fallback, never its collected answers.
+
+`GetFieldValidation` exposes immutable current editor facts for ordinary field
+paths or literal `DefinitionPath` coordinates, including the empty root.
+Core activation and authored readonly state determine edit affordances;
+workspace consent still independently governs mutation custody. The result
+contains typed correction reasons, authored bounds and public allowed values,
+plus masking and suggestion/null/reset/omission eligibility. It contains no supplied
+answer, suggestion value or private coordinate. Protected ancestors and
+descendants suppress suggestion and allowed-value disclosure. Desktop and
+Terminal render these facts through `PresentationStrings.FieldCorrection` in
+English or Arabic instead of reinterpreting ordinary field policy locally.
+Reset can remove an existing override beneath an absent container without
+creating that container. The root cannot be omitted. Array rows cannot be
+omitted or reset through field actions; removing a row uses the collection
+operation. Static protected-descendant facts belong to the immutable form
+index. Absent-container activity reuses the current revision's validation
+rather than triggering full validation for each editor getter.
+These facts do not establish native surface or
+assistive-technology qualification.
 
 `SelectChoice` uses the declared enum ordinal and exact JSON value.
 `SelectOutput` resolves only an admitted `presentation.outputSelector` option
@@ -360,6 +408,33 @@ traversal uses the already-owned immutable `JsonElement`; an invalid root still
 denies access to its last valid collection rows. Mutable JSON parsing is confined
 to collection commands and detached document construction that actually need a
 working tree.
+The same facts owner indexes diagnostic correction reasons by resolved literal
+coordinate. Resolution uses that revision's validation, preserving ordinary field
+aliases, root diagnostics and typed map-entry locations. `GetFieldValidation`
+combines the requested coordinate's reasons with its current required/type facts
+and continues to compute masking and edit authority normally. Repeated field
+queries do not traverse unrelated diagnostics. The index contains reason enums,
+not another answer or diagnostic-message buffer, and retires with its facts.
+Browser field rendering and parameter processing reuse a local result within
+their synchronous call. They retain no validation cache across input revisions
+or consent changes, and action-time authority checks continue to read the form.
+Editor identity traversal validates the complete path, then reads answer values
+only at declared sequence parents, where the current row count is needed for
+stable row tokens. Mapping-key segments use admitted metadata and encoded keys;
+they do not validate or read the containing answer merely to identify a control.
+Variant parents retain their existing branch tokens and retirement rules.
+The answer-free definition index resolves literal ordinary field names to their
+field identifiers without scanning the mutable field inputs. Neither change
+stores answers or bypasses current-revision, invalid-root or consent checks.
+The Browser's admitted mount node already owns the field's immutable literal
+coordinate. Field reads borrow that coordinate rather than rebuilding it from
+ordinary field identifiers; mount reconciliation still refreshes moved rows
+before their current-revision render. This adds no path or answer cache.
+The Browser's inner text-control render gate uses only current and incoming
+parameters. Its parent continues refreshing revision-fenced event callbacks,
+so an unchanged control does not grant an earlier emitted handler new authority.
+Changes to values, masking, validation or attributes still render normally;
+reused mutable attributes do not require another retained snapshot.
 
 Input intent retires the document lease, facts, ordered entries, discovery and the visible projection.
 Experience changes retire ordered entries and discovery, not answer facts.

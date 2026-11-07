@@ -224,6 +224,11 @@ To protect users against malicious redirects or network tampering, Configurator 
   digest pin must pass before workspace entry. Public display labels and family
   GUIDs are not authentication, curation or permission to apply configuration.
 
+An admitted definition can use ordinary root properties, a typed root map or a
+discriminated root branch. They use the same local workspace, language selection
+and explicit secret consent. Root placement does not add retrieval or target
+permissions.
+
 Opening another project does not transfer the current answers. If Developer
 contains pending text, resolve it with Apply, Discard or Stay first. Apply updates
 the current workspace only; leaving can still require a separate confirmation
