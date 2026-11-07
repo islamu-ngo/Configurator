@@ -204,23 +204,26 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         return true;
     }
 
-    public bool IsEditorVisible(IReadOnlyList<string> path)
+    public bool IsEditorVisible(IReadOnlyList<string> path) => IsEditorVisible(DataPath(path));
+
+    public bool IsEditorVisible(DefinitionPath path)
     {
         ArgumentNullException.ThrowIfNull(path);
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!TryMetadataNode(path, out DefinitionFormIndex.Node indexed, out _)) return false;
-            if (IsConfigurationSelector(path)) return false;
+            if (!TryEditorMetadata(path, out DefinitionFormIndex.Node indexed, out _)) return false;
+            bool ordinary = TryOrdinaryRootPath(path.Segments, out string[] fieldPath);
+            if (ordinary && IsConfigurationSelector(fieldPath)) return false;
             DefinitionFormFacts facts = Facts;
-            if (!facts.IsActive(path[0])) return false;
+            if (!IsEditorActive(path)) return false;
             bool needsCorrection = facts.NeedsCorrection(path);
             if (needsCorrection || facts.HasRequiredDescendant(path) || indexed.HasEssentialDecision ||
                 _view.PromotedPaths.Count > 0 && _view.PromotedPaths.Contains(GetEditorIdentity(path))) return true;
             if (_view.EditorExpansion.Count > 0 && TryLocalExpansion(path, out bool locallyExpanded))
                 return locallyExpanded || facts.HasRequiredDescendant(path);
             DefinitionFormExperience experience = Experiences.Single(item => item.Id == SelectedExperienceId);
-            DefinitionFormSection section = _index!.SectionsByField[path[0]];
+            DefinitionFormSection? section = ordinary ? _index!.SectionsByField[fieldPath[0]] : null;
             if (section is not null && !experience.Sections.Contains(section.Id)) return false;
             if (_view.EditorVisibility == DefinitionEditorVisibilityPolicy.Direct && CanEdit(path)) return true;
             bool expanded = OptionalEditorsExpanded;
@@ -347,6 +350,15 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 hasProtectedRoots = true;
                 field.Clear();
             }
+            foreach (string name in _editing.Root.Keys.Where(name => !Fields.Any(field => field.Definition.Name == name)).ToArray())
+                if (DefinitionSensitivityPolicy.SensitivityOf(Definition.Configuration) != FieldSensitivity.Public ||
+                    TryRootMetadata([name], out DefinitionFormIndex.Node node, out _) && DefinitionSecretPolicy.IsProtected(node.Schema))
+                {
+                    hasProtectedRoots = true;
+                    _editing.Root.Remove(name);
+                }
+            _editing.RootInput.DraftTexts.Clear();
+            _editing.RootInput.InvalidPaths.Clear();
             if (hasProtectedRoots) OnInputChanged();
             return hasProtectedRoots;
         }
@@ -364,9 +376,10 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (SessionPrivacy == next) return;
             _editing.Privacy = next;
             if (!enabled)
+            {
                 foreach (DefinitionFieldInput field in Fields)
                 {
-                    field.ClearDeniedDrafts(CanEdit);
+                    field.ClearDeniedDrafts(CanMutate);
                     if (field.Value is not { } value)
                     {
                         if (field.Definition.Sensitivity == FieldSensitivity.Secret) field.Clear();
@@ -377,6 +390,15 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                     if (retained is null) field.Clear();
                     else field.RetainValue(JsonSerializer.SerializeToElement(retained));
                 }
+                JsonNode? root = DefinitionSecretPolicy.RemoveSecrets(Definition.Configuration,
+                    JsonSerializer.SerializeToNode(_editing.Root));
+                _editing.Root.Clear();
+                if (root is JsonObject mapping)
+                    foreach ((string name, JsonNode? value) in mapping)
+                        _editing.Root.Add(name, JsonSerializer.SerializeToElement(value));
+                _editing.RootInput.DraftTexts.RemoveAll(draft => !CanMutate(draft.Path));
+                _editing.RootInput.InvalidPaths.RemoveAll(path => !CanMutate(path));
+            }
             OnPropertyChanged(nameof(SessionPrivacy));
             OnInputChanged();
         }
@@ -387,11 +409,20 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         lock (_gate)
         {
             if (_disposed) return false;
-            if (SessionPrivacy != DefinitionSessionPrivacy.BrowserNoSecrets) return true;
-            return TryMetadataNode(path, out DefinitionFormIndex.Node node, out bool inheritedSecret) &&
-                !DefinitionSecretPolicy.IsSecret(node.Schema, inheritedSecret);
+            return GetFieldValidation(path).CanEdit;
         }
     }
+
+    public bool CanEdit(DefinitionPath path)
+    {
+        lock (_gate) return !_disposed && GetFieldValidation(path).CanEdit;
+    }
+
+    // Mutation custody remains independent of the current display affordance.
+    private bool CanMutate(IReadOnlyList<string> path) =>
+        SessionPrivacy != DefinitionSessionPrivacy.BrowserNoSecrets ||
+        TryMetadataNode(path, out DefinitionFormIndex.Node node, out bool inheritedSecret) &&
+            !DefinitionSecretPolicy.IsSecret(node.Schema, inheritedSecret);
 
     public bool SetValue(IReadOnlyList<string> path, JsonElement? value) => ApplyValue(path, value, clearDrafts: true);
 
@@ -413,12 +444,14 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    public string? GetVariantTitle(IReadOnlyList<string> path, int index)
+    public string? GetVariantTitle(IReadOnlyList<string> path, int index) => GetVariantTitle(DataPath(path), index);
+
+    public string? GetVariantTitle(DefinitionPath path, int index)
     {
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) ||
+            if (!TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _) ||
                 index < 0 || index >= node.Schema.Variants.Count) return null;
             DefinitionNode branch = node.Schema.Variants[index];
             JsonElement discriminator = branch.Properties[node.Schema.Discriminator!].Keywords.GetProperty("const");
@@ -429,12 +462,15 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    public DefinitionEditorPresentation? GetEditorPresentation(IReadOnlyList<string> path)
+    public DefinitionEditorPresentation? GetEditorPresentation(IReadOnlyList<string> path) =>
+        GetEditorPresentation(DataPath(path));
+
+    public DefinitionEditorPresentation? GetEditorPresentation(DefinitionPath path)
     {
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out _)) return null;
+            if (!TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _)) return null;
             JsonElement metadata = node.Metadata;
             JsonElement extension = metadata.TryGetProperty("x-configurator", out JsonElement configured) ? configured : default;
             var choices = new List<DefinitionChoicePresentation>();
@@ -471,7 +507,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                             index.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/title",
                             link.GetProperty("title").GetString())!, link.GetProperty("url").GetString()!)).ToArray())
                     : Array.Empty<DefinitionGuidanceLink>();
-            return new(node.Schema, Text("title", node.Title ?? path[^1])!,
+            return new(node.Schema, Text("title", node.Title ?? (path.Segments.Count == 0 ? Definition.Title : path.Segments[^1]))!,
                 Text("description", node.Help), Text("x-configurator/guidance/instructions", node.Instructions),
                 Text("x-configurator/units", units), choices.AsReadOnly(), links);
 
@@ -480,20 +516,24 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     }
 
     /// <summary>Chooses an admitted typed enum member by ordinal, never by its display label.</summary>
-    public bool SelectChoice(IReadOnlyList<string> path, int index)
+    public bool SelectChoice(IReadOnlyList<string> path, int index) => SelectChoice(DataPath(path), index);
+
+    public bool SelectChoice(DefinitionPath path, int index)
     {
         using var mutation = BeginMutation();
         ObjectDisposedException.ThrowIf(_disposed, this);
-        return TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) &&
+        return TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _) &&
             node.Metadata.TryGetProperty("enum", out JsonElement choices) &&
             index >= 0 && index < choices.GetArrayLength() && SetValue(path, choices[index]);
     }
 
-    public bool SetNull(IReadOnlyList<string> path)
+    public bool SetNull(IReadOnlyList<string> path) => SetNull(DataPath(path));
+
+    public bool SetNull(DefinitionPath path)
     {
         using var mutation = BeginMutation();
         ObjectDisposedException.ThrowIf(_disposed, this);
-        return TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) && node.Schema.IsNullable &&
+        return TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _) && node.Schema.IsNullable &&
             SetValue(path, JsonSerializer.SerializeToElement<object?>(null));
     }
 
@@ -514,11 +554,13 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     }
 
     /// <summary>Adopts a suggestion only through an explicit current-workspace edit.</summary>
-    public bool ApplySuggestion(IReadOnlyList<string> path)
+    public bool ApplySuggestion(IReadOnlyList<string> path) => ApplySuggestion(DataPath(path));
+
+    public bool ApplySuggestion(DefinitionPath path)
     {
         using var mutation = BeginMutation();
         ObjectDisposedException.ThrowIf(_disposed, this);
-        return TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) &&
+        return TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _) &&
             node.Metadata.TryGetProperty("x-configurator", out JsonElement metadata) &&
             metadata.TryGetProperty("suggestedValue", out JsonElement suggested) && SetValue(path, suggested);
     }
@@ -528,7 +570,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (path.Count == 0 || !TryMetadata(path, out _, out _) || value is not null && !CanEdit(path)) return false;
+            if (IsRootLocation(path)) return ApplyRootValue(path, value, clearDrafts);
+            if (path.Count == 0 || !TryMetadata(path, out _, out _) || value is not null && !CanMutate(path)) return false;
             DefinitionFieldInput field = Fields[_index!.FieldPositions[path[0]]];
             if (path.Count == 1)
             {
@@ -620,7 +663,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) || !CanEdit(path)) return false;
+            if (IsRootLocation(path)) return EditRootValue(path, text);
+            if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) || !CanMutate(path)) return false;
             if (text is not null && Facts.NeedsCorrection(path))
                 for (int length = 1; length <= path.Count; length++)
                     _view.PromotedPaths.Add(GetEditorIdentity(path.Take(length).ToArray()));
@@ -646,21 +690,29 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    private JsonNode? ReadNode(IReadOnlyList<string> path)
-    {
-        return ReadValue(path) is { } value ? JsonNode.Parse(value.GetRawText()) : null;
-    }
-
     private JsonElement? ReadValue(IReadOnlyList<string> path, DefinitionValidationResult? validation = null)
     {
+        if (IsRootLocation(path))
+        {
+            DefinitionValidationResult resolved = validation ?? DefinitionValidator.Validate(Definition, Snapshot());
+            return resolved.TryGetEffectiveValue(DataPath(path), out JsonElement effective) ? effective : null;
+        }
         if (path.Count == 0 || !_index!.FieldPositions.TryGetValue(path[0], out int position) ||
             Fields[position].HasInputError([path[0]])) return null;
         return (validation ?? Facts.Validation).TryGetEffectiveValue(DataPath(path), out JsonElement value)
             ? value : null;
     }
 
-    private DefinitionPath DataPath(IReadOnlyList<string> path) => DefinitionPath.FromSegments([
-        Fields[_index!.FieldPositions[path[0]]].Definition.Name, .. path.Skip(1)]);
+    internal DefinitionPath DataPath(IReadOnlyList<string> path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        lock (_gate)
+        {
+            // Retirement clears field origins before releasing the immutable index.
+            ObjectDisposedException.ThrowIf(_index is null, this);
+            return _index!.DataPath(path);
+        }
+    }
 
     internal bool TryMetadata(IReadOnlyList<string> path, out JsonElement metadata, out bool inheritedSecret)
     {
@@ -674,6 +726,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     {
         node = null!;
         inheritedSecret = DefinitionSecretPolicy.IsSecret(Definition.Configuration);
+        if (IsRootLocation(path)) return TryRootMetadata(path, out node, out inheritedSecret, validation);
         if (path.Count == 0 || !_index!.Roots.TryGetValue(path[0], out var root)) return false;
         node = root;
         if (path.Count == 1) return true;
@@ -719,13 +772,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         if (fitsBudget)
         {
             var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            for (int position = 0; position < Fields.Count; position++)
-                if (_index.FieldIds[position] != fieldId && Fields[position].Value is { } supplied)
-                    values.Add(Fields[position].Definition.Name, supplied);
+            foreach ((string name, JsonElement supplied) in _editing.Root)
+                if (name != field.Name) values.Add(name, supplied);
             if (candidate is { } value) values[field.Name] = value;
             try
             {
-                _ = new AnswerSnapshot(InputRevision, values, Omitted.Select(path => DataPath(path.Segments)).Where(path =>
+                _ = new AnswerSnapshot(InputRevision, values, Omitted.Where(path =>
                     !values.TryGetValue(path.Segments[0], out JsonElement root) ||
                     !TrySuppliedValue(root, path.Segments.Skip(1), out _)));
             }
@@ -752,8 +804,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     }
 
     private void RemoveSuppliedOmissions() =>
-        Omitted.RemoveWhere(path => _index!.FieldPositions.TryGetValue(path.Segments[0], out int position) &&
-            TrySuppliedValue(Fields[position].Value, path.Segments.Skip(1), out _));
+        Omitted.RemoveWhere(path => path.Segments.Count > 0 && _editing.Root.TryGetValue(path.Segments[0], out JsonElement supplied) &&
+            TrySuppliedValue(supplied, path.Segments.Skip(1), out _));
     public IReadOnlyList<DefinitionFieldInput> Fields => _editing.Fields;
     /// <summary>Returns the owned root editor and its immutable admitted schema by literal field identity.</summary>
     public (DefinitionFieldInput Input, DefinitionNode Schema) GetFieldEditor(string fieldId)
@@ -771,13 +823,15 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     /// Returns admitted list-item metadata without serializing row answers.
     /// Row titles, required state and inherited sensitivity remain the renderer's responsibility.
     /// </summary>
-    public DefinitionNode GetListItemMetadata(IReadOnlyList<string> path)
+    public DefinitionNode GetListItemMetadata(IReadOnlyList<string> path) => GetListItemMetadata(DataPath(path));
+
+    public DefinitionNode GetListItemMetadata(DefinitionPath path)
     {
         ArgumentNullException.ThrowIfNull(path);
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) || node.Item is null)
+            if (!TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _) || node.Item is null)
                 throw new ArgumentException("field-invalid", nameof(path));
             return node.Item.Schema;
         }
@@ -813,6 +867,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            if (IsRootLocation(path))
+                return _editing.RootInput.InvalidPaths.Any(existing => existing.SequenceEqual(path));
             return path.Count > 0 && _index!.FieldPositions.TryGetValue(path[0], out int position) &&
                 Fields[position].HasInputError(path);
         }
@@ -826,7 +882,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             lock (_gate)
             {
                 ObjectDisposedException.ThrowIf(_disposed, this);
-                return Omitted.Count > 0 || Fields.Any(input => input.Value is not null || input.InputDiagnosticCode is not null);
+                return Omitted.Count > 0 || _editing.Root.Count > 0 ||
+                    Fields.Any(input => input.InputDiagnosticCode is not null) || _editing.RootInput.InvalidPaths.Count > 0;
             }
         }
     }
@@ -836,13 +893,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            for (int position = 0; position < Fields.Count; position++)
-            {
-                if (Fields[position].Value is { } supplied)
-                    values.Add(Fields[position].Definition.Name, supplied);
-            }
-            return new AnswerSnapshot(InputRevision, values, Omitted.Select(path => DataPath(path.Segments)));
+            return new AnswerSnapshot(InputRevision, _editing.Root, Omitted);
         }
     }
 
@@ -903,6 +954,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 return new(false, null, "import-stale");
             if (!HasImportStorage(result.Answers!))
                 return new(false, null, "import-workspace-unsupported");
+            if (_editing.RootInput.InvalidPaths.Count > 0)
+                return new(false, null, "answer-conflict") { Diagnostic = new("answer-conflict", "") };
             DefinitionFieldInput? pendingDraft = Fields.FirstOrDefault(field =>
                 result.ProvidedFields.Contains(field.Definition.Id) && field.InputDiagnosticCode is not null);
             if (pendingDraft is not null)
@@ -910,15 +963,22 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 {
                     Diagnostic = new("answer-conflict", pendingDraft.Definition.Id)
                 };
+            IReadOnlyList<string> retiredBranches = ChangedBranchIdentities(result.Answers!.Values);
             foreach (DefinitionFieldInput field in Fields.Where(field => result.ProvidedFields.Contains(field.Definition.Id)))
                 if (result.Answers!.Values.TryGetValue(field.Definition.Name, out JsonElement value))
                 {
                     ClearRowIdentities([field.Definition.Id]);
                     field.SetImported(value);
                 }
+            foreach ((string name, JsonElement value) in result.Answers!.Values)
+                if (!Fields.Any(field => field.Definition.Name == name))
+                {
+                    _editing.Root[name] = value.Clone();
+                    RecordRootOrigin([name], DefinitionAnswerOrigin.Imported);
+                }
             Omitted.Clear();
-            Omitted.UnionWith(result.Answers!.Omitted.Select(path => DefinitionPath.FromSegments([
-                Definition.Fields.Single(field => field.Name == path.Segments[0]).Id, .. path.Segments.Skip(1)])));
+            Omitted.UnionWith(result.Answers!.Omitted);
+            foreach (string identity in retiredBranches) _editing.RetireBranch(identity);
             OnInputChanged();
             return result;
         }
@@ -930,7 +990,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             if (_disposed) return;
             bool hadAdmissionError = Fields.Any(input => input.InputDiagnosticCode is not null);
-            if (edit() || hadAdmissionError != Fields.Any(input => input.InputDiagnosticCode is not null)) OnInputChanged();
+            Dictionary<string, JsonElement>? original = _index!.Root.HasVariants ? _editing.Root.ToDictionary() : null;
+            bool changed = edit();
+            if (original is not null)
+                foreach (string identity in ChangedBranchIdentities(_editing.Root, original))
+                    _editing.RetireBranch(identity);
+            if (changed || hadAdmissionError != Fields.Any(input => input.InputDiagnosticCode is not null)) OnInputChanged();
         }
     }
 
@@ -1021,8 +1086,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 if (_promotionPending && !_disposed)
                 {
                     _promotionPending = false;
-                    foreach (string[] path in Facts.PromotionPaths)
-                        if (TryMetadata(path, out _, out _)) _view.PromotedPaths.Add(GetEditorIdentity(path));
+                    foreach (DefinitionPath path in Facts.PromotionPaths)
+                        if (TryEditorMetadata(path, out _, out _)) _view.PromotedPaths.Add(GetEditorIdentity(path));
                 }
                 notifications = _notifications;
                 _notifications = [];

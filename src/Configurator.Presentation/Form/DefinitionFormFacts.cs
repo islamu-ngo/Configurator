@@ -9,9 +9,10 @@ internal sealed class DefinitionFormFacts
     private readonly Dictionary<DefinitionPath, DefinitionNodeState> _nodes = [];
     private readonly DefinitionFormIndex _index;
     private readonly HashSet<string> _activeFields;
-    private readonly Dictionary<DefinitionPath, string[]> _correctionPaths = [];
-    private readonly Dictionary<DefinitionPath, string[]> _promotionPaths = [];
+    private readonly HashSet<DefinitionPath> _correctionPaths = [];
+    private readonly HashSet<DefinitionPath> _promotionPaths = [];
     private readonly HashSet<DefinitionPath> _requiredPaths = [];
+    private readonly Dictionary<DefinitionPath, IReadOnlyList<DefinitionFieldCorrectionReason>> _correctionReasons = [];
     private readonly record struct EntryState(DefinitionFormIndex.Node Metadata, DefinitionFormSection Section,
         DefinitionNodeState Node, bool InputError, bool Deferred, DefinitionAnswerOrigin Origin,
         IReadOnlyList<string>? Artifacts, IReadOnlyList<string>? BindingKeys);
@@ -23,7 +24,7 @@ internal sealed class DefinitionFormFacts
         Validation = validation;
         _activeFields = validation.Fields.Where(state => state.IsActive).Select(state => state.Id)
             .ToHashSet(StringComparer.Ordinal);
-        DefinitionFieldInput[] activeInputs = validation.Fields.Where(state => state.IsActive)
+        DefinitionFieldInput[] activeInputs = validation.Fields.Where(state => state.IsActive && index.FieldPositions.ContainsKey(state.Id))
             .Select(state => form.GetFieldEditor(state.Id).Input).ToArray();
         IEnumerable<DefinitionDiagnostic> inputDiagnostics = activeInputs.SelectMany(field => field.InputDiagnostics);
         if (validation.ConfigurationContext is { } context)
@@ -32,29 +33,58 @@ internal sealed class DefinitionFormFacts
             inputDiagnostics = inputDiagnostics.Where(diagnostic => relevant.Contains(DefinitionPath.FromSegments([
                 form.Fields[index.FieldPositions[diagnostic.FieldId]].Definition.Name, .. diagnostic.RelativePath])));
         }
-        InputDiagnostics = Array.AsReadOnly(inputDiagnostics.ToArray());
+        InputDiagnostics = Array.AsReadOnly(inputDiagnostics.Concat(form.RootInputDiagnostics()).ToArray());
         HasInputErrors = InputDiagnostics.Count > 0;
         var resolvedNodes = new List<(DefinitionNodeState Node, IReadOnlyList<string> Path)>(validation.Nodes.Count);
         foreach (DefinitionNodeState node in validation.Nodes)
         {
             if (!form.TryCorrectionPath(node.FieldId, node.Location, validation, out IReadOnlyList<string> path)) continue;
             resolvedNodes.Add((node, path));
-            _nodes[index.PathKey(path)] = node;
+            DefinitionPath literal = node.FieldId.Length == 0 ? DefinitionPath.FromSegments(path) : form.DataPath(path);
+            _nodes[literal] = node;
             if (node.IsActive && (node.HasError || node.IsObligation && node.IsMissing))
-                AddPrefixes(path, correction: true);
-            if (node.IsActive && node.IsRequired) AddPrefixes(path, correction: false);
+                AddPrefixes(literal, correction: true);
+            if (node.IsActive && node.IsRequired) AddPrefixes(literal, correction: false);
         }
         foreach (DefinitionDiagnostic diagnostic in validation.Diagnostics.Where(item => item.Code != "value-required"))
             if (diagnostic.Location is { } location &&
                 form.TryCorrectionPath(diagnostic.FieldId, location, validation, out IReadOnlyList<string> path))
-                AddPrefixes(path, correction: true, promote: true);
+                AddPrefixes(diagnostic.FieldId.Length == 0 ? DefinitionPath.FromSegments(path) : form.DataPath(path),
+                    correction: true, promote: true);
         foreach (DefinitionDiagnostic diagnostic in InputDiagnostics)
-            AddPrefixes([diagnostic.FieldId, .. diagnostic.RelativePath], correction: true, promote: true);
+            if (diagnostic.FieldId.Length > 0)
+                AddPrefixes(form.DataPath([diagnostic.FieldId, .. diagnostic.RelativePath]), correction: true, promote: true);
+            else if (diagnostic.Location is { } location &&
+                form.TryCorrectionPath("", location, validation, out IReadOnlyList<string> path))
+                AddPrefixes(DefinitionPath.FromSegments(path), correction: true, promote: true);
+        var correctionReasons = new Dictionary<DefinitionPath, List<DefinitionFieldCorrectionReason>>();
+        foreach (DefinitionDiagnostic diagnostic in InputDiagnostics.Concat(validation.Diagnostics))
+        {
+            DefinitionPath path;
+            if (diagnostic.Location is { } location &&
+                form.TryCorrectionPath(diagnostic.FieldId, location, validation, out var resolved))
+                path = diagnostic.FieldId.Length == 0 ? DefinitionPath.FromSegments(resolved) : form.DataPath(resolved);
+            else if (diagnostic.Location is null && diagnostic.FieldId.Length == 0 && diagnostic.RelativePath.Count == 0)
+                path = DefinitionPath.FromSegments([]);
+            else continue;
+            if (!correctionReasons.TryGetValue(path, out List<DefinitionFieldCorrectionReason>? reasons))
+                correctionReasons.Add(path, reasons = []);
+            reasons.Add(diagnostic.Code switch
+            {
+                "value-required" => DefinitionFieldCorrectionReason.Required,
+                "input-type-invalid" or "value-type-invalid" => DefinitionFieldCorrectionReason.Type,
+                "value-duplicate" => DefinitionFieldCorrectionReason.Duplicate,
+                _ => DefinitionFieldCorrectionReason.Constraint
+            });
+        }
+        foreach (var (path, reasons) in correctionReasons)
+            _correctionReasons.Add(path, Array.AsReadOnly(reasons.Distinct().ToArray()));
         Progress = CountProgress(validation.Nodes, validation.Diagnostics, InputDiagnostics);
         SectionProgress = new ReadOnlyDictionary<string, DefinitionFormProgress>(form.Sections.ToDictionary(
             section => section.Id, section => form.Sections.Count == 1 &&
                 section.Fields.Count == index.FieldIds.Count ? Progress : CountProgress(
-                validation.Nodes.Where(node => index.SectionsByField[node.FieldId].Id == section.Id),
+                validation.Nodes.Where(node => index.SectionsByField.TryGetValue(node.FieldId, out var owner) &&
+                    owner.Id == section.Id),
                 validation.Diagnostics.Where(diagnostic => index.SectionsByField.TryGetValue(diagnostic.FieldId, out var owner) &&
                     owner.Id == section.Id),
                 InputDiagnostics.Where(diagnostic => index.SectionsByField.TryGetValue(diagnostic.FieldId, out var owner) &&
@@ -63,8 +93,10 @@ internal sealed class DefinitionFormFacts
         var entries = new List<EntryState>(validation.Nodes.Count);
         foreach (var (node, path) in resolvedNodes)
         {
-            if (!form.TryMetadataNode(path, out DefinitionFormIndex.Node metadata, out _, validation)) continue;
-            DefinitionFormSection section = index.SectionsByField[node.FieldId];
+            DefinitionFormIndex.Node metadata;
+            if (!(node.FieldId.Length == 0 ? form.TryRootMetadata(path, out metadata, out _, validation)
+                : form.TryMetadataNode(path, out metadata, out _, validation))) continue;
+            DefinitionFormSection section = index.SectionsByField.GetValueOrDefault(node.FieldId) ?? form.Sections[0];
             bool inputError = false;
             for (int diagnosticIndex = 0; diagnosticIndex < InputDiagnostics.Count; diagnosticIndex++)
             {
@@ -75,7 +107,8 @@ internal sealed class DefinitionFormFacts
                 break;
             }
             bool deferred = !inputError && IsDeferredLeaf(node);
-            DefinitionAnswerOrigin origin = form.AnswerOrigin(path, validation);
+            DefinitionAnswerOrigin origin = node.FieldId.Length == 0 ? form.RootAnswerOrigin(path, validation)
+                : form.AnswerOrigin(path, validation);
             index.Bindings.TryGetValue(node.FieldId, out var binding);
             entries.Add(new(metadata, section, node, inputError, deferred, origin, binding.Artifacts, binding.Keys));
         }
@@ -85,16 +118,19 @@ internal sealed class DefinitionFormFacts
 
         bool IsDeferredLeaf(DefinitionNodeState node) =>
             node.IsObligation && node.IsMissing && node.Sensitivity == FieldSensitivity.Secret &&
-            form.TryMetadataNode([node.FieldId, .. node.RelativePath], out DefinitionFormIndex.Node metadata,
-                out _, validation) &&
+            form.TryCorrectionPath(node.FieldId, node.Location, validation, out IReadOnlyList<string> path) &&
+            form.TryRootMetadata((node.FieldId.Length == 0 ? DefinitionPath.FromSegments(path) : form.DataPath(path)).Segments,
+                out DefinitionFormIndex.Node metadata, out _, validation) &&
             metadata.Schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence);
 
         DefinitionFormProgress CountProgress(IEnumerable<DefinitionNodeState> nodes,
             IEnumerable<DefinitionDiagnostic> diagnostics, IReadOnlyList<DefinitionDiagnostic> inputErrors)
         {
             DefinitionPath Key(DefinitionDiagnostic diagnostic) =>
-                diagnostic.FieldId.Length == 0 ? DefinitionPath.FromSegments([])
-                    : _index.PathKey([diagnostic.FieldId, .. diagnostic.RelativePath]);
+                diagnostic.Location is { } location &&
+                form.TryCorrectionPath(diagnostic.FieldId, location, validation, out IReadOnlyList<string> path)
+                    ? diagnostic.FieldId.Length == 0 ? DefinitionPath.FromSegments(path) : form.DataPath(path)
+                    : form.DataPath([diagnostic.FieldId, .. diagnostic.RelativePath]);
             var invalidPaths = diagnostics.Where(diagnostic => diagnostic.Code != "value-required")
                 .Concat(inputErrors).Select(Key).ToHashSet();
             bool HasInputError(DefinitionNodeState node)
@@ -172,23 +208,27 @@ internal sealed class DefinitionFormFacts
     internal IReadOnlyDictionary<string, DefinitionFormProgress> SectionProgress { get; }
     internal Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> Entries { get; }
     internal Lazy<IReadOnlySet<DefinitionPath>> RelevantPaths { get; }
-    internal IEnumerable<string[]> CorrectionPaths => _correctionPaths.Values;
-    internal IEnumerable<string[]> PromotionPaths => _promotionPaths.Values;
+    internal IEnumerable<DefinitionPath> CorrectionPaths => _correctionPaths;
+    internal IEnumerable<DefinitionPath> PromotionPaths => _promotionPaths;
     internal bool IsActive(string fieldId) => _activeFields.Contains(fieldId);
-    internal DefinitionNodeState? EditorState(IReadOnlyList<string> path) => _nodes.GetValueOrDefault(_index.PathKey(path));
+    internal DefinitionNodeState? EditorState(IReadOnlyList<string> path) => _nodes.GetValueOrDefault(_index.DataPath(path));
+    internal DefinitionNodeState? EditorState(DefinitionPath path) => _nodes.GetValueOrDefault(path);
+    internal IReadOnlyList<DefinitionFieldCorrectionReason> CorrectionReasons(DefinitionPath path) =>
+        _correctionReasons.GetValueOrDefault(path) ?? [];
     internal bool NeedsCorrection(IReadOnlyList<string> path) =>
-        _correctionPaths.ContainsKey(_index.PathKey(path));
+        NeedsCorrection(_index.DataPath(path));
+    internal bool NeedsCorrection(DefinitionPath path) => _correctionPaths.Contains(path);
     internal bool HasRequiredDescendant(IReadOnlyList<string> path) =>
-        _requiredPaths.Contains(_index.PathKey(path));
-    private void AddPrefixes(IReadOnlyList<string> path, bool correction, bool promote = false)
+        HasRequiredDescendant(_index.DataPath(path));
+    internal bool HasRequiredDescendant(DefinitionPath path) => _requiredPaths.Contains(path);
+    private void AddPrefixes(DefinitionPath path, bool correction, bool promote = false)
     {
-        for (int length = 1; length <= path.Count; length++)
+        for (int length = 0; length <= path.Segments.Count; length++)
         {
-            string[] prefix = path.Take(length).ToArray();
-            DefinitionPath key = _index.PathKey(prefix);
-            if (correction) _correctionPaths.TryAdd(key, prefix);
+            DefinitionPath key = DefinitionPath.FromSegments(path.Segments.Take(length));
+            if (correction) _correctionPaths.Add(key);
             else _requiredPaths.Add(key);
-            if (promote) _promotionPaths.TryAdd(key, prefix);
+            if (promote) _promotionPaths.Add(key);
         }
     }
 }

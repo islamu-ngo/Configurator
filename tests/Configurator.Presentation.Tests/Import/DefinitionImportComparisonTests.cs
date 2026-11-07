@@ -260,7 +260,7 @@ public sealed class DefinitionImportComparisonTests
     }
 
     [Test]
-    public async Task AutofillCannotSilentlyDiscardRootEntriesWithoutOwnedEditorStorage()
+    public async Task AutofillRetainsDeclaredAndAdditionalRootEntriesInOwnedStorage()
     {
         Definition definition = DefinitionSourceCodec.ParseJson("""
             {
@@ -280,10 +280,12 @@ public sealed class DefinitionImportComparisonTests
 
         await Assert.That(compared.Succeeded).IsTrue();
         await Assert.That(compared.Report!.Compatibility).IsEqualTo(DefinitionImportCompatibility.Compatible);
-        await Assert.That(form.CanAdoptImportComparison).IsFalse();
-        await Assert.That(form.AdoptImportComparison().Succeeded).IsFalse();
-        await Assert.That(form.InputRevision).IsEqualTo(0);
-        await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
+        await Assert.That(form.CanAdoptImportComparison).IsTrue();
+        await Assert.That(form.AdoptImportComparison().Succeeded).IsTrue();
+        await Assert.That(form.InputRevision).IsEqualTo(1);
+        await Assert.That(form.Snapshot().Values.Count).IsEqualTo(2);
+        await Assert.That(form.Snapshot().Values["anchor"].GetString()).IsEqualTo("known");
+        await Assert.That(form.Snapshot().Values["private-entry"].GetInt32()).IsEqualTo(1);
     }
 
     [Test]

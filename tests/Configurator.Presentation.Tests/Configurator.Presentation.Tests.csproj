@@ -18,6 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="../Conformance/root-map.definition.json" LogicalName="Conformance.RootMap" />
+    <EmbeddedResource Include="../Conformance/root-variant.definition.json" LogicalName="Conformance.RootVariant" />
+    <EmbeddedResource Include="../Conformance/recursive-cases.json" LogicalName="Conformance.Cases" />
+    <EmbeddedResource Include="../Conformance/synthetic-library.definition.json" LogicalName="Conformance.Library" />
     <None Include="../../examples/islamu-event/definition.json"
           Link="Fixtures/Event/definition.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../examples/islamu-event/expected/configuration-manifest-1-tenants.json"

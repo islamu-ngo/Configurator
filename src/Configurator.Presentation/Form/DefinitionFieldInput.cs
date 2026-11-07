@@ -223,22 +223,27 @@ public sealed class DefinitionFieldInput : ObservableObject
 
     internal void RemoveItemDrafts(IReadOnlyList<string> path, int index)
     {
+        RemoveItemDrafts(State, path, index);
+        OnPropertyChanged(nameof(InputDiagnosticCode));
+    }
+
+    internal static void RemoveItemDrafts(DefinitionFieldState state, IReadOnlyList<string> path, int index)
+    {
         static bool IsRow(string[] candidate, IReadOnlyList<string> prefix, int row) =>
             candidate.Length > prefix.Count && candidate.Take(prefix.Count).SequenceEqual(prefix) &&
             candidate[prefix.Count] == row.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        State.DraftTexts.RemoveAll(existing => IsRow(existing.Path, path, index));
-        State.Origins.RemoveAll(existing => IsRow(existing.Path, path, index));
-        foreach (string[] existing in State.DraftTexts.Select(draft => draft.Path).Concat(State.Origins.Select(origin => origin.Path)))
+        state.DraftTexts.RemoveAll(existing => IsRow(existing.Path, path, index));
+        state.Origins.RemoveAll(existing => IsRow(existing.Path, path, index));
+        foreach (string[] existing in state.DraftTexts.Select(draft => draft.Path).Concat(state.Origins.Select(origin => origin.Path)))
             if (existing.Length > path.Count && existing.Take(path.Count).SequenceEqual(path) &&
                 int.TryParse(existing[path.Count], out int row) && row > index)
                 existing[path.Count] = (row - 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        State.InvalidPaths.RemoveAll(existing => existing.Length > path.Count &&
+        state.InvalidPaths.RemoveAll(existing => existing.Length > path.Count &&
             existing.Take(path.Count).SequenceEqual(path) && existing[path.Count] == index.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        foreach (string[] existing in State.InvalidPaths.Where(existing => existing.Length > path.Count &&
+        foreach (string[] existing in state.InvalidPaths.Where(existing => existing.Length > path.Count &&
             existing.Take(path.Count).SequenceEqual(path)))
             if (int.TryParse(existing[path.Count], out int row) && row > index)
                 existing[path.Count] = (row - 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        OnPropertyChanged(nameof(InputDiagnosticCode));
     }
 
     internal void SetInputDiagnostic(string? code)

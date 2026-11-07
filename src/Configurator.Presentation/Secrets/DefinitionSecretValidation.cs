@@ -9,7 +9,11 @@ public sealed record DefinitionSecretValidation(long InputRevision, bool IsActiv
 public sealed partial class DefinitionFormModel
 {
     /// <summary>Projects public requirements and safe current-revision diagnostics without retaining answer values.</summary>
-    public DefinitionSecretValidation GetSecretValidation(IReadOnlyList<string> path, bool showErrors = false)
+    public DefinitionSecretValidation GetSecretValidation(IReadOnlyList<string> path, bool showErrors = false) =>
+        GetSecretValidation(DataPath(path), showErrors);
+
+    /// <summary>Projects the same secret policy at literal configuration coordinates.</summary>
+    public DefinitionSecretValidation GetSecretValidation(DefinitionPath path, bool showErrors = false)
     {
         ArgumentNullException.ThrowIfNull(path);
         lock (_gate)
@@ -49,8 +53,8 @@ public sealed partial class DefinitionFormModel
                 foreach (DefinitionDiagnostic diagnostic in Facts.Validation.Diagnostics.Concat(Facts.InputDiagnostics))
                 {
                     if (diagnostic.Location is not { } location ||
-                        !TryCorrectionPath(diagnostic.FieldId, location, Facts.Validation, out IReadOnlyList<string> resolved) ||
-                        !resolved.SequenceEqual(path)) continue;
+                        !TryResolveCorrectionPath(diagnostic.FieldId, location, out DefinitionPath resolved) ||
+                        !resolved.Equals(path)) continue;
                     DefinitionSecretRule? requirement = requirements.Find(item => item.Code == diagnostic.Code);
                     failures.Add(requirement ?? new(diagnostic.Code, SecretRuleMessage(diagnostic.Code, Locale)));
                 }

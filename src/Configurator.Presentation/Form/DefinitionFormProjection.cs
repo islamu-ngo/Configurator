@@ -148,7 +148,8 @@ public sealed class DefinitionFormProjection
                 section.Title, section.Description, section.Fields.Where(fieldId => !form.IsConfigurationSelector([fieldId])),
                 section.Disclosure)).Where(section => section.Fields.Count > 0).ToArray());
         return new(facts.Progress, form.CurrentDiscovery, form.OrderedEntries, form.CurrentRelevantEntries, sections,
-            facts.Validation.Fields.Where(state => state.IsActive && form.IsEditorVisible([state.Id])).Select(state => state.Id),
+            facts.Validation.Fields.Where(state => state.IsActive &&
+                form.Fields.Any(field => field.Definition.Id == state.Id) && form.IsEditorVisible([state.Id])).Select(state => state.Id),
             facts.SectionProgress, facts.Validation.ConfigurationContext, form.EligibleArtifacts);
     }
 }

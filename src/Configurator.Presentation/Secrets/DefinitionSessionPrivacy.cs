@@ -14,6 +14,13 @@ public enum DefinitionSessionPrivacy
 
 internal static class DefinitionSecretPolicy
 {
+    internal static bool IsProtected(DefinitionNode schema) =>
+        DefinitionSensitivityPolicy.SensitivityOf(schema) != FieldSensitivity.Public ||
+        schema.Properties.Values.Concat(schema.Variants)
+            .Concat(schema.Items is null ? [] : new[] { schema.Items })
+            .Concat(schema.AdditionalProperties is null ? [] : new[] { schema.AdditionalProperties })
+            .Any(IsProtected);
+
     internal static bool IsSecret(DefinitionNode schema, bool inherited = false) => inherited ||
         DefinitionSensitivityPolicy.SensitivityOf(schema) == FieldSensitivity.Secret;
 

@@ -58,7 +58,8 @@ public sealed partial class DefinitionFormModel
         if (DocumentDraftConflict(session)) throw new InvalidOperationException("document-draft-conflict");
         AnswerSnapshot supplied = Snapshot();
         if (DefinitionDocumentEditing.HasInvalidRepresentedValues(Definition, session.Scope,
-            DefinitionValidator.Validate(Definition, supplied, cancellationToken)))
+            DefinitionValidator.Validate(Definition, supplied, cancellationToken)) &&
+            !(Definition.Configuration.Variants.Count > 0 && supplied.Values.Count == 0))
             throw new InvalidOperationException("document-value-invalid");
         if (session.EnvironmentScope is { } environment)
         {
@@ -118,16 +119,10 @@ public sealed partial class DefinitionFormModel
                     return new(false, "document-cancelled", InputRevision);
                 }
                 candidate.Consume();
+                IReadOnlyList<string> retiredBranches = ChangedBranchIdentities(replacement.Root);
                 DefinitionFieldState[] retired = candidate.ChangedFields.Select(_editing.Input).ToArray();
-                for (int index = 0; index < Fields.Count; index++)
-                {
-                    if (!candidate.ChangedFields.Contains(index))
-                    {
-                        replacement.Inputs[index].Retire();
-                        replacement.Inputs[index] = _editing.Input(index);
-                    }
-                }
                 _editing.Adopt(replacement);
+                foreach (string identity in retiredBranches) _editing.RetireBranch(identity);
                 committed = true;
                 foreach (DefinitionFieldState field in retired) field.Retire();
                 OnInputChanged();
@@ -156,6 +151,24 @@ internal static class DefinitionDocumentEditing
     {
         var result = new List<DefinitionDocumentCoverage>();
         HashSet<DefinitionPath>? selected = context?.RelevantLocations.ToHashSet();
+        if (root.AdditionalProperties is not null || root.Variants.Count > 0)
+        {
+            DefinitionNode represented = root;
+            if (root.Variants.Count > 0)
+            {
+                DefinitionNode? branch = answers is null ? null :
+                    DefinitionValidator.SelectVariant(root, JsonSerializer.SerializeToElement(answers.Values));
+                if (branch is null)
+                {
+                    result.Add(new(DefinitionPath.FromSegments([]),
+                        DefinitionSensitivityPolicy.SensitivityOf(root) == FieldSensitivity.Public));
+                    return Array.AsReadOnly(result.ToArray());
+                }
+                represented = branch;
+            }
+            Visit(represented, DefinitionPath.FromSegments([]), DefinitionSensitivityPolicy.SensitivityOf(root));
+            return Array.AsReadOnly(result.ToArray());
+        }
         foreach ((string name, DefinitionNode node) in root.Properties)
             Visit(node, DefinitionPath.FromSegments([name]), DefinitionSensitivityPolicy.SensitivityOf(root));
         return Array.AsReadOnly(result.ToArray());
@@ -167,10 +180,12 @@ internal static class DefinitionDocumentEditing
             if (selected is not null && !selected.Contains(path)) result.Add(new(path, false));
             else if (ownPublic && EntirelyPublic(node) && (selected is null ||
                 node.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence))) result.Add(new(path, true));
-            else if (ownPublic && node.Type == DefinitionNodeType.Mapping && node.AdditionalProperties is null
-                && node.Variants.Count == 0)
+            else if (ownPublic && node.Type == DefinitionNodeType.Mapping && node.Variants.Count == 0)
+            {
                 foreach ((string name, DefinitionNode child) in node.Properties)
                     Visit(child, DefinitionPath.FromSegments([.. path.Segments, name]), FieldSensitivity.Public);
+                if (node.AdditionalProperties is not null) result.Add(new(path, false));
+            }
             else if (ownPublic && EntirelyPublic(node) && answers is not null &&
                 TryRead(answers.Values, path, out JsonElement supplied) && SelectedTree(supplied, path) &&
                 answers.Omitted.Where(omitted => Prefix(path, omitted)).All(omitted => selected!.Contains(omitted)))
@@ -201,7 +216,7 @@ internal static class DefinitionDocumentEditing
         DefinitionDocumentApplyMode mode, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        AnswerSnapshot original = Snapshot(definition, state);
+        AnswerSnapshot original = Snapshot(state);
         var values = new JsonObject(original.Values.Select(pair =>
             KeyValuePair.Create(pair.Key, JsonNode.Parse(pair.Value.GetRawText()))));
         var omitted = original.Omitted.ToHashSet();
@@ -210,6 +225,9 @@ internal static class DefinitionDocumentEditing
         if (session.Representation == DefinitionDocumentRepresentation.Canonical)
         {
             AnswerSnapshot parsed = AnswerSnapshotCodec.ParseJson(source);
+            if (session.Scope.Any(path => path.Segments.Count == 0) &&
+                !PublicSuppliedValues(definition.Configuration, JsonSerializer.SerializeToElement(parsed.Values)))
+                return DefinitionDocumentParseResult.Reject("document-out-of-scope");
             foreach ((string name, JsonElement value) in parsed.Values)
                 if (!InScope(DefinitionPath.FromSegments([name]), value))
                     return DefinitionDocumentParseResult.Reject("document-out-of-scope");
@@ -286,12 +304,27 @@ internal static class DefinitionDocumentEditing
             DefinitionDocumentChangeKind kind = value.HasValue ? DefinitionDocumentChangeKind.Set
                 : afterOmissions.Contains(path) ? DefinitionDocumentChangeKind.Omit : DefinitionDocumentChangeKind.Reset;
             changes.Add(new(path, kind));
-            int fieldIndex = definition.Fields.ToList().FindIndex(field => field.Name == path.Segments[0]);
-            changedFields.Add(fieldIndex);
-            string[] editorPath = [definition.Fields[fieldIndex].Id, .. path.Segments.Skip(1)];
-            RetireChangedRows(hadValue ? before : null, value,
-                "field-" + definition.FamilyId.ToString("N") + "-" +
-                    Convert.ToHexString(Encoding.UTF8.GetBytes(editorPath[0])), path.Segments.Skip(1).ToArray());
+            if (path.Segments.Count == 0)
+            {
+                foreach (int index in Enumerable.Range(0, definition.Fields.Count)) changedFields.Add(index);
+                retiredRows.Add("root-" + definition.FamilyId.ToString("N"));
+                foreach (FieldDefinition field in definition.Fields)
+                    RetireChangedRows(Member(hadValue ? before : null, field.Name), Member(value, field.Name),
+                        "field-" + definition.FamilyId.ToString("N") + "-" +
+                            Convert.ToHexString(Encoding.UTF8.GetBytes(field.Id)), []);
+            }
+            else
+            {
+                int fieldIndex = definition.Fields.ToList().FindIndex(field => field.Name == path.Segments[0]);
+                if (fieldIndex >= 0)
+                {
+                    changedFields.Add(fieldIndex);
+                    RetireChangedRows(hadValue ? before : null, value,
+                        "field-" + definition.FamilyId.ToString("N") + "-" +
+                            Convert.ToHexString(Encoding.UTF8.GetBytes(definition.Fields[fieldIndex].Id)),
+                        path.Segments.Skip(1).ToArray());
+                }
+            }
         }
         AnswerSnapshot replacement = new(original.InputRevision, Values(values), omitted);
         DefinitionValidationResult validation = DefinitionValidator.Validate(definition, replacement, cancellationToken);
@@ -314,9 +347,12 @@ internal static class DefinitionDocumentEditing
             field.Text = field.Value is { } typed ? Display(typed) : string.Empty;
             if (field.Text.Length > 65_536) return DefinitionDocumentParseResult.Reject("answer-budget-exceeded");
         }
+        UpdateOrigins(state.RootInput, [], JsonSerializer.SerializeToElement(original.Values),
+            JsonSerializer.SerializeToElement(replacement.Values));
+        state.Root.Clear();
+        foreach ((string name, JsonElement value) in replacement.Values) state.Root.Add(name, value);
         state.Omitted.Clear();
-        state.Omitted.UnionWith(replacement.Omitted.Select(path => DefinitionPath.FromSegments([
-            definition.Fields.Single(field => field.Name == path.Segments[0]).Id, .. path.Segments.Skip(1)])));
+        state.Omitted.UnionWith(replacement.Omitted);
         cancellationToken.ThrowIfCancellationRequested();
         return new(new(session, generation, state, changes, cancellationToken)
         {
@@ -345,7 +381,21 @@ internal static class DefinitionDocumentEditing
         validation.Diagnostics.Any(diagnostic => diagnostic.Code != "value-required"
             && (diagnostic.FieldId.Length == 0 || scope.Any(path =>
                 Overlaps(path, DefinitionPath.FromSegments([
-                    definition.Fields.Single(field => field.Id == diagnostic.FieldId).Name, .. diagnostic.RelativePath])))));
+                    definition.Fields.FirstOrDefault(field => field.Id == diagnostic.FieldId)?.Name ?? diagnostic.FieldId,
+                    .. diagnostic.RelativePath])))));
+
+    private static bool PublicSuppliedValues(DefinitionNode schema, JsonElement value)
+    {
+        if (DefinitionSensitivityPolicy.SensitivityOf(schema) != FieldSensitivity.Public) return false;
+        if (schema.Variants.Count > 0)
+            return DefinitionValidator.SelectVariant(schema, value) is { } branch && PublicSuppliedValues(branch, value);
+        if (value.ValueKind == JsonValueKind.Object)
+            return value.EnumerateObject().All(property =>
+                (schema.Properties.GetValueOrDefault(property.Name) ?? schema.AdditionalProperties) is { } child &&
+                PublicSuppliedValues(child, property.Value));
+        return value.ValueKind != JsonValueKind.Array || schema.Items is not { } item ||
+            value.EnumerateArray().All(child => PublicSuppliedValues(item, child));
+    }
 
     private static void UpdateOrigins(DefinitionFieldState field, string[] path, JsonElement? before, JsonElement? after)
     {
@@ -396,11 +446,8 @@ internal static class DefinitionDocumentEditing
         return effective is { } value && JsonElement.DeepEquals(supplied, value);
     }
 
-    internal static AnswerSnapshot Snapshot(Definition definition, DefinitionAcceptedEditingState state) =>
-        new(state.InputRevision, definition.Fields.Select((field, index) => (field, state.Inputs[index].Value))
-            .Where(item => item.Value.HasValue).ToDictionary(item => item.field.Name, item => item.Value!.Value, StringComparer.Ordinal),
-            state.Omitted.Select(path => DefinitionPath.FromSegments([
-                definition.Fields.Single(field => field.Id == path.Segments[0]).Name, .. path.Segments.Skip(1)])));
+    internal static AnswerSnapshot Snapshot(DefinitionAcceptedEditingState state) =>
+        new(state.InputRevision, state.Root, state.Omitted);
 
     internal static bool Prefix(DefinitionPath prefix, DefinitionPath path) =>
         path.Segments.Take(prefix.Segments.Count).SequenceEqual(prefix.Segments, StringComparer.Ordinal);
@@ -411,13 +458,26 @@ internal static class DefinitionDocumentEditing
     internal static bool TryRead(IReadOnlyDictionary<string, JsonElement> values, DefinitionPath path, out JsonElement value)
     {
         value = default;
-        if (path.Segments.Count == 0 || !values.TryGetValue(path.Segments[0], out value)) return false;
+        if (path.Segments.Count == 0)
+        {
+            value = JsonSerializer.SerializeToElement(values);
+            return true;
+        }
+        if (!values.TryGetValue(path.Segments[0], out value)) return false;
         foreach (string segment in path.Segments.Skip(1))
             if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(segment, out value)) return false;
         return true;
     }
     internal static void Set(JsonObject root, DefinitionPath path, JsonElement? value)
     {
+        if (path.Segments.Count == 0)
+        {
+            root.Clear();
+            if (value is { ValueKind: JsonValueKind.Object } mapping)
+                foreach (JsonProperty property in mapping.EnumerateObject())
+                    root.Add(property.Name, JsonNode.Parse(property.Value.GetRawText()));
+            return;
+        }
         JsonObject parent = root;
         foreach (string segment in path.Segments.SkipLast(1))
         {

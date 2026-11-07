@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="FieldRequired" xml:space="preserve"><value>أدخل هذه القيمة المطلوبة.</value></data>
+  <data name="FieldType" xml:space="preserve"><value>أدخل قيمة من النوع المحدد.</value></data>
+  <data name="FieldConstraint" xml:space="preserve"><value>صحح القيمة لتطابق المتطلبات المحددة.</value></data>
+  <data name="FieldDuplicate" xml:space="preserve"><value>أزل العناصر المكررة.</value></data>
+  <data name="FieldMinimum" xml:space="preserve"><value>الحد الأدنى: {0}.</value></data>
+  <data name="FieldMaximum" xml:space="preserve"><value>الحد الأقصى: {0}.</value></data>
+  <data name="FieldExclusiveMinimum" xml:space="preserve"><value>أكبر من {0}.</value></data>
+  <data name="FieldExclusiveMaximum" xml:space="preserve"><value>أقل من {0}.</value></data>
+  <data name="FieldMinLength" xml:space="preserve"><value>ما لا يقل عن {0} أحرف.</value></data>
+  <data name="FieldMaxLength" xml:space="preserve"><value>ما لا يزيد عن {0} أحرف.</value></data>
+  <data name="FieldMinItems" xml:space="preserve"><value>ما لا يقل عن {0} عناصر.</value></data>
+  <data name="FieldMaxItems" xml:space="preserve"><value>ما لا يزيد عن {0} عناصر.</value></data>
+  <data name="FieldMinProperties" xml:space="preserve"><value>ما لا يقل عن {0} خصائص.</value></data>
+  <data name="FieldMaxProperties" xml:space="preserve"><value>ما لا يزيد عن {0} خصائص.</value></data>
+  <data name="FieldAllowedValues" xml:space="preserve"><value>القيم المسموح بها: {0}.</value></data>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <data name="Configure" xml:space="preserve"><value>الإعداد</value></data>

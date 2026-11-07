@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6V0PXWYQFFD7K0FH9FY3TMR
+Title: "Preserve recursive configuration roots in workspace edits"
+Type: feat
+Scope: self-hosting
+Summary: "Use one accepted root for root maps, variants, imports and document edits, with literal correction coordinates and stale-result protection."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "One accepted root retains answer custody, literal private coordinates and branch retirement; revision, consent and operation-generation checks remain independent."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/definitions.md
+    Disposition: documented
+    Detail: "Root maps and variants retain the same admitted definition language and fixed development contract."
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definitions.md
+    Disposition: not-applicable

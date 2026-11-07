@@ -8,6 +8,25 @@
 
 ## Recursive editing and localized display
 
+`DefinitionAcceptedEditingState.Root` owns the supplied recursive configuration.
+Stable `DefinitionFieldInput` facades read and write their ordinary property
+through that root; field state retains editor text, origins and drafts, not
+another accepted value. Detached document candidates copy the complete root
+and its metadata before one gated adoption. Snapshot, import, document and
+privacy operations therefore share the same accepted payload.
+
+The empty structural path addresses the configuration root. `DefinitionPath`
+overloads use literal configuration names; ordinary facade paths use declared
+field identifiers. Both resolve into the same accepted root. Literal paths
+cannot collide with a declared property's generated identifier, and omissions
+are stored only in literal configuration coordinates. `GetRootChildren`
+explicitly returns private current child coordinates; these are local renderer
+access, never diagnostic metadata. Root maps use literal keys and typed values,
+and root variants delegate selection to Core. Branch replacement allocates
+fresh logical authority even when a later branch reuses the same coordinates.
+Existing revision and operation-generation checks still reject late work and
+retire its buffers; logical identity does not replace those checks.
+
 Discovery carries the admitted `DefinitionNodeType` and a typed
 `DefinitionDiscoveryMatchReason`. Match reasons use explicit public tokens at
 the rendering boundary. Facet values remain strings because section and output

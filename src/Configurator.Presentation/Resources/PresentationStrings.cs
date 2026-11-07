@@ -51,6 +51,14 @@ public static class PresentationStrings
         _ => "ValueConstraintInvalid"
     }, locale);
 
+    public static string FieldCorrection(DefinitionFieldValidation facts, string locale) =>
+        string.Join(Environment.NewLine, facts.Reasons.Select(reason => Get("Field" + reason, locale))
+            .Concat(facts.Reasons.Count == 0 ? [] : facts.Bounds.Select(bound =>
+                Format("Field" + bound.Kind, locale, bound.Value)))
+            .Concat(facts.Reasons.Count > 0 && facts.AllowedValues.Count > 0
+                ? [Format("FieldAllowedValues", locale, string.Join(", ", facts.AllowedValues.Select(value =>
+                    value.ValueKind == System.Text.Json.JsonValueKind.String ? value.GetString() : value.GetRawText())))] : []));
+
     public static string ImportFinding(DefinitionImportFindingKind kind, string locale) => Get(kind switch
     {
         DefinitionImportFindingKind.MissingRequired => "ImportMissingRequired",

@@ -12,7 +12,7 @@ internal sealed class DefinitionEditingState
         DefinitionSessionPrivacy privacy,
         Func<FieldDefinition, Func<DefinitionFieldState>, DefinitionFieldInput> createField)
     {
-        _accepted = new(definitions.Count);
+        _accepted = new(definitions.Select(definition => definition.Name).ToArray());
         Fields = Array.AsReadOnly(definitions.Select((definition, index) =>
             createField(definition, () => _accepted.Inputs[index])).ToArray());
         Privacy = privacy;
@@ -23,6 +23,22 @@ internal sealed class DefinitionEditingState
     internal long InputRevision => _accepted.InputRevision;
     internal HashSet<DefinitionPath> Omitted => _accepted.Omitted;
     internal DefinitionFieldState Input(int index) => _accepted.Inputs[index];
+    internal Dictionary<string, JsonElement> Root => _accepted.Root;
+    internal DefinitionFieldState RootInput => _accepted.RootInput;
+    internal long BranchIdentity(string identity)
+    {
+        if (!_accepted.Branches.TryGetValue(identity, out long token))
+            _accepted.Branches.Add(identity, token = checked(++_accepted.NextRow));
+        return token;
+    }
+    internal void RetireBranch(string identity)
+    {
+        ClearRows(identity);
+        foreach (string child in _accepted.Branches.Keys.Where(key =>
+            key.StartsWith(identity + "-", StringComparison.Ordinal)).ToArray())
+            _accepted.Branches.Remove(child);
+        _accepted.Branches[identity] = checked(++_accepted.NextRow);
+    }
 
     internal void AdvanceRevision() => _accepted.InputRevision = checked(InputRevision + 1);
 
@@ -36,6 +52,9 @@ internal sealed class DefinitionEditingState
             if (!retired.Any(prefix => identity == prefix || identity.StartsWith(prefix + "-", StringComparison.Ordinal)))
                 replacement.Rows.Add(identity, [.. rows]);
         replacement.NextRow = _accepted.NextRow;
+        replacement.Branches.Clear();
+        foreach ((string identity, long token) in _accepted.Branches)
+            replacement.Branches.Add(identity, token);
     }
 
     internal long RowIdentity(string identity, int count, int index)
@@ -63,6 +82,8 @@ internal sealed class DefinitionEditingState
     internal void Clear()
     {
         foreach (DefinitionFieldInput field in Fields) field.Clear();
+        _accepted.RootInput.Retire();
+        _accepted.Root.Clear();
         _accepted.Rows.Clear();
     }
 }
@@ -71,59 +92,82 @@ internal sealed class DefinitionEditingState
 /// The sole accepted payload behind stable field facades. Detached copies are
 /// provisional and never escape through a public value accessor.
 /// </summary>
-internal sealed class DefinitionAcceptedEditingState(int count)
+internal sealed class DefinitionAcceptedEditingState
 {
-    internal DefinitionFieldState[] Inputs { get; } =
-        Enumerable.Range(0, count).Select(_ => new DefinitionFieldState()).ToArray();
+    private readonly string[] _names;
+
+    internal DefinitionAcceptedEditingState(string[] names)
+    {
+        _names = names;
+        Inputs = names.Select(name => new DefinitionFieldState(
+            () => Root.TryGetValue(name, out JsonElement value) ? value : null,
+            value =>
+            {
+                if (value is { } supplied) Root[name] = supplied;
+                else Root.Remove(name);
+            })).ToArray();
+        RootInput = new(() => JsonSerializer.SerializeToElement(Root), value =>
+        {
+            Root.Clear();
+            if (value is { ValueKind: JsonValueKind.Object } mapping)
+                foreach (JsonProperty property in mapping.EnumerateObject()) Root.Add(property.Name, property.Value.Clone());
+        });
+    }
+
+    internal Dictionary<string, JsonElement> Root { get; } = new(StringComparer.Ordinal);
+    internal DefinitionFieldState[] Inputs { get; }
+    internal DefinitionFieldState RootInput { get; }
     internal HashSet<DefinitionPath> Omitted { get; } = [];
     internal Dictionary<string, List<long>> Rows { get; } = new(StringComparer.Ordinal);
+    internal Dictionary<string, long> Branches { get; } = new(StringComparer.Ordinal);
     internal long NextRow;
     internal long InputRevision;
 
     internal DefinitionAcceptedEditingState Copy()
     {
-        var copy = new DefinitionAcceptedEditingState(Inputs.Length)
+        var copy = new DefinitionAcceptedEditingState(_names)
         {
             NextRow = NextRow,
             InputRevision = InputRevision
         };
-        for (int index = 0; index < Inputs.Length; index++) copy.Inputs[index] = Inputs[index].Copy();
+        foreach ((string name, JsonElement value) in Root) copy.Root.Add(name, value);
+        for (int index = 0; index < Inputs.Length; index++) Inputs[index].CopyTo(copy.Inputs[index]);
+        RootInput.CopyTo(copy.RootInput);
         copy.Omitted.UnionWith(Omitted);
         foreach ((string key, List<long> rows) in Rows) copy.Rows.Add(key, [.. rows]);
+        foreach ((string key, long token) in Branches) copy.Branches.Add(key, token);
         return copy;
     }
 
     internal void Retire()
     {
         foreach (DefinitionFieldState input in Inputs) input.Retire();
+        Root.Clear();
+        RootInput.Retire();
         Omitted.Clear();
         Rows.Clear();
+        Branches.Clear();
     }
 }
 
-internal sealed class DefinitionFieldState
+internal sealed class DefinitionFieldState(Func<JsonElement?> readValue, Action<JsonElement?> writeValue)
 {
     internal string Text = string.Empty;
-    internal JsonElement? Value;
+    internal JsonElement? Value { get => readValue(); set => writeValue(value); }
     internal List<string[]> InvalidPaths { get; } = [];
     internal List<(string[] Path, string Text)> DraftTexts { get; } = [];
     internal List<(string[] Path, DefinitionAnswerOrigin Origin)> Origins { get; } = [];
     internal DefinitionAnswerOrigin Origin = DefinitionAnswerOrigin.Omitted;
     internal string? InputDiagnosticCode;
 
-    internal DefinitionFieldState Copy()
+    internal void CopyTo(DefinitionFieldState copy)
     {
-        var copy = new DefinitionFieldState
-        {
-            Text = Text,
-            Value = Value,
-            Origin = Origin,
-            InputDiagnosticCode = InputDiagnosticCode
-        };
+        copy.Text = Text;
+        copy.Origin = Origin;
+        copy.InputDiagnosticCode = InputDiagnosticCode;
         copy.InvalidPaths.AddRange(InvalidPaths.Select(path => path.ToArray()));
         copy.DraftTexts.AddRange(DraftTexts.Select(draft => (draft.Path.ToArray(), draft.Text)));
         copy.Origins.AddRange(Origins.Select(origin => (origin.Path.ToArray(), origin.Origin)));
-        return copy;
     }
 
     internal void Retire()

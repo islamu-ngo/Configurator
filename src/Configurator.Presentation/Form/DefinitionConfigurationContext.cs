@@ -61,11 +61,7 @@ public sealed partial class DefinitionFormModel
         {
             FieldDefinition field = Fields[index].Definition;
             if (field.Name != recipeName && field.Name != scopeName)
-            {
-                replacement.Inputs[index].Retire();
-                replacement.Inputs[index] = _editing.Input(index);
                 continue;
-            }
             changed.Add(index);
             DefinitionFieldState input = replacement.Inputs[index];
             input.Retire();
@@ -73,7 +69,7 @@ public sealed partial class DefinitionFormModel
             input.Text = values[field.Name].GetString()!;
             input.Origin = DefinitionAnswerOrigin.Explicit;
             input.Origins.Add(([field.Id], DefinitionAnswerOrigin.Explicit));
-            replacement.Omitted.RemoveWhere(path => path.Segments[0] == field.Id);
+            replacement.Omitted.RemoveWhere(path => path.Segments[0] == field.Name);
         }
         DefinitionFieldState[] retired = changed.Select(_editing.Input).ToArray();
         _editing.Adopt(replacement);

@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="FieldRequired" xml:space="preserve"><value>Supply this required value.</value></data>
+  <data name="FieldType" xml:space="preserve"><value>Enter a value of the declared type.</value></data>
+  <data name="FieldConstraint" xml:space="preserve"><value>Correct the value to meet the declared requirements.</value></data>
+  <data name="FieldDuplicate" xml:space="preserve"><value>Remove duplicate items.</value></data>
+  <data name="FieldMinimum" xml:space="preserve"><value>Minimum: {0}.</value></data>
+  <data name="FieldMaximum" xml:space="preserve"><value>Maximum: {0}.</value></data>
+  <data name="FieldExclusiveMinimum" xml:space="preserve"><value>Greater than {0}.</value></data>
+  <data name="FieldExclusiveMaximum" xml:space="preserve"><value>Less than {0}.</value></data>
+  <data name="FieldMinLength" xml:space="preserve"><value>At least {0} characters.</value></data>
+  <data name="FieldMaxLength" xml:space="preserve"><value>At most {0} characters.</value></data>
+  <data name="FieldMinItems" xml:space="preserve"><value>At least {0} items.</value></data>
+  <data name="FieldMaxItems" xml:space="preserve"><value>At most {0} items.</value></data>
+  <data name="FieldMinProperties" xml:space="preserve"><value>At least {0} properties.</value></data>
+  <data name="FieldMaxProperties" xml:space="preserve"><value>At most {0} properties.</value></data>
+  <data name="FieldAllowedValues" xml:space="preserve"><value>Allowed values: {0}.</value></data>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <data name="Configure" xml:space="preserve"><value>Configure</value></data>

@@ -236,6 +236,8 @@ public sealed partial class DefinitionFormModel
         if (!result.Succeeded) return result;
         if (!HasImportStorage(result.Answers!))
             return new(false, null, "import-workspace-unsupported");
+        if (_editing.RootInput.InvalidPaths.Count > 0)
+            return new(false, null, "answer-conflict") { Diagnostic = new("answer-conflict", "") };
         DefinitionFieldInput? pending = Fields.FirstOrDefault(field =>
             result.ProvidedFields.Contains(field.Definition.Id) && field.InputDiagnosticCode is not null);
         return pending is null ? result : new(false, null, "answer-conflict")
@@ -246,13 +248,19 @@ public sealed partial class DefinitionFormModel
 
     private HashSet<string> ReplaceableImportDefaults() =>
         Fields.Where(field => field.IsPristineDefault &&
-            !Omitted.Any(path => path.Segments[0] == field.Definition.Id))
+            !Omitted.Any(path => path.Segments[0] == field.Definition.Name))
             .Select(field => field.Definition.Id).ToHashSet(StringComparer.Ordinal);
 
     private bool HasImportStorage(AnswerSnapshot answers)
     {
-        var names = Fields.Select(field => field.Definition.Name).ToHashSet(StringComparer.Ordinal);
-        return answers.Values.Keys.All(names.Contains);
+        DefinitionNode schema = Definition.Configuration;
+        if (schema.Variants.Count > 0)
+        {
+            if (DefinitionValidator.SelectVariant(schema, System.Text.Json.JsonSerializer.SerializeToElement(answers.Values)) is not { } branch)
+                return false;
+            schema = branch;
+        }
+        return answers.Values.Keys.All(name => schema.Properties.ContainsKey(name) || schema.AdditionalProperties is not null);
     }
 
     private bool ImportIsCurrent(long generation, long revision, CancellationToken cancellationToken) =>

@@ -35,6 +35,11 @@ internal sealed class DefinitionFormIndex
                 ? new Node(additional, this, schemaPath + "/additionalProperties") : null;
             Variants = Array.AsReadOnly(schema.Variants.Select((variant, index) =>
                 new Node(variant, this, schemaPath + "/oneOf/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture))).ToArray());
+            HasVariants = Variants.Count > 0 || Properties.Values.Any(child => child.HasVariants) ||
+                Item?.HasVariants == true || Additional?.HasVariants == true;
+            IsProtected = DefinitionSensitivityPolicy.SensitivityOf(schema) != FieldSensitivity.Public ||
+                Properties.Values.Any(child => child.IsProtected) || Item?.IsProtected == true ||
+                Additional?.IsProtected == true || Variants.Any(child => child.IsProtected);
             Disclosure = extension.ValueKind == JsonValueKind.Object &&
                 extension.TryGetProperty("detail", out JsonElement detail) ? detail.GetString() switch
                 {
@@ -62,6 +67,8 @@ internal sealed class DefinitionFormIndex
         internal Node? Item { get; }
         internal Node? Additional { get; }
         internal IReadOnlyList<Node> Variants { get; }
+        internal bool HasVariants { get; }
+        internal bool IsProtected { get; }
         internal bool HasEssentialDecision { get; }
         internal FieldDisclosure Disclosure { get; }
         internal IReadOnlyList<string> Controllers { get; }
@@ -83,14 +90,15 @@ internal sealed class DefinitionFormIndex
     internal DefinitionFormIndex(Definition definition, IReadOnlyList<DefinitionFormSection> sections,
         IReadOnlyList<DefinitionFormExperience> experiences)
     {
-        Roots = definition.Fields.ToDictionary(field => field.Id, field => new Node(field.Node,
-                schemaPath: "/configuration/properties/" + field.Name.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal)),
-            StringComparer.Ordinal);
+        Root = new Node(definition.Configuration, schemaPath: "/configuration");
+        Roots = definition.Fields.ToDictionary(field => field.Id, field => Root.Properties[field.Name], StringComparer.Ordinal);
         FieldIds = Array.AsReadOnly(definition.Fields.Select(field => field.Id).ToArray());
         RootPaths = FieldIds.ToDictionary(id => id,
             id => (IReadOnlyList<string>)Array.AsReadOnly(new[] { id }), StringComparer.Ordinal);
         FieldPositions = FieldIds.Select((id, position) => (Id: id, position))
             .ToDictionary(item => item.Id, item => item.position, StringComparer.Ordinal);
+        FieldNames = definition.Fields.ToDictionary(field => field.Id, field => field.Name, StringComparer.Ordinal);
+        FieldIdsByName = definition.Fields.ToDictionary(field => field.Name, field => field.Id, StringComparer.Ordinal);
         RootIdentities = definition.Fields.ToDictionary(field => field.Id,
             field => "field-" + definition.FamilyId.ToString("N") + "-" +
                 Convert.ToHexString(Encoding.UTF8.GetBytes(field.Id)), StringComparer.Ordinal);
@@ -114,7 +122,10 @@ internal sealed class DefinitionFormIndex
     }
 
     internal Dictionary<string, Node> Roots { get; }
+    internal Node Root { get; }
     internal Dictionary<string, int> FieldPositions { get; }
+    private Dictionary<string, string> FieldNames { get; }
+    internal Dictionary<string, string> FieldIdsByName { get; }
     internal IReadOnlyList<string> FieldIds { get; }
     internal Dictionary<string, IReadOnlyList<string>> RootPaths { get; }
     internal Dictionary<string, string> RootIdentities { get; }
@@ -124,7 +135,12 @@ internal sealed class DefinitionFormIndex
     internal Dictionary<string, (IReadOnlyList<string> Artifacts, IReadOnlyList<string> Keys)> Bindings { get; }
 
     internal DefinitionPath PathKey(IReadOnlyList<string> path) =>
-        path.Count == 1 ? RootPathKeys[path[0]] : DefinitionPath.FromSegments(path);
+        path.Count == 1 && RootPathKeys.TryGetValue(path[0], out DefinitionPath? key)
+            ? key : DefinitionPath.FromSegments(path);
+
+    internal DefinitionPath DataPath(IReadOnlyList<string> path) => path.Count > 0 &&
+        FieldNames.TryGetValue(path[0], out string? name) ? DefinitionPath.FromSegments([name, .. path.Skip(1)])
+            : DefinitionPath.FromSegments(path);
 
     private static void CollectBindings(JsonElement projection, string artifact, string[] keys,
         Dictionary<string, (HashSet<string> Artifacts, HashSet<string> Keys)> bindings,

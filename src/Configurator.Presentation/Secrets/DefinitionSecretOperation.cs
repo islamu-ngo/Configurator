@@ -28,24 +28,46 @@ public sealed partial class DefinitionFormModel
     public bool CanGenerateSecret(IReadOnlyList<string> path)
     {
         ArgumentNullException.ThrowIfNull(path);
+        lock (_gate) return !_disposed && !_secretRunning && SecretEligible(DataPath(path));
+    }
+
+    public bool CanGenerateSecret(DefinitionPath path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
         lock (_gate) return !_secretRunning && SecretEligible(path);
     }
 
-    private bool SecretEligible(IReadOnlyList<string> path)
+    private bool SecretEligible(DefinitionPath path)
     {
-        if (_disposed || !TryMetadataNode(path, out _, out _) || !CanEdit(path) ||
+        if (_disposed || !TryRootMetadata(path.Segments, out DefinitionFormIndex.Node node, out bool inheritedSecret) ||
+            SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets &&
+                DefinitionSecretPolicy.IsSecret(node.Schema, inheritedSecret) ||
             Facts.EditorState(path)?.IsActive != true) return false;
-        return DefinitionSecretOperations.Resolve(Definition, Omitted.Select(omitted => DataPath(omitted.Segments)),
-            Facts.Validation, DataPath(path), out _) is not null;
+        return DefinitionSecretOperations.Resolve(Definition, Omitted,
+            Facts.Validation, path, out _) is not null;
     }
 
     /// <summary>Copies transient input, applies only to the captured editor revision, and owns any original password until dismissal.</summary>
-    public async Task<DefinitionSecretOperationResult> GenerateSecretAsync(IReadOnlyList<string> path,
+    public Task<DefinitionSecretOperationResult> GenerateSecretAsync(IReadOnlyList<string> path,
         ReadOnlyMemory<char> input = default, Func<CancellationToken, ValueTask>? cooperativeYield = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(path);
-        string[] location = path.ToArray();
+        DefinitionPath location;
+        lock (_gate)
+        {
+            if (_disposed) return Task.FromResult(new DefinitionSecretOperationResult(false, "secret-operation-unavailable"));
+            location = DataPath(path);
+        }
+        return GenerateSecretAsync(location, input, cooperativeYield, cancellationToken);
+    }
+
+    /// <summary>Generates through the same custody and revision fence at literal configuration coordinates.</summary>
+    public async Task<DefinitionSecretOperationResult> GenerateSecretAsync(DefinitionPath location,
+        ReadOnlyMemory<char> input = default, Func<CancellationToken, ValueTask>? cooperativeYield = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(location);
         DefinitionSecretSpecification specification;
         string? identity = null;
         long revision, generation;
@@ -93,13 +115,15 @@ public sealed partial class DefinitionFormModel
                 JsonElement value = JsonSerializer.SerializeToElement(result.Output!.CopyValue());
                 if (!DefinitionValidator.ValueValid(GetEditorSchema(location)!, value))
                     return Reject("secret-generated-value-invalid");
-                AnswerSnapshot candidate = DefinitionSecretOperations.Replace(Snapshot(), Facts.Validation, DataPath(location), value);
+                AnswerSnapshot candidate = DefinitionSecretOperations.Replace(Snapshot(), Facts.Validation, location, value);
                 DefinitionValidationResult candidateValidation = DefinitionValidator.Validate(Definition, candidate, cancellationToken);
-                if (DefinitionSecretOperations.Resolve(Definition, candidate.Omitted, candidateValidation, DataPath(location), out _) is null)
+                if (DefinitionSecretOperations.Resolve(Definition, candidate.Omitted, candidateValidation, location, out _) is null)
                     return Reject("secret-generated-value-invalid");
                 if (!SetValue(location, value))
                     return Reject("secret-apply-failed");
-                Fields[_index!.FieldPositions[location[0]]].RecordOrigin(location, DefinitionAnswerOrigin.Generated);
+                if (TryOrdinaryRootPath(location.Segments, out string[] ordinary))
+                    Fields[_index!.FieldPositions[ordinary[0]]].RecordOrigin(ordinary, DefinitionAnswerOrigin.Generated);
+                else RecordRootOrigin(location.Segments, DefinitionAnswerOrigin.Generated);
                 _facts = null;
                 _secretResult = result;
                 result = null;

@@ -32,6 +32,12 @@ does not duplicate their full configurations.
 
 ## Anatomy of a Definition
 
+The shared workspace supports typed maps and discriminated variants at the
+configuration root as well as nested inside ordinary properties. Its accepted
+answers have one owner: imports, document edits, secret consent and snapshots
+operate on the same recursive configuration. Missing values, explicit nulls,
+omissions and resets retain their distinct meanings.
+
 Literal root coordinates remain separate from declared field metadata IDs.
 Local secret generation resolves root-map entries and selected root-variant
 properties under the same consent and stale-result protections as ordinary
