@@ -58,11 +58,11 @@ pipeline.
 
 ### Safe retained owner reports
 
-`.ci/scripts/prepare-test-evidence.cs` accepts explicit `--owner`, `--rid`,
+`.ci/scripts/prepare-test-evidence.cs` accepts explicit `--owner`, `--test-runner-rid`,
 `--run`, `--input`, `--output`, `--exit-code` and `--coverage required|none`
 arguments. The input directory contains `results.trx` and, when required,
 `coverage.cobertura.xml`. Each selection must use a fresh private directory.
-The tool creates `<owner>-<rid>-<run>.json` without replacing an existing file.
+The tool creates `<owner>-<actual-runner-rid>-<run>.json` without replacing an existing file.
 CI run identifiers include the source SHA, workflow run, attempt and lane;
 owner and host are separate filename components.
 
@@ -83,8 +83,8 @@ reports after a zero test exit return 1; they cannot turn into success or zero
 coverage. Failed test counts survive an invalid coverage report.
 `CoverageStatus: unmeasured` is explicit for runs without collection.
 `--self-test` exercises synthetic positive/negative vectors and does not measure
-product coverage. CI uploads only safe JSON with `always()` and seven-day
-retention, including failed selections; it does not upload the private command
+product coverage. CI transports only checked safe JSON archives with `always()`
+and seven-day retention, including failed selections; it does not upload the private command
 log or overwrite dependency advisory files. The standalone loop continues
 through owners and returns the first nonzero test/evidence status.
 
@@ -125,13 +125,65 @@ if dotnet test --project tests/Configurator.Presentation.Tests/Configurator.Pres
   > "$raw/command.log" 2>&1
 then status=0; else status=$?; fi
 dotnet run .ci/scripts/prepare-test-evidence.cs -- \
-  --owner Configurator.Presentation --rid linux-x64 --run local-presentation-unique \
+  --owner Configurator.Presentation --test-runner-rid linux-x64 --run local-presentation-unique \
   --input "$raw" --output artifacts/test-evidence --exit-code "$status" --coverage required
 ```
 
 Choose a new run token for every invocation. Inspect the safe report and record
 the source/build identity before interpreting it. No global percentage or
 mutation gate is imposed.
+
+### Local safe evidence archive
+
+The native emitter owns `schemas/configurator-test-evidence.schema.json`.
+Run `dotnet run .ci/scripts/prepare-test-evidence.cs -- --schema-write` to
+regenerate it and `--schema-check` to reject drift. `--check-report FILE`
+admits only canonical emitter JSON: unknown, duplicate or missing fields and
+contradictory owner, assembly, count, outcome, coverage or diagnostic states
+reject. These semantic checks supplement the generated structural schema.
+File-based execution disables unused Native AOT compilation; it does not
+suppress dependency audit findings.
+
+`TestRunnerRid` is the actual .NET runtime identifier. Admission remains
+`linux|osx|win` with `x64|arm64`; a different supplied
+`--test-runner-rid` produces invalid evidence under the actual runtime identity
+while preserving test counts and the original nonzero exit. Optional
+`--package-rid` is a target drawn from the generated
+`eng/configurator/generated/native-release-capabilities.json` admission.
+For example, `linux-musl-x64` as a package target never claims musl execution
+from a glibc runner. Owner reports may precede packaging and carry no payload
+binding or qualification claim.
+
+```bash
+dotnet run .ci/scripts/prepare-test-evidence.cs -- \
+  --archive artifacts/test-evidence --output artifacts/test-evidence-archive
+dotnet run .ci/scripts/prepare-test-evidence.cs -- \
+  --archive-check artifacts/test-evidence-archive
+```
+
+Archive creation admits 1-1000 safe reports, including failed/invalid selections,
+with unique `(Owner, TestRunnerRid, Run)` identities. Each canonical report is
+stored as `<index-sha256>/<report-sha256>.json`; `index.json` contains
+`SchemaVersion: 1` and `Reports`, an ordinally sorted array of report SHA-256
+digests. The directory name hashes the exact canonical index bytes. All writes
+are create-only; the index is written last as the completion marker. A collision
+rejects without replacing prior evidence. Partial writes remain for recovery.
+Files are bounded to 64 MiB and each indexed set to 128 MiB of reports.
+Raw TRX, logs, coverage, unexpected files and linked
+input files/directories reject. The index contains no paths, values, aggregate
+self-digest or package inventory.
+
+Copy the entire archive root to another local location, then run
+`--archive-check COPIED_ROOT`; no original reports or CI state are consulted.
+The verifier rejects changed/missing/extra bytes, malformed indexes and report
+contradictions. Preserve the printed `EVIDENCE_ARCHIVED <index-sha256>` identity
+independently: local hashes establish integrity, not authenticated origin or
+durable custody. The selftest exercises copied retrieval, tampering, missing
+bytes, collisions, host mismatch and raw-data exclusion using synthetic inputs.
+
+The workflow transports safe archives with `always()` and seven-day retention.
+The release steward owns actual archive custody; see the
+[release custody gate](RELEASE_RUNBOOK.md#safe-evidence-custody-gate).
 
 ### Initial collection and resolved Core instrumentation prerequisite
 

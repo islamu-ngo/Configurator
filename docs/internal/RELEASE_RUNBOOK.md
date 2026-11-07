@@ -13,6 +13,26 @@ no inherited Event release history, signers, trust activation or provider
 publication. All signed-flow examples below are conditional on independently
 approved Configurator authority. Local fixtures use synthetic authority only.
 
+## Safe evidence custody gate
+
+`.ci/scripts/prepare-test-evidence.cs` writes and verifies create-only,
+hash-addressed local safe-report/index archives. The
+[testing contract](TESTING.md#local-safe-evidence-archive) defines exact CLI
+operands, identities, bounds and copied-archive retrieval. Failed selections
+remain evidence; unmeasured coverage stays unmeasured. Prepackage owner reports
+need not be payload-bound and cannot establish package qualification.
+
+The release steward must retain safe candidate evidence through rejection or
+supersession, and released evidence throughout the release's supported lifetime
+plus the documented archival policy. Never silently remove the last safe copy.
+Seven-day CI uploads are transient transport, not operational durability.
+Before a release-support claim, phase 12 must record the actual custody
+destination, custodian, access/retrieval command, retention policy and successful
+retrieval/tamper drill against the retained identities. Remote destination,
+credentials and any trust activation remain separately authorized G-TRUST work.
+No provider, account, signer or external write is implied by local verification.
+Raw TRX, logs, coverage and private paths stay outside the safe archive.
+
 ## Current procedure
 
 Use [the release tool instructions](../../eng/release/README.md#collision-proof-change-workflow)

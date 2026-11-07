@@ -61,15 +61,22 @@ jobs:
             --report-trx --report-trx-filename results.trx --results-directory "$raw" > "$raw/command.log" 2>&1
           then status=0; else status=$?; fi
           dotnet run .ci/scripts/prepare-test-evidence.cs -- \
-            --owner Configurator.Cli --rid '${{ matrix.rid }}' \
+            --owner Configurator.Cli --test-runner-rid '${{ matrix.rid }}' --package-rid '${{ matrix.rid }}' \
             --run "${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-native" \
             --input "$raw" --output artifacts/test-evidence --exit-code "$status" --coverage none
-      - name: Retain safe native CLI test evidence even on failure
+      - name: Archive and check safe native CLI reports locally
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run .ci/scripts/prepare-test-evidence.cs -- --archive artifacts/test-evidence --output artifacts/test-evidence-archive
+          dotnet run .ci/scripts/prepare-test-evidence.cs -- --archive-check artifacts/test-evidence-archive
+      - name: Transport safe native CLI archive even on failure
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-evidence-cli-${{ matrix.rid }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: artifacts/test-evidence/*.json
+          path: artifacts/test-evidence-archive/
           if-no-files-found: error
           retention-days: 7
       - name: Publish standalone CLI for this native host
@@ -113,7 +120,9 @@ jobs:
       - name: Validate external Action pins
         run: dotnet run .ci/scripts/validate-action-pins.cs -- .github/workflows
       - name: Verify safe evidence preparation with synthetic vectors
-        run: dotnet run .ci/scripts/prepare-test-evidence.cs -- --self-test
+        run: |
+          dotnet run .ci/scripts/prepare-test-evidence.cs -- --self-test
+          dotnet run .ci/scripts/prepare-test-evidence.cs -- --schema-check
       - name: Restore and build explicit destination owners
         shell: bash
         run: |
@@ -195,19 +204,26 @@ jobs:
               --results-directory "$raw" "${coverage[@]}" > "$raw/command.log" 2>&1
             then status=0; else status=$?; fi
             if dotnet run .ci/scripts/prepare-test-evidence.cs -- \
-              --owner "$owner" --rid linux-x64 \
+              --owner "$owner" --test-runner-rid linux-x64 \
               --run "${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-standalone" \
               --input "$raw" --output artifacts/test-evidence --exit-code "$status" --coverage "$mode"
             then evidence_status=0; else evidence_status=$?; fi
             if [[ "$overall" -eq 0 && "$evidence_status" -ne 0 ]]; then overall=$evidence_status; fi
           done
           exit "$overall"
-      - name: Retain safe owner test and coverage evidence even on failure
+      - name: Archive and check safe owner reports locally
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run .ci/scripts/prepare-test-evidence.cs -- --archive artifacts/test-evidence --output artifacts/test-evidence-archive
+          dotnet run .ci/scripts/prepare-test-evidence.cs -- --archive-check artifacts/test-evidence-archive
+      - name: Transport safe owner archive even on failure
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-evidence-linux-x64-${{ github.run_id }}-${{ github.run_attempt }}
-          path: artifacts/test-evidence/*.json
+          path: artifacts/test-evidence-archive/
           if-no-files-found: error
           retention-days: 7
       - name: Write package checksums

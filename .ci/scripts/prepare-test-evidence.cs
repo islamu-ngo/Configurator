@@ -1,6 +1,7 @@
 #:property RestorePackagesWithLockFile=false
 #:property AssemblyName=Configurator.TestEvidence
 #:property RootNamespace=Configurator.Ci
+#:property PublishAot=false
 
 using System.Globalization;
 using System.Security.Cryptography;
@@ -10,6 +11,9 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
+using System.Runtime.InteropServices;
+using System.Text.Json.Schema;
+using System.Text.Json.Nodes;
 
 return args is ["--self-test"] ? Evidence.SelfTest() : Evidence.Run(args);
 
@@ -17,6 +21,7 @@ internal static class Evidence
 {
     private const int MaximumCases = 100_000;
     private const long MaximumXmlBytes = 64 * 1024 * 1024;
+    private const long MaximumArchiveBytes = 128 * 1024 * 1024;
     private static readonly string[] Owners =
     [
         "Configurator.Core", "Configurator.Presentation", "Configurator.Artifacts",
@@ -30,6 +35,32 @@ internal static class Evidence
         int originalExit = 1;
         try
         {
+            if (arguments is ["--schema-write"] or ["--schema-check"])
+            {
+                string path = "schemas/configurator-test-evidence.schema.json";
+                string schema = Schema();
+                if (arguments[0] == "--schema-write") File.WriteAllText(path, schema);
+                else Require(File.ReadAllText(path) == schema);
+                Console.WriteLine("EVIDENCE_SCHEMA_VALID");
+                return 0;
+            }
+            if (arguments is ["--check-report", var reportPath])
+            {
+                ReadReport(reportPath);
+                Console.WriteLine("EVIDENCE_REPORT_VALID");
+                return 0;
+            }
+            if (arguments is ["--archive", var input, "--output", var archive])
+            {
+                Archive(input, archive);
+                return 0;
+            }
+            if (arguments is ["--archive-check", var archivePath])
+            {
+                CheckArchive(archivePath);
+                Console.WriteLine("EVIDENCE_ARCHIVE_VALID");
+                return 0;
+            }
             // Recover the command status before parsing other inputs, including invalid ones.
             int exitIndex = Array.IndexOf(arguments, "--exit-code");
             if (exitIndex >= 0 && exitIndex + 1 < arguments.Length
@@ -40,9 +71,9 @@ internal static class Evidence
             {
                 Require(index + 1 < arguments.Length && options.TryAdd(arguments[index], arguments[index + 1]));
             }
-            Require(options.Count == 7 && options.Keys.All(key => key is
-                "--owner" or "--rid" or "--run" or "--input" or "--output" or "--exit-code" or "--coverage"));
-            string owner = options["--owner"], rid = options["--rid"], run = options["--run"];
+            Require(options.Count is 7 or 8 && options.Keys.All(key => key is
+                "--owner" or "--test-runner-rid" or "--package-rid" or "--run" or "--input" or "--output" or "--exit-code" or "--coverage"));
+            string owner = options["--owner"], rid = options["--test-runner-rid"], run = options["--run"];
             Require(Owners.Contains(owner, StringComparer.Ordinal));
             Require(Regex.IsMatch(rid, @"^(linux|osx|win)-(x64|arm64)$", RegexOptions.CultureInvariant));
             Require(Regex.IsMatch(run, @"^[A-Za-z0-9][A-Za-z0-9-]{0,95}$", RegexOptions.CultureInvariant));
@@ -50,6 +81,11 @@ internal static class Evidence
             Require(int.TryParse(options["--exit-code"], out int commandExit) && commandExit is >= 0 and <= 255);
             originalExit = commandExit;
             var diagnostics = new List<string>();
+            string actualRid = RuntimeInformation.RuntimeIdentifier;
+            Require(IsRunner(actualRid));
+            if (rid != actualRid) diagnostics.Add("RUNNER_HOST_MISMATCH");
+            string? packageRid = options.GetValueOrDefault("--package-rid");
+            if (packageRid is not null) Require(PackageRids().Contains(packageRid, StringComparer.Ordinal));
             TestReport? tests = null;
             CoverageReport? coverage = null;
             try { tests = ReadTests(Path.Combine(options["--input"], "results.trx"), owner); }
@@ -63,13 +99,13 @@ internal static class Evidence
                 }
             }
             if (commandExit == 0 && tests is { Failed: > 0 }) diagnostics.Add("TEST_EXIT_INCONSISTENT");
-            var report = new EvidenceReport(1, owner, rid, run, commandExit,
+            var report = new EvidenceReport(1, owner, actualRid, packageRid, run, commandExit,
                 diagnostics.Count == 0 ? "validated" : "invalid",
                 commandExit == 0 && tests is { Failed: 0 } && diagnostics.Count == 0 ? "passed" : "failed",
                 tests, options["--coverage"] == "none" ? "unmeasured" : coverage is null ? "invalid" : "measured",
                 coverage, diagnostics);
             Directory.CreateDirectory(options["--output"]);
-            string destination = Path.Combine(options["--output"], $"{owner}-{rid}-{run}.json");
+            string destination = Path.Combine(options["--output"], $"{owner}-{actualRid}-{run}.json");
             // Never replace a previous selection, retry, owner or host report.
             using (var stream = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 JsonSerializer.Serialize(stream, report, EvidenceJsonContext.Default.EvidenceReport);
@@ -85,8 +121,199 @@ internal static class Evidence
     }
 
     private static bool IsInputError(Exception error) =>
-        error is IOException or UnauthorizedAccessException or XmlException or InvalidDataException or EvidenceInputException
+        error is IOException or UnauthorizedAccessException or XmlException or JsonException or InvalidDataException or EvidenceInputException
             or FormatException or OverflowException or InvalidOperationException;
+
+    private static bool IsRunner(string rid) =>
+        Regex.IsMatch(rid, @"^(linux|osx|win)-(x64|arm64)$", RegexOptions.CultureInvariant);
+
+    private static string[] PackageRids()
+    {
+        using var admission = JsonDocument.Parse(File.ReadAllBytes("eng/configurator/generated/native-release-capabilities.json"));
+        return admission.RootElement.GetProperty("surfaces").EnumerateObject()
+            .SelectMany(surface => surface.Value.GetProperty("runtimeIdentifiers").EnumerateArray())
+            .Select(item => item.GetString()!).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+    }
+
+    private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+    private static bool IsHash(string value) =>
+        Regex.IsMatch(value, "^[0-9a-f]{64}$", RegexOptions.CultureInvariant);
+
+    private static byte[] ReadBounded(string path)
+    {
+        var info = new FileInfo(path);
+        Require(info.LinkTarget is null);
+        using var input = File.OpenRead(path);
+        long length = input.Length;
+        Require(length is > 0 and <= MaximumXmlBytes);
+        var bytes = new byte[(int)length];
+        input.ReadExactly(bytes);
+        Require(input.ReadByte() == -1);
+        return bytes;
+    }
+
+    private static EvidenceReport ReadReport(string path)
+    {
+        byte[] bytes = ReadBounded(path);
+        return ReadReport(bytes);
+    }
+
+    private static EvidenceReport ReadReport(byte[] bytes)
+    {
+        var report = JsonSerializer.Deserialize(bytes, EvidenceJsonContext.Default.EvidenceReport);
+        Require(report is not null);
+        // Canonical round-trip rejects unknown, duplicate, omitted and noncanonical fields.
+        Require(bytes.SequenceEqual(JsonSerializer.SerializeToUtf8Bytes(report, EvidenceJsonContext.Default.EvidenceReport)));
+        Validate(report!);
+        return report!;
+    }
+
+    private static readonly string[] DiagnosticCodes =
+    [
+        "TEST_REPORT_INVALID", "TEST_EXIT_INCONSISTENT", "RUNNER_HOST_MISMATCH",
+        "REPORT_INVALID", "COVERAGE_REPORT_INVALID", "COVERAGE_OWNER_INVALID",
+        "COVERAGE_BRANCH_FORMAT_INVALID", "COVERAGE_DUPLICATE_LINE_INVALID",
+        "COVERAGE_LINES_MISSING", "COVERAGE_BRANCHES_MISSING"
+    ];
+
+    private static void Validate(EvidenceReport report)
+    {
+        Require(report.SchemaVersion == 1 && Owners.Contains(report.Owner, StringComparer.Ordinal)
+            && IsRunner(report.TestRunnerRid) && Regex.IsMatch(report.Run, "^[A-Za-z0-9][A-Za-z0-9-]{0,95}$", RegexOptions.CultureInvariant)
+            && report.CommandExitCode is >= 0 and <= 255);
+        Require(report.PackageRid is null || PackageRids().Contains(report.PackageRid, StringComparer.Ordinal));
+        Require(report.Diagnostics is { Count: <= 10 }
+            && report.Diagnostics.Distinct(StringComparer.Ordinal).Count() == report.Diagnostics.Count
+            && report.Diagnostics.All(code => DiagnosticCodes.Contains(code, StringComparer.Ordinal)));
+        Require(report.EvidenceStatus == (report.Diagnostics.Count == 0 ? "validated" : "invalid"));
+        Require((report.Tests is null) == report.Diagnostics.Contains("TEST_REPORT_INVALID", StringComparer.Ordinal));
+        if (report.Tests is { } tests)
+        {
+            Require(tests.Assembly == report.Owner + ".Tests" && tests.Cases is { Count: > 0 and <= MaximumCases }
+                && double.IsFinite(tests.DurationMilliseconds) && tests.DurationMilliseconds >= 0);
+            Require(tests.Cases.All(item => item is not null && IsHash(item.IdentitySha256)
+                && item.Outcome is "Passed" or "Failed" or "NotExecuted"
+                && double.IsFinite(item.DurationMilliseconds) && item.DurationMilliseconds >= 0));
+            Require(tests.Cases.Select(item => item.IdentitySha256).Distinct(StringComparer.Ordinal).Count() == tests.Cases.Count);
+            Require(tests.Passed == tests.Cases.Count(item => item.Outcome == "Passed")
+                && tests.Failed == tests.Cases.Count(item => item.Outcome == "Failed")
+                && tests.Skipped == tests.Cases.Count(item => item.Outcome == "NotExecuted"));
+        }
+        Require(report.Diagnostics.Contains("TEST_EXIT_INCONSISTENT", StringComparer.Ordinal)
+            == (report.CommandExitCode == 0 && report.Tests is { Failed: > 0 }));
+        Require(report.TestStatus == (report.CommandExitCode == 0 && report.Tests is { Failed: 0 }
+            && report.Diagnostics.Count == 0 ? "passed" : "failed"));
+        bool coverageError = report.Diagnostics.Any(code => code.StartsWith("COVERAGE_", StringComparison.Ordinal) || code == "REPORT_INVALID");
+        Require(report.CoverageStatus is "measured" or "unmeasured" or "invalid");
+        Require((report.CoverageStatus == "invalid") == coverageError);
+        Require((report.Coverage is not null) == (report.CoverageStatus == "measured"));
+        if (report.Coverage is { } coverage)
+            Require(coverage.Assembly == report.Owner && coverage.TotalLines is > 0 and <= 1_000_000
+                && coverage.CoveredLines >= 0 && coverage.CoveredLines <= coverage.TotalLines
+                && coverage.TotalBranches > 0 && coverage.CoveredBranches >= 0 && coverage.CoveredBranches <= coverage.TotalBranches);
+    }
+
+    private static void Create(string path, byte[] bytes)
+    {
+        using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        stream.Write(bytes);
+    }
+
+    private static void Archive(string input, string output)
+    {
+        Require(new DirectoryInfo(input).LinkTarget is null);
+        var records = new SortedDictionary<string, byte[]>(StringComparer.Ordinal);
+        var identities = new HashSet<string>(StringComparer.Ordinal);
+        long totalBytes = 0;
+        foreach (string file in Directory.EnumerateFiles(input).Take(1001))
+        {
+            Require(records.Count < 1000 && Path.GetExtension(file) == ".json");
+            byte[] bytes = ReadBounded(file);
+            totalBytes += bytes.Length;
+            Require(totalBytes <= MaximumArchiveBytes);
+            EvidenceReport report = ReadReport(bytes);
+            Require(identities.Add($"{report.Owner}/{report.TestRunnerRid}/{report.Run}"));
+            Require(records.TryAdd(Hash(bytes), bytes));
+        }
+        Require(records.Count > 0 && !Directory.EnumerateDirectories(input).Any());
+        var index = new ArchiveIndex(1, records.Keys.ToArray());
+        byte[] indexBytes = JsonSerializer.SerializeToUtf8Bytes(index, EvidenceJsonContext.Default.ArchiveIndex);
+        string digest = Hash(indexBytes);
+        Directory.CreateDirectory(output);
+        Require(new DirectoryInfo(output).LinkTarget is null);
+        string destination = Path.Combine(output, digest);
+        Require(!Directory.Exists(destination));
+        Directory.CreateDirectory(destination);
+        // Index is the completion marker. Partial failures retain all already written evidence.
+        foreach (var record in records) Create(Path.Combine(destination, record.Key + ".json"), record.Value);
+        Create(Path.Combine(destination, "index.json"), indexBytes);
+        Console.WriteLine("EVIDENCE_ARCHIVED " + digest);
+    }
+
+    private static void CheckArchive(string root)
+    {
+        Require(new DirectoryInfo(root).LinkTarget is null && !Directory.EnumerateFiles(root).Any());
+        string[] directories = Directory.EnumerateDirectories(root).Take(1001).ToArray();
+        Require(directories.Length is > 0 and <= 1000);
+        foreach (string directory in directories)
+        {
+            long totalBytes = 0;
+            string digest = Path.GetFileName(directory);
+            Require(IsHash(digest) && new DirectoryInfo(directory).LinkTarget is null
+                && !Directory.EnumerateDirectories(directory).Any());
+            byte[] bytes = ReadBounded(Path.Combine(directory, "index.json"));
+            Require(Hash(bytes) == digest);
+            var index = JsonSerializer.Deserialize(bytes, EvidenceJsonContext.Default.ArchiveIndex);
+            Require(index is { SchemaVersion: 1, Reports.Count: > 0 and <= 1000 });
+            Require(bytes.SequenceEqual(JsonSerializer.SerializeToUtf8Bytes(index, EvidenceJsonContext.Default.ArchiveIndex)));
+            Require(index!.Reports.All(IsHash) && index.Reports.SequenceEqual(index.Reports.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)));
+            Require(Directory.EnumerateFiles(directory).Count() == index.Reports.Count + 1);
+            var identities = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string hash in index.Reports)
+            {
+                string path = Path.Combine(directory, hash + ".json");
+                byte[] reportBytes = ReadBounded(path);
+                totalBytes += reportBytes.Length;
+                Require(totalBytes <= MaximumArchiveBytes && Hash(reportBytes) == hash);
+                EvidenceReport report = ReadReport(reportBytes);
+                Require(identities.Add($"{report.Owner}/{report.TestRunnerRid}/{report.Run}"));
+            }
+        }
+    }
+
+    private static string Schema()
+    {
+        JsonNode schema = EvidenceJsonContext.Default.Options.GetJsonSchemaAsNode(typeof(EvidenceReport),
+            new JsonSchemaExporterOptions
+            {
+                TreatNullObliviousAsNonNullable = true,
+                TransformSchemaNode = (context, node) =>
+                {
+                    if (context.TypeInfo.Kind == System.Text.Json.Serialization.Metadata.JsonTypeInfoKind.Object && node is JsonObject obj)
+                        obj["additionalProperties"] = false;
+                    return node;
+                }
+            });
+        schema["$schema"] = "https://json-schema.org/draft/2020-12/schema";
+        schema["$id"] = "https://islamu.org/configurator/schemas/configurator-test-evidence.schema.json";
+        var properties = schema["properties"]!.AsObject();
+        properties["SchemaVersion"] = new JsonObject { ["const"] = 1 };
+        properties["Owner"] = new JsonObject { ["enum"] = new JsonArray(Owners.Select(value => JsonValue.Create(value)).ToArray()) };
+        properties["TestRunnerRid"] = new JsonObject { ["type"] = "string", ["pattern"] = "^(linux|osx|win)-(x64|arm64)$" };
+        properties["PackageRid"] = new JsonObject { ["enum"] = new JsonArray(PackageRids().Select(value => (JsonNode?)JsonValue.Create(value)).Append(null).ToArray()) };
+        properties["Run"] = new JsonObject { ["type"] = "string", ["pattern"] = "^[A-Za-z0-9][A-Za-z0-9-]{0,95}$" };
+        properties["CommandExitCode"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 255 };
+        properties["EvidenceStatus"] = new JsonObject { ["enum"] = new JsonArray("validated", "invalid") };
+        properties["TestStatus"] = new JsonObject { ["enum"] = new JsonArray("passed", "failed") };
+        properties["CoverageStatus"] = new JsonObject { ["enum"] = new JsonArray("measured", "unmeasured", "invalid") };
+        properties["Diagnostics"] = new JsonObject
+        {
+            ["type"] = "array", ["maxItems"] = 10, ["uniqueItems"] = true,
+            ["items"] = new JsonObject { ["enum"] = new JsonArray(DiagnosticCodes.Select(value => JsonValue.Create(value)).ToArray()) }
+        };
+        schema["description"] = "Canonical safe owner report. Cross-field truth, canonical bytes and archive hashes are additionally enforced by prepare-test-evidence.cs --check-report/--archive-check. No payload qualification or custody claim.";
+        return schema.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n";
+    }
 
     private static void Require(bool condition, string code = "REPORT_INVALID")
     {
@@ -133,11 +360,13 @@ internal static class Evidence
         Require(results.Length is > 0 and <= MaximumCases);
         var cases = new List<CaseReport>(results.Length);
         var executions = new HashSet<string>(StringComparer.Ordinal);
+        var resultIdentities = new HashSet<string>(StringComparer.Ordinal);
         foreach (XElement result in results)
         {
             string identity = result.Attribute("testId")?.Value ?? "";
             string execution = result.Attribute("executionId")?.Value ?? "";
-            Require(identities.Contains(identity) && execution.Length is > 0 and <= 4096 && executions.Add(execution));
+            Require(identities.Contains(identity) && resultIdentities.Add(identity)
+                && execution.Length is > 0 and <= 4096 && executions.Add(execution));
             string outcome = result.Attribute("outcome")?.Value ?? "";
             Require(outcome is "Passed" or "Failed" or "NotExecuted");
             Require(TimeSpan.TryParse(result.Attribute("duration")?.Value, CultureInfo.InvariantCulture, out TimeSpan duration)
@@ -147,6 +376,7 @@ internal static class Evidence
             cases.Add(new CaseReport(digest, outcome, duration.TotalMilliseconds));
         }
         long passed = cases.Count(item => item.Outcome == "Passed");
+        Require(identities.SetEquals(resultIdentities));
         long failed = cases.Count(item => item.Outcome == "Failed");
         long skipped = cases.Count(item => item.Outcome == "NotExecuted");
         XElement counters = root.Element(ns + "ResultSummary")?.Element(ns + "Counters") ?? throw new InvalidDataException();
@@ -256,11 +486,11 @@ internal static class Evidence
             File.WriteAllText(trxPath, trx);
             File.WriteAllText(coveragePath, cobertura);
             string[] Arguments(string run, string exit = "7", string mode = "required") =>
-                ["--owner", "Configurator.Core", "--rid", "linux-x64", "--run", run,
+                ["--owner", "Configurator.Core", "--test-runner-rid", RuntimeInformation.RuntimeIdentifier, "--run", run,
                  "--input", input, "--output", output, "--exit-code", exit, "--coverage", mode];
             JsonElement Report(string run)
             {
-                using var parsed = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(output, $"Configurator.Core-linux-x64-{run}.json")));
+                using var parsed = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(output, $"Configurator.Core-{RuntimeInformation.RuntimeIdentifier}-{run}.json")));
                 return parsed.RootElement.Clone();
             }
             void Check(bool condition) { if (!condition) throw new InvalidDataException(); }
@@ -284,9 +514,9 @@ internal static class Evidence
             var measured = failed.GetProperty("Coverage");
             Check(measured.GetProperty("CoveredLines").GetInt64() == 1 && measured.GetProperty("TotalLines").GetInt64() == 3
                 && measured.GetProperty("CoveredBranches").GetInt64() == 1 && measured.GetProperty("TotalBranches").GetInt64() == 4);
-            byte[] retained = File.ReadAllBytes(Path.Combine(output, "Configurator.Core-linux-x64-failed.json"));
+            byte[] retained = File.ReadAllBytes(Path.Combine(output, $"Configurator.Core-{RuntimeInformation.RuntimeIdentifier}-failed.json"));
             Check(Run(Arguments("failed")) == 7);
-            Check(retained.SequenceEqual(File.ReadAllBytes(Path.Combine(output, "Configurator.Core-linux-x64-failed.json"))));
+            Check(retained.SequenceEqual(File.ReadAllBytes(Path.Combine(output, $"Configurator.Core-{RuntimeInformation.RuntimeIdentifier}-failed.json"))));
             checks += 2;
             InvalidCoverage("missing", null);
             InvalidCoverage("empty", "");
@@ -323,6 +553,76 @@ internal static class Evidence
             Check(Run(Arguments("passed", "0")) == 1);
             Check(Run(Arguments("../invalid", "11")) == 11);
             checks += 2;
+            string[] mismatchedHost = Arguments("wrong-host", "13", "none");
+            mismatchedHost[3] = RuntimeInformation.RuntimeIdentifier == "win-x64" ? "linux-x64" : "win-x64";
+            Check(Run(mismatchedHost) == 13);
+            Check(Report("wrong-host").GetProperty("TestRunnerRid").GetString() == RuntimeInformation.RuntimeIdentifier
+                && Report("wrong-host").GetProperty("EvidenceStatus").GetString() == "invalid"
+                && Report("wrong-host").GetProperty("Tests").GetProperty("Passed").GetInt32() == 2);
+            Check(Run([.. Arguments("package-target", "0", "none"), "--package-rid", "linux-musl-x64"]) == 0);
+            Check(Report("package-target").GetProperty("PackageRid").GetString() == "linux-musl-x64"
+                && Report("package-target").GetProperty("TestRunnerRid").GetString() == RuntimeInformation.RuntimeIdentifier);
+            checks += 2;
+            // A copied archive must work without the original report directory.
+            string archive = Path.Combine(directory, "archive"), copy = Path.Combine(directory, "copy");
+            Check(Run(["--archive", output, "--output", archive]) == 0);
+            Directory.CreateDirectory(copy);
+            foreach (string file in Directory.EnumerateFiles(archive, "*", SearchOption.AllDirectories))
+            {
+                string destination = Path.Combine(copy, Path.GetRelativePath(archive, file));
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.Copy(file, destination);
+            }
+            Check(Run(["--archive-check", copy]) == 0);
+            Check(Run(["--archive", output, "--output", archive]) == 1);
+            checks += 3;
+            string safe = File.ReadAllText(Path.Combine(output, $"Configurator.Core-{RuntimeInformation.RuntimeIdentifier}-passed.json"));
+            string altered = Path.Combine(directory, "altered.json");
+            foreach (string invalid in new[]
+            {
+                safe.Replace("\"SchemaVersion\": 1", "\"SchemaVersion\": 2", StringComparison.Ordinal),
+                safe.Replace("\"Owner\":", "\"Unknown\": 1, \"Owner\":", StringComparison.Ordinal),
+                safe.Replace("\"Owner\":", "\"Owner\": \"Configurator.Core\", \"Owner\":", StringComparison.Ordinal),
+                safe.Replace("\"Passed\": 2", "\"Passed\": 3", StringComparison.Ordinal),
+                safe.Replace("\"CommandExitCode\": 0", "\"CommandExitCode\": 7", StringComparison.Ordinal),
+                safe.Replace("\"TestStatus\": \"passed\"", "\"TestStatus\": \"failed\"", StringComparison.Ordinal),
+                safe.Replace("\"CoverageStatus\": \"measured\"", "\"CoverageStatus\": \"unmeasured\"", StringComparison.Ordinal),
+                safe.Replace("\"Assembly\": \"Configurator.Core.Tests\"", "\"Assembly\": \"Configurator.Cli.Tests\"", StringComparison.Ordinal),
+                safe.Replace("\"TotalLines\": 3", "\"TotalLines\": 0", StringComparison.Ordinal),
+                safe.Replace("\"PackageRid\": null", "\"PackageRid\": \"unadmitted-rid\"", StringComparison.Ordinal),
+                safe.Replace("\"" + RuntimeInformation.RuntimeIdentifier + "\"", "\"linux-musl-x64\"", StringComparison.Ordinal),
+                safe.Replace("\"IdentitySha256\": \"", "\"IdentitySha256\": \"z", StringComparison.Ordinal)
+            })
+            {
+                File.WriteAllText(altered, invalid);
+                Check(Run(["--check-report", altered]) == 1);
+                checks++;
+            }
+            var nullIdentity = JsonNode.Parse(safe)!;
+            nullIdentity["Tests"]!["Cases"]![0]!["IdentitySha256"] = null;
+            File.WriteAllText(altered, nullIdentity.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            Check(Run(["--check-report", altered]) == 1);
+            checks++;
+            // Coverage parsing permits one million class-line entries, independently
+            // of the one hundred thousand test/class ceiling.
+            var largeCoverage = JsonNode.Parse(safe)!;
+            largeCoverage["Coverage"]!["TotalLines"] = 100001;
+            File.WriteAllText(altered, largeCoverage.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            Check(Run(["--check-report", altered]) == 0);
+            checks++;
+            string archivedReport = Directory.EnumerateFiles(copy, "*.json", SearchOption.AllDirectories)
+                .First(file => Path.GetFileName(file) != "index.json");
+            File.AppendAllText(archivedReport, " ");
+            Check(Run(["--archive-check", copy]) == 1);
+            File.Delete(archivedReport);
+            Check(Run(["--archive-check", copy]) == 1);
+            checks += 2;
+            string unsafeInput = Path.Combine(directory, "unsafe-input");
+            Directory.CreateDirectory(unsafeInput);
+            File.WriteAllText(Path.Combine(unsafeInput, "command.log"), canary);
+            Check(Run(["--archive", unsafeInput, "--output", Path.Combine(directory, "unsafe-output")]) == 1);
+            Check(!Directory.Exists(Path.Combine(directory, "unsafe-output")));
+            checks++;
             foreach (string file in Directory.EnumerateFiles(output))
                 Check(!File.ReadAllText(file).Contains(canary, StringComparison.Ordinal));
             Console.WriteLine($"SELF_TEST_PASSED ({checks} synthetic vectors; not measured product coverage)");
@@ -336,13 +636,14 @@ internal static class Evidence
         finally { Directory.Delete(directory, true); }
     }
 
-    internal sealed record EvidenceReport(int SchemaVersion, string Owner, string Rid, string Run, int CommandExitCode,
+    internal sealed record EvidenceReport(int SchemaVersion, string Owner, string TestRunnerRid, string? PackageRid, string Run, int CommandExitCode,
         string EvidenceStatus, string TestStatus, TestReport? Tests, string CoverageStatus, CoverageReport? Coverage,
         IReadOnlyList<string> Diagnostics);
     internal sealed record CaseReport(string IdentitySha256, string Outcome, double DurationMilliseconds);
     internal sealed record TestReport(string Assembly, long Passed, long Failed, long Skipped,
         double DurationMilliseconds, IReadOnlyList<CaseReport> Cases);
     internal sealed record CoverageReport(string Assembly, long CoveredLines, long TotalLines, long CoveredBranches, long TotalBranches);
+    internal sealed record ArchiveIndex(int SchemaVersion, IReadOnlyList<string> Reports);
     private sealed class EvidenceInputException(string code) : Exception
     {
         internal string Code { get; } = code;
@@ -350,5 +651,6 @@ internal static class Evidence
 }
 
 [JsonSerializable(typeof(Evidence.EvidenceReport))]
+[JsonSerializable(typeof(Evidence.ArchiveIndex))]
 [JsonSourceGenerationOptions(WriteIndented = true)]
 internal partial class EvidenceJsonContext : JsonSerializerContext;

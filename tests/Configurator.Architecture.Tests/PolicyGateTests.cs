@@ -9,6 +9,17 @@ namespace Configurator.Architecture.Tests;
 public sealed class PolicyGateTests
 {
     [Test]
+    public async Task SafeEvidenceRejectsContradictionsAndRetrievesCopiedArchives()
+    {
+        var result = await ReleaseTestPaths.Run("dotnet", "run",
+            ".ci/scripts/prepare-test-evidence.cs", "-p:PublishAot=false", "--", "--self-test");
+        await Assert.That(result.ExitCode).IsEqualTo(0).Because(result.Output);
+        var schema = await ReleaseTestPaths.Run("dotnet", "run",
+            ".ci/scripts/prepare-test-evidence.cs", "-p:PublishAot=false", "--", "--schema-check");
+        await Assert.That(schema.ExitCode).IsEqualTo(0).Because(schema.Output);
+    }
+
+    [Test]
     public async Task DependencyGateRejectsCopyleftUnreviewedAndMissingMetadata()
     {
         string directory = Path.Combine(Path.GetTempPath(), $"configurator-license-{Guid.NewGuid():N}");

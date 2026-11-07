@@ -1,0 +1,29 @@
+Change-Id: CHG-01M6V16HW7RVMDSBRZ03256XAZ
+Title: "Separate runner evidence from package qualification"
+Type: build
+Scope: testing
+Summary: "Record the actual test runner separately from an optional package target and retain canonical safe reports in independently retrievable hash-addressed archives."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/TESTING.md
+    Disposition: documented
+    Detail: "Evidence callers replace --rid with --test-runner-rid and use optional --package-rid only for a target claim; report consumers use TestRunnerRid and PackageRid."
+  Security:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: documented
+    Detail: "Archives contain canonical safe reports only; raw logs, coverage, supplied values and private paths remain outside transport."
+  Migration:
+    Reference: docs/internal/TESTING.md
+    Disposition: documented
+    Detail: "Update automation and report readers together; transport checked archive roots instead of loose JSON selections."
+  Configuration:
+    Reference: docs/internal/TESTING.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/TESTING.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: documented
+    Detail: "Retain archive digests independently and establish actual custody before release-support claims; seven-day CI transport is not durable custody."

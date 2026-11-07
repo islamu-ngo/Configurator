@@ -1,0 +1,189 @@
+{
+  "type": "object",
+  "properties": {
+    "SchemaVersion": {
+      "const": 1
+    },
+    "Owner": {
+      "enum": [
+        "Configurator.Core",
+        "Configurator.Presentation",
+        "Configurator.Artifacts",
+        "Configurator.Cli",
+        "Configurator.Terminal",
+        "Configurator.Desktop",
+        "Configurator.Browser",
+        "Configurator.Architecture",
+        "Configurator.AgentWorkflow",
+        "Configurator.ReleaseEngineering"
+      ]
+    },
+    "TestRunnerRid": {
+      "type": "string",
+      "pattern": "^(linux|osx|win)-(x64|arm64)$"
+    },
+    "PackageRid": {
+      "enum": [
+        "linux-arm64",
+        "linux-musl-arm64",
+        "linux-musl-x64",
+        "linux-x64",
+        "osx-arm64",
+        "osx-x64",
+        "win-x64",
+        null
+      ]
+    },
+    "Run": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,95}$"
+    },
+    "CommandExitCode": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "EvidenceStatus": {
+      "enum": [
+        "validated",
+        "invalid"
+      ]
+    },
+    "TestStatus": {
+      "enum": [
+        "passed",
+        "failed"
+      ]
+    },
+    "Tests": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "Assembly": {
+          "type": "string"
+        },
+        "Passed": {
+          "type": "integer"
+        },
+        "Failed": {
+          "type": "integer"
+        },
+        "Skipped": {
+          "type": "integer"
+        },
+        "DurationMilliseconds": {
+          "type": "number"
+        },
+        "Cases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "IdentitySha256": {
+                "type": "string"
+              },
+              "Outcome": {
+                "type": "string"
+              },
+              "DurationMilliseconds": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "IdentitySha256",
+              "Outcome",
+              "DurationMilliseconds"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "Assembly",
+        "Passed",
+        "Failed",
+        "Skipped",
+        "DurationMilliseconds",
+        "Cases"
+      ],
+      "additionalProperties": false
+    },
+    "CoverageStatus": {
+      "enum": [
+        "measured",
+        "unmeasured",
+        "invalid"
+      ]
+    },
+    "Coverage": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "Assembly": {
+          "type": "string"
+        },
+        "CoveredLines": {
+          "type": "integer"
+        },
+        "TotalLines": {
+          "type": "integer"
+        },
+        "CoveredBranches": {
+          "type": "integer"
+        },
+        "TotalBranches": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "Assembly",
+        "CoveredLines",
+        "TotalLines",
+        "CoveredBranches",
+        "TotalBranches"
+      ],
+      "additionalProperties": false
+    },
+    "Diagnostics": {
+      "type": "array",
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "TEST_REPORT_INVALID",
+          "TEST_EXIT_INCONSISTENT",
+          "RUNNER_HOST_MISMATCH",
+          "REPORT_INVALID",
+          "COVERAGE_REPORT_INVALID",
+          "COVERAGE_OWNER_INVALID",
+          "COVERAGE_BRANCH_FORMAT_INVALID",
+          "COVERAGE_DUPLICATE_LINE_INVALID",
+          "COVERAGE_LINES_MISSING",
+          "COVERAGE_BRANCHES_MISSING"
+        ]
+      }
+    }
+  },
+  "required": [
+    "SchemaVersion",
+    "Owner",
+    "TestRunnerRid",
+    "PackageRid",
+    "Run",
+    "CommandExitCode",
+    "EvidenceStatus",
+    "TestStatus",
+    "Tests",
+    "CoverageStatus",
+    "Coverage",
+    "Diagnostics"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://islamu.org/configurator/schemas/configurator-test-evidence.schema.json",
+  "description": "Canonical safe owner report. Cross-field truth, canonical bytes and archive hashes are additionally enforced by prepare-test-evidence.cs --check-report/--archive-check. No payload qualification or custody claim."
+}
