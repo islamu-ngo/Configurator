@@ -28,7 +28,7 @@
                 <details><summary>@Ui("ReviewDetails")</summary><ul>@foreach (string diagnosticCode in DiagnosticCodes.Distinct(StringComparer.Ordinal)) { <li>@diagnosticCode</li> }</ul></details>
             }
         }
-        @if (!SecretsEnabled && Validation?.Fields.Any(field => field.IsActive && field.HasError && field.Definition.Sensitivity == FieldSensitivity.Secret) == true)
+        @if (!SecretsEnabled && Validation?.Nodes.Any(node => node.IsActive && node.HasError && node.Sensitivity == FieldSensitivity.Secret) == true)
         {
             <p>@Ui("ReviewSecretsDisabled")</p>
             <div class="actions">
@@ -57,9 +57,10 @@
         <ul class="configuration-review__answers">
             @foreach (var entry in _entries.Skip(_page * PageSize).Take(PageSize))
             {
-                var diagnostic = new DefinitionDiagnostic("review-change", entry.FieldId, entry.RelativePath);
-                <li @key="Form.GetEditorIdentity(new[] { entry.FieldId }.Concat(entry.RelativePath).ToArray())"
-                    data-review-path="@string.Join(".", new[] { entry.FieldId }.Concat(entry.RelativePath))" data-origin="@entry.Origin">
+                var node = Form.Validate().Nodes.Single(node => node.FieldId == entry.FieldId && node.RelativePath.SequenceEqual(entry.RelativePath));
+                var diagnostic = new DefinitionDiagnostic("review-change", entry.FieldId, node.Location);
+                <li @key="(entry.FieldId, node.Location)"
+                    data-review-path="@string.Join(".", entry.FieldId.Length == 0 ? entry.RelativePath : new[] { entry.FieldId }.Concat(entry.RelativePath))" data-origin="@entry.Origin">
                     <div class="configuration-review__answer">
                         <strong>@FieldTitle(diagnostic)</strong>
                         @if (entry.IsActive)

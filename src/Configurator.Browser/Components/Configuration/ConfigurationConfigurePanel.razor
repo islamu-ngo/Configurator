@@ -26,6 +26,14 @@
 </SectionContent>
 <div class="configuration-configure-panel @(sections.Length == 1 ? "configuration-configure-panel--single" : "")" data-navigation="@experience.Navigation">
     <div class="configuration-configure-panel__fields">
+        @if (!DefinitionEditingSupport.HasPropertyRoot(Form.Definition))
+        {
+            <ConfigurationRoot @ref="_root" Form="Form" Validation="Validation" MountCancellation="MountCancellation"
+                               FocusFirstControl="@(FocusField == string.Empty)" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
+            <AppButton Variant="Variant.Outlined" OnClick="() => ReviewRequested.InvokeAsync()">@BrowserStrings.Get("ReviewConfiguration", Form.Locale)</AppButton>
+        }
+        else
+        {
         @foreach (var section in sections.Where(section => section.Id == selected))
         {
             <section @key="section.Id" data-section-panel="@section.Id" aria-labelledby="@SectionId(section.Id)"
@@ -45,7 +53,8 @@
                 }
             </section>
         }
-        @if (sections.Length > 0)
+        }
+        @if (DefinitionEditingSupport.HasPropertyRoot(Form.Definition) && sections.Length > 0)
         {
             int index = Array.FindIndex(sections, section => section.Id == selected);
             <div class="actions configuration-configure-panel__actions">
@@ -79,8 +88,13 @@
     [Parameter] public IReadOnlyList<string> FocusPath { get; set; } = [];
     [Parameter] public EventCallback ReviewRequested { get; set; }
     private ElementReference _heading;
+    private ConfigurationRoot? _root;
     private bool _disposed;
-    public ElementReference? SectionHeading => _disposed ? null : _heading;
+    protected override void OnParametersSet()
+    {
+        if (DefinitionEditingSupport.HasPropertyRoot(Form.Definition)) _root = null;
+    }
+    public ElementReference? SectionHeading => _disposed ? null : _root?.Heading ?? _heading;
     private string SectionId(string id) => "configuration-section-" + Array.FindIndex(Sections.ToArray(), section => section.Id == id);
     public void Dispose() { _disposed = true; _heading = default; }
 }

@@ -15,21 +15,83 @@ public sealed class BrowserEditingTests
 {
     private static readonly string?[] ChoiceOrdinals = ["", "0", "1", "2"];
     [Test]
+    [Arguments("en", "Enabled setting")]
+    [Arguments("ar", "Localized enabled setting")]
+    public async Task DeclaredObjectChildrenUseLocalizedPresentationLabels(string locale, string expected)
+    {
+        using var form = Form();
+        form.SelectLocale(locale);
+        long revision = form.InputRevision;
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([form.Definition]));
+        var fields = context.Render<ConfigurationSectionFields>(parameters => parameters
+            .Add(component => component.Form, form)
+            .Add(component => component.Fields, form.Validate().Fields.Where(item => item.Id == "settings").ToArray()));
+        var group = fields.Find("[data-field='settings.enabled'] [role='radiogroup']");
+        string labelId = group.GetAttribute("aria-labelledby")!;
+        await Assert.That(fields.Find($"[id='{labelId}']").TextContent).Contains(expected);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(form.Snapshot().Values.ContainsKey("settings")).IsFalse();
+    }
+
+    [Test]
+    [Arguments("""
+        "required":["value"],"properties":{"value":{"type":"string","x-configurator":{"sensitivity":"public"}}}
+        """, false)]
+    [Arguments("""
+        "required":["Name"],"properties":{"Name":{"type":"string","x-configurator":{"sensitivity":"public"}},
+        "name":{"type":"string","x-configurator":{"sensitivity":"public"}}}
+        """, true)]
+    [Arguments("""
+        "properties":{"value":{"type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}
+        """, false)]
+    [Arguments("""
+        "required":["child"],"properties":{"child":{"type":"object","additionalProperties":false,
+        "x-configurator":{"sensitivity":"public"},"properties":{"value":{"type":"string",
+        "x-configurator":{"sensitivity":"public"}}}}}
+        """, true)]
+    public async Task OptionalDisclosurePreservesOrdinalRequiredNamesBasicDetailAndNestedProperties(
+        string shape, bool expected)
+    {
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes($$$$"""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"84267bf1-d9a7-4a34-a709-f75be02ecd89","revision":1},
+             "project":{"id":"optional-disclosure","name":"Optional disclosure"},"applicationVersions":["1"],
+             "configuration":{"type":"object","additionalProperties":false,"required":["settings"],
+              "x-configurator":{"sensitivity":"public"},"properties":{"settings":{"type":"object",
+               "additionalProperties":false,"x-configurator":{"sensitivity":"public"},{{{{shape}}}}}}},
+             "outputs":{"config.json":{"id":"config","format":"json"}}}
+            """)), DefinitionSessionPrivacy.BrowserNoSecrets);
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([form.Definition]));
+        var field = context.Render<ConfigurationSectionFields>(parameters => parameters
+            .Add(component => component.Form, form)
+            .Add(component => component.Fields, form.Validate().Fields.Where(item => item.Id == "settings").ToArray()));
+        const string disclosure = "[data-field='settings'] > fieldset > [data-action='expand-optional']";
+        long revision = form.InputRevision;
+        await Assert.That(field.FindAll(disclosure).Count).IsEqualTo(expected ? 1 : 0);
+        if (expected)
+        {
+            await field.Find(disclosure).ClickAsync(new MouseEventArgs());
+            await Assert.That(form.IsEditorExpanded(["settings"])).IsTrue();
+        }
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task ConditionalRequiredLabelsFollowCoreFactsRatherThanStaticSchemaHints()
     {
         using var form = Form();
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([form.Definition]));
-        var field = context.Render<ConfigurationField>(parameters => parameters
-            .Add(component => component.Form, form).Add(component => component.Path, ["settings", "value"])
-            .Add(component => component.Schema, form.Definition.Fields.Single(item => item.Name == "settings")
-                .Node.Properties["value"]));
-        await Assert.That(field.Find(".configuration-field__requirement").TextContent).IsEqualTo("Optional");
+        var field = context.Render<ConfigurationSectionFields>(parameters => parameters
+            .Add(component => component.Form, form)
+            .Add(component => component.Fields, form.Validate().Fields.Where(item => item.Id == "settings").ToArray()));
+        await Assert.That(field.Find("[data-field='settings.value'] .configuration-field__requirement").TextContent).IsEqualTo("Optional");
         form.SetValue(["settings", "enabled"], JsonSerializer.SerializeToElement(true));
         field.Render();
-        await Assert.That(field.Find(".configuration-field__requirement").TextContent).IsEqualTo("Required");
+        await Assert.That(field.Find("[data-field='settings.value'] .configuration-field__requirement").TextContent).IsEqualTo("Required");
         form.SetValue(["settings", "enabled"], JsonSerializer.SerializeToElement(false));
         field.Render();
-        await Assert.That(field.Find(".configuration-field__requirement").TextContent).IsEqualTo("Optional");
+        await Assert.That(field.Find("[data-field='settings.value'] .configuration-field__requirement").TextContent).IsEqualTo("Optional");
     }
     [Test]
     public async Task LocalFilePickerUsesDeclaredDefaultLocaleBeforeAnswerCollection()
@@ -74,9 +136,9 @@ public sealed class BrowserEditingTests
     {
         using var form = Form();
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([form.Definition]));
-        var field = context.Render<ConfigurationField>(parameters => parameters
-            .Add(component => component.Form, form).Add(component => component.Path, ["choice"])
-            .Add(component => component.Schema, form.Definition.Fields.Single(item => item.Name == "choice").Node));
+        var field = context.Render<ConfigurationSectionFields>(parameters => parameters
+            .Add(component => component.Form, form)
+            .Add(component => component.Fields, form.Validate().Fields.Where(item => item.Id == "choice").ToArray()));
         await Assert.That(field.FindComponents<MudSelectItem<string>>().Select(item => item.Instance.Value))
             .IsEquivalentTo(ChoiceOrdinals);
         var staleReset = field.FindComponent<ConfigurationFieldActions>().Instance.OnReset;
@@ -104,9 +166,9 @@ public sealed class BrowserEditingTests
         using var form = Form();
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([form.Definition]));
         form.SetEditorExpanded(["provider"], true);
-        var field = context.Render<ConfigurationField>(parameters => parameters
-            .Add(component => component.Form, form).Add(component => component.Path, ["provider"])
-            .Add(component => component.Schema, form.Definition.Fields.Single(item => item.Name == "provider").Node));
+        var field = context.Render<ConfigurationSectionFields>(parameters => parameters
+            .Add(component => component.Form, form)
+            .Add(component => component.Fields, form.Validate().Fields.Where(item => item.Id == "provider").ToArray()));
         var stale = field.FindComponent<MudSelect<string>>().Instance.ValueChanged;
         form.SetEditorExpanded(["provider"], false);
         field.Render();
@@ -124,10 +186,9 @@ public sealed class BrowserEditingTests
         using var form = Form();
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([form.Definition]));
         form.SetValue(["map"], JsonSerializer.SerializeToElement(new Dictionary<string, int> { ["literal/key"] = 4 }));
-        var field = context.Render<ConfigurationField>(parameters => parameters
+        var field = context.Render<ConfigurationSectionFields>(parameters => parameters
             .Add(component => component.Form, form)
-            .Add(component => component.Path, ["map"])
-            .Add(component => component.Schema, form.Definition.Fields.Single(item => item.Name == "map").Node));
+            .Add(component => component.Fields, form.Validate().Fields.Where(item => item.Id == "map").ToArray()));
         await Assert.That(field.FindAll("[data-field='map.literal/key'] input").Count).IsEqualTo(1);
         await Assert.That(field.Markup).DoesNotContain("<textarea");
     }
@@ -139,9 +200,9 @@ public sealed class BrowserEditingTests
         form.SelectLocale("ar");
         form.SetValue(["map"], JsonSerializer.SerializeToElement(new Dictionary<string, int> { ["existing"] = 4 }));
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([form.Definition]));
-        var field = context.Render<ConfigurationField>(parameters => parameters
-            .Add(component => component.Form, form).Add(component => component.Path, ["map"])
-            .Add(component => component.Schema, form.Definition.Fields.Single(item => item.Name == "map").Node));
+        var field = context.Render<ConfigurationSectionFields>(parameters => parameters
+            .Add(component => component.Form, form)
+            .Add(component => component.Fields, form.Validate().Fields.Where(item => item.Id == "map").ToArray()));
         long revision = form.InputRevision;
         foreach (string key in new[] { "existing", "extra" })
         {
@@ -163,10 +224,9 @@ public sealed class BrowserEditingTests
         using var form = Form();
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([form.Definition]));
         form.SetValue(["provider"], JsonSerializer.SerializeToElement(new { kind = "first", count = 2 }));
-        var field = context.Render<ConfigurationField>(parameters => parameters
+        var field = context.Render<ConfigurationSectionFields>(parameters => parameters
             .Add(component => component.Form, form)
-            .Add(component => component.Path, ["provider"])
-            .Add(component => component.Schema, form.Definition.Fields.Single(item => item.Name == "provider").Node));
+            .Add(component => component.Fields, form.Validate().Fields.Where(item => item.Id == "provider").ToArray()));
         await Assert.That(field.FindComponents<MudSelect<string>>().Count).IsGreaterThanOrEqualTo(1);
         await Assert.That(field.FindAll("[data-field='provider.count']").Count).IsEqualTo(1);
         await Assert.That(field.FindAll("[data-field='provider.other']").Count).IsEqualTo(0);
@@ -178,7 +238,7 @@ public sealed class BrowserEditingTests
          "project":{"id":"browser-typed","name":"Browser typed"},"applicationVersions":["1"],
          "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
            "settings":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public","initialValue":{}},
-             "properties":{"enabled":{"type":"boolean","x-configurator":{"sensitivity":"public","initialValue":false}},
+             "properties":{"enabled":{"type":"boolean","title":"Enabled setting","x-configurator":{"sensitivity":"public","initialValue":false}},
                "value":{"type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}}},
              "if":{"properties":{"enabled":{"const":true}},"required":["enabled"]},"then":{"required":["value"]}},
            "map":{"type":"object","maxProperties":1,"x-configurator":{"sensitivity":"public"},"additionalProperties":{"type":"integer","x-configurator":{"sensitivity":"public"}}},
@@ -190,7 +250,8 @@ public sealed class BrowserEditingTests
              {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
                "kind":{"type":"string","const":"second","x-configurator":{"sensitivity":"public"}},"other":{"type":"string","x-configurator":{"sensitivity":"public"}}}}]}}},
          "localization":{"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{
-           "/configuration/properties/choice/title":"Translated choice"}}}},
+           "/configuration/properties/choice/title":"Translated choice",
+           "/configuration/properties/settings/properties/enabled/title":"Localized enabled setting"}}}},
          "outputs":{"config.json":{"id":"config","format":"json"}}}
         """u8.ToArray()), DefinitionSessionPrivacy.BrowserNoSecrets);
 }

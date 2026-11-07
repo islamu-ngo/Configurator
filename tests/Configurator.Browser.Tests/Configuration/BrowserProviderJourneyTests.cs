@@ -31,9 +31,9 @@ public sealed class BrowserProviderJourneyTests
         using var form = new DefinitionFormModel(definition);
         form.EditValue(["requireAdditional"], "true");
         long revision = form.InputRevision;
-        var component = context.Render<ConfigurationField>(parameters => parameters
-            .Add(item => item.Form, form).Add(item => item.Path, ["requirement"])
-            .Add(item => item.Schema, definition.Configuration.Properties["requirement"]));
+        var component = context.Render<ConfigurationSectionFields>(parameters => parameters
+            .Add(item => item.Form, form)
+            .Add(item => item.Fields, form.Validate().Fields.Where(field => field.Id == "requirement").ToArray()));
 
         string selector = kind == "boolean" ? "[role='radiogroup']" : "input";
         await Assert.That(component.Find(selector).GetAttribute("aria-required")).IsEqualTo("true");
@@ -64,10 +64,9 @@ public sealed class BrowserProviderJourneyTests
         form.EditValue(["env.EVENT_DP_COMBINED_ADMISSION"], "synthetic-combined-authority-admission");
         form.EditValue(["env.EVENT_DP_COMBINED_ADMISSION_SHA256"], new string('a', 64));
         form.EditValue(["env.EVENT_DP_COMBINED_MINIMUM_GENERATION"], "1");
-        var component = context.Render<ConfigurationField>(parameters => parameters
+        var component = context.Render<ConfigurationSectionFields>(parameters => parameters
             .Add(item => item.Form, form)
-            .Add(item => item.Path, ["env.AUTHENTICATION_PROVIDER"])
-            .Add(item => item.Schema, definition.Configuration.Properties["env.AUTHENTICATION_PROVIDER"]));
+            .Add(item => item.Fields, form.Validate().Fields.Where(field => field.Id == "env.AUTHENTICATION_PROVIDER").ToArray()));
         await Assert.That(component.FindComponents<MudSelect<string>>().Count).IsEqualTo(1);
         await Choose("1");
         await Assert.That(form.Snapshot().Values["env.AUTHENTICATION_PROVIDER"].GetString()).IsEqualTo("keycloak");

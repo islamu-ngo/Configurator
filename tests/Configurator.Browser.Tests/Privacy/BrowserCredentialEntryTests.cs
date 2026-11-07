@@ -36,10 +36,12 @@ public sealed class BrowserCredentialEntryTests
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
         using var replacement = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
-        var component = context.Render<EmittedInputField>(parameters => parameters
-            .Add(item => item.Form, form).Add(item => item.Path, ["created"])
-            .Add(item => item.Schema, form.Definition.Fields[0].Node));
-        object callback = component.Instance.CaptureInput();
+        context.ComponentFactories.Add<ConfigurationField, EmittedInputField>();
+        var component = context.Render<ConfigurationSectionFields>(parameters => parameters
+            .Add(item => item.Form, form)
+            .Add(item => item.Fields, form.Validate().Fields.Where(field => field.Id == "created").ToArray()));
+        var input = component.FindComponent<EmittedInputField>().Instance;
+        object callback = input.CaptureInput();
         if (transition == "reconsent")
         {
             form.SetSecretEntryEnabled(false);
@@ -53,7 +55,7 @@ public sealed class BrowserCredentialEntryTests
         }
         else if (transition == "replacement")
             component.Render(parameters => parameters.Add(item => item.Form, replacement));
-        else component.Instance.Dispose();
+        else input.Dispose();
         DefinitionFormModel current = transition == "replacement" ? replacement : form;
         long revision = current.InputRevision;
         var args = new ChangeEventArgs { Value = "synthetic-late-fill" };
@@ -83,6 +85,37 @@ public sealed class BrowserCredentialEntryTests
             return frames.Array.Take(frames.Count).Single(frame =>
                 frame.FrameType == RenderTreeFrameType.Attribute && frame.AttributeName == "oninput").AttributeValue;
         }
+    }
+
+    [Test]
+    public async Task SiblingFillRefreshesCurrentInputAndRejectsItsPreviouslyEmittedHandler()
+    {
+        await using var context = BrowserFixture.Context();
+        context.ComponentFactories.Add<ConfigurationField, EmittedInputField>();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        object held = component.FindComponents<EmittedInputField>()
+            .Single(item => item.Instance.Path.SequenceEqual(["created"])).Instance.CaptureInput();
+
+        await component.Find("[data-field='existing'] .configuration-field__input")
+            .TriggerEventAsync("oninput", new ChangeEventArgs { Value = "synthetic-sibling-fill" });
+        await component.Find("[data-field='created'] .configuration-field__input")
+            .TriggerEventAsync("oninput", new ChangeEventArgs { Value = "synthetic-current-fill" });
+        var form = component.FindComponents<EmittedInputField>()[0].Instance.Form;
+        long revision = form.InputRevision;
+        var late = new ChangeEventArgs { Value = "synthetic-held-fill" };
+        await component.InvokeAsync(() => held switch
+        {
+            EventCallback<ChangeEventArgs> typed => typed.InvokeAsync(late),
+            EventCallback untyped => untyped.InvokeAsync(late),
+            MulticastDelegate handler => new EventCallbackWorkItem(handler).InvokeAsync(late),
+            _ => throw new InvalidOperationException("input-handler-missing")
+        });
+
+        await Assert.That(form.Snapshot().Values["existing"].GetString()).IsEqualTo("synthetic-sibling-fill");
+        await Assert.That(form.Snapshot().Values["created"].GetString()).IsEqualTo("synthetic-current-fill");
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(component.Markup).DoesNotContain("synthetic-held-fill");
     }
 
     [Test]

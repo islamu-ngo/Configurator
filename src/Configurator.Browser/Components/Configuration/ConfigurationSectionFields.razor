@@ -1,16 +1,32 @@
 @implements IAsyncDisposable
 
-<div class="configuration-section-fields" data-configuration-mount
-     data-mount-state="@(Busy ? "pending" : "complete")" data-pending-fields="@PendingCount"
+<div @ref="_mountElement" class="configuration-section-fields" data-configuration-mount
+     data-mount-generation="@_mountGeneration.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+     data-mount-state="@(Busy ? "pending" : "complete")" data-discovery-state="@(Discovering ? "pending" : "complete")"
+     data-pending-fields="@(Discovering ? "unknown" : PendingCount.ToString(System.Globalization.CultureInfo.InvariantCulture))"
      aria-busy="@Busy.ToString().ToLowerInvariant()">
-    @foreach (var state in _activeFields)
+    @if (LiteralRoot)
     {
+        var root = _plan.Roots[0];
+        @if (root.Admitted)
+        {
+            <ConfigurationField @key="root.Identity" Form="Form" Schema="Form.Definition.Configuration"
+                                Path="Array.Empty<string>()" LiteralPath="true" MountNode="root" MountRevision="_planRevision"
+                                Validation="Validation" RequiredOverride="true"
+                                TitleOverride="@Form.GetEditorPresentation(root.Location)!.Title"
+                                FocusFirstControl="@(FocusField == string.Empty)" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
+        }
+    }
+    @for (int index = 0; index < _activeFields.Length && !LiteralRoot; index++)
+    {
+        var state = _activeFields[index];
+        var node = _plan.Roots[index];
         var editor = Form.GetFieldEditor(state.Id);
         <div @key="editor.Input" class="configuration-section-fields__slot">
-            @if (!_mountable.Contains(state.Id) || _mounted.Contains(state.Id))
+            @if (node.Admitted)
             {
                 <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
-                                    Validation="Validation" RequiredOverride="state.IsRequired"
+                                    MountNode="node" MountRevision="_planRevision" Validation="Validation" RequiredOverride="state.IsRequired"
                                     TitleOverride="@(editor.Schema.Keywords.TryGetProperty("title", out _) ? null : ConfigurationDiagnosticText.Title(state.Definition))"
                                     FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
                                     FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
@@ -26,5 +42,5 @@
 </div>
 @if (Busy)
 {
-    <p class="configuration-section-fields__status" role="status">Loading this section's settings. Existing controls remain available.</p>
+    <p class="configuration-section-fields__status" role="status">@Configurator.Browser.Resources.BrowserStrings.Get("SectionSettingsLoading", Form.Locale)</p>
 }

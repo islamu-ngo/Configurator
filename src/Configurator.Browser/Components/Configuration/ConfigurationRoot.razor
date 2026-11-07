@@ -1,0 +1,12 @@
+@using Configurator.Core.Definitions
+@using Configurator.Presentation
+
+@{
+    string title = Form.GetEditorPresentation(DefinitionPath.FromSegments([]))!.Title;
+}
+<section data-configuration-root aria-labelledby="@(_id + "-heading")">
+    <h3 @ref="_heading" id="@(_id + "-heading")" tabindex="-1">@title</h3>
+    <ConfigurationSectionFields @key="Form" Form="Form" LiteralRoot="true" MountCancellation="MountCancellation"
+                                Validation="Validation" FocusField="@(FocusFirstControl ? string.Empty : null)"
+                                FocusGeneration="FocusGeneration" FocusPath="CorrectionFocusPath" />
+</section>

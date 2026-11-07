@@ -168,6 +168,7 @@
   <data name="RemoveFieldItem" xml:space="preserve"><value>أزل العنصر {1} من {0}</value></data>
   <data name="AddFieldItem" xml:space="preserve"><value>أضف عنصرًا إلى {0}</value></data>
   <data name="FieldItemCount" xml:space="preserve"><value>العناصر: {0} من {1}</value></data>
+  <data name="SectionSettingsLoading" xml:space="preserve"><value>جارٍ تحميل إعدادات هذا القسم. تظل عناصر التحكم الحالية متاحة.</value></data>
   <data name="RemoveFieldEntry" xml:space="preserve"><value>أزل الإدخال</value></data>
   <data name="AddFieldEntry" xml:space="preserve"><value>أضف إدخالًا</value></data>
   <data name="FieldNewEntryKey" xml:space="preserve"><value>مفتاح إدخال جديد لـ {0}</value></data>

@@ -273,7 +273,7 @@ public partial class ConfigurationDeveloper : ComponentBase
 
     private CompletionItem[] CompletionItems() => _session?.EnvironmentScope is { } environment
         ? environment.Mappings.Take(2048).Select(item => new CompletionItem(item.Key, item.Key + "=", CompletionDetail(item.Path), "property")).ToArray()
-        : (_session?.Coverage ?? []).Where(item => item.Editable).Take(2048).Select(item =>
+        : (_session?.Coverage ?? []).Where(item => item.Editable && item.Path.Segments.Count > 0).Take(2048).Select(item =>
             new CompletionItem(item.Path.Segments[^1], JsonSerializer.Serialize(item.Path.Segments[^1]) + ": ",
                 CompletionDetail(item.Path), "property")).ToArray();
 

@@ -1,0 +1,28 @@
+Change-Id: CHG-01M6V5CWGD78173QZW0QWDPPEE
+Title: "Edit root maps and variants through bounded browser controls"
+Type: feat
+Scope: self-hosting
+Summary: "Render admitted recursive roots over the shared accepted answer tree, with typed corrections, masked input, exact revision fences and unchanged bounded mount admission."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Preserve workspace consent, masked replacements, exact global revision and logical identity checks, and the existing six/ten admission limits; no answer snapshot or alternate accepted tree is added."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Use existing admitted root-map and variant definitions through recursive controls; no definition or answer-contract version changes."
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Component and corpus checks do not establish published interaction budgets, assistive technology, target acceptance or missing real-host observations."

@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Bunit;
 using Configurator.Core.Definitions;
-using Configurator.Presentation;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor;
 
@@ -23,11 +23,12 @@ public sealed class BrowserMaskedChoiceTests
         source["configuration"]!["required"]!.AsArray().Add("protectedChoice");
         var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
-        using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
-        form.EditValue(["protectedChoice"], "beta");
-        var component = context.Render<ConfigurationField>(parameters => parameters
-            .Add(item => item.Form, form).Add(item => item.Path, ["protectedChoice"])
-            .Add(item => item.Schema, definition.Configuration.Properties["protectedChoice"]));
+        var workspace = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        await workspace.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        var form = workspace.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await workspace.InvokeAsync(() => form.EditValue(["protectedChoice"], "beta"));
+        var component = workspace.FindComponents<ConfigurationField>()
+            .Single(field => field.Instance.Path.SequenceEqual(["protectedChoice"]));
         var chooser = component.FindComponent<MudSelect<string>>().Instance;
         await Assert.That(component.Find("input").GetAttribute("aria-required")).IsEqualTo("true");
         await component.Find("input").BlurAsync(new FocusEventArgs());

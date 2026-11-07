@@ -3,6 +3,7 @@ namespace Configurator.Browser.Models;
 using System.Collections.Frozen;
 using Configurator.Core;
 using Configurator.Core.Definitions;
+using Configurator.Presentation;
 
 /// <summary>Captures the exact admitted document, not a mutable registry lookup.</summary>
 public sealed record BrowserLaunchSelection(Definition Definition, string Entry, string Locale, bool EntryExplicit)

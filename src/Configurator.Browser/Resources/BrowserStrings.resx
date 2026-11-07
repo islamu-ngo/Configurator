@@ -168,6 +168,7 @@
   <data name="RemoveFieldItem" xml:space="preserve"><value>Remove {0} item {1}</value></data>
   <data name="AddFieldItem" xml:space="preserve"><value>Add {0} item</value></data>
   <data name="FieldItemCount" xml:space="preserve"><value>{0} / {1} items</value></data>
+  <data name="SectionSettingsLoading" xml:space="preserve"><value>Loading this section's settings. Existing controls remain available.</value></data>
   <data name="RemoveFieldEntry" xml:space="preserve"><value>Remove entry</value></data>
   <data name="AddFieldEntry" xml:space="preserve"><value>Add entry</value></data>
   <data name="FieldNewEntryKey" xml:space="preserve"><value>{0} new entry key</value></data>

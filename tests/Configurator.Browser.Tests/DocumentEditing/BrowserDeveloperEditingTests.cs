@@ -17,6 +17,32 @@ using Microsoft.JSInterop;
 public sealed class BrowserDeveloperEditingTests
 {
     [Test]
+    public async Task RootVariantDeveloperApplyReturnsToTheSameLiteralWorkspace()
+    {
+        await using var context = BrowserFixture.Context();
+        await using var engine = Boundary(context);
+        var root = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
+            BrowserRootEditingTests.Definition("Conformance.RootVariant")));
+        await root.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserRootEditingTests.Choose(root, [], "0");
+        await BrowserRootEditingTests.Type(root, ["directory"], "spool");
+        var form = BrowserRootEditingTests.Field(root).Instance.Form;
+        await root.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs());
+        var panel = root.FindComponent<ConfigurationDeveloper>();
+        await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await panel.InvokeAsync(() => engine.ChangeAsync("""
+            {"answerContractVersion":"0.0.1","values":{"mode":"disk","directory":"changed-spool"},"omitted":[]}
+            """));
+        await Click(panel, "developer-preview");
+        await Click(panel, "developer-apply");
+        await root.Find("[data-editing-mode='form']").ClickAsync(new MouseEventArgs());
+        await Assert.That(BrowserRootEditingTests.Field(root).Instance.Form).IsSameReferenceAs(form);
+        await Assert.That(form.Snapshot().Values["directory"].GetString()).IsEqualTo("changed-spool");
+        await Assert.That(BrowserRootEditingTests.Field(root, "directory").Find("input").GetAttribute("value")).IsEqualTo("changed-spool");
+        await Assert.That(engine.Active).IsFalse();
+    }
+
+    [Test]
     public async Task MissingConsentBindingNeverAcquiresSource()
     {
         await using var context = BrowserFixture.Context();

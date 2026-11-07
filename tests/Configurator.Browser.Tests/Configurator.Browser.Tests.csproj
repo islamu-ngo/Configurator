@@ -20,5 +20,9 @@
   <ItemGroup>
     <EmbeddedResource Include="../../examples/minimal-self-hosted/setup-definition.json" LogicalName="NativeNeutralDefinition" />
     <EmbeddedResource Include="Fixtures/InteractiveDefinition.json" LogicalName="InteractiveDefinition" />
+    <EmbeddedResource Include="../Conformance/root-map.definition.json" LogicalName="Conformance.RootMap" />
+    <EmbeddedResource Include="../Conformance/root-variant.definition.json" LogicalName="Conformance.RootVariant" />
+    <EmbeddedResource Include="../Conformance/recursive-cases.json" LogicalName="Conformance.Cases" />
+    <EmbeddedResource Include="../Conformance/synthetic-library.definition.json" LogicalName="Conformance.Library" />
   </ItemGroup>
 </Project>

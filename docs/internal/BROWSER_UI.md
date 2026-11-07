@@ -301,7 +301,9 @@ English or Arabic resource set.
 actions, not its bytes or workspace. The editor retains preparation, export and
 post-await eligibility checks. Per-file status keeps failed Copy recovery beside
 an available Download; Reveal/Hide still uses the existing generation-fenced
-export service. Leaving Files drops component references and preview capability
+export service. The localized privacy notice derives from that same `Revealed`
+parameter, so it describes the current preview rather than always claiming the
+output is hidden. Leaving Files drops component references and preview capability
 while retaining the parent prepared workspace.
 
 The navigation lease queries actual work from the current editor. Shared
@@ -314,18 +316,59 @@ preserves work; a late confirmation cannot discard a replaced or changed owner.
 Work-only notifications refresh the navigation guard, not the layout body or
 locale provider. They do not create another dirty-state or answer cache.
 
-`ConfigurationSectionFields` mounts newly editable roots in bounded batches,
-retaining controls already present. The editor supplies its current section's
-already-evaluated field states; the child does not rebuild a whole-form lookup
-or evaluate answers independently. Its pending count and `aria-busy` describe
-DOM completion, not answer readiness. Current correction targets mount directly;
-unrelated fields continue through the frame boundary. A dedicated mount generation,
-form identity and editor cancellation token reject obsolete continuations after
-input, view changes, replacement or disposal. View-only supersession does not
-consume another synchronous batch. Secret denial and prepared-output retirement
-remain synchronous. `js/configuration-rendering.js` posts a local null-message task
-from an animation callback; neither answers nor artifacts enter that handoff.
-The module is a required public offline asset.
+`ConfigurationSectionFields` owns one descendant admission plan for a section
+or literal root. Six initial nodes and subsequent ten-node increments apply
+across the entire current topology, including container, readonly and denied
+shells. Mounted controls retain identity. `ConfigurationMountPlan` borrows
+current shared-form facts and values synchronously, retaining only typed
+coordinates, logical identities, children and admission; it stores no answers,
+JSON values or render fragments.
+
+Declared object children resolve localized titles from their own current
+editor presentation. The parent does not reconstruct that full presentation
+for a title on every admission render. Explicit root and dynamic-key titles
+retain their existing ownership.
+
+Scalar field boxes use native `content-visibility: auto` with an auto intrinsic
+block estimate from existing control/target tokens. Object/list group boxes
+remain normal flow. This leaves every admitted control in the DOM; the browser
+owns offscreen layout and any remembered box size. No application viewport
+registry, value cache or scheduler participates. DOM completion is not a claim
+that every offscreen box has been painted. Focus, find, correction reveal and
+portal overlays remain required real-browser acceptance checks.
+
+Initial discovery advances ordinal routes within that owner, resolving and
+admitting six nodes initially and at most ten after each boundary. Child
+coordinates are captured only during synchronous borrows. Changed immutable
+paths and incremental counts avoid rescanning the whole growing tree for
+each initial increment; coordinate enumeration and array copying still cost
+work and require actual timing. `data-discovery-state` is `pending` until
+discovery finishes, while `data-pending-fields` is `unknown`; afterwards the
+count is exact. Unknown never means zero. Input or topology-affecting view
+changes clear the frontier before full current-state reconciliation, preserving
+admitted survivors without an extra initial allowance merely because discovery
+becomes complete.
+
+Correction focus prioritizes only its ancestor chain within the same allowance.
+The first batch yields through existing `nextFrame`; later batches use existing
+`nextTask`, avoiding a forced display frame per increment. Pending count and
+`aria-busy` describe DOM completion, not answer readiness. Completion stays
+pending through the final render and focus-visibility callback. The module
+checks the connected owner, mount generation and zero pending nodes, then
+reveals its currently focused descendant without restoring an earlier target.
+This prevents later insertions from leaving an early focused control offscreen
+while respecting a focus move elsewhere.
+
+Mount generation, form identity, input revision and cancellation reject obsolete
+continuations after edits, view changes, replacement or disposal, including
+after settlement interop returns. Fields receive the topology's explicit
+`MountRevision`; cascading updates cannot render old row coordinates against
+newer answers. Supersession during initial discovery does not earn another
+initial batch through the newly completed topology. Secret denial and
+prepared-output retirement remain synchronous.
+`js/configuration-rendering.js` carries only local null-message task signals and
+DOM focus operations, never answers or artifacts. It remains a required public
+offline asset. Bounded admission alone supplies no latency or AT qualification.
 
 `Layout/WorkspaceSearch` exposes an outlined MudBlazor query in the appbar and
 mounts `ConfigurationDiscovery` filters/results only after deliberate opening.
@@ -397,10 +440,43 @@ required state and inherited masking separately. Unchanged parameter updates may
 skip a field tree only while the form, input revision, projection and all
 rendering/focus parameters remain current. Parameter delivery still runs; a new
 input revision always refreshes the revision-fenced callbacks.
+Field correction queries read the reason index in the shared current-revision
+`DefinitionFormFacts`. That owner resolves diagnostic coordinates once, including
+typed map-entry locations, rather than resolving every diagnostic again for each
+rendered field. Input changes retire the index with the other facts; this does
+not bypass field masking, edit permission or callback revision checks.
+Within one synchronous field render or parameter update, the component reuses a
+local correction-facts result for editability, masking, radio selection and action
+presentation. The result is not retained across calls; action callbacks still
+query current eligibility after checking their owner, revision and generation.
+Help visibility uses the same local masking decision. Control identifiers use
+the admitted mount node's existing editor identity, which the section owner
+resolves and reconciles against the current form, rather than resolving it
+again inside each field render.
+Field queries likewise reuse that node's immutable literal `Location` instead
+of reconstructing a `DefinitionPath` in every getter. The section still refreshes
+moved row coordinates, and the field still requires the current mount/input
+revision before processing parameters or rendering. Child focus discovery
+continues to translate coordinates that do not yet have their own mounted field.
+`AppTextField` applies every incoming parameter but skips unchanged
+parameter-triggered inner rendering. The enclosing field still emits fresh
+input/change callbacks for the current revision and synchronously removes
+retired private controls; the gate does not extend an old delegate's authority.
+Value, identity, masking, multiline/read-only, input mode, disabled/required,
+error state/text and attribute contents all participate. Reused mutable attribute
+dictionaries and non-string/non-boolean attribute objects retain ordinary
+rendering. Only a temporary suppression flag is stored, with no second answer,
+attribute snapshot or revision lease; internal input events keep their own renders.
 
 The independent detail selector delegates to the shared disclosure override.
 Comfortable/Compact changes session-local CSS tokens only. Named field-action
 menus retain explicit omission, including container descendants.
+Their shared `CanOmit` fact excludes the root and array rows.
+`ConfigurationRoot` hosts the existing recursive field at the empty literal
+path for admitted root maps and variants. Typed literal paths govern editing,
+secret actions and correction focus without fabricating a property wrapper.
+Branch replacement retires the old mounted editor identity, so returning to
+the same branch does not revive its callbacks or payload.
 Each omission menu is instantiated on first use and retained afterward. Its
 custom activator receives focus after cold mounting and after close; the open
 state participates in rendering so its expanded state stays current. Unchanged

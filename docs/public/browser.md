@@ -66,6 +66,11 @@ changing answers, including when a nested edit would create a missing container.
 Provider alternatives use the declared discriminator
 and show only the selected branch. Changing a provider replaces its old payload.
 
+Typed maps and provider alternatives also work at the configuration root.
+The root is always present and cannot be omitted. Its reset action retires the
+supplied override and previous child editors. Array rows use **Remove item**
+rather than field omission or reset.
+
 Choice labels are display text, not answer values. Equal labels can represent
 different typed enum members. Field actions distinguish supplied null, omission,
 reset to declared initialization eligibility, and explicit suggestion adoption.
@@ -90,6 +95,9 @@ Required or invalid work remains reachable even when optional settings or a
 journey are hidden. Correction links resolve typed property/row/map-entry
 coordinates only for their current input revision. Private map keys and values
 are not diagnostic or URL identifiers.
+Each field reads the correction reasons for its current coordinates. Editing a
+value, reordering map entries or removing a row replaces those reasons; a
+message from an earlier revision does not follow a different key or row.
 
 ---
 
@@ -157,6 +165,14 @@ The desktop rail puts configuration sections before application links.
 On narrow screens, **Menu** reveals navigation without squeezing a second rail
 beside the form. **Settings** contains System, Light, Dark and high-contrast themes,
 plus Automatic, left-to-right and right-to-left direction.
+
+Opening a workspace first shows a localized preparation status before answer
+controls are constructed. This pending view does not claim answer readiness or
+show progress counts. Leaving or replacing it retires that startup; a late
+completion cannot reopen the old workspace.
+Scalar controls remain in the document while the browser can defer their
+offscreen layout. Keyboard focus and browser search reveal those controls;
+this does not change which answers are required or ready.
 
 The workspace keeps output and language selectors in **Output task and language** after the active panel. Its three panels are
 **Configure**, **Review** and **Files**. Only the current panel mounts interactive
@@ -287,6 +303,14 @@ Quickly locate specific questions using the built-in search palette:
 - **Results first:** Matching settings precede the optional search-filter disclosure. Search remains above the workspace controls on narrow screens; Escape returns to the search entry.
 - **Faceted Filters:** Filter settings by section, requirement, applicability, completion status, and sensitivity.
 - **Direct Navigation:** Selecting a search result navigates directly to the question and brings it into focus.
+
+Large sections appear in smaller batches. A jump makes its destination
+available first and keeps the currently focused control visible after the
+remaining settings load. The loading indicator stays active while the section
+is still being discovered and through its final display update. If you move
+to another control, focus does not jump
+back. The loading indicator describes controls appearing; it does not mean
+your answers are ready for preparation.
 
 ### Review and Diagnostics
 

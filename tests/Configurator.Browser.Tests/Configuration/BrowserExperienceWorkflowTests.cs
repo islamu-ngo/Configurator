@@ -17,11 +17,10 @@ public sealed class BrowserExperienceWorkflowTests
     {
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(BrowserFixture.Definition);
-        var component = context.Render<ConfigurationField>(parameters => parameters
+        var component = context.Render<ConfigurationSectionFields>(parameters => parameters
             .Add(item => item.Form, form)
-            .Add(item => item.Schema, form.Definition.Fields.Single(field => field.Id == "hostname").Node)
-            .Add(item => item.Path, ["hostname"])
-            .Add(item => item.FocusFirstControl, true)
+            .Add(item => item.Fields, form.Validate().Fields.Where(field => field.Id == "hostname").ToArray())
+            .Add(item => item.FocusField, "hostname")
             .Add(item => item.FocusGeneration, 1));
         var projection = form.Projection;
         long revision = form.InputRevision;
@@ -157,10 +156,11 @@ public sealed class BrowserExperienceWorkflowTests
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(Definition());
         form.SetDisclosureOverride(FieldDisclosure.Advanced);
-        var component = context.Render<BrowserCredentialEntryTests.EmittedInputField>(parameters => parameters
-            .Add(item => item.Form, form).Add(item => item.Path, ["extra"])
-            .Add(item => item.Schema, form.Definition.Fields.Single(field => field.Id == "extra").Node));
-        object callback = component.Instance.CaptureInput();
+        context.ComponentFactories.Add<ConfigurationField, BrowserCredentialEntryTests.EmittedInputField>();
+        var component = context.Render<ConfigurationSectionFields>(parameters => parameters
+            .Add(item => item.Form, form)
+            .Add(item => item.Fields, form.Validate().Fields.Where(field => field.Id == "extra").ToArray()));
+        object callback = component.FindComponent<BrowserCredentialEntryTests.EmittedInputField>().Instance.CaptureInput();
         long revision = form.InputRevision;
         await component.InvokeAsync(() => form.SetDisclosureOverride(FieldDisclosure.Essential));
         component.Render();
@@ -186,10 +186,12 @@ public sealed class BrowserExperienceWorkflowTests
     {
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(Definition());
-        var component = context.Render<BrowserCredentialEntryTests.EmittedInputField>(parameters => parameters
-            .Add(item => item.Form, form).Add(item => item.Path, ["options", "host"])
-            .Add(item => item.Schema, form.Definition.Fields.Single(field => field.Id == "options").Node.Properties["host"]));
-        object callback = component.Instance.CaptureInput();
+        context.ComponentFactories.Add<ConfigurationField, BrowserCredentialEntryTests.EmittedInputField>();
+        var component = context.Render<ConfigurationSectionFields>(parameters => parameters
+            .Add(item => item.Form, form)
+            .Add(item => item.Fields, form.Validate().Fields.Where(field => field.Id == "options").ToArray()));
+        object callback = component.FindComponents<BrowserCredentialEntryTests.EmittedInputField>()
+            .Single(field => field.Instance.Path.SequenceEqual(["options", "host"])).Instance.CaptureInput();
         foreach (string text in new[] { "e", "ex", "example.test" })
             await component.InvokeAsync(() => callback switch
             {
