@@ -26,6 +26,14 @@ For exact command, operation and option vocabulary and declared bounds, use the
 machine schema, not option meaning or host qualification. The procedures below
 and the [technical contract](../internal/CLI_CONTRACT.md) own those explanations.
 
+The source test suite exercises every executable route with independently
+specified inputs, output intent and receipt expectations. It also checks missing
+required options, unknown options, duplicate mode flags, conflicting output
+modes and malformed input documents. Process tests exercise usage failures,
+signals and broken delivery through the executable. These checks establish local
+command behavior; package and other-host qualification remain separate under
+[packaging](packaging.md).
+
 ## Qualified pre-release scope
 
 The repository records standalone Linux x64 CLI qualification for complete

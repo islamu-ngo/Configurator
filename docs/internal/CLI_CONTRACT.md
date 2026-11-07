@@ -16,6 +16,32 @@ both using the [native reference commands](../../eng/knowledge/README.md#generat
 
 ## Execution
 
+### Independent executable route assurance
+
+`CliExecutableRouteTests` specifies all 28 executable routes with literal
+arguments and expected artifact kind, sensitivity, path intent, write status and
+count. It invokes `CliApplication.RunAsync` through the real typed parser and
+capability dispatch. Registry enumeration detects missing cases only; it never
+supplies expected behavior. Each required option is omitted independently,
+including all repeated artifact selections together. Unknown options, duplicate
+mode flags, conflicting modes and malformed definition/source documents must
+produce a bounded value-free failure envelope without additional publication.
+Read operations preserve inputs; write operations create the specified outputs.
+Authoring tests use disposable native directories and `PublicDefinitionFiles`.
+
+`CliProgramTests` owns executable transport checks, including malformed routes,
+restricted stdout, signal cancellation and broken delivery.
+`CliMachineBoundaryTests` retains physical installed and unknown publication
+receipts through later faults, cancellation and receipt failure. Passing
+characterization is assurance, not evidence of a repaired defect.
+
+Run the CLI Release build and affected classes using `PROJECTS.md`. The
+[standalone package validator](PACKAGING.md#actual-cli-package-contract-validation)
+executes a current native package separately; a framework-dependent test apphost
+does not qualify that package. With unchanged public metadata, no command schema
+or generated reference regeneration is needed. CLI still consumes Core and
+Artifacts directly without a Presentation dependency.
+
 ### Schema-driven secret operations
 
 `SecretCommands` registers `secret generate` and `secret derive` with explicit

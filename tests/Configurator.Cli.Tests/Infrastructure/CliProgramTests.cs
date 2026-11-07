@@ -8,6 +8,40 @@ namespace Configurator.Cli.Tests;
 public sealed class CliProgramTests
 {
     [Test]
+    [Arguments("missing-value", "arguments-invalid")]
+    [Arguments("mode-conflict", "mode-conflict")]
+    [Arguments("duplicate", "option-duplicate")]
+    [Arguments("missing-input", "input-required")]
+    [Arguments("unknown-operation", "operation-unknown")]
+    [Arguments("registration-only", "operation-unknown")]
+    public async Task MalformedExecutableRoutesReturnOneValueFreeUsageEnvelope(string scenario, string code)
+    {
+        using var files = new NativeFixture();
+        string[] arguments = scenario switch
+        {
+            "missing-value" => ["artifact", "validate", "--definition="],
+            "mode-conflict" => ["doctor", "--text"],
+            "duplicate" => ["doctor", "--machine"],
+            "missing-input" => ["artifact", "validate", "--definition", files.Definition, "--artifact", "config"],
+            "unknown-operation" => ["artifact", "synthetic-private-operation"],
+            "registration-only" => ["artifact", "cli"],
+            _ => throw new InvalidOperationException("unknown-scenario")
+        };
+        ProcessResult result = await ExecuteAsync([.. arguments, "--machine"]);
+        await Assert.That(result.ExitCode).IsEqualTo(64);
+        await Assert.That(result.StandardError).IsEmpty();
+        await Assert.That(CliMachineContractVerifier.Validate(result.StandardOutput)).IsEmpty();
+        await Assert.That(result.StandardOutput.Count(value => value == (byte)'\n')).IsEqualTo(1);
+        string output = Encoding.UTF8.GetString(result.StandardOutput);
+        await Assert.That(output).DoesNotContain(files.Definition);
+        await Assert.That(output).DoesNotContain("synthetic-private-operation");
+        using JsonDocument receipt = JsonDocument.Parse(result.StandardOutput);
+        await Assert.That(receipt.RootElement.GetProperty("exitCode").GetInt32()).IsEqualTo(64);
+        await Assert.That(receipt.RootElement.GetProperty("diagnostics")[0].GetProperty("code").GetString()).IsEqualTo(code);
+        await Assert.That(receipt.RootElement.GetProperty("artifacts").GetArrayLength()).IsEqualTo(0);
+    }
+
+    [Test]
     [Arguments(true)]
     [Arguments(false)]
     public async Task MachineModeBeforeOrAfterCommandProducesOneEnvelope(bool before)
