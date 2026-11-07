@@ -2,7 +2,21 @@
 @using Configurator.Core.Definitions
 @using Configurator.Presentation
 
-@{ DefinitionFormModel actionForm = _form!; long actionView = _viewGeneration; }
+@if (_form is null)
+{
+    <MudRTLProvider RightToLeft="@(DisplayDirection == "rtl")">
+        <section @key="_startup" @ref="_startupControl" class="workspace configuration-editor"
+                 aria-labelledby="configuration-heading" aria-busy="true"
+                 lang="@_startup!.Locale" dir="@DisplayDirection"
+                 data-startup-generation="@_startup.View.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+            <h2 id="configuration-heading">@BrowserStrings.Get("WorkspaceTitle", _startup.Locale)</h2>
+            <p role="status" class="notice" data-code="workspace-starting">@BrowserStrings.Get("Preparing", _startup.Locale)</p>
+        </section>
+    </MudRTLProvider>
+}
+else
+{
+    DefinitionFormModel actionForm = _form; long actionView = _viewGeneration;
 <MudRTLProvider RightToLeft="@(DisplayDirection == "rtl")">
 <section @key="_form" class="workspace configuration-editor @(_compact ? "configuration-editor--compact" : "")" aria-labelledby="configuration-heading"
          lang="@_form!.Locale" dir="@DisplayDirection"
@@ -325,3 +339,4 @@
     </fieldset>
 </section>
 </MudRTLProvider>
+}

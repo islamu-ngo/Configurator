@@ -27,6 +27,11 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     [Parameter] public string? InitialEntry { get; set; }
     private Definition? _pinned;
     private DefinitionFormModel? _form;
+    private StartupRequest? _startup;
+    private bool _startupScheduled;
+    private ElementReference _startupControl;
+    private sealed record StartupRequest(Definition Definition, string Locale, string Direction, string? Entry,
+        long View, long Generation, bool Begin, CancellationToken Cancellation);
     private readonly PresentationSession _session = new(new WeakReferenceMessenger());
     private readonly List<PreparedArtifact> _prepared = [];
     private BrowserArtifactBundleExport? _bundleExport;
@@ -61,7 +66,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         new Dictionary<string, DefinitionImportCapability>();
     private string? _selectedSection;
     private string? _sectionLocale;
-    private string DisplayDirection => Appearance.Current.Direction == "auto" ? _form!.Direction : Appearance.Current.Direction;
+    private string DisplayDirection => Appearance.Current.Direction == "auto"
+        ? _form?.Direction ?? _startup!.Direction : Appearance.Current.Direction;
     protected override void OnInitialized() => Appearance.Changed += AppearanceChanged;
     private void AppearanceChanged(object? sender, EventArgs args)
     {
@@ -83,7 +89,6 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private ElementReference _startButton;
     private bool _disposed;
     private bool _ready;
-    private bool _beginPending;
     private bool HasWork(DefinitionFormModel form) => !_disposed && _ready && ReferenceEquals(form, _form) &&
         (form.HasWorkspaceChanges || _prepared.Count > 0 || _importPending || form.ImportComparison is not null
             || _developerPanel is { } developer && ReferenceEquals(developer.Form, form) && developer.HasWork);
@@ -108,7 +113,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
 
     protected override void OnParametersSet()
     {
-        if (ReferenceEquals(_pinned, Definition)) return;
+        if (_disposed || ReferenceEquals(_pinned, Definition)) return;
         RetireDeveloper();
         _developerMode = false;
         _developerArtifactId = null;
@@ -119,6 +124,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         InvalidateMounts();
         Invalidate();
         _search?.Release(this, _searchLease);
+        _navigation?.Release(this, _navigationLease);
         if (_form is not null) _form.ImportComparisonChanged -= ImportComparisonChanged;
         _form?.Dispose();
         _activeWorkflowStage = WorkflowStage.Configure;
@@ -131,15 +137,43 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _taskToolsOpen = false;
         _importPurpose = "compare";
         _ready = false;
-        _beginPending = true;
-        _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
-            BrowserLaunchSelection.EditingCapabilities, Definition.Presentation is null
+        QueueStartup(InitialLocale, InitialEntry, begin: true);
+        _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
+        StartupRequest startup = _startup!;
+        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync,
+            () => (startup.Locale, startup.Direction), () => false) ?? 0;
+    }
+
+    private void QueueStartup(string? initialLocale, string? initialEntry, bool begin)
+    {
+        _form = null;
+        _observedDiscoverySelection = null;
+        RefreshConsentAction();
+        SetStatus("Preparing");
+        _statusCode = "workspace-starting";
+        var localization = new DefinitionLocalization(Definition);
+        string locale = initialLocale ?? localization.DefaultLocale;
+        if (!localization.Locales.Contains(locale, StringComparer.Ordinal))
+            throw new InvalidOperationException("locale-unsupported");
+        _startup = new(Definition, locale, localization.Direction(locale), initialEntry,
+            _viewGeneration, _generation, begin, _mountCancellation.Token);
+        _startupScheduled = false;
+    }
+
+    private bool IsCurrentStartup(StartupRequest startup) => !_disposed
+        && ReferenceEquals(startup, _startup) && ReferenceEquals(startup.Definition, _pinned)
+        && ReferenceEquals(startup.Definition, Definition) && startup.View == _viewGeneration
+        && startup.Generation == _generation && !startup.Cancellation.IsCancellationRequested;
+
+    private void InitializeForm(StartupRequest startup)
+    {
+        _form = new DefinitionFormModel(startup.Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
+            BrowserLaunchSelection.EditingCapabilities, startup.Definition.Presentation is null
                 ? DefinitionEditorVisibilityPolicy.Direct : DefinitionEditorVisibilityPolicy.Authored);
         _workspaceLifetime = Guid.NewGuid().ToString("N");
-        if (Definition.Presentation is not null) _form.SetDisclosureOverride(FieldDisclosure.Essential);
-        if (InitialLocale is not null && !_form.SelectLocale(InitialLocale))
-            throw new InvalidOperationException("locale-unsupported");
-        if (InitialEntry is not null) _form.SelectOutput(InitialEntry);
+        if (startup.Definition.Presentation is not null) _form.SetDisclosureOverride(FieldDisclosure.Essential);
+        _form.SelectLocale(startup.Locale);
+        if (startup.Entry is not null) _form.SelectOutput(startup.Entry);
         IndexSections();
         _requiredCount = _form.Projection.Progress.Required;
         _form.InputChanged += InputChanged;
@@ -148,11 +182,9 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _importPurpose = "fill";
         RefreshImportArtifacts();
         SelectCurrentImportArtifact();
-        _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
-        DefinitionFormModel form = _form;
-        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form)) ?? 0;
         RegisterSearch();
         RefreshConsentAction();
+        _startup = null;
     }
 
     private void RegisterSearch()
@@ -333,7 +365,19 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private void CorrectField(DefinitionDiagnostic diagnostic)
     {
         string fieldId = diagnostic.FieldId;
-        FieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == fieldId);
+        if (fieldId.Length == 0)
+        {
+            DefinitionPath literal;
+            if (diagnostic.Location is { } rootLocation)
+            {
+                if (!_form!.TryResolveCorrectionPath("", rootLocation, out literal)) return;
+            }
+            else if (diagnostic.RelativePath.Count == 0) literal = DefinitionPath.FromSegments([]);
+            else return;
+            FocusRootCorrection(literal);
+            return;
+        }
+        FieldDefinition? field = _form!.Validate().Fields.FirstOrDefault(item => item.Id == fieldId)?.Definition;
         if (field is null) return;
         IReadOnlyList<string> path = new[] { fieldId }.Concat(diagnostic.RelativePath).ToArray();
         if (diagnostic.Location is { } location && !_form!.TryResolveCorrection(fieldId, location, out path)) return;
@@ -353,6 +397,17 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             RequestFocus(FocusTarget.Context);
             return;
         }
+        if (!DefinitionEditingSupport.HasPropertyRoot(Definition))
+        {
+            DefinitionPath literal;
+            if (diagnostic.Location is { } rootLocation)
+            {
+                if (!_form!.TryResolveCorrectionPath(fieldId, rootLocation, out literal)) return;
+            }
+            else literal = DefinitionPath.FromSegments(new[] { field.Name }.Concat(diagnostic.RelativePath));
+            FocusRootCorrection(literal);
+            return;
+        }
         bool focused = _form!.FocusEditor(path, preserveDiscovery: true);
         bool denied = !_form.CanEdit(path);
         if (!focused && !denied) return;
@@ -363,6 +418,19 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _pendingFocus = null;
         ++_focusGeneration;
         if (denied) RequestFocus(FocusTarget.Consent);
+    }
+    private void FocusRootCorrection(DefinitionPath location)
+    {
+        bool canEdit = _form!.GetFieldValidation(location).CanEdit;
+        RetireDeveloper();
+        _developerMode = false;
+        if (canEdit) _form.FocusEditor(location, preserveDiscovery: true);
+        SelectWorkflowStage(WorkflowStage.Configure);
+        _focusField = canEdit ? "" : null;
+        _focusPath = canEdit ? location.Segments : [];
+        _pendingFocus = null;
+        ++_focusGeneration;
+        if (!canEdit) RequestFocus(FocusTarget.Consent);
     }
     private void ChangeReviewField(DefinitionDiagnostic diagnostic)
     {
@@ -511,9 +579,32 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        DefinitionFormModel form = _form!;
+        if (_disposed) return;
+        if (_form is null)
+        {
+            if (_startup is not { } startup || _startupScheduled || !IsCurrentStartup(startup)) return;
+            _startupScheduled = true;
+            _comparisonRendering ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
+            IJSObjectReference module = await _comparisonRendering;
+            if (!IsCurrentStartup(startup)) return;
+            await module.InvokeVoidAsync("paintWorkspace", _startupControl, startup.View.ToString(CultureInfo.InvariantCulture));
+            if (!IsCurrentStartup(startup)) return;
+            InitializeForm(startup);
+            if (startup.Begin)
+            {
+                DefinitionFormModel initialized = _form!;
+                Task beginning = BeginAsync();
+                if (!beginning.IsCompleted && IsCurrentView(initialized, startup.View)
+                    && !startup.Cancellation.IsCancellationRequested) StateHasChanged();
+                await beginning;
+                return;
+            }
+            RequestFocus(FocusTarget.Start);
+            StateHasChanged();
+            return;
+        }
+        DefinitionFormModel form = _form;
         long generation = _viewGeneration;
-        if (firstRender || _beginPending) { _beginPending = false; await BeginAsync(); }
         if (!IsCurrentView(form, generation) || _pendingFocus is not { } request) return;
         _pendingFocus = null;
         if (!IsCurrentView(request.Form, request.Generation)) return;
@@ -537,18 +628,20 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     }
     public async Task BeginAsync()
     {
-        if (_disposed) return;
+        if (_disposed || _form is null) return;
         _ready = false;
         Invalidate();
-        DefinitionFormModel form = _form!;
+        DefinitionFormModel form = _form;
         _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form)) ?? 0;
         long generation = _generation;
+        long view = _viewGeneration;
+        CancellationToken cancellation = _mountCancellation.Token;
         await Offline.InitializeAsync();
-        if (_disposed || generation != _generation) return;
+        if (!IsCurrentView(form, view) || generation != _generation || cancellation.IsCancellationRequested) return;
         ValueTask<bool> beginning = Offline.BeginWorkspaceAsync();
         long lease = Offline.WorkspaceGeneration;
         bool ready = await beginning;
-        if (_disposed || generation != _generation || !ReferenceEquals(form, _form)
+        if (!IsCurrentView(form, view) || generation != _generation || cancellation.IsCancellationRequested
             || lease != Offline.WorkspaceGeneration)
         {
             await Offline.EndWorkspaceAsync(lease);
@@ -564,7 +657,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         }
         else { SetStatus("AppPreparationIncompleteStatus"); _statusCode = "app-preparation-incomplete"; }
         _navigation?.RefreshWork(this, _navigationLease);
-        if (!_disposed) StateHasChanged();
+        StateHasChanged();
     }
     public void Invalidate() => _ = InvalidateOutputAsync();
     private Task InvalidateOutputAsync()
@@ -622,53 +715,44 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (HasWork(current) && !await AppDiscardDialog.ConfirmAsync(Dialogs, current.Locale, _mountCancellation.Token)) return;
         if (!IsCurrentView(current, view) || operation != _generation) return;
         Task discarding = DiscardAsync();
-        long generation = _generation;
-        DefinitionFormModel form = _form!;
+        long clearedView = _viewGeneration;
         await discarding;
-        if (_disposed || generation != _generation || !ReferenceEquals(form, _form) || _ready) return;
+        if (_disposed || clearedView != _viewGeneration || _ready) return;
         ++_fileKey;
         SetStatus("WorkspaceClearedStatus");
         _statusCode = "workspace-cleared";
-        RequestFocus(FocusTarget.Start);
+        if (_form is not null) RequestFocus(FocusTarget.Start);
+        StateHasChanged();
     }
     public async Task DiscardAsync()
     {
+        if (_disposed) return;
         RetireDeveloper();
         _developerMode = false;
         RetireView();
         InvalidateMounts();
-        DefinitionFormModel form = _form!;
+        DefinitionFormModel? form = _form;
         long lease = _offlineLease;
         long navigationLease = _navigationLease;
         Task retirement = _outputRetirement;
         _ready = false;
         _search?.Release(this, _searchLease);
-        form.ImportComparisonChanged -= ImportComparisonChanged;
-        form.Dispose();
-        if (!_disposed && ReferenceEquals(form, _form))
-        {
-            _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
-                editorVisibility: Definition.Presentation is null
-                    ? DefinitionEditorVisibilityPolicy.Direct : DefinitionEditorVisibilityPolicy.Authored);
-            _workspaceLifetime = Guid.NewGuid().ToString("N");
-            if (Definition.Presentation is not null) _form.SetDisclosureOverride(FieldDisclosure.Essential);
-            _compact = false;
-            _consentOpen = false;
-            _taskToolsOpen = false;
-            IndexSections();
-            _form.InputChanged += InputChanged;
-            _form.ViewChanged += ViewChanged;
-            _form.ImportComparisonChanged += ImportComparisonChanged;
-            _importPurpose = "fill";
-            RefreshImportArtifacts();
-            SelectCurrentImportArtifact();
-            RegisterSearch();
-            RefreshConsentAction();
-            _activeWorkflowStage = WorkflowStage.Configure;
-            _requiredCount = _form.Projection.Progress.Required;
-            _focusField = null;
-        }
-        await Task.WhenAll(retirement, InvalidateOutputAsync());
+        if (form is not null) form.ImportComparisonChanged -= ImportComparisonChanged;
+        form?.Dispose();
+        _form = null;
+        Task outputs = InvalidateOutputAsync();
+        _compact = false;
+        _consentOpen = false;
+        _taskToolsOpen = false;
+        _activeWorkflowStage = WorkflowStage.Configure;
+        _configurePanel = null;
+        _reviewPanel = null;
+        _filesPanel = null;
+        QueueStartup(initialLocale: null, initialEntry: null, begin: false);
+        SetStatus("WorkspaceClearedStatus");
+        _statusCode = "workspace-cleared";
+        StateHasChanged();
+        await Task.WhenAll(retirement, outputs);
         await Offline.EndWorkspaceAsync(lease);
         _navigation?.Release(this, navigationLease);
     }

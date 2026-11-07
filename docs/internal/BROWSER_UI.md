@@ -316,6 +316,18 @@ preserves work; a late confirmation cannot discard a replaced or changed owner.
 Work-only notifications refresh the navigation guard, not the layout body or
 locale provider. They do not create another dirty-state or answer cache.
 
+`ConfigurationEditor` queues one captured definition, locale, entry and generation
+request before constructing its form. Its null-form branch renders a localized
+busy workspace landmark without controls, progress counts or a readiness claim.
+After render, the existing module's `paintWorkspace` checks the connected owner
+and generation before yielding through `nextFrame`. The editor checks current
+startup authority after module import and frame completion, then constructs and
+registers the form. Replacement, discard and disposal synchronously retire
+obsolete startup authority; public begin/import calls cannot bypass it. Discard
+reconstruction uses the same boundary and preserves the explicit restart action.
+This is a paint opportunity, not evidence of the feedback or uninterrupted-work
+budgets; form initialization and later work remain subject to actual timing.
+
 `ConfigurationSectionFields` owns one descendant admission plan for a section
 or literal root. Six initial nodes and subsequent ten-node increments apply
 across the entire current topology, including container, readonly and denied

@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6V6MKTZ1RZ7DSHJQAWRD70R
+Title: "Paint workspace startup status before constructing the form"
+Type: perf
+Scope: self-hosting
+Summary: "Render one localized pending landmark before form creation and recheck captured startup authority after import and paint, including discard reconstruction."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Bind one immutable startup request to the admitted definition, locale, entry, generation and cancellation; obsolete import/paint completions and repeated public begin/import requests cannot activate it."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Pending status is a paint opportunity, not answer readiness or a measured feedback/uninterrupted-work budget pass; actual form initialization and published timing remain separate."
