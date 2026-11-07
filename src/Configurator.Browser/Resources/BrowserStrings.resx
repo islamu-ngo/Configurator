@@ -292,6 +292,7 @@
   <data name="DraftArtifactReadiness" xml:space="preserve"><value>Draft — secrets still required.</value></data>
   <data name="CompleteArtifactReadiness" xml:space="preserve"><value>Complete preparation — target validation still required.</value></data>
   <data name="PrivateOutputHidden" xml:space="preserve"><value>Output is private and hidden.</value></data>
+  <data name="PrivateOutputRevealed" xml:space="preserve"><value>Output is private; its preview is currently revealed.</value></data>
   <data name="CopyArtifact" xml:space="preserve"><value>Copy {0}</value></data>
   <data name="DownloadArtifact" xml:space="preserve"><value>Download {0}</value></data>
   <data name="RevealArtifact" xml:space="preserve"><value>Reveal {0}</value></data>

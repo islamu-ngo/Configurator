@@ -4,7 +4,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bunit;
+using Configurator.Browser.Resources;
 using Configurator.Browser.Services;
+using Configurator.Core;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
@@ -14,6 +16,34 @@ using MudBlazor;
 
 public sealed class BrowserConfigurationWorkflowTests
 {
+    [Test]
+    [Arguments("en")]
+    [Arguments("ar")]
+    public async Task OutputVisibilityNoticeFollowsTheExistingPreviewState(string locale)
+    {
+        await using var context = BrowserFixture.Context();
+        using var form = new DefinitionFormModel(BrowserFixture.Definition);
+        var metadata = new DefinitionPreparationMetadata(true, "synthetic-preview", "synthetic.json",
+            "application/json", ArtifactDigest.Compute("{}"u8), form.Definition.Digest, form.InputRevision, []);
+        var component = context.Render<ConfigurationFiles>(parameters => parameters
+            .Add(item => item.Metadata, metadata)
+            .Add(item => item.Form, form)
+            .Add(item => item.Locale, locale));
+
+        await Assert.That(component.Find("p").TextContent).Contains(BrowserStrings.Get("PrivateOutputHidden", locale));
+        await Assert.That(component.Find("pre").HasAttribute("hidden")).IsTrue();
+
+        component.Render(parameters => parameters.Add(item => item.Revealed, true));
+        await Assert.That(component.Find("p").TextContent).Contains(BrowserStrings.Get("PrivateOutputRevealed", locale));
+        await Assert.That(component.Find("[data-action='reveal-file']").GetAttribute("aria-expanded")).IsEqualTo("true");
+        await Assert.That(component.Find("pre").HasAttribute("hidden")).IsFalse();
+
+        component.Render(parameters => parameters.Add(item => item.Revealed, false));
+        await Assert.That(component.Find("p").TextContent).Contains(BrowserStrings.Get("PrivateOutputHidden", locale));
+        await Assert.That(component.Find("[data-action='reveal-file']").GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(component.Find("pre").HasAttribute("hidden")).IsTrue();
+    }
+
     [Test]
     [Arguments(false)]
     [Arguments(true)]

@@ -16,7 +16,7 @@
             <p data-artifact-surface="@surface">@Text(surface == "compose-input" ? "ComposeInputDestination" : "ProcessEnvironmentDestination")</p>
         }
     }
-    <p>@Text(Metadata.IsDraft ? "DraftArtifactReadiness" : "CompleteArtifactReadiness") @Text("PrivateOutputHidden")</p>
+    <p>@Text(Metadata.IsDraft ? "DraftArtifactReadiness" : "CompleteArtifactReadiness") @Text(Revealed ? "PrivateOutputRevealed" : "PrivateOutputHidden")</p>
     @if (Metadata.Completions.Count > 0)
     {
         <ul class="configuration-files__completions">

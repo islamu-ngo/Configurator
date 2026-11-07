@@ -292,6 +292,7 @@
   <data name="DraftArtifactReadiness" xml:space="preserve"><value>مسودة — لا يزال إدخال الأسرار مطلوبًا.</value></data>
   <data name="CompleteArtifactReadiness" xml:space="preserve"><value>اكتمل التحضير — لا يزال تحقق التطبيق الهدف مطلوبًا.</value></data>
   <data name="PrivateOutputHidden" xml:space="preserve"><value>المخرجات خاصة ومخفية.</value></data>
+  <data name="PrivateOutputRevealed" xml:space="preserve"><value>المخرجات خاصة؛ معاينتها ظاهرة حاليًا.</value></data>
   <data name="CopyArtifact" xml:space="preserve"><value>نسخ {0}</value></data>
   <data name="DownloadArtifact" xml:space="preserve"><value>تنزيل {0}</value></data>
   <data name="RevealArtifact" xml:space="preserve"><value>إظهار {0}</value></data>
