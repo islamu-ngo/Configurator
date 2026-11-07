@@ -61,6 +61,7 @@ Browser package suite continues to check the static publication independently.
 | `eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj` | Generic release invariants using local inert fixtures, not Event publication authority. |
 | `eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj` | Definition schema generation and freshness checks. |
 | `eng/configurator/Configurator.CommandSchemaGenerator/Configurator.CommandSchemaGenerator.csproj` | Generic machine command schema generation and freshness checks. |
+| `eng/configurator/Configurator.BuildCapture/Configurator.BuildCapture.csproj` | SDK-bound evaluated-input and controlled-check capture. References the pinned SDK's MSBuild assemblies only; no runtime project references it. A successful project build does not establish graph completeness, consumption-time identity or package qualification; its Architecture capture regressions and actual graph checks own those claims. |
 | `eng/configurator/probes/communitytoolkit/Configurator.DependencyProbes.CommunityToolkit.csproj` | Approved MVVM dependency closure. |
 | `eng/configurator/probes/dependency-injection/Configurator.DependencyProbes.DependencyInjection.csproj` | Approved DI dependency closure. |
 | `eng/configurator/probes/yamldotnet/Configurator.DependencyProbes.YamlDotNet.csproj` | Approved YAML dependency closure. |

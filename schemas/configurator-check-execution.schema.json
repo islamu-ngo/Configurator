@@ -1,0 +1,130 @@
+{
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "0.0.1"
+    },
+    "safeReportHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "profile": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string",
+      "enum": [
+        "full-owner",
+        "focused"
+      ]
+    },
+    "testCaptureDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "executable": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "length",
+        "sha256",
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "kind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "length",
+          "sha256",
+          "kind"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "commandExitCode": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "passed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "failed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "skipped": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "failed"
+      ]
+    },
+    "runnerRid": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "safeReportHash",
+    "profile",
+    "owner",
+    "scope",
+    "testCaptureDigest",
+    "executable",
+    "dependencies",
+    "commandExitCode",
+    "passed",
+    "failed",
+    "skipped",
+    "outcome",
+    "runnerRid"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "configurator-check-execution"
+}

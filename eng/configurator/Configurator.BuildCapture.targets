@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup Condition="'$(ConfiguratorCaptureSession)' != ''">
+    <_ConfiguratorCapturePathMap>$(MSBuildProjectDirectory)/$(BaseIntermediateOutputPath)=$(MSBuildProjectDirectory)/obj/capture/</_ConfiguratorCapturePathMap>
+    <PathMap Condition="'$(PathMap)' == ''">$(_ConfiguratorCapturePathMap)</PathMap>
+    <PathMap Condition="'$(PathMap)' != '$(_ConfiguratorCapturePathMap)'">$(PathMap),$(_ConfiguratorCapturePathMap)</PathMap>
+  </PropertyGroup>
+  <Import Project="$(ConfiguratorCaptureOverrides)"
+          Condition="'$(ConfiguratorCaptureOverrides)' != '' and '$(ConfiguratorCaptureBindingsLoaded)' != 'true'" />
+  <UsingTask TaskName="Configurator.BuildCapture.BuildCaptureTask" AssemblyFile="$(ConfiguratorCaptureTool)" />
+  <Target Name="WriteConfiguratorCapturedFrameworks" DependsOnTargets="ProcessFrameworkReferences">
+    <BuildCaptureTask Session="$(ConfiguratorCaptureSession)" Project="$(MSBuildProjectFullPath)" Operation="frameworks"
+      RuntimePacks="@(RuntimePack)" FrameworkReferences="@(FrameworkReference)" InventoryOutput="$(ConfiguratorFrameworkInventory)" />
+  </Target>
+  <Target Name="ValidateConfiguratorCapture" BeforeTargets="PrepareForBuild"
+          Condition="'$(ConfiguratorCaptureSession)' != ''">
+    <Error Condition="'$(NETCoreSdkVersion)' != '10.0.302'" Text="CAPTURE_SDK_UNSUPPORTED" />
+    <Error Condition="'$(UseSharedCompilation)' != 'false'" Text="CAPTURE_COMPILER_SERVER_UNSUPPORTED" />
+  </Target>
+</Project>

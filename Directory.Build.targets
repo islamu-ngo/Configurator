@@ -1,0 +1,4 @@
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)eng/configurator/Configurator.BuildCapture.targets"
+          Condition="'$(ConfiguratorCaptureSession)' != ''" />
+</Project>

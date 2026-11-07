@@ -1,0 +1,561 @@
+{
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "0.0.1"
+    },
+    "sdkVersion": {
+      "type": "string",
+      "const": "10.0.302"
+    },
+    "workloadVersion": {
+      "type": "string",
+      "const": "10.0.301.1"
+    },
+    "project": {
+      "type": "string"
+    },
+    "target": {
+      "type": "string"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "kind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "length",
+          "sha256",
+          "kind"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "settings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "value": true
+        },
+        "required": [
+          "project",
+          "name",
+          "value"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/properties/inputs/items"
+      }
+    },
+    "productSourceProjection": {
+      "type": "array",
+      "items": {
+        "$ref": "#/properties/inputs/items"
+      }
+    },
+    "productSourceInputsDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "buildRecipeDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "invocations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          },
+          "assembly": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "kind": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "length",
+              "sha256",
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          "recipe": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "kind": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "length",
+              "sha256",
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          "parameters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "value": true,
+                "inputs": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/properties/inputs/items"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "type",
+                "value",
+                "inputs"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "receipt": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "transformations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "parameter": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "before": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "length": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "kind": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "length",
+                    "sha256",
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                "after": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "length": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "kind": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "length",
+                    "sha256",
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "parameter",
+                "path",
+                "before",
+                "after"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "succeeded": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "project",
+          "target",
+          "task",
+          "assembly",
+          "recipe",
+          "parameters",
+          "receipt",
+          "transformations",
+          "succeeded"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "started",
+              "succeeded",
+              "failed",
+              "skipped"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "project",
+          "target",
+          "outcome",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "repositoryNamespace": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^repo/",
+        "minLength": 6,
+        "maxLength": 4096
+      },
+      "maxItems": 100000,
+      "uniqueItems": true
+    },
+    "movedInputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "invocation": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "recipe": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "kind": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "length",
+              "sha256",
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          "sourcePath": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "destinationPath": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "kind": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "length",
+              "sha256",
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          "destination": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "kind": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "length",
+              "sha256",
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "invocation",
+          "recipe",
+          "sourcePath",
+          "destinationPath",
+          "source",
+          "destination"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 100000
+    },
+    "retiredInputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "queryGraph": {
+            "type": "string",
+            "maxLength": 512,
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "generatorInvocation": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "surface": {
+            "type": "string",
+            "enum": [
+              "cli",
+              "terminal",
+              "desktop"
+            ]
+          },
+          "outputPath": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "kind": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "length",
+              "sha256",
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          "recipe": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "length": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "kind": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "length",
+              "sha256",
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "queryGraph",
+          "generatorInvocation",
+          "surface",
+          "outputPath",
+          "source",
+          "recipe"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 100000
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "sdkVersion",
+    "workloadVersion",
+    "project",
+    "target",
+    "inputs",
+    "settings",
+    "outputs",
+    "productSourceProjection",
+    "productSourceInputsDigest",
+    "buildRecipeDigest",
+    "invocations",
+    "targets",
+    "repositoryNamespace",
+    "movedInputs",
+    "retiredInputs"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "configurator-build-inputs"
+}
