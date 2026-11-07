@@ -1,0 +1,91 @@
+{
+  "$schema": "urn:islamu:configurator:authoring:v0.0.1",
+  "identity": {
+    "familyId": "ce72a3f0-82af-4ea7-b601-c9e4a45da7cc",
+    "revision": 1
+  },
+  "project": {
+    "id": "synthetic.library-lending",
+    "name": "Synthetic public library lending"
+  },
+  "applicationVersions": ["1"],
+  "configuration": {
+    "type": "object",
+    "title": "Library branches",
+    "additionalProperties": false,
+    "required": ["branches"],
+    "x-configurator": {"sensitivity": "public"},
+    "properties": {
+      "branches": {
+        "type": "array",
+        "title": "Branches",
+        "minItems": 1,
+        "x-configurator": {"sensitivity": "public"},
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lending", "loanDays"],
+          "x-configurator": {"sensitivity": "public"},
+          "properties": {
+            "lending": {
+              "type": "boolean",
+              "title": "Enable lending",
+              "x-configurator": {"sensitivity": "public"}
+            },
+            "loanDays": {
+              "type": "integer",
+              "title": "Loan period",
+              "enum": [7, 14, 28],
+              "x-configurator": {
+                "sensitivity": "public",
+                "applicableWhen": {
+                  "op": "equals",
+                  "reference": {"scope": "item", "path": "/lending"},
+                  "value": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "localization": {
+    "defaultLocale": "en",
+    "translations": {
+      "ar": {
+        "direction": "rtl",
+        "overrides": {
+          "/configuration/title": "فروع المكتبة",
+          "/configuration/properties/branches/title": "الفروع",
+          "/configuration/properties/branches/items/properties/lending/title": "تفعيل الإعارة",
+          "/configuration/properties/branches/items/properties/loanDays/title": "مدة الإعارة"
+        }
+      }
+    }
+  },
+  "outputs": {
+    "lending.json": {
+      "id": "config",
+      "format": "json",
+      "projection": {
+        "op": "object",
+        "members": {
+          "loanDays": {
+            "op": "repeat",
+            "reference": {"scope": "root", "path": "/branches"},
+            "item": {
+              "op": "copy",
+              "reference": {"scope": "item", "path": "/loanDays"},
+              "when": {
+                "op": "equals",
+                "reference": {"scope": "item", "path": "/lending"},
+                "value": true
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

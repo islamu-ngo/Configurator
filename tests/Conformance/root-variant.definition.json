@@ -1,0 +1,60 @@
+{
+  "$schema": "urn:islamu:configurator:authoring:v0.0.1",
+  "identity": {
+    "familyId": "03426513-f3c3-4cab-b0a2-c2c9d1d144f2",
+    "revision": 1
+  },
+  "project": {
+    "id": "synthetic.workshop-notifications",
+    "name": "Synthetic workshop notifications"
+  },
+  "applicationVersions": ["1"],
+  "configuration": {
+    "type": "object",
+    "x-configurator": {"sensitivity": "public"},
+    "oneOf": [
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["mode", "directory"],
+        "x-configurator": {"sensitivity": "public"},
+        "properties": {
+          "mode": {"type": "string", "const": "disk", "x-configurator": {"sensitivity": "public"}},
+          "directory": {"type": "string", "minLength": 1, "x-configurator": {"sensitivity": "public"}},
+          "batch": {
+            "type": "integer",
+            "enum": [1, 2, 3],
+            "x-configurator": {"sensitivity": "public", "initialValue": 2, "suggestedValue": 3}
+          },
+          "note": {
+            "type": ["string", "null"],
+            "x-configurator": {"sensitivity": "public", "suggestedValue": "ready"}
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["mode", "endpoint", "token"],
+        "x-configurator": {"sensitivity": "public"},
+        "properties": {
+          "mode": {"type": "string", "const": "queue", "x-configurator": {"sensitivity": "public"}},
+          "endpoint": {"type": "string", "minLength": 1, "x-configurator": {"sensitivity": "public"}},
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "writeOnly": true,
+            "x-configurator": {"sensitivity": "secret"}
+          }
+        }
+      }
+    ]
+  },
+  "outputs": {
+    "notification.json": {
+      "id": "config",
+      "format": "json",
+      "projection": {"op": "copy", "reference": {"scope": "root", "path": ""}}
+    }
+  }
+}

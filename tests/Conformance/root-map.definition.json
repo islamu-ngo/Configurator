@@ -1,0 +1,30 @@
+{
+  "$schema": "urn:islamu:configurator:authoring:v0.0.1",
+  "identity": {
+    "familyId": "8591fb92-bf75-45cc-b114-66bd6bcbf37f",
+    "revision": 1
+  },
+  "project": {
+    "id": "synthetic.archive-retention",
+    "name": "Synthetic archive retention"
+  },
+  "applicationVersions": ["1"],
+  "configuration": {
+    "type": "object",
+    "minProperties": 1,
+    "maxProperties": 5,
+    "x-configurator": {"sensitivity": "public"},
+    "additionalProperties": {
+      "type": ["integer", "null"],
+      "enum": [0, 7, 30, null],
+      "x-configurator": {"sensitivity": "public"}
+    }
+  },
+  "outputs": {
+    "retention.json": {
+      "id": "config",
+      "format": "json",
+      "projection": {"op": "copy", "reference": {"scope": "root", "path": ""}}
+    }
+  }
+}

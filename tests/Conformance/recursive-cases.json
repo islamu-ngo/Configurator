@@ -1,0 +1,178 @@
+{
+  "format": "recursive-conformance-0.0.1",
+  "cases": [
+    {
+      "id": "literal-map-keys-and-null",
+      "definition": "root-map",
+      "values": {"a~b": null, "a/b": 30, "A": 0, "0": 7},
+      "omitted": [],
+      "ready": true,
+      "expectedJson": "{\"0\":7,\"A\":0,\"a/b\":30,\"a~b\":null}",
+      "expectedDraftJson": "{\"0\":7,\"A\":0,\"a/b\":30,\"a~b\":null}"
+    },
+    {
+      "id": "empty-map-requires-entry",
+      "definition": "root-map",
+      "values": {},
+      "omitted": [],
+      "ready": false,
+      "expectedJson": null,
+      "expectedDraftJson": null
+    },
+    {
+      "id": "map-rejects-unlisted-integer",
+      "definition": "root-map",
+      "values": {"archive": 2},
+      "omitted": [],
+      "ready": false,
+      "expectedJson": null,
+      "expectedDraftJson": null
+    },
+    {
+      "id": "map-rejects-string-instead-of-integer",
+      "definition": "root-map",
+      "values": {"archive": "7"},
+      "omitted": [],
+      "ready": false,
+      "expectedJson": null,
+      "expectedDraftJson": null
+    },
+    {
+      "id": "map-retains-ordinal-case-distinction",
+      "definition": "root-map",
+      "values": {"a": 7, "A": 30},
+      "omitted": [],
+      "ready": true,
+      "expectedJson": "{\"A\":30,\"a\":7}",
+      "expectedDraftJson": "{\"A\":30,\"a\":7}"
+    },
+    {
+      "id": "variant-applies-initialization-without-suggestion",
+      "definition": "root-variant",
+      "values": {"mode": "disk", "directory": "spool"},
+      "omitted": [],
+      "ready": true,
+      "expectedJson": "{\"batch\":2,\"directory\":\"spool\",\"mode\":\"disk\"}",
+      "expectedDraftJson": "{\"batch\":2,\"directory\":\"spool\",\"mode\":\"disk\"}"
+    },
+    {
+      "id": "variant-omission-suppresses-initialization",
+      "definition": "root-variant",
+      "values": {"mode": "disk", "directory": "spool"},
+      "omitted": ["/batch"],
+      "ready": true,
+      "expectedJson": "{\"directory\":\"spool\",\"mode\":\"disk\"}",
+      "expectedDraftJson": "{\"directory\":\"spool\",\"mode\":\"disk\"}"
+    },
+    {
+      "id": "variant-null-is-present",
+      "definition": "root-variant",
+      "values": {"mode": "disk", "directory": "spool", "note": null, "batch": 3},
+      "omitted": [],
+      "ready": true,
+      "expectedJson": "{\"batch\":3,\"directory\":\"spool\",\"mode\":\"disk\",\"note\":null}",
+      "expectedDraftJson": "{\"batch\":3,\"directory\":\"spool\",\"mode\":\"disk\",\"note\":null}"
+    },
+    {
+      "id": "variant-missing-secret-is-draft-only",
+      "definition": "root-variant",
+      "values": {"mode": "queue", "endpoint": "queue.example.invalid"},
+      "omitted": [],
+      "ready": false,
+      "expectedJson": null,
+      "expectedDraftJson": "{\"endpoint\":\"queue.example.invalid\",\"mode\":\"queue\",\"token\":\"\"}"
+    },
+    {
+      "id": "variant-supplied-synthetic-secret-is-complete",
+      "definition": "root-variant",
+      "values": {"mode": "queue", "endpoint": "queue.example.invalid", "token": "synthetic-token"},
+      "omitted": [],
+      "ready": true,
+      "expectedJson": "{\"endpoint\":\"queue.example.invalid\",\"mode\":\"queue\",\"token\":\"synthetic-token\"}",
+      "expectedDraftJson": "{\"endpoint\":\"queue.example.invalid\",\"mode\":\"queue\",\"token\":\"synthetic-token\"}"
+    },
+    {
+      "id": "variant-missing-ordinary-input-is-not-a-draft",
+      "definition": "root-variant",
+      "values": {"mode": "queue"},
+      "omitted": [],
+      "ready": false,
+      "expectedJson": null,
+      "expectedDraftJson": null
+    },
+    {
+      "id": "variant-rejects-unselected-branch-payload",
+      "definition": "root-variant",
+      "values": {"mode": "disk", "directory": "spool", "endpoint": "queue.example.invalid"},
+      "omitted": [],
+      "ready": false,
+      "expectedJson": null,
+      "expectedDraftJson": null
+    },
+    {
+      "id": "library-item-scope-excludes-inactive-invalid-value",
+      "expectedDocumentCode": "document-value-inactive",
+      "definition": "synthetic-library",
+      "values": {"branches": [{"lending": true, "loanDays": 14}, {"lending": false, "loanDays": "ignored"}]},
+      "omitted": [],
+      "ready": true,
+      "expectedJson": "{\"loanDays\":[14]}",
+      "expectedDraftJson": "{\"loanDays\":[14]}"
+    },
+    {
+      "id": "library-two-active-branches-retain-distinct-periods",
+      "definition": "synthetic-library",
+      "values": {"branches": [{"lending": true, "loanDays": 7}, {"lending": true, "loanDays": 28}]},
+      "omitted": [],
+      "ready": true,
+      "expectedJson": "{\"loanDays\":[7,28]}",
+      "expectedDraftJson": "{\"loanDays\":[7,28]}"
+    },
+    {
+      "id": "library-inactive-required-period-is-absent",
+      "definition": "synthetic-library",
+      "values": {"branches": [{"lending": false}]},
+      "omitted": [],
+      "ready": true,
+      "expectedJson": "{\"loanDays\":[]}",
+      "expectedDraftJson": "{\"loanDays\":[]}"
+    },
+    {
+      "id": "library-active-period-is-required",
+      "definition": "synthetic-library",
+      "values": {"branches": [{"lending": true}]},
+      "omitted": [],
+      "ready": false,
+      "expectedJson": null,
+      "expectedDraftJson": null
+    },
+    {
+      "id": "library-active-period-rejects-string",
+      "definition": "synthetic-library",
+      "values": {"branches": [{"lending": true, "loanDays": "14"}]},
+      "omitted": [],
+      "ready": false,
+      "expectedJson": null,
+      "expectedDraftJson": null
+    },
+    {
+      "id": "library-inactive-first-row-does-not-shift-item-scope",
+      "expectedDocumentCode": "document-value-inactive",
+      "definition": "synthetic-library",
+      "values": {"branches": [{"lending": false, "loanDays": 7}, {"lending": true, "loanDays": 28}]},
+      "omitted": [],
+      "ready": true,
+      "expectedJson": "{\"loanDays\":[28]}",
+      "expectedDraftJson": "{\"loanDays\":[28]}"
+    },
+    {
+      "id": "library-active-period-rejects-unlisted-integer",
+      "definition": "synthetic-library",
+      "values": {"branches": [{"lending": true, "loanDays": 21}]},
+      "omitted": [],
+      "ready": false,
+      "expectedJson": null,
+      "expectedDraftJson": null
+    }
+  ]
+}
