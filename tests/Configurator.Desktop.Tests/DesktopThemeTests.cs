@@ -28,9 +28,17 @@ public sealed class DesktopThemeTests
                     notify = changed;
                     return () => unsubscribed = true;
                 });
+                bool defaultsSystem = theme.Preference == DesktopAppearance.System &&
+                    application.RequestedThemeVariant == ThemeVariant.Default;
+                theme.Preference = DesktopAppearance.Light;
+                bool light = application.RequestedThemeVariant == ThemeVariant.Light;
                 notify!(new PlatformColorValues { ContrastPreference = ColorContrastPreference.High });
                 bool high = application.RequestedThemeVariant == DesktopTheme.HighContrast;
+                theme.Preference = DesktopAppearance.Dark;
+                high &= application.RequestedThemeVariant == DesktopTheme.HighContrast;
                 notify(new PlatformColorValues { ContrastPreference = ColorContrastPreference.NoPreference });
+                bool restored = application.RequestedThemeVariant == ThemeVariant.Dark;
+                theme.Preference = DesktopAppearance.System;
                 bool followsSystem = application.RequestedThemeVariant == ThemeVariant.Default;
                 // Hold the dispatcher until the platform thread has queued its update.
                 var publication = new Thread(() => notify(new PlatformColorValues
@@ -40,9 +48,12 @@ public sealed class DesktopThemeTests
                 theme.Dispose();
                 notify(new PlatformColorValues { ContrastPreference = ColorContrastPreference.High });
                 Dispatcher.UIThread.RunJobs();
-                return (high, followsSystem, queued, unsubscribed, retired: application.RequestedThemeVariant == ThemeVariant.Default);
+                return (defaultsSystem, light, restored, high, followsSystem, queued, unsubscribed, retired: application.RequestedThemeVariant == ThemeVariant.Default);
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
             await Assert.That(result.high).IsTrue();
+            await Assert.That(result.defaultsSystem).IsTrue();
+            await Assert.That(result.light).IsTrue();
+            await Assert.That(result.restored).IsTrue();
             await Assert.That(result.followsSystem).IsTrue();
             await Assert.That(result.queued).IsTrue();
             await Assert.That(result.unsubscribed).IsTrue();

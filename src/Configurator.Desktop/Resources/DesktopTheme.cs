@@ -5,13 +5,27 @@ using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
 
-/// <summary>Follows native contrast changes while ordinary light/dark selection remains platform-owned.</summary>
+/// <summary>Applies session appearance with native high contrast taking precedence.</summary>
 public sealed class DesktopTheme : IDisposable
 {
     public static ThemeVariant HighContrast { get; } = new("ConfiguratorHighContrast", ThemeVariant.Dark);
     private readonly Application _application;
     private readonly Action _unsubscribe;
     private bool _disposed;
+    private bool _highContrast;
+    private DesktopAppearance _preference;
+
+    public DesktopAppearance Preference
+    {
+        get => _preference;
+        set
+        {
+            Dispatcher.UIThread.VerifyAccess();
+            if (_disposed || _preference == value) return;
+            _preference = value;
+            ApplyVariant();
+        }
+    }
 
     public DesktopTheme(Application application, IPlatformSettings settings)
         : this(application, changed =>
@@ -33,6 +47,7 @@ public sealed class DesktopTheme : IDisposable
     {
         _application = application;
         _unsubscribe = subscribe(Changed);
+        ApplyVariant();
     }
 
     private void Changed(PlatformColorValues values)
@@ -43,10 +58,19 @@ public sealed class DesktopTheme : IDisposable
 
     private void Apply(PlatformColorValues values)
     {
-        if (!_disposed)
-            _application.RequestedThemeVariant = values.ContrastPreference == ColorContrastPreference.High
-                ? HighContrast : ThemeVariant.Default;
+        if (_disposed) return;
+        _highContrast = values.ContrastPreference == ColorContrastPreference.High;
+        ApplyVariant();
     }
+
+    private void ApplyVariant() =>
+        _application.RequestedThemeVariant = _highContrast ? HighContrast : _preference switch
+        {
+            DesktopAppearance.System => ThemeVariant.Default,
+            DesktopAppearance.Light => ThemeVariant.Light,
+            DesktopAppearance.Dark => ThemeVariant.Dark,
+            _ => throw new ArgumentOutOfRangeException(nameof(Preference))
+        };
 
     public void Dispose()
     {

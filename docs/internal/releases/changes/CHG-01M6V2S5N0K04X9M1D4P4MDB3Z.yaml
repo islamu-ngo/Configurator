@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6V2S5N0K04X9M1D4P4MDB3Z
+Title: "Choose a Desktop appearance with native contrast precedence"
+Type: feat
+Scope: accessibility
+Summary: "Choose System, Light or Dark for the session without replacing workspace state; native high contrast overrides and then restores the ordinary choice."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "System, Light and Dark are session-only appearance choices; changing them does not edit answers or preparation."
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Native contrast overrides the ordinary preference and restores it afterward; automated resource checks do not qualify actual host accessibility."

@@ -21,7 +21,32 @@
     <StaticResource ResourceKey="ListFieldTemplate" />
   </Application.DataTemplates>
   <Application.Styles>
-    <FluentTheme />
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Light" Accent="#1E66F5" RegionColor="#EFF1F5"
+            BaseHigh="#4C4F69" BaseMediumHigh="#5C5F77" BaseMedium="#6C6F85"
+            BaseMediumLow="#7C7F93" BaseLow="#9CA0B0"
+            AltHigh="#FFFFFF" AltMediumHigh="#EFF1F5" AltMedium="#E6E9EF"
+            AltMediumLow="#DCE0E8" AltLow="#EFF1F5"
+            ChromeHigh="#EFF1F5" ChromeMedium="#E6E9EF" ChromeMediumLow="#DCE0E8"
+            ChromeLow="#EFF1F5" ChromeAltLow="#FFFFFF" ChromeGray="#6C6F85"
+            ChromeDisabledHigh="#6C6F85" ChromeDisabledLow="#DCE0E8"
+            ChromeBlackHigh="#4C4F69" ChromeBlackMedium="#5C5F77"
+            ChromeBlackMediumLow="#6C6F85" ChromeBlackLow="#9CA0B0" ChromeWhite="#FFFFFF"
+            ListLow="#E6E9EF" ListMedium="#DCE0E8" ErrorText="#B01838" />
+        <ColorPaletteResources x:Key="Dark" Accent="#8AADF4" RegionColor="#24273A"
+            BaseHigh="#CAD3F5" BaseMediumHigh="#B8C0E0" BaseMedium="#A5ADCB"
+            BaseMediumLow="#939AB7" BaseLow="#8087A2"
+            AltHigh="#24273A" AltMediumHigh="#363A4F" AltMedium="#494D64"
+            AltMediumLow="#5B6078" AltLow="#24273A"
+            ChromeHigh="#363A4F" ChromeMedium="#494D64" ChromeMediumLow="#363A4F"
+            ChromeLow="#24273A" ChromeAltLow="#1E2030" ChromeGray="#A5ADCB"
+            ChromeDisabledHigh="#939AB7" ChromeDisabledLow="#363A4F"
+            ChromeBlackHigh="#CAD3F5" ChromeBlackMedium="#B8C0E0"
+            ChromeBlackMediumLow="#A5ADCB" ChromeBlackLow="#8087A2" ChromeWhite="#24273A"
+            ListLow="#363A4F" ListMedium="#494D64" ErrorText="#ED8796" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
     <StyleInclude Source="/Resources/DesignTokens.axaml" />
   </Application.Styles>
 </Application>

@@ -237,9 +237,10 @@ Add item action.
 light/dark/high contrast; `DesignTokens.axaml` applies them to the window and
 validation guidance. `DesktopTheme` follows the platform contrast preference,
 uses a dark-inheriting high-contrast variant and releases its platform subscription
-at application exit. Ordinary theme choice remains platform-owned. Native Fluent
-focus and control styling remain active. Actual-host rendering qualification is
-recorded separately from the resource contrast tests.
+at application exit. System/Light/Dark choice is session-owned; native high
+contrast takes precedence until disabled. Native Fluent focus and control styling
+remain active. Actual-host rendering qualification is recorded separately from
+the resource contrast tests.
 Selection buttons return focus after cancellation/failure; successful intake
 focuses the first visible field. Closing disposes the shell, fencing outstanding
 selection as well as private saves. Code-behind contains initialization and

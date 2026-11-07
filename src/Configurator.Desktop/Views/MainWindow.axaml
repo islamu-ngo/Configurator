@@ -20,6 +20,17 @@
   </Window.KeyBindings>
   <ScrollViewer Name="WorkspaceScroll" Margin="20" HorizontalScrollBarVisibility="Disabled">
   <StackPanel Spacing="14">
+    <Expander Name="WorkspaceSettings" Header="{Binding Workspace.Strings[Settings]}" HorizontalAlignment="Stretch">
+      <StackPanel Spacing="8" MaxWidth="800">
+        <TextBlock Text="{Binding Workspace.Strings[AppearanceLabel]}" />
+        <ComboBox Name="Appearance" SelectedIndex="{Binding AppearanceIndex, Mode=TwoWay}"
+                  AutomationProperties.Name="{Binding Workspace.Strings[AppearanceLabel]}">
+          <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceSystem]}" />
+          <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceLight]}" />
+          <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceDark]}" />
+        </ComboBox>
+      </StackPanel>
+    </Expander>
     <local:DefinitionLoaderView />
     <StackPanel IsVisible="{Binding Workspace.HasConfigurationContext}" Spacing="6">
       <TextBlock Text="{Binding Workspace.Strings[ConfigurationContext]}" />

@@ -1,7 +1,56 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <x:Double x:Key="ConfiguratorBodyFontSize">14</x:Double>
+    <x:Double x:Key="ConfiguratorHeadingFontSize">24</x:Double>
+    <x:Double x:Key="ConfiguratorTitleFontSize">26</x:Double>
+  </Styles.Resources>
   <Style Selector="Window">
+    <Setter Property="FontSize" Value="{DynamicResource ConfiguratorBodyFontSize}" />
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorCanvasBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ConfiguratorTextBrush}" />
+  </Style>
+  <Style Selector="TextBlock">
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style Selector="TextBox, ComboBox, Button">
+    <Setter Property="MinHeight" Value="36" />
+    <Setter Property="MinWidth" Value="32" />
+  </Style>
+  <Style Selector="CheckBox, RadioButton, MenuItem">
+    <Setter Property="MinHeight" Value="32" />
+    <Setter Property="MinWidth" Value="32" />
+  </Style>
+  <Style Selector="Button">
+    <Setter Property="Margin" Value="0,0,8,8" />
+  </Style>
+  <Style Selector="TextBox, ComboBox, Button, ComboBoxItem">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorInputBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ConfiguratorTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorBorderBrush}" />
+  </Style>
+  <Style Selector="Button:pointerover, Button:pressed, ComboBox:pointerover, TextBox:pointerover">
     <Setter Property="Background" Value="{DynamicResource ConfiguratorSurfaceBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource ConfiguratorTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorFocusBrush}" />
+  </Style>
+  <Style Selector="ComboBoxItem:selected, ComboBoxItem:selected:pointerover, ListBoxItem:selected, ListBoxItem:selected:pointerover">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSelectedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ConfiguratorSelectedTextBrush}" />
+  </Style>
+  <Style Selector="ComboBoxItem:selected TextBlock, ListBoxItem:selected TextBlock">
+    <Setter Property="Foreground" Value="{DynamicResource ConfiguratorSelectedTextBrush}" />
+  </Style>
+  <Style Selector="ComboBoxItem:selected /template/ ContentPresenter, ListBoxItem:selected /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSelectedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ConfiguratorSelectedTextBrush}" />
+  </Style>
+  <Style Selector="TextBox:focus, ComboBox:focus, Button:focus-visible">
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorFocusBrush}" />
+  </Style>
+  <Style Selector="TextBox:disabled, ComboBox:disabled, Button:disabled">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorDisabledBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ConfiguratorDisabledTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorBorderBrush}" />
   </Style>
   <Style Selector="TextBlock.error">
     <Setter Property="Foreground" Value="{DynamicResource ConfiguratorErrorBrush}" />

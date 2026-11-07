@@ -5,12 +5,15 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Desktop.Messages;
+using Configurator.Desktop.Resources;
 
 /// <summary>Coordinates operation lifetime and status without owning field or artifact behavior.</summary>
 public sealed partial class DesktopShellViewModel : ObservableObject, IDisposable
 {
     private readonly IMessenger _messenger;
     private readonly TimeProvider _timeProvider;
+    private readonly DesktopTheme? _theme;
+    private int _appearanceIndex;
     private CancellationTokenSource? _operationCancellation;
     private DesktopOperation? _activeOperation;
     private TaskCompletionSource<bool>? _closeDecision;
@@ -42,10 +45,13 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     private bool _closeDecisionRequired;
 
     public DesktopShellViewModel(IMessenger messenger, DefinitionLoaderViewModel loader,
-        FormWorkspaceViewModel workspace, ArtifactPublisherViewModel publisher, TimeProvider? timeProvider = null)
+        FormWorkspaceViewModel workspace, ArtifactPublisherViewModel publisher,
+        TimeProvider? timeProvider = null, DesktopTheme? theme = null)
     {
         _messenger = messenger;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _theme = theme;
+        _appearanceIndex = (int)(theme?.Preference ?? DesktopAppearance.System);
         Loader = loader;
         Workspace = workspace;
         Publisher = publisher;
@@ -74,6 +80,16 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     public DefinitionLoaderViewModel Loader { get; }
     public FormWorkspaceViewModel Workspace { get; }
     public ArtifactPublisherViewModel Publisher { get; }
+    public int AppearanceIndex
+    {
+        get => _appearanceIndex;
+        set
+        {
+            if (_disposed || value is < 0 or > 2 || value == _appearanceIndex) return;
+            if (_theme is not null) _theme.Preference = (DesktopAppearance)value;
+            SetProperty(ref _appearanceIndex, value);
+        }
+    }
     /// <summary>Physical settlement, including consumer-owned cleanup; cancellation alone never completes this task.</summary>
     public Task ActiveCompletion => _activeOperation?.Completion ?? Task.CompletedTask;
     public bool IsCloseAuthorized { get; private set; }

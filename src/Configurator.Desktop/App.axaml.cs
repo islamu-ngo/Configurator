@@ -24,6 +24,7 @@ public sealed partial class App : Application, IDisposable
         {
             if (PlatformSettings is { } settings) _theme = new DesktopTheme(this, settings);
             var services = new ServiceCollection();
+            if (_theme is not null) services.AddSingleton(_theme);
             services.AddSingleton<IProtectedArtifactWriter, ProtectedArtifactWriter>();
             services.AddSingleton<IMessenger, WeakReferenceMessenger>();
             services.AddSingleton<IStorageDialogService>(provider =>

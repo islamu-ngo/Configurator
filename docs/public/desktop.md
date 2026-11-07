@@ -184,7 +184,8 @@ The same workspace selection refreshes provider action labels, window controls,
 field guidance and import review text in English or Arabic. Other provider
 languages fall back to English without changing the computer's language settings.
 
-The window follows the system's light/dark appearance and high-contrast preference.
+The window starts with System appearance; Light and Dark are session choices.
+Native high contrast takes precedence over either ordinary choice.
 Validation errors retain visible text as well as a distinct color and weight.
 
 **Follow locale direction** is enabled initially. Changing **Right-to-left

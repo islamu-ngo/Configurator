@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="Settings" xml:space="preserve"><value>إعدادات العرض</value></data>
+  <data name="AppearanceLabel" xml:space="preserve"><value>المظهر</value></data>
+  <data name="AppearanceSystem" xml:space="preserve"><value>النظام</value></data>
+  <data name="AppearanceLight" xml:space="preserve"><value>فاتح</value></data>
+  <data name="AppearanceDark" xml:space="preserve"><value>داكن</value></data>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <data name="SupplyLabel" xml:space="preserve"><value>_توفير</value></data>
