@@ -17,13 +17,13 @@ public sealed class DesktopWorkflowReadinessTests
             """);
         using var shell = DesktopTestContext.Root();
         shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString()));
-        await Assert.That(shell.Publisher.PrepareBundle()).IsFalse();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Invalid);
         await Assert.That(shell.Publisher.CanSaveBundle).IsFalse();
         shell.Workspace.Form!.Fields.Single(input => input.Definition.Id == "mode").Text = "remote";
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         await Assert.That(shell.Publisher.CanSaveBundle).IsEqualTo(shell.Publisher.ProtectedSaveAvailable);
         shell.Publisher.SelectArtifact("config", false);
-        await Assert.That(shell.Publisher.PrepareBundle()).IsFalse();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Invalid);
         await Assert.That(shell.Publisher.CanSaveBundle).IsFalse();
     }
 
@@ -34,10 +34,10 @@ public sealed class DesktopWorkflowReadinessTests
         source["artifacts"]![1]!["fileName"] = "SERVICE.JSON";
         using var shell = DesktopTestContext.Root();
         await Assert.That(shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString()))).IsFalse();
-        await Assert.That(shell.Publisher.PrepareBundle()).IsFalse();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Invalid);
         await Assert.That(shell.Publisher.CanSaveBundle).IsFalse();
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
     }
 
     [Test]
@@ -48,7 +48,7 @@ public sealed class DesktopWorkflowReadinessTests
             (_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsupportedPlatform)),
             directory.Path, protectedOutputAvailable: false);
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         await shell.Publisher.SaveBundleAsync();
         await Assert.That(Directory.GetFiles(directory.Path).Length).IsEqualTo(0);
         await Assert.That(shell.Publisher.CanSaveBundle).IsFalse();
@@ -124,7 +124,7 @@ public sealed class DesktopWorkflowReadinessTests
             });
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         shell.Publisher.SelectArtifact("environment", true);
-        shell.Publisher.PrepareBundle();
+        await shell.Publisher.PrepareBundleAsync();
         Task<ProtectedArtifactBundleResult?> save = shell.Publisher.SaveBundleAsync();
         await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
         switch (change)
@@ -164,7 +164,7 @@ public sealed class DesktopWorkflowReadinessTests
         await Assert.That(await File.ReadAllTextAsync(System.IO.Path.Combine(directory.Path, "service.json")))
             .IsEqualTo("existing-operator-data");
         await Assert.That(shell.Publisher.CanSave).IsFalse();
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         await Assert.That((await shell.Publisher.SaveBundleAsync())!.Succeeded).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(System.IO.Path.Combine(directory.Path, "service.json")))
             .IsEqualTo("existing-operator-data");

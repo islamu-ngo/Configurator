@@ -3,7 +3,7 @@
     xmlns:vm="using:Configurator.Desktop.ViewModels" xmlns:presentation="using:Configurator.Presentation"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
     <StackPanel Spacing="8">
-      <TextBlock Text="{Binding Workspace.Strings[PreparationTitle]}" FontSize="26" FontWeight="SemiBold" />
+      <TextBlock Text="{Binding Workspace.Strings[PreparationTitle]}" FontSize="{DynamicResource ConfiguratorTitleFontSize}" FontWeight="SemiBold" />
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <StackPanel>
           <TextBlock Text="{Binding Workspace.Strings[DefinitionPath]}" />
@@ -17,34 +17,5 @@
                 Command="{Binding Loader.LoadDefinitionCommand}" VerticalAlignment="Bottom" />
       </Grid>
       <TextBlock Text="{Binding Loader.DefinitionPin}" TextWrapping="Wrap" />
-      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-        <StackPanel>
-          <TextBlock Text="{Binding Workspace.Strings[Experience]}" />
-          <ComboBox Name="Experience" HorizontalAlignment="Stretch"
-                    AutomationProperties.Name="{Binding Workspace.Strings[Experience]}"
-                    ItemsSource="{Binding Workspace.Experiences}"
-                    SelectedItem="{Binding Workspace.SelectedExperience, Mode=TwoWay}">
-            <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="vm:ExperienceChoiceViewModel">
-                <TextBlock Text="{Binding Title}" />
-              </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
-          <CheckBox Name="OptionalEditors" Content="{Binding Workspace.Strings[OptionalEditors]}"
-                    AutomationProperties.Name="{Binding Workspace.Strings[OptionalEditors]}"
-                    IsChecked="{Binding Workspace.OptionalEditorsExpanded, Mode=TwoWay}" />
-          <TextBlock Text="{Binding Workspace.LocaleLabel}" />
-          <ComboBox Name="DefinitionLocale" ItemsSource="{Binding Workspace.Locales}"
-                    SelectedItem="{Binding Workspace.SelectedLocale, Mode=TwoWay}"
-                    AutomationProperties.Name="{Binding Workspace.LocaleLabel}" />
-        </StackPanel>
-        <StackPanel Grid.Column="1" VerticalAlignment="Bottom">
-          <CheckBox Content="{Binding Workspace.FollowLocaleDirectionLabel}"
-                    AutomationProperties.Name="{Binding Workspace.FollowLocaleDirectionLabel}"
-                    IsChecked="{Binding Workspace.FollowLocaleDirection, Mode=TwoWay}" />
-          <CheckBox Content="{Binding Workspace.Strings[RightToLeft]}" AutomationProperties.Name="{Binding Workspace.Strings[RightToLeft]}"
-                    IsChecked="{Binding Workspace.IsRightToLeft, Mode=TwoWay}" />
-        </StackPanel>
-      </Grid>
     </StackPanel>
 </UserControl>

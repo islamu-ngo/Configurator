@@ -1,0 +1,46 @@
+<UserControl x:Class="Configurator.Desktop.Views.ConfigurationDiscoveryView"
+    xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Configurator.Desktop.ViewModels" xmlns:p="using:Configurator.Presentation"
+    xmlns:local="using:Configurator.Desktop.Views"
+    xmlns:converters="using:Avalonia.Data.Converters"
+    x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
+  <StackPanel Spacing="8">
+    <TextBlock Text="{Binding Workspace.Strings[DiscoveryLabel]}" />
+    <TextBox Name="ConfigurationSearch" Text="{Binding Navigation.SearchText, Mode=TwoWay}" MaxLength="65536"
+             AutomationProperties.Name="{Binding Workspace.Strings[DiscoveryLabel]}"
+             AutomationProperties.HelpText="{Binding Workspace.Strings[DiscoveryHelp]}" />
+    <CheckBox Content="{Binding Workspace.Strings[DiscoveryIncludeInactive]}"
+              IsChecked="{Binding Navigation.IncludeInactive, Mode=TwoWay}" />
+    <TextBlock Name="DiscoveryGuidance" Text="{Binding Navigation.DiscoveryGuidance}" />
+    <StackPanel IsVisible="{Binding Navigation.HasDiscoveryQuery}" Spacing="8">
+      <WrapPanel>
+        <TextBlock Text="{Binding Workspace.Strings[DiscoveryCount]}" Margin="0,0,8,0" />
+        <TextBlock Text="{Binding Navigation.DiscoveryTotal}" />
+      </WrapPanel>
+      <ListBox Name="DiscoveryResults" ItemsSource="{Binding Navigation.DiscoveryResults}"
+               SelectedItem="{Binding Navigation.SelectedDiscoveryResult, Mode=TwoWay}"
+               ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+               AutomationProperties.Name="{Binding Workspace.Strings[DiscoveryLabel]}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="p:DefinitionDiscoveryMatch">
+            <StackPanel Spacing="4" Margin="4">
+              <TextBlock Text="{Binding Entry.Title}" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding Entry.SectionTitle}" />
+              <TextBlock Text="{Binding Entry.Help}" />
+              <TextBlock IsVisible="{Binding Entry.IsActive}"
+                         Text="{Binding $parent[local:ConfigurationDiscoveryView].((vm:DesktopShellViewModel)DataContext).Workspace.Strings[DiscoveryActive]}" />
+              <TextBlock IsVisible="{Binding Entry.IsActive, Converter={x:Static converters:BoolConverters.Not}}"
+                         Text="{Binding $parent[local:ConfigurationDiscoveryView].((vm:DesktopShellViewModel)DataContext).Workspace.Strings[DiscoveryInactiveStatus]}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <WrapPanel IsVisible="{Binding Navigation.HasDiscoveryPages}">
+        <Button Content="{Binding Workspace.Strings[PreviousPage]}" Command="{Binding Navigation.PreviousDiscoveryPageCommand}" />
+        <TextBlock Text="{Binding Navigation.DiscoveryPageNumber}" Margin="8" />
+        <TextBlock Text="{Binding Navigation.DiscoveryPageCount}" Margin="8" />
+        <Button Content="{Binding Workspace.Strings[NextPage]}" Command="{Binding Navigation.NextDiscoveryPageCommand}" />
+      </WrapPanel>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

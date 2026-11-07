@@ -9,7 +9,7 @@ public sealed class DesktopStrings
     private static readonly ResourceManager Resources = new(typeof(DesktopStrings));
     public DesktopStrings(string? locale)
     {
-        try { Culture = CultureInfo.GetCultureInfo(locale ?? "en"); }
+        try { Culture = CultureInfo.GetCultureInfo(locale ?? CultureInfo.CurrentUICulture.Name); }
         catch (CultureNotFoundException) { Culture = CultureInfo.GetCultureInfo("en"); }
     }
     public CultureInfo Culture { get; }

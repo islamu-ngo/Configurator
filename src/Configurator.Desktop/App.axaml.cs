@@ -35,8 +35,9 @@ public sealed partial class App : Application, IDisposable
             services.AddSingleton<DefinitionLoaderViewModel>();
             services.AddSingleton<FormWorkspaceViewModel>();
             services.AddSingleton<Func<CancellationToken, ValueTask>>(
-                ArtifactPublisherViewModel.YieldDispatcherAsync);
+                DesktopImportReviewViewModel.YieldDispatcherAsync);
             services.AddSingleton<ArtifactPublisherViewModel>();
+            services.AddSingleton<DesktopImportReviewViewModel>();
             services.AddSingleton<DesktopShellViewModel>();
             services.AddSingleton(provider => new MainWindow
             {

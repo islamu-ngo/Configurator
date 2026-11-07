@@ -29,7 +29,9 @@ Command-line arguments are optional:
 - **One argument:** Automatically loads the specified definition file on launch.
 - **Two arguments:** Loads the definition and sets the target output directory.
 
-The application bar displays the loaded definition's title, application ID, publisher, family UUID, revision number, and computed SHA-256 digest pin. Changing the definition file on disk does not alter the running workspace; select **Reload** to explicitly admit an updated revision.
+Open displays the loaded definition's title, application ID, publisher, family
+UUID, revision and SHA-256 digest pin. Changing the file on disk does not alter
+the running workspace; load it again to explicitly admit an updated revision.
 
 Dismissing a picker preserves your current answers and preparation. Unavailable
 pickers and remote locations produce separate guidance. A selection that finishes
@@ -39,38 +41,26 @@ after cancellation or workspace replacement cannot change the new workspace.
 
 ## Desktop GUI Layout
 
-The desktop interface organizes controls into intuitive navigation, form editing, and output staging panels:
+The workspace has three stages. **Open** admits a local definition.
+**Configure** shows its authored sections and the current section's editors.
+**Review outputs** contains preparation and deliberate protected saving.
+Changing stages does not collect another copy of your answers or discard
+unfinished numeric text. Validation and missing counts cover the whole active
+configuration, including fields on other pages.
 
-```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│  ISLAMU Configurator Desktop                                 [ _ ][ □ ][ X ] │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  Definition: Minimal Self-Hosted v1.0.0    Digest: sha256:7f83b1a2...        │
-│  Definition Path: [/path/to/setup.json                ] [Choose definition…] │
-│  Output Folder:   [/path/to/output-dir                ] [Choose folder…    ] │
-├──────────────────────────────────────┬───────────────────────────────────────┤
-│  Configuration Workspace             │  Guidance & Details                   │
-│                                      │                                       │
-│  Experience: [ Recommended        ▼] │  Field: service.name                  │
-│  [x] Show optional settings          │  Type: string                         │
-│                                      │  Requirement: Required                │
-│  ▼ General Settings                  │                                       │
-│    Service Domain:                   │  Fully qualified domain name for this │
-│    [ api.example.com               ] │  service deployment.                  │
-│                                      │                                       │
-│    Database Password:                │  Consequence:                         │
-│    [ •••••••••••••••••             ] │  Stored securely in .env as           │
-│                                      │  DB_PASSWORD.                         │
-│  ▼ Advanced Clustering               │                                       │
-│    Container: [Supply] [Clear]       │                                       │
-│    Nodes: [Add item] [Remove item]   │                                       │
-├──────────────────────────────────────┴───────────────────────────────────────┤
-│  Declared Outputs: [x] .env   [x] service.json                               │
-│  [Validate Answers]   [Prepare Bundle]   [Save New Protected File]           │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  Status: All required fields valid • Ready to prepare bundle                 │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+Sections with more than 50 root editors have explicit Previous/Next pages.
+Paging changes the displayed editors while the workspace retains their drafts
+and identities. Definitions whose root is a map or a variant have a neutral
+Configure section so their recursive editor remains reachable.
+
+Small windows use a section picker. Wider workspaces can show a section rail;
+the editing column stays within an 800-unit reading width. Resizing rearranges
+the existing editing surface rather than replacing an in-progress text input.
+
+Appearance offers **System**, **Light** (Latte), and **Dark** (Macchiato).
+The preference lasts for this application session; restarting uses System.
+Native high contrast takes priority, and turning it off restores your chosen
+ordinary appearance. Appearance changes do not alter answers or preparation.
 
 ---
 
@@ -83,10 +73,14 @@ Navigate quickly using native keyboard controls:
 | `Tab` | Move focus forward to the next field, control, or button |
 | `Shift + Tab` | Move focus backward to the previous field, control, or button |
 | `Ctrl + O` | Focus the definition file path input |
-| `Ctrl + Enter` | Prepare the currently selected artifact or bundle |
-| `Escape` | Cancel active background operation or discard prepared bundle |
+| `Ctrl + Enter` | Open Review and prepare the selected outputs; saving remains separate |
+| `Escape` | Dismiss the active popup first; otherwise cancel work or discard preparation |
 | `Alt + <Letter>` | Activate button matching the underlined access key |
 | Direction controls | Follow the definition locale's direction, or explicitly override left-to-right/right-to-left layout |
+
+On macOS the application uses the platform's Command modifier for Open and
+Prepare. Focused editors and native popups receive keyboard input first.
+Preparation shortcuts never save files.
 
 ---
 
@@ -113,9 +107,35 @@ target acceptance.
 
 Fields dynamically render native controls matching their admitted types:
 - **Strings and Numbers:** Ordinary text inputs validating invariant decimal formatting.
-- **Booleans:** Three-state checkboxes distinguish true, false and not supplied.
+- **Booleans:** A choice control distinguishes **Not supplied**, **Yes**, and **No**. Explicit null remains a separate action when the definition permits it.
 - **Enums:** Dropdown choices retain their declared ordinal and exact JSON type/value. Labels are display metadata, not identity: two choices with the same localized label remain distinct, and an empty-string choice is not **Not supplied**.
 - **Protected Secrets:** Password-masked controls. Protected booleans and enums use masked inputs instead of open dropdowns to avoid leaking values.
+
+### Find settings and correct errors
+
+**Find settings** searches admitted titles, descriptions, schema metadata and
+public facets. It never indexes answers, secrets, private map entry names or
+prepared file content. Queries accept at most 256 characters and 16 terms;
+limit feedback leaves the accepted search unchanged. Results show a total,
+active/inactive status and pages of 25. Include inactive settings explicitly
+when needed. Selecting an inactive result explains its applicability without
+changing its controlling answers.
+
+Search navigation does not supply an absent container or choose a private
+collection entry. A correction from validation uses its current revision and
+editor identity to reveal the section, root page and collection ancestors
+before requesting focus. A retired correction cannot target a replacement row.
+
+Untouched required fields show their required status and contribute to global
+missing counts. Inline correction guidance appears after an edit is blurred
+or after validation/preparation is requested. These display choices never
+weaken readiness or remove invalid drafts.
+
+Lists and maps display at most 25 immediate rows per page. Nested collections
+stay closed until opened; changing pages preserves surviving row identities
+and unfinished numeric text. Secondary omission, suggestion, reset, null and
+removal actions live in each field's **Actions** menu. **Supply** remains a
+distinct deliberate operation for absent containers.
 
 ### Secret Generation and Deliberate Copy
 
@@ -141,12 +161,22 @@ corrections without echoing a secret, and invalid drafts remain editable.
 
 ### Presence, Initialization and Suggestions
 
+Available actions follow the current field state. Readonly or inactive fields
+do not offer null or suggestions. Ordinary correction guidance includes the
+definition's limits and public choices in the selected language, without
+repeating the entered answer. Protected fields and their containers withhold
+suggestions and choice disclosure.
+
 These actions have different effects:
 
 - **Set null:** Available for nullable fields; supplies a present JSON `null`, not an absent value.
 - **Clear / Not supplied:** Explicitly omits the setting and suppresses its `initialValue`. Empty strings (`""`), false, zero and empty containers are supplied values, not omission. For a string list item, **Clear** retains an empty-string row; use **Remove item** to delete it.
 - **Reset:** Removes the supplied override and explicit omission so eligible `x-configurator.initialValue` initialization can apply again. It does not promise a value where no initialization is declared.
 - **Apply suggestion:** Deliberately adopts `x-configurator.suggestedValue`; a suggestion never fills answers automatically. Suggestion actions are withheld for protected fields or containers with protected descendants.
+
+The configuration root is always present, so its **Clear** action is disabled.
+Root maps and root branches use the same typed controls described below.
+Array rows use **Remove item** rather than omission or field reset.
 
 Standard JSON Schema `default` is descriptive only and is never inserted.
 Initialization is resolved by the shared engine, including eligible children of
@@ -187,26 +217,43 @@ languages fall back to English without changing the computer's language settings
 The window starts with System appearance; Light and Dark are session choices.
 Native high contrast takes precedence over either ordinary choice.
 Validation errors retain visible text as well as a distinct color and weight.
+Appearance, language and direction are under **Display settings**, available
+across stages. Experience and optional-detail controls belong to Configure.
 
 **Follow locale direction** is enabled initially. Changing **Right-to-left
 layout** selects an explicit direction override; enable follow-direction again
 to resume the locale's direction. Neither direction control changes language.
-Definition metadata localization is separate from shipped action text selected
-by the process UI culture; this is not a complete Desktop translation claim.
+Definition metadata uses its admitted translations. Shipped controls use the
+workspace's English/Arabic resources, falling back to English for other
+definition languages. Before a workspace is loaded, the process UI culture
+selects the initial shipped text. This is not complete translation coverage.
 
 ### Validation and Preparation
 
-Before generating files, verify answers and bundle readiness:
+In **Review outputs**:
 
-1. **Validate Answers:** Evaluates shared constraints and requests correction focus on the first visible error. Ordinary containers route focus toward a visible failing child; map and branch editors provide their key input or branch selector as correction destinations. Required/error paths remain reachable even when optional detail is collapsed.
-2. **Select Artifacts:** Choose individual declared artifacts or check multiple outputs under **Bundle outputs**.
-3. **Prepare Artifact / Bundle:** Staging validates full bundle composition, formats templates, and displays output digests without revealing secret plaintext.
+1. Review whole-configuration readiness. **Validate** reveals current correction
+   guidance and opens the affected section/page before requesting focus.
+2. Select the eligible declared outputs in **Outputs to prepare**. The first
+   eligible output starts selected. With none selected, preparation is disabled.
+3. Choose an existing destination directory. One selected output can use a
+   filename override; multiple outputs use their declared filenames.
+4. **Prepare selected outputs** validates and prepares the current selection.
+   Preparation does not write files, overwrite anything or apply configuration.
+5. Inspect readiness and consequences, then deliberately **Save prepared outputs**.
+   Saving consumes that preparation. Selection, destination, filename or answer
+   changes require a fresh preparation.
+
+Cancellation or an edit can retire preparation without making the answers
+invalid. Wait for the active operation to settle, review the current answers and
+prepare again. A preparation failure is reported separately from validation
+errors; it does not identify a field that needs correction.
 
 ### Importing Existing Files
 
 Review existing `.json`, `.yaml`, or `.env` files against the selected definition:
 
-1. Select the declared artifact that represents the file. A filename does not establish its scope or provenance.
+1. Expand **Compare or fill from an existing file** and select its **Source output format** independently of the export checkboxes. A filename does not establish its scope or provenance.
 2. Leave the purpose at **Compare with this definition**. Choose a file or enter its path, then start the review. Input is bounded to 4 MiB and stays local.
 3. Review compatibility, coverage, finding completeness and autofill eligibility separately. Imported-file issues do not mark current workspace answers invalid. **Explain schema** opens declared guidance, never a current list row or map entry identified by an imported ordinal.
 4. To adopt recovered values, deliberately choose **Fill fields**. Adoption rechecks current answers, omissions and drafts. A report never grants overwrite permission. Changing the purpose, artifact or source, cancelling, editing answers or replacing the definition retires the comparison.
@@ -256,8 +303,10 @@ in exception messages.
 > On Linux x64, Configurator writes configuration files using a native create-only writer with owner-only (`0600`) permissions. Existing files are never overwritten. Protected saving fails closed on unsupported platforms without plain-file fallback.
 
 To publish files safely:
-1. Click **Choose folder…** to select an existing directory, then enter a target filename (up to 128 characters: letters, numbers, dots, dashes, underscores).
-2. Click **Save new protected file** or **Save protected bundle**.
+1. Choose an existing directory and prepare the selected outputs. For one file,
+   an optional filename override accepts up to 128 letters, numbers, dots,
+   dashes or underscores; multiple outputs retain their declared filenames.
+2. Deliberately click **Save prepared outputs**.
 3. The writer verifies that no target files exist before committing any file to disk.
 
 ### Understanding Publication Outcomes
@@ -265,18 +314,23 @@ To publish files safely:
 The desktop client separates installation from verification:
 - `installation-established`: The file was successfully written with restricted permissions.
 - `save-installed-unverified`: The file was created, but immediate post-installation verification failed. Inspect the file manually before using it.
-- `cleanup-failed`: Temporary writer resources could not be cleanly released, but written files remain valid.
+- `cleanup-failed`: Temporary writer resources could not be cleanly released. Review installation and verification facts separately.
 
-If a failure occurs during a multi-file bundle save, previously written files are kept intact. Review the **Publication facts** panel for individual artifact outcomes, then correct remaining items and prepare again.
+If a later file in a bundle fails, Configurator does not roll back earlier
+installations. Immediate verification records what was checked during that
+attempt; it does not guarantee the file's current integrity. Review
+**Publication facts** and inspect installed or unverified destinations manually.
+Select only failed or unattempted outputs, resolve the conflict, then prepare
+again using fresh destinations.
 
 ---
 
 ## Window Closure & Pending Tasks
 
 Closing the window while background reads or writes are active triggers cooperative cancellation:
-- **Automatic Settlement:** The window waits up to two seconds for active disk operations to finish before exiting cleanly.
-- **Stay Open:** If operations are still running after the deadline, choose **Stay open** to keep the window accessible while work settles.
-- **Force Close:** Choose **Force close** to terminate immediately. If forced, check target directories manually to inspect any partially written files.
+- **Automatic Settlement:** The window waits up to two seconds for active preparation, reads or writes to settle. It closes normally if that work finishes while the close request is active.
+- **Stay Open:** If work remains after the deadline, choose **Stay open** to keep the window accessible while it settles. This does not undo cancellation or release the active operation.
+- **Force Close:** After the deadline, choose **Force close** to close without waiting for the unknown outcome. Forced closure cannot guarantee that no file was written, roll back installation or erase managed memory. Inspect destination files manually.
 
 ## Answer Custody and Qualification Limits
 

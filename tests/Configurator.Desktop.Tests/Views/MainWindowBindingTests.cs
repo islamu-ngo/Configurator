@@ -1,5 +1,6 @@
 namespace Configurator.Desktop.Tests.Views;
 
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Media;
@@ -18,6 +19,50 @@ public sealed class MainWindowBindingTests
     private static readonly string[] PathEditorNames = ["DefinitionPath", "ExistingFilePath", "OutputDirectory", "FileName"];
 
     [Test]
+    [Arguments(0)]
+    [Arguments(1)]
+    [NotInParallel]
+    public async Task ImportPurposeRemainsSelectedWhenWorkspaceLocaleChanges(int purpose)
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(MainWindowBindingTests));
+        try
+        {
+            var state = await session.Dispatch(() =>
+            {
+                using var shell = DesktopTestContext.Root();
+                var window = new MainWindow { DataContext = shell };
+                try
+                {
+                    window.Show();
+                    shell.Loader.LoadDefinition(ViewModels.DefinitionEditingTests.Definition().CanonicalBytes.ToArray());
+                    shell.Navigation.ReviewCommand.Execute(null);
+                    window.UpdateLayout();
+                    window.GetNamedControl<Expander>("OptionalImport").IsExpanded = true;
+                    shell.ImportReview.ImportPurposeIndex = purpose;
+                    Dispatcher.UIThread.RunJobs();
+                    shell.Workspace.SelectedLocale = "ar";
+                    Dispatcher.UIThread.RunJobs();
+                    ComboBox selector = window.GetNamedControl<ComboBox>("ImportPurpose");
+                    var arabic = (selector.SelectedIndex, shell.ImportReview.ImportPurposeIndex,
+                        selector.SelectionBoxItem is not null,
+                        ControlAutomationPeer.CreatePeerForElement((ComboBoxItem)selector.SelectedItem!)?.GetName() ==
+                            shell.ImportReview.ImportPurposes[purpose]);
+                    shell.Workspace.SelectedLocale = "en";
+                    Dispatcher.UIThread.RunJobs();
+                    return (arabic, english: (selector.SelectedIndex, shell.ImportReview.ImportPurposeIndex,
+                        selector.SelectionBoxItem is not null,
+                        ControlAutomationPeer.CreatePeerForElement((ComboBoxItem)selector.SelectedItem!)?.GetName() ==
+                            shell.ImportReview.ImportPurposes[purpose]));
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+            await Assert.That(state.arabic).IsEqualTo((purpose, purpose, true, true));
+            await Assert.That(state.english).IsEqualTo((purpose, purpose, true, true));
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
+    [Test]
     [NotInParallel]
     public async Task WindowChromeRefreshesLocaleAndErrorPaletteStaysReadable()
     {
@@ -31,7 +76,8 @@ public sealed class MainWindowBindingTests
                 using var loader = new DefinitionLoaderViewModel(messenger, dialogs);
                 using var workspace = new FormWorkspaceViewModel(messenger);
                 using var publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter());
-                using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher);
+                using var importReview = new DesktopImportReviewViewModel(messenger, dialogs, publisher);
+                using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher, importReview);
                 var window = new MainWindow { DataContext = shell };
                 try
                 {
@@ -48,6 +94,10 @@ public sealed class MainWindowBindingTests
                     var experience = window.GetNamedControl<ComboBox>("Experience");
                     bool experienceSelected = selectedExperience is not null &&
                         ReferenceEquals(experience.SelectedItem, selectedExperience) && experience.SelectionBoxItem is not null;
+                    shell.Navigation.ReviewCommand.Execute(null);
+                    window.UpdateLayout();
+                    window.GetNamedControl<Expander>("OptionalImport").IsExpanded = true;
+                    window.UpdateLayout();
                     bool pathsLeftToRight = PathEditorNames
                         .All(name => window.GetNamedControl<TextBox>(name).FlowDirection == FlowDirection.LeftToRight);
                     bool readable = true;
@@ -89,7 +139,7 @@ public sealed class MainWindowBindingTests
 
     private static readonly string[] ActionNames =
     [
-        "LoadDefinition", "Validate", "Prepare", "Save", "PrepareBundle", "SaveBundle",
+        "LoadDefinition", "Validate", "PrepareSelection", "SaveSelection",
         "Import", "Cancel", "SelectDefinition", "SelectImport", "SelectOutput"
     ];
 
@@ -109,7 +159,8 @@ public sealed class MainWindowBindingTests
                 using var loader = new DefinitionLoaderViewModel(messenger, dialogs);
                 using var workspace = new FormWorkspaceViewModel(messenger);
                 using var publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter());
-                using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher);
+                using var importReview = new DesktopImportReviewViewModel(messenger, dialogs, publisher);
+                using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher, importReview);
                 var window = new MainWindow { DataContext = shell };
                 try
                 {
@@ -117,6 +168,11 @@ public sealed class MainWindowBindingTests
                     window.UpdateLayout();
                     Dispatcher.UIThread.RunJobs();
                     loader.LoadDefinition(DesktopApplicationTests.Definition());
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    shell.Navigation.ReviewCommand.Execute(null);
+                    window.UpdateLayout();
+                    window.GetNamedControl<Expander>("OptionalImport").IsExpanded = true;
                     window.UpdateLayout();
                     Dispatcher.UIThread.RunJobs();
                     return (
@@ -128,8 +184,7 @@ public sealed class MainWindowBindingTests
                             window.GetNamedControl<ComboBox>("Artifact").GetVisualDescendants()
                                 .OfType<TextBlock>().Any(control => control.Text == publisher.ArtifactId &&
                                     control.IsEffectivelyVisible && control.Bounds.Width > 0),
-                        gated: !window.GetNamedControl<Button>("Save").IsEffectivelyEnabled &&
-                            !window.GetNamedControl<Button>("SaveBundle").IsEffectivelyEnabled);
+                        gated: !window.GetNamedControl<Button>("SaveSelection").IsEffectivelyEnabled);
                 }
                 finally { window.Close(); }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));

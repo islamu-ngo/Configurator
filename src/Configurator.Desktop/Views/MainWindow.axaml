@@ -13,13 +13,15 @@
     Title="{Binding Workspace.Strings[WindowTitle]}"
     Width="960" Height="800" MinWidth="600" MinHeight="540"
     AutomationProperties.Name="{Binding Workspace.Strings[WindowTitle]}">
-  <Window.KeyBindings>
-    <KeyBinding Gesture="Ctrl+O" Command="{Binding FocusDefinitionPathCommand}" />
-    <KeyBinding Gesture="Ctrl+Enter" Command="{Binding Publisher.PrepareCommand}" />
-    <KeyBinding Gesture="Escape" Command="{Binding CancelCommand}" />
-  </Window.KeyBindings>
   <ScrollViewer Name="WorkspaceScroll" Margin="20" HorizontalScrollBarVisibility="Disabled">
   <StackPanel Spacing="14">
+    <WrapPanel>
+      <Button Name="OpenStage" AutomationProperties.AutomationId="OpenStage" Content="{Binding Workspace.Strings[Open]}" Command="{Binding Navigation.OpenCommand}" />
+      <Button Name="ConfigureStage" AutomationProperties.AutomationId="ConfigureStage" Content="{Binding Workspace.Strings[Configure]}"
+              Command="{Binding Navigation.ConfigureCommand}" IsEnabled="{Binding Navigation.HasWorkspace}" />
+      <Button Name="ReviewStage" AutomationProperties.AutomationId="ReviewStage" Content="{Binding Workspace.Strings[ReviewOutputs]}"
+              Command="{Binding Navigation.ReviewCommand}" IsEnabled="{Binding Navigation.HasWorkspace}" />
+    </WrapPanel>
     <Expander Name="WorkspaceSettings" Header="{Binding Workspace.Strings[Settings]}" HorizontalAlignment="Stretch">
       <StackPanel Spacing="8" MaxWidth="800">
         <TextBlock Text="{Binding Workspace.Strings[AppearanceLabel]}" />
@@ -29,29 +31,26 @@
           <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceLight]}" />
           <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceDark]}" />
         </ComboBox>
+        <StackPanel IsVisible="{Binding Navigation.HasWorkspace}" Spacing="8">
+          <TextBlock Text="{Binding Workspace.LocaleLabel}" />
+          <ComboBox Name="DefinitionLocale" ItemsSource="{Binding Workspace.Locales}"
+                    SelectedItem="{Binding Workspace.SelectedLocale, Mode=TwoWay}"
+                    AutomationProperties.Name="{Binding Workspace.LocaleLabel}" />
+          <CheckBox AutomationProperties.Name="{Binding Workspace.FollowLocaleDirectionLabel}"
+                    IsChecked="{Binding Workspace.FollowLocaleDirection, Mode=TwoWay}">
+            <TextBlock Text="{Binding Workspace.FollowLocaleDirectionLabel}" />
+          </CheckBox>
+          <CheckBox AutomationProperties.Name="{Binding Workspace.Strings[RightToLeft]}"
+                    IsChecked="{Binding Workspace.IsRightToLeft, Mode=TwoWay}">
+            <TextBlock Text="{Binding Workspace.Strings[RightToLeft]}" />
+          </CheckBox>
+        </StackPanel>
       </StackPanel>
     </Expander>
-    <local:DefinitionLoaderView />
-    <StackPanel IsVisible="{Binding Workspace.HasConfigurationContext}" Spacing="6">
-      <TextBlock Text="{Binding Workspace.Strings[ConfigurationContext]}" />
-      <ComboBox Name="ConfigurationContext" ItemsSource="{Binding Workspace.ConfigurationChoices}"
-                SelectedItem="{Binding Workspace.SelectedConfigurationContext, Mode=TwoWay}"
-                AutomationProperties.Name="{Binding Workspace.Strings[ConfigurationContext]}"
-                AutomationProperties.HelpText="{Binding Workspace.Strings[ConfigurationContextHelp]}">
-        <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:ConfigurationContextChoice">
-            <TextBlock Text="{Binding Title}" />
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
-      <TextBlock Text="{Binding Workspace.Strings[ConfigurationContextHelp]}" TextWrapping="Wrap" />
-    </StackPanel>
-      <ItemsControl Name="Fields" ItemsSource="{Binding Workspace.Fields}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate><StackPanel Spacing="14" /></ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-      </ItemsControl>
-    <local:ArtifactPublicationView />
+    <local:DefinitionLoaderView IsVisible="{Binding Navigation.IsOpen}" MaxWidth="800" HorizontalAlignment="Stretch" />
+    <local:ConfigurationWorkspaceView IsVisible="{Binding Navigation.IsConfigure}" />
+    <local:ArtifactPublicationView IsVisible="{Binding Navigation.IsReview}" MaxWidth="800" HorizontalAlignment="Stretch" />
+    <local:WorkspaceActionBar />
   </StackPanel>
   </ScrollViewer>
 </Window>

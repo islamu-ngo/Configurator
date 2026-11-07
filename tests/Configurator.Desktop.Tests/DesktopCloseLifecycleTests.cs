@@ -10,17 +10,48 @@ using Configurator.Desktop.Views;
 public sealed class DesktopCloseLifecycleTests
 {
     [Test]
+    public async Task CloseRetiresImportReviewButWaitsForItsPhysicalRead()
+    {
+        var supplied = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var shell = DesktopTestContext.Root();
+        shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+        var form = shell.Workspace.Form!;
+        long revision = form.InputRevision;
+        Task<bool> reviewing = shell.ImportReview.CompareAsync(_ => supplied.Task);
+        Task settlement = shell.ActiveCompletion;
+        Task<bool> closing = shell.RequestCloseAsync();
+        byte[] input = """{"name":"retired-import"}"""u8.ToArray();
+        try
+        {
+            await Assert.That(shell.IsBusy && shell.ImportReview.IsBusy).IsTrue();
+            await Assert.That(settlement.IsCompleted || closing.IsCompleted).IsFalse();
+            await Assert.That(shell.ImportReview.HasImportComparison).IsFalse();
+        }
+        finally { supplied.TrySetResult(input); }
+        await Assert.That(await reviewing.WaitAsync(TimeSpan.FromSeconds(10))).IsFalse();
+        await Assert.That(await closing.WaitAsync(TimeSpan.FromSeconds(10))).IsTrue();
+        await settlement.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.That(shell.IsBusy || shell.ImportReview.IsBusy).IsFalse();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+        await Assert.That(form.ImportComparison).IsNull();
+        await Assert.That(input.All(value => value == 0)).IsTrue();
+    }
+
+    [Test]
     public async Task DeadlineKeepsUnknownWorkOwnedAndStayOpenWithdrawsOnlyCloseIntent()
     {
         var clock = new CloseClock();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var shell = DesktopTestContext.Root(save: async (_, _, _) =>
         {
+            entered.TrySetResult();
             await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
             return ProtectedArtifactCommitResult.Installed(true);
         }, protectedOutputAvailable: true, timeProvider: clock);
         await PrepareAsync(shell);
         Task saving = shell.Publisher.SaveAsync();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         var decision = DecisionSignal(shell);
         Task<bool> closing = shell.RequestCloseAsync();
         try
@@ -54,17 +85,20 @@ public sealed class DesktopCloseLifecycleTests
     public async Task DeliberateForceCloseRetainsPhysicalOwnerAndFencesLateCallbacks(bool fail)
     {
         var clock = new CloseClock();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         ReadOnlyMemory<byte> borrowed = default;
         using var shell = DesktopTestContext.Root(save: async (_, bytes, _) =>
         {
             borrowed = bytes;
+            entered.TrySetResult();
             await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
             if (fail) throw new IOException("synthetic-private-exception");
             return ProtectedArtifactCommitResult.Installed(false, cleanupFailed: true);
         }, protectedOutputAvailable: true, timeProvider: clock);
         await PrepareAsync(shell);
         Task saving = shell.Publisher.SaveAsync();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         Task physical = shell.ActiveCompletion;
         Task decision = DecisionSignal(shell);
         Task<bool> closing = shell.RequestCloseAsync();
@@ -103,14 +137,17 @@ public sealed class DesktopCloseLifecycleTests
     public async Task SettlementAndDeadlineOrderingsAuthorizeOnlyOneActiveClose(bool deadlineFirst)
     {
         var clock = new CloseClock();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var shell = DesktopTestContext.Root(save: async (_, _, _) =>
         {
+            entered.TrySetResult();
             await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
             return ProtectedArtifactCommitResult.Installed(true);
         }, protectedOutputAvailable: true, timeProvider: clock);
         await PrepareAsync(shell);
         Task saving = shell.Publisher.SaveAsync();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         Task decision = DecisionSignal(shell);
         Task<bool> closing = shell.RequestCloseAsync();
         try
@@ -135,14 +172,17 @@ public sealed class DesktopCloseLifecycleTests
     public async Task AWithdrawnCloseCannotAuthorizeItsReplacementIntent()
     {
         var clock = new CloseClock();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var shell = DesktopTestContext.Root(save: async (_, _, _) =>
         {
+            entered.TrySetResult();
             await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
             return ProtectedArtifactCommitResult.Installed(true);
         }, protectedOutputAvailable: true, timeProvider: clock);
         await PrepareAsync(shell);
         Task saving = shell.Publisher.SaveAsync();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         Task<bool> first = shell.RequestCloseAsync();
         shell.StayOpen();
         Task<bool> second = shell.RequestCloseAsync();
@@ -162,7 +202,7 @@ public sealed class DesktopCloseLifecycleTests
     {
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         shell.Publisher.ArtifactId = "environment";
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
     }
 
     internal static Task DecisionSignal(DesktopShellViewModel shell)
@@ -253,7 +293,7 @@ public sealed class DesktopCloseLifecycleTests
                     shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
                     shell.Publisher.ArtifactId = "environment";
                     await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
-                    await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+                    await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
                     Task saving = shell.Publisher.SaveAsync();
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
                     window.Close();

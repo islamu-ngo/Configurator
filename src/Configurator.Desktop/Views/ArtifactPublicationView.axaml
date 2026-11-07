@@ -4,61 +4,83 @@
     xmlns:local="using:Configurator.Desktop.Views"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
     <StackPanel Spacing="8">
-      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
-        <StackPanel>
-          <TextBlock Text="{Binding Workspace.Strings[Artifact]}" />
-          <ComboBox Name="Artifact" HorizontalAlignment="Stretch"
-                    AutomationProperties.Name="{Binding Workspace.Strings[Artifact]}"
-                    ItemsSource="{Binding Publisher.Artifacts}"
-                    SelectedItem="{Binding Publisher.SelectedArtifact, Mode=TwoWay}">
-            <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="definitions:ArtifactDefinition">
-                <TextBlock Text="{Binding Title}" ToolTip.Tip="{Binding Description}" />
-              </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
-        </StackPanel>
-        <StackPanel Grid.Column="1">
+      <WrapPanel>
+        <TextBlock Text="{Binding Workspace.Strings[RequiredCount]}" Margin="0,0,8,0" />
+        <TextBlock Text="{Binding Navigation.Progress.Required}" Margin="0,0,16,0" />
+        <TextBlock Text="{Binding Workspace.Strings[MissingCount]}" Margin="0,0,8,0" />
+        <TextBlock Text="{Binding Navigation.Progress.Missing}" Margin="0,0,16,0" />
+        <TextBlock Text="{Binding Workspace.Strings[InvalidCount]}" Margin="0,0,8,0" />
+        <TextBlock Text="{Binding Navigation.Progress.Invalid}" />
+      </WrapPanel>
+        <StackPanel IsVisible="{Binding Publisher.IsSingleSelection}">
           <TextBlock Text="{Binding Workspace.Strings[FileName]}" />
           <TextBox Name="FileName" Text="{Binding Publisher.FileName, Mode=TwoWay}" FlowDirection="LeftToRight" AutomationProperties.Name="{Binding Workspace.Strings[FileName]}" />
         </StackPanel>
-      </Grid>
-      <TextBlock Text="{Binding Workspace.Strings[BundleOutputs]}" />
+      <TextBlock Text="{Binding Workspace.Strings[SelectedOutputs]}" />
       <ItemsControl Name="ArtifactSelections" ItemsSource="{Binding Publisher.ArtifactSelections}">
         <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+          <ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
         <ItemsControl.ItemTemplate>
           <DataTemplate x:DataType="vm:ArtifactSelectionViewModel">
-            <CheckBox Content="{Binding Title}" IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,12,0"
+            <StackPanel Spacing="4">
+            <CheckBox Content="{Binding Title}" IsChecked="{Binding IsSelected, Mode=TwoWay}"
                       AutomationProperties.Name="{Binding AutomationName}"
                       AutomationProperties.HelpText="{Binding Title}" />
+            <TextBlock Text="{Binding DeclaredFileName}" FlowDirection="LeftToRight" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Format}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding PreparationStatus}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Consequences}" TextWrapping="Wrap" />
+            </StackPanel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>
       </ItemsControl>
-      <TextBlock Text="{Binding Publisher.ArtifactConsequences}" TextWrapping="Wrap" />
-      <TextBlock Text="{Binding Publisher.ImportPurposeLabel}" />
-      <ComboBox Name="ImportPurpose" ItemsSource="{Binding Publisher.ImportPurposes}"
-                SelectedIndex="{Binding Publisher.ImportPurposeIndex, Mode=TwoWay}"
-                AutomationProperties.Name="{Binding Publisher.ImportPurposeLabel}"
-                AutomationProperties.HelpText="{Binding Publisher.ImportLimitHelp}" />
-      <TextBlock Text="{Binding Publisher.ImportLimitHelp}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Workspace.Strings[SingleFileNameHelp]}" IsVisible="{Binding Publisher.IsSingleSelection}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Workspace.Strings[MultipleFileNamesHelp]}" IsVisible="{Binding !Publisher.IsSingleSelection}" TextWrapping="Wrap" />
+      <Expander Name="OptionalImport" Header="{Binding Workspace.Strings[OptionalImport]}">
+      <StackPanel Spacing="8">
+      <TextBlock Text="{Binding Workspace.Strings[ImportSourceArtifact]}" />
+      <ComboBox Name="Artifact" HorizontalAlignment="Stretch"
+                AutomationProperties.Name="{Binding Workspace.Strings[ImportSourceArtifact]}"
+                ItemsSource="{Binding Publisher.Artifacts}"
+                SelectedItem="{Binding Publisher.SelectedArtifact, Mode=TwoWay}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="definitions:ArtifactDefinition">
+            <TextBlock Text="{Binding Title}" ToolTip.Tip="{Binding Description}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Text="{Binding ImportReview.ImportPurposeLabel}" />
+      <ComboBox Name="ImportPurpose" HorizontalAlignment="Stretch"
+                SelectedIndex="{Binding ImportReview.ImportPurposeIndex, Mode=TwoWay}"
+                AutomationProperties.Name="{Binding ImportReview.ImportPurposeLabel}"
+                AutomationProperties.HelpText="{Binding ImportReview.ImportLimitHelp}">
+        <ComboBoxItem AutomationProperties.Name="{Binding ImportReview.ImportPurposes[0]}">
+          <TextBlock Text="{Binding ImportReview.ImportPurposes[0]}" />
+        </ComboBoxItem>
+        <ComboBoxItem AutomationProperties.Name="{Binding ImportReview.ImportPurposes[1]}">
+          <TextBlock Text="{Binding ImportReview.ImportPurposes[1]}" />
+        </ComboBoxItem>
+      </ComboBox>
+      <TextBlock Text="{Binding ImportReview.ImportLimitHelp}" TextWrapping="Wrap" />
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <StackPanel>
           <TextBlock Text="{Binding Workspace.Strings[ImportPath]}" TextWrapping="Wrap" />
-          <TextBox Name="ExistingFilePath" Text="{Binding Publisher.ExistingFilePath, Mode=TwoWay}" FlowDirection="LeftToRight"
+          <TextBox Name="ExistingFilePath" Text="{Binding ImportReview.ExistingFilePath, Mode=TwoWay}" FlowDirection="LeftToRight"
                    AutomationProperties.Name="{Binding Workspace.Strings[ImportPath]}" />
         </StackPanel>
         <Button Grid.Column="1" Name="SelectImport" Content="{Binding Workspace.Strings[ChooseImport]}"
-                Command="{Binding Publisher.SelectImportCommand}" AutomationProperties.Name="{Binding Workspace.Strings[ChooseImport]}"
+                Command="{Binding ImportReview.SelectImportCommand}" AutomationProperties.Name="{Binding Workspace.Strings[ChooseImport]}"
                 VerticalAlignment="Bottom" />
-        <Button Grid.Column="2" Name="Import" Content="{Binding Publisher.ReviewFileLabel}"
-                AutomationProperties.Name="{Binding Publisher.ReviewFileLabel}"
-                Command="{Binding Publisher.ImportFileCommand}" VerticalAlignment="Bottom" />
+        <Button Grid.Column="2" Name="Import" Content="{Binding ImportReview.ReviewFileLabel}"
+                AutomationProperties.Name="{Binding ImportReview.ReviewFileLabel}"
+                Command="{Binding ImportReview.ImportFileCommand}" VerticalAlignment="Bottom" />
       </Grid>
-      <StackPanel Name="ImportComparison" IsVisible="{Binding Publisher.HasImportComparison}">
-        <local:ImportComparisonView DataContext="{Binding Publisher}" />
+      <StackPanel Name="ImportComparison" IsVisible="{Binding ImportReview.HasImportComparison}">
+        <local:ImportComparisonView DataContext="{Binding ImportReview}" />
       </StackPanel>
+      </StackPanel>
+      </Expander>
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
       <StackPanel>
         <TextBlock Text="{Binding Workspace.Strings[OutputDirectory]}" />
@@ -70,37 +92,11 @@
                 VerticalAlignment="Bottom" />
       </Grid>
       <WrapPanel>
-        <Button Name="Validate" Content="{Binding Workspace.Strings[Validate]}" Margin="0,0,8,0" Command="{Binding Workspace.ValidateCommand}" />
-        <Button Name="Prepare" Content="{Binding Workspace.Strings[Prepare]}" Margin="0,0,8,0"
-                Command="{Binding Publisher.PrepareCommand}" />
-        <Button Name="Save" Content="{Binding Workspace.Strings[Save]}" Margin="0,0,8,0"
-                Command="{Binding Publisher.SaveCommand}" />
-        <Button Name="PrepareBundle" Content="{Binding Workspace.Strings[PrepareBundle]}" Margin="0,0,8,0"
-                Command="{Binding Publisher.PrepareBundleCommand}" />
-        <Button Name="SaveBundle" Content="{Binding Workspace.Strings[SaveBundle]}" Margin="0,0,8,0"
-                Command="{Binding Publisher.SaveBundleCommand}" />
-        <Button Name="Cancel" Content="{Binding Workspace.Strings[Cancel]}" Command="{Binding CancelCommand}" />
+        <Button Name="PrepareSelection" Content="{Binding Workspace.Strings[PrepareSelection]}" Margin="0,0,8,0"
+                Command="{Binding Publisher.PrepareSelectionCommand}" />
+        <Button Name="SaveSelection" Content="{Binding Workspace.Strings[SaveSelection]}"
+                Command="{Binding Publisher.SaveSelectionCommand}" />
       </WrapPanel>
-      <TextBlock Name="ProtectedCapability" Text="{Binding Publisher.ProtectedCapability}" TextWrapping="Wrap" />
-      <TextBlock Name="Status" Text="{Binding Status}" TextWrapping="Wrap"
-                 AutomationProperties.Name="{Binding Workspace.Strings[OperationStatus]}" />
-      <TextBlock Name="StatusHelp" Text="{Binding StatusHelp}" TextWrapping="Wrap"
-                 AutomationProperties.Name="{Binding Workspace.Strings[NextStep]}" />
-      <Border IsVisible="{Binding IsClosing}" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-              BorderThickness="1" Padding="12">
-        <StackPanel Spacing="8">
-          <TextBlock Name="CloseStatus" Text="{Binding CloseMessage}" TextWrapping="Wrap"
-                     AutomationProperties.Name="{Binding Workspace.Strings[OperationStatus]}" />
-          <WrapPanel IsVisible="{Binding CloseDecisionRequired}">
-            <Button Name="StayOpen" Content="{Binding Workspace.Strings[StayOpen]}" Margin="0,0,8,0"
-                    Command="{Binding StayOpenCommand}" AutomationProperties.Name="{Binding Workspace.Strings[StayOpenName]}"
-                    AutomationProperties.HelpText="{Binding Workspace.Strings[StayOpenHelp]}" />
-            <Button Name="ForceClose" Content="{Binding Workspace.Strings[ForceClose]}" Command="{Binding ForceCloseCommand}"
-                    AutomationProperties.Name="{Binding Workspace.Strings[ForceCloseName]}"
-                    AutomationProperties.HelpText="{Binding Workspace.Strings[ForceCloseHelp]}" />
-          </WrapPanel>
-        </StackPanel>
-      </Border>
       <TextBlock Text="{Binding Workspace.Strings[PublicationFacts]}" FontWeight="SemiBold" />
       <TextBlock Name="PublicationReceipt" Text="{Binding Publisher.PublicationSummary}" TextWrapping="Wrap"
                  AutomationProperties.Name="{Binding Workspace.Strings[PublicationFacts]}"

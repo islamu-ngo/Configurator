@@ -18,7 +18,7 @@ public sealed class DesktopProtectedWriteInvariantTests
         using var shell = DesktopTestContext.Root((_, _, _) => Task.FromResult(established),
             "/synthetic/private-output", protectedOutputAvailable: true);
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         ProtectedArtifactCommitResult result = await shell.Publisher.SaveAsync();
         await Assert.That(result).IsEqualTo(established);
         await Assert.That(result.InstallationEstablished).IsTrue();
@@ -45,7 +45,7 @@ public sealed class DesktopProtectedWriteInvariantTests
         {
             using var shell = DesktopTestContext.Root(outputDirectory: directory);
             await Assert.That(shell.Loader.LoadDefinition(DesktopApplicationTests.Definition())).IsTrue();
-            await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+            await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
             await Assert.That((await shell.Publisher.SaveAsync()).Succeeded).IsTrue();
             string target = Path.Combine(directory, shell.Publisher.FileName);
             byte[] original = await File.ReadAllBytesAsync(target);
@@ -75,7 +75,7 @@ public sealed class DesktopProtectedWriteInvariantTests
         }, protectedOutputAvailable: true);
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         await shell.Publisher.PrepareAsync();
-        ProtectedArtifactCommitResult result = await shell.Publisher.SaveAsync(cancellation.Token);
+        ProtectedArtifactCommitResult result = await shell.Publisher.SaveAsync(cancellationToken: cancellation.Token);
         await Assert.That(result.InstallationEstablished).IsTrue();
         await Assert.That(result.VerificationSucceeded).IsFalse();
         await Assert.That(result.CleanupFailed).IsEqualTo(cleanupFailed);

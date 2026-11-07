@@ -1,22 +1,32 @@
 namespace Configurator.Desktop.ViewModels;
 
 using CommunityToolkit.Mvvm.ComponentModel;
+using Configurator.Core.Definitions;
 using Configurator.Desktop.Resources;
 
-/// <summary>Represents one declared bundle selection; the publisher owns its membership.</summary>
-public sealed class ArtifactSelectionViewModel(string id, string title, string locale, bool selected, Action<bool> select)
+/// <summary>Represents one eligible output choice; the publisher owns export membership.</summary>
+public sealed class ArtifactSelectionViewModel(ArtifactDefinition artifact, string locale, bool selected,
+    Action<bool> select, Func<string> preparationStatus)
     : ObservableObject
 {
     private bool _isSelected = selected;
     private DesktopStrings _strings = new(locale);
-    public string Id { get; } = id;
-    public string Title { get; } = title;
+    public string Id => artifact.Id;
+    public string Title => artifact.Title;
+    public string DeclaredFileName => artifact.FileName;
+    public string Format => artifact.Format.ToToken();
+    public string Consequences => _strings.Format("ArtifactConsequences", Format,
+        artifact.ApplySemantics.ToToken(), artifact.Restart.ToToken());
+    public string PreparationStatus => preparationStatus();
     public string AutomationName => _strings.Format("IncludeArtifact", Title);
     internal void SetLocale(string locale)
     {
         _strings = new(locale);
         OnPropertyChanged(nameof(AutomationName));
+        OnPropertyChanged(nameof(Consequences));
+        RefreshPreparation();
     }
+    internal void RefreshPreparation() => OnPropertyChanged(nameof(PreparationStatus));
     public bool IsSelected
     {
         get => _isSelected;

@@ -23,15 +23,15 @@ public sealed class DesktopShellViewModelTests
         using var stream = new ChangedInputStream(bytes, bytes.Length);
         using var shell = DesktopTestContext.Root(openImport: _ => stream);
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        shell.Publisher.ImportPurposeIndex = 1;
-        shell.Publisher.ExistingFilePath = "synthetic.json";
+        shell.ImportReview.ImportPurposeIndex = 1;
+        shell.ImportReview.ExistingFilePath = "synthetic.json";
         bool? clearedAtRelease = null;
         shell.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName == nameof(shell.IsBusy) && !shell.IsBusy)
                 clearedAtRelease = stream.Borrowed.Length > 0 && stream.Borrowed.ToArray().All(value => value == 0);
         };
-        await Assert.That(await shell.Publisher.ImportFileAsync()).IsTrue();
+        await Assert.That(await shell.ImportReview.ImportFileAsync()).IsTrue();
         await Assert.That(clearedAtRelease).IsEqualTo(true);
         await Assert.That(shell.Workspace.Form!.Snapshot().Values["name"].GetString())
             .IsEqualTo("imported-before-settlement");
@@ -52,8 +52,8 @@ public sealed class DesktopShellViewModelTests
             openImport: definition ? null : _ => stream);
         if (!definition) shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         shell.Loader.DefinitionPath = "synthetic-private.json";
-        shell.Publisher.ExistingFilePath = "synthetic-private.json";
-        bool accepted = definition ? await shell.Loader.LoadDefinitionAsync() : await shell.Publisher.ImportFileAsync();
+        shell.ImportReview.ExistingFilePath = "synthetic-private.json";
+        bool accepted = definition ? await shell.Loader.LoadDefinitionAsync() : await shell.ImportReview.ImportFileAsync();
         await Assert.That(accepted).IsFalse();
         await Assert.That(shell.Status).IsEqualTo(definition ? "definition-invalid:source-limit" : "import-unreadable");
         await Assert.That(stream.Borrowed.ToArray().All(value => value == 0)).IsTrue();
@@ -105,8 +105,8 @@ public sealed class DesktopShellViewModelTests
                     openImport: definition ? null : Open);
                 if (!definition) shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
                 shell.Loader.DefinitionPath = "synthetic.json";
-                shell.Publisher.ExistingFilePath = "synthetic.json";
-                Task<bool> acquiring = definition ? shell.Loader.LoadDefinitionAsync() : shell.Publisher.ImportFileAsync();
+                shell.ImportReview.ExistingFilePath = "synthetic.json";
+                Task<bool> acquiring = definition ? shell.Loader.LoadDefinitionAsync() : shell.ImportReview.ImportFileAsync();
                 await stream.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
@@ -197,10 +197,10 @@ public sealed class DesktopShellViewModelTests
     }
 
     [Test]
-    public async Task SaveCommandFailsClosedWithoutPreparedOutput()
+    public async Task SaveSelectionCommandFailsClosedWithoutPreparedOutput()
     {
         using var shell = CreateShell();
-        await Assert.That(shell.Publisher.SaveCommand.CanExecute(null)).IsFalse();
+        await Assert.That(shell.Publisher.SaveSelectionCommand.CanExecute(null)).IsFalse();
     }
 
     [Test]
@@ -235,25 +235,23 @@ public sealed class DesktopShellViewModelTests
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         await shell.Publisher.PrepareAsync();
         int changes = 0;
-        shell.Publisher.SaveCommand.CanExecuteChanged += (_, _) => changes++;
+        shell.Publisher.SaveSelectionCommand.CanExecuteChanged += (_, _) => changes++;
         Task<bool> pending = shell.Publisher.SelectOutputDirectoryAsync();
         await Assert.That(shell.IsBusy).IsTrue();
         await Assert.That(shell.IsSelecting).IsTrue();
         await Assert.That(shell.Loader.LoadDefinitionCommand.CanExecute(null)).IsFalse();
         await Assert.That(shell.Loader.SelectDefinitionCommand.CanExecute(null)).IsFalse();
         await Assert.That(shell.Workspace.ValidateCommand.CanExecute(null)).IsFalse();
-        await Assert.That(shell.Publisher.PrepareCommand.CanExecute(null)).IsFalse();
-        await Assert.That(shell.Publisher.PrepareBundleCommand.CanExecute(null)).IsFalse();
-        await Assert.That(shell.Publisher.SaveCommand.CanExecute(null)).IsFalse();
-        await Assert.That(shell.Publisher.SaveBundleCommand.CanExecute(null)).IsFalse();
-        await Assert.That(shell.Publisher.ImportFileCommand.CanExecute(null)).IsFalse();
-        await Assert.That(shell.Publisher.SelectImportCommand.CanExecute(null)).IsFalse();
+        await Assert.That(shell.Publisher.PrepareSelectionCommand.CanExecute(null)).IsFalse();
+        await Assert.That(shell.Publisher.SaveSelectionCommand.CanExecute(null)).IsFalse();
+        await Assert.That(shell.ImportReview.ImportFileCommand.CanExecute(null)).IsFalse();
+        await Assert.That(shell.ImportReview.SelectImportCommand.CanExecute(null)).IsFalse();
         await Assert.That(shell.Publisher.SelectOutputDirectoryCommand.CanExecute(null)).IsFalse();
         await Assert.That(shell.CancelCommand.CanExecute(null)).IsTrue();
         selected.SetResult(null);
         await Assert.That(await pending.WaitAsync(TimeSpan.FromSeconds(10))).IsFalse();
         await Assert.That(shell.IsBusy).IsFalse();
-        await Assert.That(shell.Publisher.SaveCommand.CanExecute(null)).IsEqualTo(shell.Publisher.ProtectedSaveAvailable);
+        await Assert.That(shell.Publisher.SaveSelectionCommand.CanExecute(null)).IsEqualTo(shell.Publisher.ProtectedSaveAvailable);
         await Assert.That(changes > 0).IsTrue();
         await Assert.That(shell.FocusTarget).IsEqualTo("SelectOutput");
     }
@@ -288,7 +286,7 @@ public sealed class DesktopShellViewModelTests
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         shell.Workspace.Form!.Fields.Single(item => item.Definition.Id == "owner").Text =
             """{"name":"synthetic-private-answer"}""";
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         Task<ProtectedArtifactCommitResult> pending = shell.Publisher.SaveAsync();
         await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
         try
@@ -326,7 +324,7 @@ public sealed class DesktopShellViewModelTests
         using var shell = CreateNativeShell(directory.Path, writer);
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         shell.Publisher.SelectArtifact("environment", true);
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         Task<ProtectedArtifactBundleResult?> pending = shell.Publisher.SaveBundleAsync();
         await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
         try
@@ -389,15 +387,15 @@ public sealed class DesktopShellViewModelTests
         });
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         shell.Publisher.ArtifactId = artifact;
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         await Assert.That(shell.Publisher.Preparation!.ArtifactId).IsEqualTo(artifact);
         await Assert.That(shell.Publisher.Preparation.DefinitionDigest).IsEqualTo(shell.Workspace.Form!.Definition.Digest);
-        await Assert.That(shell.Publisher.SaveCommand.CanExecute(null)).IsTrue();
+        await Assert.That(shell.Publisher.SaveSelectionCommand.CanExecute(null)).IsTrue();
         await Assert.That((await shell.Publisher.SaveAsync()).Succeeded).IsTrue();
         await Assert.That(output).Contains("Example service");
         await Assert.That(held.ToArray().All(value => value == 0)).IsTrue();
         await Assert.That(shell.Publisher.Preparation).IsNull();
-        await Assert.That(shell.Publisher.SaveCommand.CanExecute(null)).IsFalse();
+        await Assert.That(shell.Publisher.SaveSelectionCommand.CanExecute(null)).IsFalse();
         await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
     }
 
@@ -412,12 +410,12 @@ public sealed class DesktopShellViewModelTests
         name.Text = "Example service";
         long revision = form.InputRevision;
         byte[] conflict = Encoding.UTF8.GetBytes("""{"name":"conflict","owner":{"name":"synthetic-private"}}""");
-        await Assert.That(await shell.Publisher.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(conflict))).IsFalse();
+        await Assert.That(await shell.ImportReview.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(conflict))).IsFalse();
         await Assert.That(form.Fields.Single(item => item.Definition.Id == "owner").Text).IsEmpty();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(shell.Status).IsEqualTo("answer-conflict");
         byte[] accepted = Encoding.UTF8.GetBytes("""{"name":"Example service","owner":{"name":"synthetic-private"}}""");
-        await Assert.That(await shell.Publisher.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(accepted))).IsTrue();
+        await Assert.That(await shell.ImportReview.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(accepted))).IsTrue();
         await Assert.That(form.InputRevision).IsEqualTo(revision + 1);
         await Assert.That(form.Fields.Single(item => item.Definition.Id == "owner").Text).Contains("synthetic-private");
         await Assert.That(shell.Status).IsEqualTo("import-ready");
@@ -434,7 +432,7 @@ public sealed class DesktopShellViewModelTests
         long revision = form.InputRevision;
         byte[] source = Encoding.UTF8.GetBytes("""{"name":"Imported service"}""");
 
-        await Assert.That(await shell.Publisher.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(source))).IsTrue();
+        await Assert.That(await shell.ImportReview.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(source))).IsTrue();
         await Assert.That(form.InputRevision).IsEqualTo(revision + 1);
         await Assert.That(shell.Workspace.Fields.Single(item => item.Id == "name").Text).IsEqualTo("Imported service");
         await Assert.That(shell.Status).IsEqualTo("import-ready");
@@ -453,7 +451,7 @@ public sealed class DesktopShellViewModelTests
         var supplied = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var shell = CreateShell();
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        Task<bool> pending = shell.Publisher.ImportAsync(_ => supplied.Task);
+        Task<bool> pending = shell.ImportReview.ImportAsync(_ => supplied.Task);
         Change(shell, change);
         string status = shell.Status;
         byte[] bytes = Encoding.UTF8.GetBytes("""{"owner":{"name":"synthetic-private"}}""");
@@ -470,10 +468,10 @@ public sealed class DesktopShellViewModelTests
     {
         using var shell = CreateShell();
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        shell.Workspace.Form!.InputChanged += (_, _) => shell.Publisher.ExistingFilePath = "next.json";
+        shell.Workspace.Form!.InputChanged += (_, _) => shell.ImportReview.ExistingFilePath = "next.json";
         int focusVersion = shell.Workspace.FirstVisible!.FocusRequestVersion;
         byte[] source = Encoding.UTF8.GetBytes("""{"owner":{"name":"synthetic-private"}}""");
-        await Assert.That(await shell.Publisher.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(source))).IsTrue();
+        await Assert.That(await shell.ImportReview.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(source))).IsTrue();
         await Assert.That(shell.Status).IsEqualTo("inputs-changed");
         await Assert.That(shell.Workspace.FirstVisible!.FocusRequestVersion).IsEqualTo(focusVersion);
     }
@@ -488,11 +486,11 @@ public sealed class DesktopShellViewModelTests
             return Task.FromResult(ProtectedArtifactCommitResult.Installed(true));
         }, protectedOutputAvailable: false);
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
-        await Assert.That(shell.Publisher.SaveCommand.CanExecute(null)).IsFalse();
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
+        await Assert.That(shell.Publisher.SaveSelectionCommand.CanExecute(null)).IsFalse();
         await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.UnsupportedPlatform);
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
-        await Assert.That(shell.Publisher.SaveBundleCommand.CanExecute(null)).IsFalse();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
+        await Assert.That(shell.Publisher.SaveSelectionCommand.CanExecute(null)).IsFalse();
         await Assert.That(await shell.Publisher.SaveBundleAsync()).IsNull();
         await Assert.That(shell.Publisher.CanSaveBundle).IsFalse();
         await Assert.That(writes).IsEqualTo(0);
@@ -525,13 +523,13 @@ public sealed class DesktopShellViewModelTests
             JsonNode.Parse("""{"op":"equals","reference":{"scope":"root","path":"/mode"},"value":"remote"}""");
         using var shell = CreateShell();
         shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString()));
-        await Assert.That(shell.Publisher.PrepareBundle()).IsFalse();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Invalid);
         await Assert.That(shell.Publisher.CanSaveBundle).IsFalse();
         shell.Workspace.Form!.Fields.Single(item => item.Definition.Id == "mode").Text = "remote";
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         shell.Publisher.ArtifactSelections.Single(item => item.Id == "config").IsSelected = false;
         await Assert.That(shell.Publisher.SelectedArtifactIds.Count).IsEqualTo(0);
-        await Assert.That(shell.Publisher.PrepareBundle()).IsFalse();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Invalid);
         await Assert.That(shell.Publisher.CanSaveBundle).IsFalse();
     }
 
@@ -547,7 +545,7 @@ public sealed class DesktopShellViewModelTests
         await Assert.That(shell.Workspace.FirstError).IsNotNull();
         var owner = (ObjectFieldViewModel)shell.Workspace.FirstError!;
         await Assert.That(owner.Children.Single(item => item.Id == "age").FocusRequestVersion > 0).IsTrue();
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsFalse();
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Invalid);
     }
 
     [Test]
@@ -562,12 +560,12 @@ public sealed class DesktopShellViewModelTests
         await shell.Publisher.PrepareAsync();
         await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.TargetExists);
         shell.Publisher.SelectArtifact("environment", true);
-        shell.Publisher.PrepareBundle();
+        await shell.Publisher.PrepareBundleAsync();
         await Assert.That((await shell.Publisher.SaveBundleAsync())!.Succeeded).IsFalse();
         await Assert.That(File.Exists(Path.Combine(directory.Path, "service.env"))).IsFalse();
         await Assert.That(await File.ReadAllTextAsync(existing)).IsEqualTo("existing-data");
         File.Delete(existing);
-        shell.Publisher.PrepareBundle();
+        await shell.Publisher.PrepareBundleAsync();
         await Assert.That((await shell.Publisher.SaveBundleAsync())!.Succeeded).IsTrue();
         await Assert.That(File.Exists(existing)).IsTrue();
         await Assert.That(File.Exists(Path.Combine(directory.Path, "service.env"))).IsTrue();
@@ -626,10 +624,10 @@ public sealed class DesktopShellViewModelTests
         if (kind == "import")
         {
             shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-            shell.Publisher.ImportPurposeIndex = 1;
+            shell.ImportReview.ImportPurposeIndex = 1;
         }
         bool accepted = kind == "definition" ? await shell.Loader.SelectDefinitionAsync()
-            : await shell.Publisher.SelectImportAsync();
+            : await shell.ImportReview.SelectImportAsync();
         await Assert.That(accepted).IsTrue();
         await Assert.That(shell.FocusTarget).IsEqualTo("DefinitionPath");
         await Assert.That(shell.Workspace.FirstVisible!.FocusRequestVersion > 0).IsTrue();
@@ -645,7 +643,7 @@ public sealed class DesktopShellViewModelTests
         using var shell = CreateShell(new Dialogs((_, _) => selected.Task));
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         Task<bool> pending = kind == "definition" ? shell.Loader.SelectDefinitionAsync()
-            : shell.Publisher.SelectImportAsync();
+            : shell.ImportReview.SelectImportAsync();
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition(2));
         int focusGeneration = shell.FocusRequestGeneration;
         selected.SetResult(new Uri(Path.Combine(Path.GetTempPath(), "discarded.json")));
@@ -697,7 +695,7 @@ public sealed class DesktopShellViewModelTests
             """);
         using var shell = CreateShell();
         shell.Loader.LoadDefinition(Encoding.UTF8.GetBytes(source.ToJsonString()));
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         var form = shell.Workspace.Form!;
         var preparation = shell.Publisher.Preparation;
         long revision = form.InputRevision;
@@ -735,10 +733,10 @@ public sealed class DesktopShellViewModelTests
             case "edit": shell.Workspace.Form!.Fields[0].Text = "later-edit"; break;
             case "definition": shell.Loader.LoadDefinition(DesktopApplicationTests.Definition(2)); break;
             case "definition-path": shell.Loader.DefinitionPath = "later.json"; break;
-            case "artifact": shell.Publisher.ArtifactId = "yaml"; break;
+            case "artifact": shell.Publisher.SelectArtifact("yaml", true); break;
             case "filename": shell.Publisher.FileName = "later.json"; break;
             case "destination": shell.Publisher.OutputDirectory = Path.Combine(Path.GetTempPath(), "later"); break;
-            case "import-path": shell.Publisher.ExistingFilePath = "later.json"; break;
+            case "import-path": shell.ImportReview.ExistingFilePath = "later.json"; break;
             case "bundle-selection": shell.Publisher.SelectArtifact("environment", true); break;
             case "cancel": shell.Cancel(); break;
             case "dispose": shell.Dispose(); break;
@@ -784,6 +782,7 @@ public sealed class DesktopShellViewModelTests
         private readonly DefinitionLoaderViewModel _loader;
         private readonly FormWorkspaceViewModel _workspace;
         private readonly ArtifactPublisherViewModel _publisher;
+        private readonly DesktopImportReviewViewModel _importReview;
         private readonly DesktopShellViewModel _root;
 
         public TestShell(IStorageDialogService? dialogs = null,
@@ -796,19 +795,20 @@ public sealed class DesktopShellViewModelTests
             dialogs ??= new Dialogs((_, _) => Task.FromResult<Uri?>(null));
             _loader = new DefinitionLoaderViewModel(messenger, dialogs);
             _workspace = new FormWorkspaceViewModel(messenger);
-            _publisher = native ? new ArtifactPublisherViewModel(messenger, dialogs, writer ?? new ProtectedArtifactWriter(),
-                    static _ => ValueTask.CompletedTask)
+            _publisher = native ? new ArtifactPublisherViewModel(messenger, dialogs, writer ?? new ProtectedArtifactWriter())
                 : new ArtifactPublisherViewModel(messenger, dialogs,
                     save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.Installed(true))),
-                    outputDirectory ?? Path.GetTempPath(), protectedOutputAvailable, publishBundle,
-                    cooperativeYield: static _ => ValueTask.CompletedTask);
-            _root = new DesktopShellViewModel(messenger, _loader, _workspace, _publisher);
+                    outputDirectory ?? Path.GetTempPath(), protectedOutputAvailable, publishBundle);
+            _importReview = new DesktopImportReviewViewModel(messenger, dialogs, _publisher,
+                static _ => ValueTask.CompletedTask);
+            _root = new DesktopShellViewModel(messenger, _loader, _workspace, _publisher, _importReview);
             if (native) _publisher.OutputDirectory = outputDirectory!;
         }
 
         public DefinitionLoaderViewModel Loader => _loader;
         public FormWorkspaceViewModel Workspace => _workspace;
         public ArtifactPublisherViewModel Publisher => _publisher;
+        public DesktopImportReviewViewModel ImportReview => _root.ImportReview;
         public string Status => _root.Status;
         public string FocusTarget => _root.FocusTarget;
         public int FocusRequestGeneration => _root.FocusRequestGeneration;
@@ -821,6 +821,7 @@ public sealed class DesktopShellViewModelTests
             _root.Dispose();
             _loader.Dispose();
             _workspace.Dispose();
+            _importReview.Dispose();
             _publisher.Dispose();
         }
         public override string ToString() => _root.ToString();

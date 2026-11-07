@@ -21,7 +21,8 @@ public sealed class EnumFieldViewModel : FieldViewModel
         get => RequiresMasking ? -1 : !IsProvided ? 0 : _selectedIndex;
         set
         {
-            if (RequiresMasking || IsDisposed || _loading || value < 0 || value >= Choices.Count) return;
+            if (RequiresMasking || IsDisposed || !CanEdit || _loading || value < 0 || value >= Choices.Count) return;
+            if (value != SelectedIndex) MarkEdited();
             Form.SetValue(FullPath(), value == 0 ? null : Schema.Keywords.GetProperty("enum")[value - 1]);
         }
     }

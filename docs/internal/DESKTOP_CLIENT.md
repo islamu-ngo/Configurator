@@ -10,6 +10,37 @@ Desktop remains on the centrally pinned Avalonia 12.1.3 packages. It references
 Presentation and Artifacts, with Core types available through those references.
 It has no target-specific DTO, catalogue, manifest, or identity workflow.
 
+## Guided workspace composition
+
+`DesktopNavigationViewModel` owns Open/Configure/Review selection and visual
+section/page selection. `DesktopSectionViewModel` borrows references to existing
+field projections; it stores no answers. `FormWorkspaceViewModel` and its
+`FormFieldFactory` retain the form and all editor lifetimes when views hide or
+change pages. `DefinitionFormProjection` supplies authored order and global
+required/missing/invalid/deferred progress. Root maps and variants use a neutral
+section rather than depending on ordinary field facades.
+
+Root pages contain at most 50 editor references. Page clamping and section
+selection never change input revision. Validation first reveals the affected
+section/page, then requests native focus. The Desktop composition decision is
+recorded in the [workspace ADR](adr/ADR-desktop-workspace-composition.md).
+
+Section projections retain their identity across view and input refreshes;
+localized titles, progress and borrowed editor references update in place.
+This preserves native selector selection instead of replacing its item source
+for every keystroke. Responsive container queries switch between the compact
+section picker and an optional 224-unit rail, while the same editor surface
+retains its controls. Its reading width is capped at 800 logical units.
+The workspace has one primary scroll owner, including secondary chrome in
+short windows; native inputs/actions have minimum rather than fixed heights.
+
+`DesktopTheme` remains the native contrast subscription owner. Session-only
+System/Light/Dark preferences select default, Latte and Macchiato resources;
+native high contrast overrides them until disabled. Static startup Fluent
+palettes and dynamic resource consumers avoid rebuilding the workspace when
+appearance changes. These adapter contracts do not establish actual-host
+accessibility or package qualification.
+
 ## Entry and adapter API
 
 `App.OnFrameworkInitializationCompleted` resolves `DesktopShellViewModel` and
@@ -22,7 +53,7 @@ one, or two positional arguments: explicit local definition path and optional
 existing output directory. No definition is selected by default.
 
 The root coordinates generations, busy state, cancellation and value-free
-status. It exposes three focused child viewmodels rather than forwarding their
+status. It exposes four focused child viewmodels rather than forwarding their
 operations:
 
 - `Loader.LoadDefinitionAsync(CancellationToken)`: read the explicit local path within
@@ -38,16 +69,20 @@ operations:
 - `Workspace.Validate()`, publisher preparation/save operations and root
   `Cancel()`: validation, snapshot preparation,
   consumptive protected publication, and invalidation.
-- `Publisher.ExistingFilePath`, `Publisher.ImportFileAsync()`: acquire at most
+- `ImportReview.ExistingFilePath`, `ImportReview.ImportFileAsync()`: acquire at most
   4 MiB for the selected declared artifact. The purpose defaults to Compare;
   explicit Fill fields remains a separate mutation. `CompareAsync` publishes
   shared assessment facts without validating/committing current editors or
   invalidating prepared output. `FillImportFieldsAsync(token)` awaits shared
   `AdoptImportComparisonAsync` and rechecks current revision, omissions and draft
   conflicts. Callers must await the asynchronous command.
-- Publisher artifact selection, bundle preparation and saving: select declared outputs, compose a deterministic bundle,
-  and publish it through the shared protected bundle publisher. The selected
-  single artifact remains a separate preparation action.
+- `Publisher.PrepareSelectionAsync(token)` and `SaveSelectionAsync(token)` are
+  the user-facing operations over one eligible export selection. One file uses
+  existing single-file preparation/publication and its filename override;
+  multiple files use declared names and the existing bundle owner. Saving
+  returns the authoritative per-file publication receipt and consumes current
+  preparation. Zero selection cannot prepare. The import artifact picker
+  remains a separate source-format choice.
 - Loader definition path and publisher output directory/file name: operator-selected local
   inputs. `Status` contains value-free diagnostic codes and IDs; `StatusHelp`
   provides correction/retry guidance without values, paths or raw exceptions.
@@ -57,7 +92,7 @@ operations:
   pickers return explicit statuses without exception-message interpretation.
   It reads no provider `Path`, uses the existing 4 MiB bounded reader and
   settles the stream and selected item before return. Failure, cancellation and
-  selected-item disposal failure clear acquired storage. The publisher retains
+  selected-item disposal failure clear acquired storage. The import-review owner retains
   its physical busy lease until input cleanup finishes. There is no default
   interface implementation or local-path fallback.
   Custom implementations must add this method explicitly: migrate import
@@ -81,13 +116,23 @@ operations:
 
 ### Comparison ownership and explanations
 
-`ArtifactPublisherViewModel` subscribes to `ImportComparisonChanged` rather than
+`DesktopImportReviewViewModel` subscribes to `ImportComparisonChanged` rather than
 `InputChanged` or `ViewChanged` for report refresh. Report publication and
 retirement update only report bindings on the owner thread; they do not rebuild
 field editors or retire preparation. Shared `DefinitionImportState` owns the
 only private proposal. The Desktop view retains detached report facts, bounds
 its rendered finding page, and presents file eligibility separately from
 `ImportAutofillCode` for the current workspace.
+
+`DesktopShellViewModel.ImportReview` owns acquisition, comparison/adoption
+orchestration, paging, explanations and review subscriptions. It observes the
+publisher's selected artifact rather than duplicating selection or answers.
+`ArtifactPublicationView` hosts `ImportComparisonView` with that review owner as
+its data context. Shell disposal retires review before publisher and workspace;
+an in-flight read retains its physical operation lease until acquired bytes
+are cleared. The publisher remains the preparation and physical publication
+owner. Direct callers and the native import probe use the new owner without
+forwarding compatibility members on the publisher.
 
 Production comparison and adoption yield to `DispatcherPriority.Background`
 through `Dispatcher.Yield`, using the shared Core traversal callback rather
@@ -137,6 +182,13 @@ identify the failing leaf without assigning its error to healthy siblings.
 Dots in field IDs are not path separators. Preparation still rejects active
 invalid drafts; a retained accepted snapshot does not imply readiness.
 
+`FieldViewModel` reads `DefinitionFormModel.GetFieldValidation` for current
+masking, suggestion/null/reset eligibility and ordinary correction requirements.
+Readonly or inactive locations do not offer null or suggestions. Correction
+text uses shared English/Arabic resources with authored bounds and public
+allowed values, without including the supplied answer. Protected descendants
+withhold suggestion and allowed-value disclosure.
+
 Object and list **Supply** actions call `SupplyObject` / `SupplyList`.
 They deliberately represent `{}` / `[]`, including childless objects and
 zero-capacity lists, and preserve existing contents when supplied again.
@@ -158,7 +210,29 @@ leading **Not supplied** sentinel. `SelectedIndex` writes the exact declared
 contract. Localized or duplicate labels cannot merge choices, and an admitted
 empty string remains distinct from omission. Protected enums expose no open
 choice collection and retain masked text editing; public booleans use native
-three-state checkboxes.
+Not supplied/Yes/No choice controls with stable ordinal semantics.
+
+## Metadata discovery and deliberate feedback
+
+`DesktopNavigationViewModel` delegates queries to
+`DefinitionFormModel.SetDiscoverySelection` and pages its public
+`Projection.Matches` at 25. It retains no answer index. Query-boundary failures
+produce localized limit guidance; inactive selections explain applicability.
+Current static locations use shared `FocusEditor` before revealing the
+existing native editor. Repeating or absent locations that cannot resolve to
+one current editor receive guidance rather than an invented value or entry.
+
+`FieldViewModel.ShowError` is presentation state over existing typed validation,
+not another validity/readiness flag. Field edits mark interaction locally;
+`FieldFeedbackBehavior` observes native blur only while attached. Explicit
+workspace validation requests guidance recursively, including unmounted rows.
+Required status and global counts remain visible before this request.
+
+Lists/maps retain all existing editor projections and expose 25-reference
+visible slices. Closing a nested collection supplies an empty visual slice;
+it does not dispose semantic owners. `RevealForFocus` selects only the
+target's ancestor pages before the existing focus signal. The focus bridge
+then rechecks input revision and logical identity after native layout.
 
 `MapFieldViewModel` projects `AdditionalProperties` through `FormFieldFactory`.
 Entries reconcile by exact ordinal key equality, retaining surviving editors
@@ -194,6 +268,14 @@ containers remain values. Required or initialized children never materialize an
 absent parent. These actions use the existing input revision and preparation
 invalidation path, not a second answer tree.
 
+`RootFieldViewModel` hosts the existing map or variant editor at the empty
+literal `DefinitionPath`. It owns the projection, not another accepted value.
+Ordinary fields retain their declared-property facade while recursive native
+editors use literal configuration coordinates. The factory retires replaced
+children and their callbacks, including an A-to-B-to-A branch switch.
+Shared `CanOmit` disables root clearing; array rows use explicit collection
+removal rather than field omission or reset.
+
 ### Refresh, localization and correction focus
 
 `MainWindow` declaratively hosts fields in an `ItemsControl`. Bindings update
@@ -215,16 +297,27 @@ an unmasked selection popup.
 
 Native control names and help are set through Avalonia AutomationProperties.
 Tab order follows the logical form, access keys use native buttons, and keyboard
-shortcuts bind to commands through native key bindings. Validation requests focus
+shortcuts run through a bubbling, unhandled-key window handler. Focused editors,
+composition and popups receive input before shell commands. The application
+uses the platform hotkey Command modifier for Open and Review/Prepare.
+Escape dismisses the deepest latest popup before cancellation; one event
+cannot also discard preparation. Validation requests focus
 through `FirstError.RequestFocus`; ordinary containers prefer a visible failing
-descendant, while map and variant projections signal their key input or branch
-selector. `TryResolveCorrection` resolves revision-bound typed diagnostic
+descendant. A variant with an invalid visible child reveals and focuses that
+child; otherwise it signals its branch selector. Map projections can signal
+their key input. `TryResolveCorrection` resolves revision-bound typed diagnostic
 coordinates locally before marking nested errors; private map keys are not
 serialized into status. List mutation preserves usable focus through declarative
 focus requests and a view-owned focus behavior. Headless control tests check
 actual focus and key routing, not just label/property presence.
+Retained field adapters expose opaque automation IDs independent of paths and
+answers. Operation status has one polite live region; property presence does
+not establish screen-reader speech. Body, heading and title font resources
+permit actual text enlargement independently of host render scaling.
 Supply, Clear, suggestion, reset, null, map-add, field guidance and window chrome
 resolve through `Resources/DesktopStrings` with the explicit workspace locale.
+Before definition admission, provider text and default direction follow the
+host UI culture. Once admitted, the explicit workspace locale owns them.
 The resource accessor never changes process culture. Workspace and field refresh
 notifications update visible labels and automation names; simultaneous workspaces
 can retain different locales. Unsupported provider locales fall back to English.
@@ -243,8 +336,8 @@ remain active. Actual-host rendering qualification is recorded separately from
 the resource contrast tests.
 Selection buttons return focus after cancellation/failure; successful intake
 focuses the first visible field. Closing disposes the shell, fencing outstanding
-selection as well as private saves. Code-behind contains initialization and
-window lifecycle disposal only; it does not assemble fields or handle actions.
+selection as well as private saves. Code-behind owns window initialization,
+lifecycle and routed keyboard integration; field behavior remains in view-models.
 
 `FormWorkspaceViewModel.Locales` and `SelectedLocale` select admitted public
 definition metadata through `SelectLocale`. `GetEditorPresentation` refreshes
@@ -265,12 +358,18 @@ publication authority.
 
 ## Preparation and protected publication
 
-For preparation, the shell captures `Form.Snapshot()` and the pinned definition,
-then creates a private `PresentationWorkspace` with
-`DefinitionPresentationOperation`. Presentation fences completion by operation
-generation; the shell additionally rejects obsolete adapter completions.
+For preparation, the publisher captures `Form.Snapshot()`, the pinned definition
+and selected output before dispatching work. `PrepareAsync` and
+`PrepareBundleAsync` return typed `DesktopPreparationOutcome` values to the owner.
+The result distinguishes `Invalid`, `Cancelled`, `Retired`, `Faulted` and `Busy`
+from `Prepared`; callers must not turn a cancellation or implementation fault
+into an invalid-answer diagnosis.
+Cancellation, generation and input revision govern adoption; worker code does
+not mutate bound UI state. The publisher retains the private
+`PresentationOutcome`. Physical settlement releases worker resources even if
+the owner dispatcher has stopped; owner notifications are a separate step.
 `DefinitionPreparationMetadata` is the only preparation exposed publicly.
-Artifact bytes stay in the private workspace.
+Artifact bytes stay in the private outcome.
 
 Save takes a private byte copy and immediately consumes and clears the
 workspace output. The shell validates the simple file name and passes the
@@ -344,8 +443,10 @@ immutable `ProtectedArtifactPublicationReceipt` facts independently of generatio
 at most 16 settled attempts plus one active attempt, each with at most 64 declared
 outcomes. An installed prefix is visible while later work is pending. Unknown is
 not unattempted. History contains only attempt IDs, declared artifact IDs and
-result codes, never bytes or destination paths. Notifications marshal to the UI
-dispatcher and are fenced after disposal.
+result codes, never bytes or destination paths. Notifications marshal to the
+SynchronizationContext captured at publication start and are fenced after
+disposal. Physical settlement and receipt retention do not wait for visual
+notification delivery. No process-global dispatcher lookup owns that operation.
 
 `MainWindow` intercepts ordinary close before disposal. The shell shares one
 close intent over the captured physical completion task; a two-second
@@ -353,7 +454,8 @@ close intent over the captured physical completion task; a two-second
 only while that same intent remains active. At the deadline the window remains
 open, marks pending publication unknown and focuses the named Stay open action.
 Stay open withdraws close intent but does not undo cancellation or release the
-physical owner. Force close is available only after the deadline and is deliberate.
+physical owner. Force close is available only after the deadline and authorizes
+window closure without awaiting that physical owner.
 Final closure detaches window handlers and DataContext before disposing the
 workspace. Late task results retain safe facts and clear their own buffers but
 cannot revive UI state. Process termination cannot guarantee managed erasure or
@@ -414,7 +516,33 @@ history, and immutable strings cannot promise complete memory erasure.
 
 ## Native qualification
 
-The current executable requires twenty-two distinct names: all twenty existing
+The current executable requires twenty-four distinct names: the twenty-two
+guards below plus `D23-root-map-literal-controls` and
+`D24-root-variant-retirement`. The root map guard exercises literal keys, exact
+typed integer/null output, create-only protected publication, reset, comparison
+and deliberate import through the rendered controls. The branch guard checks
+replacement, retired callbacks, masking and correction focus.
+
+On 2026-11-05 the Release NativeHost build and all 24 guards passed separately
+in English and Arabic on Linux x64/X11 after the import-review extraction.
+Final local captures and receipts are under `.tmp/eaq-native-purpose-live/`.
+Visual review found that replacing localized purpose strings lost selection;
+stable option controls with live localized text and explicit automation names
+now retain both purpose and caption. Two headless locale-switch cases passed,
+and two independent reviewers confirmed all sixteen Arabic end captures.
+Earlier `.tmp/eaq-native-import-final/` captures precede this caption repair.
+The Desktop owner separately passed 341 tests with no failures or skips.
+These are source-built native observations; installed-package, manual
+assistive-technology and strict interaction-latency qualification remain separate.
+The exact NativeHost command used isolated build outputs:
+
+```bash
+dotnet build tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj -c Release --verbosity quiet --tl:off --artifacts-path /tmp/configurator-eaq-native-import
+CONFIGURATOR_NATIVE_UI_CULTURE=en xvfb-run -a dotnet /tmp/configurator-eaq-native-import/bin/Configurator.Desktop.NativeHost/release/Configurator.Desktop.NativeHost.dll --expected-rid linux-x64 --minimum-expected-checks 24 --capture-directory "$PWD/.tmp/eaq-native-purpose-live/en"
+CONFIGURATOR_NATIVE_UI_CULTURE=ar xvfb-run -a dotnet /tmp/configurator-eaq-native-import/bin/Configurator.Desktop.NativeHost/release/Configurator.Desktop.NativeHost.dll --expected-rid linux-x64 --minimum-expected-checks 24 --capture-directory "$PWD/.tmp/eaq-native-purpose-live/ar"
+```
+
+The earlier twenty-two-name set comprised all twenty existing
 guards, including `D19-typed-map-variant-null-reset-locale` and
 `D20-read-only-import-comparison`, plus `D21-secret-generation-validation`
 and `D22-deployment-context-destinations`. The deployment guard checks the

@@ -25,6 +25,7 @@ internal static class DesktopTestContext
         DefinitionLoaderViewModel? loader = null;
         FormWorkspaceViewModel? workspace = null;
         ArtifactPublisherViewModel? publisher = null;
+        DesktopImportReviewViewModel? importReview = null;
         try
         {
             loader = openDefinition is null ? new DefinitionLoaderViewModel(messenger, dialogs)
@@ -32,27 +33,30 @@ internal static class DesktopTestContext
             workspace = new FormWorkspaceViewModel(messenger);
             if (save is null && protectedOutputAvailable is null && publishBundle is null && openImport is null)
             {
-                publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter(),
-                    cooperativeYield);
+                publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter());
                 if (outputDirectory is not null) publisher.OutputDirectory = outputDirectory;
             }
             else
             {
                 publisher = new ArtifactPublisherViewModel(messenger, dialogs,
                     save ?? ((_, _, _) => Task.FromResult(ProtectedArtifactCommitResult.Installed(true))),
-                    outputDirectory ?? Path.GetTempPath(), protectedOutputAvailable ?? true, publishBundle, openImport,
-                    cooperativeYield);
+                    outputDirectory ?? Path.GetTempPath(), protectedOutputAvailable ?? true, publishBundle);
             }
-            var root = new DesktopShellViewModel(messenger, loader, workspace, publisher, timeProvider);
+            importReview = openImport is null
+                ? new DesktopImportReviewViewModel(messenger, dialogs, publisher, cooperativeYield)
+                : new DesktopImportReviewViewModel(messenger, dialogs, publisher, openImport, cooperativeYield);
+            var root = new DesktopShellViewModel(messenger, loader, workspace, publisher, importReview, timeProvider);
             loader = null;
             workspace = null;
             publisher = null;
+            importReview = null;
             return root;
         }
         finally
         {
             loader?.Dispose();
             workspace?.Dispose();
+            importReview?.Dispose();
             publisher?.Dispose();
         }
     }

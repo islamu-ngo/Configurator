@@ -87,7 +87,7 @@ public sealed class DesktopApplicationTests
             var provider = (VariantFieldViewModel)shell.Workspace.Fields.Single(field => field.Id == "provider");
             window.GetLogicalDescendants().OfType<ComboBox>().Single(control => ReferenceEquals(control.DataContext, provider)).SelectedIndex = 1;
             Dispatcher.UIThread.RunJobs();
-            Click(window.GetLogicalDescendants().OfType<Button>().Single(button => ReferenceEquals(button.Command, choice.SetNullCommand)));
+            ClickFieldAction(window, choice.SetNullCommand);
             Dispatcher.UIThread.RunJobs();
             return (localeIsViewOnly, mapValue: form.Snapshot().Values["named"].GetProperty("literal/key").GetInt32(),
                 provider: form.Snapshot().Values["provider"].GetProperty("kind").GetString(),
@@ -146,11 +146,16 @@ public sealed class DesktopApplicationTests
                     var buttons = window.GetLogicalDescendants().OfType<Button>()
                         .Where(button => ReferenceEquals(button.DataContext, field)).ToArray();
                     var supply = buttons.Single(button => ReferenceEquals(button.Command, field.SupplyCommand));
-                    var clear = buttons.Single(button => ReferenceEquals(button.Command, field.ClearCommand));
+                    MenuItem header = window.GetLogicalDescendants().OfType<MenuItem>().Single(item =>
+                        ReferenceEquals(item.DataContext, field) && item.Items.OfType<MenuItem>()
+                            .Any(action => ReferenceEquals(action.Command, field.ClearCommand)));
+                    header.IsSubMenuOpen = true;
+                    Dispatcher.UIThread.RunJobs();
+                    var clear = header.Items.OfType<MenuItem>().Single(item => ReferenceEquals(item.Command, field.ClearCommand));
                     shippedCopy &= Equals(supply.Content, shell.Workspace.Strings.SupplyLabel) &&
                         AutomationProperties.GetName(supply) == shell.Workspace.Strings.SupplyName(field.Title) &&
                         AutomationProperties.GetHelpText(supply) == shell.Workspace.Strings.SupplyHelp &&
-                        Equals(clear.Content, shell.Workspace.Strings.ClearLabel) &&
+                        Equals(clear.Header, shell.Workspace.Strings.ClearLabel) &&
                         AutomationProperties.GetName(clear) == shell.Workspace.Strings.ClearName(field.Title) &&
                         AutomationProperties.GetHelpText(clear) == shell.Workspace.Strings.ClearHelp;
                     Click(supply);
@@ -162,7 +167,7 @@ public sealed class DesktopApplicationTests
                     Click(supply);
                     Dispatcher.UIThread.RunJobs();
                     present &= form.InputRevision == suppliedRevision;
-                    Click(clear);
+                    ClickFieldAction(window, field.ClearCommand);
                     Dispatcher.UIThread.RunJobs();
                     cleared &= !form.Snapshot().Values.ContainsKey(field.Id);
                     focused &= supply.IsFocused;
@@ -207,6 +212,10 @@ public sealed class DesktopApplicationTests
             Dispatcher.UIThread.RunJobs();
             var list = (ListFieldViewModel)shell.Workspace.Fields.Single();
             var survivor = (ObjectFieldViewModel)list.Items[1];
+            window.GetLogicalDescendants().OfType<Expander>()
+                .Single(control => ReferenceEquals(control.DataContext, survivor)).IsExpanded = true;
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
             TextBox count = window.GetLogicalDescendants().OfType<TextBox>()
                 .Single(control => ReferenceEquals(control.DataContext, survivor.Children[0]));
             count.Focus();
@@ -219,14 +228,19 @@ public sealed class DesktopApplicationTests
             Dispatcher.UIThread.RunJobs();
             var current = window.GetLogicalDescendants().OfType<TextBox>()
                 .Single(control => ReferenceEquals(control.DataContext, survivor.Children[0]));
-            held &= ReferenceEquals(count, current) && current.IsFocused && current.Text == "unfinished-number";
+            bool sameControl = ReferenceEquals(count, current);
+            bool retainedFocus = current.IsFocused;
+            bool retainedDraft = current.Text == "unfinished-number";
             bool errors = survivor.Children[0].HasError && !survivor.Children[1].HasError;
             current.Text = "4";
             Dispatcher.UIThread.RunJobs();
-            return (held, errors, ready: shell.Workspace.Validate(),
+            return (held, sameControl, retainedFocus, retainedDraft, errors, ready: shell.Workspace.Validate(),
                 answer: shell.Workspace.Form.Snapshot().Values["rows.part"].GetRawText());
         });
         await Assert.That(result.held).IsTrue();
+        await Assert.That(result.sameControl).IsTrue();
+        await Assert.That(result.retainedFocus).IsTrue();
+        await Assert.That(result.retainedDraft).IsTrue();
         await Assert.That(result.errors).IsTrue();
         await Assert.That(result.ready).IsTrue();
         await Assert.That(result.answer).IsEqualTo("""[{"count.part":4,"note.part":"second"}]""");
@@ -238,6 +252,7 @@ public sealed class DesktopApplicationTests
     {
         var result = await InWindow(window =>
         {
+            EnterReview(window, import: true);
             window.Width = window.MinWidth;
             Dispatcher.UIThread.RunJobs();
             var artifact = window.GetNamedControl<ComboBox>("Artifact");
@@ -245,7 +260,8 @@ public sealed class DesktopApplicationTests
             Point left = artifact.TranslatePoint(default, window)!.Value;
             Point right = filename.TranslatePoint(default, window)!.Value;
             return (artifact.Bounds.Width, filename.Bounds.Width,
-                separate: left.X + artifact.Bounds.Width <= right.X,
+                separate: left.Y >= right.Y + filename.Bounds.Height || right.Y >= left.Y + artifact.Bounds.Height ||
+                    left.X + artifact.Bounds.Width <= right.X || right.X + filename.Bounds.Width <= left.X,
                 selected: artifact.SelectedItem is ArtifactDefinition,
                 experienceSelected: ReferenceEquals(window.GetNamedControl<ComboBox>("Experience").SelectedItem,
                     ((DesktopShellViewModel)window.DataContext!).Workspace.SelectedExperience));
@@ -261,13 +277,13 @@ public sealed class DesktopApplicationTests
     [NotInParallel]
     public async Task RealControlsEditNestedFieldsAndListsThenInvalidatePreparedOutput()
     {
-        var result = await InWindow(window =>
+        var result = await InWindowAsync(async window =>
         {
             var shell = (DesktopShellViewModel)window.DataContext!;
             TextBox name = Input<TextBox>(window, "Service name");
             name.Text = "Desktop service";
             Input<ComboBox>(window, "Mode").SelectedIndex = 2;
-            Input<CheckBox>(window, "Enabled").IsChecked = false;
+            Input<ComboBox>(window, "Enabled").SelectedIndex = 2;
             Input<TextBox>(window, "Port").Text = "8443";
             Input<TextBox>(window, "Ratio").Text = "1.25";
             Input<TextBox>(window, "Owner name").Text = "Private owner";
@@ -277,7 +293,9 @@ public sealed class DesktopApplicationTests
             Input<TextBox>(window, "Hosts item").Text = "alpha.example";
             Dispatcher.UIThread.RunJobs();
             Click(window.GetNamedControl<Button>("Validate"));
-            Click(window.GetNamedControl<Button>("Prepare"));
+            EnterReview(window);
+            Click(window.GetNamedControl<Button>("PrepareSelection"));
+            await CompletePreparationAsync(shell);
             Dispatcher.UIThread.RunJobs();
             bool prepared = shell.Publisher.CanSave;
             string preparationStatus = shell.Status;
@@ -288,6 +306,7 @@ public sealed class DesktopApplicationTests
                 snapshot.RootElement.GetProperty("owner").GetProperty("name").GetString() == "Private owner" &&
                 snapshot.RootElement.GetProperty("hosts")[0].GetString() == "alpha.example";
             bool masked = Input<TextBox>(window, "Owner name").PasswordChar != '\0';
+            Click(window.GetNamedControl<Button>("ConfigureStage"));
             name.Text = "Changed service";
             Dispatcher.UIThread.RunJobs();
             return (prepared, preparationStatus, values, masked, invalidated: !shell.Publisher.CanSave);
@@ -303,13 +322,19 @@ public sealed class DesktopApplicationTests
     [NotInParallel]
     public async Task KeyboardTabAndValidationMoveActualFocusToNamedControls()
     {
-        var result = await InWindow(window =>
+        var result = await InWindowAsync(async window =>
         {
+            var shell = (DesktopShellViewModel)window.DataContext!;
+            Click(window.GetNamedControl<Button>("OpenStage"));
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
             var path = window.GetNamedControl<TextBox>("DefinitionPath");
-            path.Focus();
+            bool pathFocused = path.Focus();
             window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
             window.KeyRelease(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
             bool tabMoved = window.GetNamedControl<Button>("SelectDefinition").IsFocused;
+            string tabTarget = (window.FocusManager?.GetFocusedElement() as Control)?.Name ?? "unnamed";
+            Click(window.GetNamedControl<Button>("ConfigureStage"));
             Input<TextBox>(window, "Service name").Text = " ";
             Dispatcher.UIThread.RunJobs();
             Click(window.GetNamedControl<Button>("Validate"));
@@ -318,13 +343,15 @@ public sealed class DesktopApplicationTests
             Dispatcher.UIThread.RunJobs();
             window.KeyPress(Key.Enter, RawInputModifiers.Control, PhysicalKey.Enter, null);
             window.KeyRelease(Key.Enter, RawInputModifiers.Control, PhysicalKey.Enter, null);
+            await shell.ReviewAndPrepareCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(10));
             bool prepared = ((DesktopShellViewModel)window.DataContext!).Publisher.CanSave;
             window.KeyPress(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
             window.KeyRelease(Key.Escape, RawInputModifiers.None, PhysicalKey.Escape, null);
-            return (tabMoved, errorFocused, prepared,
+            return (pathFocused, tabTarget, tabMoved, errorFocused, prepared,
                 discarded: !((DesktopShellViewModel)window.DataContext!).Publisher.CanSave);
         });
-        await Assert.That(result.tabMoved).IsTrue();
+        await Assert.That(result.pathFocused).IsTrue();
+        await Assert.That(result.tabMoved).IsTrue().Because("Actual Tab target: " + result.tabTarget);
         await Assert.That(result.errorFocused).IsTrue();
         await Assert.That(result.prepared).IsTrue();
         await Assert.That(result.discarded).IsTrue();
@@ -337,25 +364,21 @@ public sealed class DesktopApplicationTests
         var result = await InWindow(window =>
         {
             var shell = (DesktopShellViewModel)window.DataContext!;
-            var fields = window.GetNamedControl<ItemsControl>("Fields").GetLogicalDescendants()
-                .OfType<StackPanel>().Where(item => item.DataContext is FieldViewModel).ToArray();
-            StackPanel advanced = fields.First(item => ((FieldViewModel)item.DataContext!).Title == "Advanced note");
-            StackPanel protectedField = fields.First(item => ((FieldViewModel)item.DataContext!).Title == "Owner");
-            StackPanel consequence = fields.First(item => ((FieldViewModel)item.DataContext!).Title == "Mode");
-            bool authoredDefaults = !advanced.IsVisible && protectedField.IsVisible && consequence.IsVisible;
+            bool authoredDefaults = !RenderedField(window, "Advanced note") &&
+                RenderedField(window, "Owner") && RenderedField(window, "Mode");
             var optional = window.GetNamedControl<CheckBox>("OptionalEditors");
             optional.IsChecked = true;
             Dispatcher.UIThread.RunJobs();
-            bool shown = advanced.IsVisible;
+            bool shown = RenderedField(window, "Advanced note");
             Input<TextBox>(window, "Advanced note").Text = new string('a', 9);
             Dispatcher.UIThread.RunJobs();
             optional.IsChecked = false;
             Dispatcher.UIThread.RunJobs();
-            bool invalidShown = advanced.IsVisible;
+            bool invalidShown = RenderedField(window, "Advanced note");
             bool ready = shell.Workspace.Validate();
             shell.Workspace.Fields.Single(field => field.Id == "note").ClearCommand.Execute(null);
             Dispatcher.UIThread.RunJobs();
-            bool correctedShown = advanced.IsVisible;
+            bool correctedShown = RenderedField(window, "Advanced note");
             bool omitted = !shell.Workspace.Form!.Snapshot().Values.ContainsKey("note");
             bool correctedReady = shell.Workspace.Validate();
             optional.IsChecked = true;
@@ -363,7 +386,7 @@ public sealed class DesktopApplicationTests
             optional.IsChecked = false;
             Dispatcher.UIThread.RunJobs();
             return (authoredDefaults, shown, invalidShown, ready, correctedShown, omitted, correctedReady,
-                restored: !advanced.IsVisible);
+                restored: !RenderedField(window, "Advanced note"));
         });
         await Assert.That(result.authoredDefaults).IsTrue();
         await Assert.That(result.shown).IsTrue();
@@ -379,7 +402,7 @@ public sealed class DesktopApplicationTests
     [NotInParallel]
     public async Task AuthoredExperienceControlPreservesEditorsAnswersAndPreparedOutput()
     {
-        var result = await InWindow(window =>
+        var result = await InWindowAsync(async window =>
         {
             var shell = (DesktopShellViewModel)window.DataContext!;
             shell.Loader.LoadDefinition(DefinitionWithExperiences());
@@ -388,12 +411,15 @@ public sealed class DesktopApplicationTests
             var experience = window.GetNamedControl<ComboBox>("Experience");
             var optional = window.GetNamedControl<CheckBox>("OptionalEditors");
             var note = shell.Workspace.Fields.Single(field => field.Id == "note");
-            TextBox editor = Input<TextBox>(window, "Advanced note");
-            Click(window.GetNamedControl<Button>("Prepare"));
+            TextBox editor = Input<TextBox>(window, "Service name");
+            EnterReview(window);
+            Click(window.GetNamedControl<Button>("PrepareSelection"));
+            await CompletePreparationAsync(shell);
             Dispatcher.UIThread.RunJobs();
             var preparation = shell.Publisher.Preparation;
             long revision = shell.Workspace.Form!.InputRevision;
             string status = shell.Status;
+            Click(window.GetNamedControl<Button>("ConfigureStage"));
             bool initiallyHidden = !note.IsVisible;
             experience.SelectedItem = shell.Workspace.Experiences.Single(item => item.Id == "inspection");
             // Journeys select layout in v2; optional detail is a deliberate view action.
@@ -410,7 +436,8 @@ public sealed class DesktopApplicationTests
             Dispatcher.UIThread.RunJobs();
             return (initiallyHidden, selected, defaultsRestored, expanded,
                 restored: !note.IsVisible,
-                sameEditor: ReferenceEquals(editor, Input<TextBox>(window, "Advanced note")),
+                sameEditor: ReferenceEquals(editor, Input<TextBox>(window, "Service name")) &&
+                    ReferenceEquals(note, shell.Workspace.Fields.Single(field => field.Id == "note")),
                 revisionPreserved: revision == shell.Workspace.Form.InputRevision,
                 preparationPreserved: preparation is not null && ReferenceEquals(preparation, shell.Publisher.Preparation),
                 statusPreserved: status == shell.Status,
@@ -445,7 +472,7 @@ public sealed class DesktopApplicationTests
             window.GetNamedControl<CheckBox>("OptionalEditors").IsChecked = true;
             Dispatcher.UIThread.RunJobs();
             var port = shell.Workspace.Fields.Single(field => field.Id == "port");
-            return (activeInvalid, hidden: !Input<TextBox>(window, "Port").IsEffectivelyVisible,
+            return (activeInvalid, hidden: !RenderedField(window, "Port"),
                 visible: port.IsVisible, error: port.HasError, ready: shell.Workspace.Validate());
         });
         await Assert.That(result.activeInvalid).IsTrue();
@@ -459,12 +486,14 @@ public sealed class DesktopApplicationTests
     [NotInParallel]
     public async Task InvalidStructuredNumericInputCannotBeSilentlyOmitted()
     {
-        var result = await InWindow(window =>
+        var result = await InWindowAsync(async window =>
         {
             var shell = (DesktopShellViewModel)window.DataContext!;
             Input<TextBox>(window, "Owner age").Text = "not-an-integer";
             Dispatcher.UIThread.RunJobs();
-            Click(window.GetNamedControl<Button>("Prepare"));
+            EnterReview(window);
+            Click(window.GetNamedControl<Button>("PrepareSelection"));
+            await CompletePreparationAsync(shell);
             Dispatcher.UIThread.RunJobs();
             return (shell.Publisher.CanSave, shell.Status, shell.Workspace.Form!.HasInputErrors);
         });
@@ -490,7 +519,7 @@ public sealed class DesktopApplicationTests
         {
             await Assert.That(shell.Loader.LoadDefinition(Definition())).IsTrue();
             shell.Publisher.ArtifactId = artifactId;
-            await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+            await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
             await Assert.That(shell.Publisher.Preparation!.ArtifactId).IsEqualTo(artifactId);
             await Assert.That(shell.Publisher.Preparation.DefinitionDigest).IsEqualTo(shell.Workspace.Form!.Definition.Digest);
             await Assert.That((await shell.Publisher.SaveAsync()).Succeeded).IsTrue();
@@ -523,7 +552,7 @@ public sealed class DesktopApplicationTests
         shell.Publisher.OutputDirectory = Path.Combine(Path.GetTempPath(), "different");
         await Assert.That(shell.Publisher.CanSave).IsFalse();
         await shell.Publisher.PrepareAsync();
-        shell.Publisher.ArtifactId = "notes";
+        shell.Publisher.SelectArtifact("notes", true);
         await Assert.That(shell.Publisher.CanSave).IsFalse();
         await shell.Publisher.PrepareAsync();
         string pin = shell.Loader.DefinitionPin;
@@ -673,7 +702,7 @@ public sealed class DesktopApplicationTests
         await Assert.That(shell.Workspace.Form).IsNull();
         await Assert.That(shell.Publisher.Artifacts.Count).IsEqualTo(0);
         await Assert.That(shell.Publisher.CanPrepare).IsFalse();
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsFalse();
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Invalid);
         await Assert.That((await shell.Publisher.SaveAsync()).Status).IsEqualTo(ProtectedArtifactStatus.InvalidRequest);
     }
 
@@ -702,7 +731,7 @@ public sealed class DesktopApplicationTests
         var pending = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var shell = Shell();
         shell.Loader.LoadDefinition(Definition());
-        Task<bool> import = shell.Publisher.ImportAsync(_ => pending.Task);
+        Task<bool> import = shell.ImportReview.ImportAsync(_ => pending.Task);
         shell.Workspace.Form!.Fields.Single(item => item.Definition.Id == "name").Text = "Later edit";
         pending.SetResult(Encoding.UTF8.GetBytes("{\"name\":\"Example service\"}"));
         await Assert.That(await import.WaitAsync(TimeSpan.FromSeconds(5))).IsFalse();
@@ -716,9 +745,9 @@ public sealed class DesktopApplicationTests
         var pending = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var shell = Shell();
         shell.Loader.LoadDefinition(Definition());
-        shell.Publisher.ExistingFilePath = "first.json";
-        Task<bool> import = shell.Publisher.ImportAsync(_ => pending.Task);
-        shell.Publisher.ExistingFilePath = "second.json";
+        shell.ImportReview.ExistingFilePath = "first.json";
+        Task<bool> import = shell.ImportReview.ImportAsync(_ => pending.Task);
+        shell.ImportReview.ExistingFilePath = "second.json";
         pending.SetResult(Encoding.UTF8.GetBytes("{\"owner\":{\"name\":\"Synthetic private\"}}"));
         await Assert.That(await import.WaitAsync(TimeSpan.FromSeconds(5))).IsFalse();
         await Assert.That(shell.Status).IsEqualTo("inputs-changed");
@@ -730,8 +759,8 @@ public sealed class DesktopApplicationTests
     {
         using var shell = Shell();
         shell.Loader.LoadDefinition(Definition());
-        shell.Workspace.Form!.InputChanged += (_, _) => shell.Publisher.ExistingFilePath = "next.json";
-        bool committed = await shell.Publisher.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(
+        shell.Workspace.Form!.InputChanged += (_, _) => shell.ImportReview.ExistingFilePath = "next.json";
+        bool committed = await shell.ImportReview.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(
             Encoding.UTF8.GetBytes("{\"owner\":{\"name\":\"Synthetic private\"}}")));
         await Assert.That(committed).IsTrue();
         await Assert.That(shell.Status).IsEqualTo("inputs-changed");
@@ -748,9 +777,9 @@ public sealed class DesktopApplicationTests
         await File.WriteAllTextAsync(path, JsonSerializer.Serialize(new { owner = new { name = marker } }));
         using var shell = Shell();
         shell.Loader.LoadDefinition(Definition());
-        shell.Publisher.ImportPurposeIndex = 1;
-        shell.Publisher.ExistingFilePath = path;
-        await Assert.That(await shell.Publisher.ImportFileAsync()).IsTrue();
+        shell.ImportReview.ImportPurposeIndex = 1;
+        shell.ImportReview.ExistingFilePath = path;
+        await Assert.That(await shell.ImportReview.ImportFileAsync()).IsTrue();
         await Assert.That(shell.Status).IsEqualTo("import-ready");
         await Assert.That(shell.Status).DoesNotContain(marker, StringComparison.Ordinal);
         await Assert.That(shell.Workspace.Form!.Fields.Single(item => item.Definition.Id == "owner").Text).Contains(marker);
@@ -762,7 +791,7 @@ public sealed class DesktopApplicationTests
         using var shell = Shell();
         shell.Loader.LoadDefinition(Definition());
         shell.Publisher.SelectArtifact("environment", true);
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         await Assert.That(shell.Publisher.SelectedArtifactIds).Contains("environment");
         await Assert.That(shell.Publisher.CanSaveBundle).IsTrue();
         await Assert.That(shell.Status).DoesNotContain("Example service", StringComparison.Ordinal);
@@ -785,7 +814,7 @@ public sealed class DesktopApplicationTests
         shell.Loader.LoadDefinition(Definition());
         shell.Publisher.OutputDirectory = directory.Path;
         shell.Publisher.SelectArtifact("environment", true);
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         var blocked = await shell.Publisher.SaveBundleAsync();
         await Assert.That(blocked!.Succeeded).IsFalse();
         await Assert.That(shell.Status).StartsWith("bundle-save-blocked:");
@@ -793,7 +822,7 @@ public sealed class DesktopApplicationTests
         await Assert.That(await File.ReadAllTextAsync(existing)).IsEqualTo("EXISTING=unchanged\n");
         await Assert.That(shell.Status).DoesNotContain(directory.Path, StringComparison.Ordinal);
         File.Delete(existing);
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         var saved = await shell.Publisher.SaveBundleAsync();
         await Assert.That(saved!.Succeeded).IsTrue();
         await Assert.That(File.Exists(Path.Combine(directory.Path, "service.json"))).IsTrue();
@@ -818,7 +847,7 @@ public sealed class DesktopApplicationTests
             });
         shell.Loader.LoadDefinition(Definition());
         shell.Publisher.SelectArtifact("environment", true);
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         Task<ProtectedArtifactBundleResult?> pending = shell.Publisher.SaveBundleAsync();
         await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         shell.Workspace.Form!.Fields.Single(item => item.Definition.Id == "name").Text = "Later edit";
@@ -839,7 +868,7 @@ public sealed class DesktopApplicationTests
             Task.FromResult(ProtectedArtifactCommitResult.Installed(true)), Path.GetTempPath(), protectedOutputAvailable: true,
             (_, _, _, _) => throw new IOException(privatePath));
         shell.Loader.LoadDefinition(Definition());
-        await Assert.That(shell.Publisher.PrepareBundle()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareBundleAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         await Assert.That(await shell.Publisher.SaveBundleAsync()).IsNull();
         await Assert.That(shell.Status).IsEqualTo("bundle-save-blocked:IoFailure");
         await Assert.That(shell.Status).DoesNotContain(privatePath, StringComparison.Ordinal);
@@ -854,11 +883,12 @@ public sealed class DesktopApplicationTests
         var result = await InWindow(window =>
         {
             var shell = (DesktopShellViewModel)window.DataContext!;
+            EnterReview(window, import: true);
             return (import: window.GetNamedControl<Button>("Import").IsVisible,
-                bundle: window.GetNamedControl<Button>("PrepareBundle").IsVisible,
+                bundle: window.GetNamedControl<Button>("PrepareSelection").IsVisible,
                 capability: window.GetNamedControl<TextBlock>("ProtectedCapability").Text,
                 selections: window.GetNamedControl<ItemsControl>("ArtifactSelections").ItemCount,
-                saveEnabled: window.GetNamedControl<Button>("SaveBundle").IsEffectivelyEnabled,
+                saveEnabled: window.GetNamedControl<Button>("SaveSelection").IsEffectivelyEnabled,
                 available: shell.Publisher.ProtectedSaveAvailable);
         });
         await Assert.That(result.import).IsTrue();
@@ -875,6 +905,7 @@ public sealed class DesktopApplicationTests
         var result = await InWindowAsync(async window =>
         {
             var shell = (DesktopShellViewModel)window.DataContext!;
+            EnterReview(window, import: true);
             ComboBox? purpose = window.FindNamedControl<ComboBox>("ImportPurpose");
             bool compared = (await shell.Workspace.Form!.CompareAsync("config",
                 _ => Task.FromResult<ReadOnlyMemory<byte>>("""{"name":"private-comparison-sentinel"}"""u8.ToArray()))
@@ -908,11 +939,12 @@ public sealed class DesktopApplicationTests
         {
             var shell = (DesktopShellViewModel)window.DataContext!;
             shell.Loader.LoadDefinition(ViewModels.DefinitionEditingTests.Definition().CanonicalBytes);
+            EnterReview(window, import: true);
             byte[] input = JsonSerializer.SerializeToUtf8Bytes(new
             {
                 named = Enumerable.Range(0, 70).ToDictionary(index => "private-entry-" + index, _ => 0)
             });
-            bool compared = await shell.Publisher.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(input));
+            bool compared = await shell.ImportReview.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(input));
             Dispatcher.UIThread.RunJobs();
             window.UpdateLayout();
             var review = window.GetNamedControl<StackPanel>("ImportComparison");
@@ -922,14 +954,14 @@ public sealed class DesktopApplicationTests
                 block.Classes.Contains("blocking") && block.Foreground is Avalonia.Media.ISolidColorBrush brush &&
                 brush.Color.R > brush.Color.G);
             Button next = review.GetLogicalDescendants().OfType<Button>().Single(button =>
-                ReferenceEquals(button.Command, shell.Publisher.NextImportPageCommand));
+                ReferenceEquals(button.Command, shell.ImportReview.NextImportPageCommand));
             next.Command!.Execute(null);
             window.UpdateLayout();
             int secondPage = items.ItemCount;
-            bool previousEnabled = shell.Publisher.PreviousImportPageCommand.CanExecute(null);
+            bool previousEnabled = shell.ImportReview.PreviousImportPageCommand.CanExecute(null);
             bool leaked = review.GetLogicalDescendants().OfType<TextBlock>().Any(block =>
                 block.Text?.Contains("private-entry-", StringComparison.Ordinal) == true);
-            shell.Publisher.ClearImportComparisonCommand.Execute(null);
+            shell.ImportReview.ClearImportComparisonCommand.Execute(null);
             window.UpdateLayout();
             return (compared, firstPage, secondPage, blocked, previousEnabled, leaked,
                 retired: !review.IsVisible && items.ItemCount == 0);
@@ -952,7 +984,7 @@ public sealed class DesktopApplicationTests
         var result = await InWindow(window =>
         {
             var shell = (DesktopShellViewModel)window.DataContext!;
-            bool imported = shell.Publisher.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(content))
+            bool imported = shell.ImportReview.ImportAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(content))
                 .GetAwaiter().GetResult();
             Dispatcher.UIThread.RunJobs();
             return (success: imported, masked: Input<TextBox>(window, "Owner name").PasswordChar != '\0',
@@ -1037,13 +1069,13 @@ public sealed class DesktopApplicationTests
                 before.RootElement[0].GetProperty("settings").ValueKind == JsonValueKind.Object &&
                 before.RootElement[0].GetProperty("aliases")[0].GetString() == "alias" &&
                 before.RootElement[0].GetProperty("localizations")[0].GetProperty("locale").GetString() == "en";
-            Click(editor.GetLogicalDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Remove item from Aliases"));
+            ClickFieldAction(window, ((ListFieldViewModel)row.Children.Single(field => field.Id == "aliases")).Items.Single().RemoveCommand);
             Dispatcher.UIThread.RunJobs();
             using JsonDocument nestedRemoval = JsonDocument.Parse(shell.Workspace.Form!.Fields.Single().Text);
             typed &= nestedRemoval.RootElement[0].GetProperty("aliases").GetArrayLength() == 0 &&
                 nestedRemoval.RootElement[0].GetProperty("name").GetString() == "first";
             bool masked = password.PasswordChar != '\0';
-            Click(editor.GetLogicalDescendants().OfType<Button>().Single(button => AutomationProperties.GetName(button) == "Remove item from Rows"));
+            ClickFieldAction(window, row.RemoveCommand);
             Dispatcher.UIThread.RunJobs();
             return (typed, masked, answer: shell.Workspace.Form!.Fields.Single().Text);
         });
@@ -1052,8 +1084,43 @@ public sealed class DesktopApplicationTests
         await Assert.That(result.answer).IsEqualTo("[]");
     }
 
-    private static T Input<T>(MainWindow window, string title) where T : Control =>
-        window.GetLogicalDescendants().OfType<T>().Single(control => AutomationProperties.GetName(control) == title);
+    private static bool RenderedField(MainWindow window, string title) =>
+        window.GetLogicalDescendants().OfType<StackPanel>().Any(control =>
+            control.DataContext is FieldViewModel field && field.Title == title && control.IsEffectivelyVisible);
+
+    private static T Input<T>(MainWindow window, string title) where T : Control
+    {
+        window.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        return window.GetLogicalDescendants().OfType<T>().Single(control => AutomationProperties.GetName(control) == title);
+    }
+    private static void EnterReview(MainWindow window, bool import = false)
+    {
+        Click(window.GetNamedControl<Button>("ReviewStage"));
+        window.UpdateLayout();
+        Dispatcher.UIThread.RunJobs();
+        if (import)
+        {
+            window.GetNamedControl<Expander>("OptionalImport").IsExpanded = true;
+            window.UpdateLayout();
+            Dispatcher.UIThread.RunJobs();
+        }
+    }
+    private static void ClickFieldAction(MainWindow window, System.Windows.Input.ICommand command)
+    {
+        MenuItem header = window.GetLogicalDescendants().OfType<MenuItem>().Single(item =>
+            item.Items.OfType<MenuItem>().Any(action => ReferenceEquals(action.Command, command)));
+        header.IsSubMenuOpen = true;
+        Dispatcher.UIThread.RunJobs();
+        MenuItem action = header.Items.OfType<MenuItem>().Single(item => ReferenceEquals(item.Command, command));
+        if (!action.IsEffectivelyEnabled || !command.CanExecute(action.CommandParameter))
+            throw new InvalidOperationException("field-action-disabled");
+        action.Focus();
+        window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        window.KeyRelease(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
+        Dispatcher.UIThread.RunJobs();
+    }
+
     private static void Click(Button button)
     {
         var command = button.Command ?? throw new InvalidOperationException("action-unbound");
@@ -1066,6 +1133,10 @@ public sealed class DesktopApplicationTests
 
     private static Task<T> InWindow<T>(Func<MainWindow, T> action) =>
         InWindowAsync(window => Task.FromResult(action(window)));
+
+    private static Task CompletePreparationAsync(DesktopShellViewModel shell) =>
+        (shell.Publisher.PrepareSelectionCommand.ExecutionTask ?? throw new InvalidOperationException("prepare-command-not-started"))
+            .WaitAsync(TimeSpan.FromSeconds(10));
 
     private static async Task<T> InWindowAsync<T>(Func<MainWindow, Task<T>> action)
     {
@@ -1100,12 +1171,14 @@ public sealed class DesktopApplicationTests
             var observed = await session.Dispatch(async () =>
             {
                 var clock = new DesktopCloseLifecycleTests.CloseClock();
+                var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 ReadOnlyMemory<byte> borrowed = default;
                 using var shell = DesktopTestContext.Root(save: async (_, bytes, _) =>
                 {
                     borrowed = bytes;
+                    entered.TrySetResult();
                     await release.Task.WaitAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
                     return ProtectedArtifactCommitResult.Installed(false, cleanupFailed: true);
                 }, protectedOutputAvailable: true, timeProvider: clock);
@@ -1120,6 +1193,7 @@ public sealed class DesktopApplicationTests
                     await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
                     await shell.Publisher.PrepareAsync();
                     Task saving = shell.Publisher.SaveAsync();
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
                     Task decision = DesktopCloseLifecycleTests.DecisionSignal(shell);
                     window.Close();
                     clock.Advance(TimeSpan.FromSeconds(2));

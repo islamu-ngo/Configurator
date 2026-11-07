@@ -109,6 +109,8 @@ public sealed class DesktopLocalSelectionTests
                 }, directory.Path, protectedOutputAvailable: true);
                 shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
                 var window = new MainWindow { DataContext = shell };
+                var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                window.Closed += (_, _) => closed.TrySetResult();
                 try
                 {
                     window.Show();
@@ -119,14 +121,18 @@ public sealed class DesktopLocalSelectionTests
                     string status = shell.Status;
                     release.SetResult();
                     await saving.WaitAsync(TimeSpan.FromSeconds(10));
+                    await closed.Task.WaitAsync(TimeSpan.FromSeconds(10));
                     return (noFiles: Directory.GetFiles(directory.Path).Length == 0,
-                        currentStatus: shell.Status == status, noPreparation: !shell.Publisher.CanSave && !shell.Publisher.IsSaving);
+                        currentStatus: shell.Status == status,
+                        noPreparation: !shell.Publisher.CanSave && !shell.Publisher.IsSaving,
+                        disposed: window.DataContext is null && shell.Workspace.Form is null);
                 }
                 finally { release.TrySetResult(); window.Close(); }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
             await Assert.That(observed.noFiles).IsTrue();
             await Assert.That(observed.currentStatus).IsTrue();
             await Assert.That(observed.noPreparation).IsTrue();
+            await Assert.That(observed.disposed).IsTrue();
         }
         finally { await Task.Run(session.Dispose); }
     }
@@ -147,8 +153,8 @@ public sealed class DesktopLocalSelectionTests
         })));
         await Assert.That(await shell.Loader.SelectDefinitionAsync()).IsTrue();
         await Assert.That(shell.Workspace.Form is not null).IsTrue();
-        shell.Publisher.ImportPurposeIndex = 1;
-        await Assert.That(await shell.Publisher.SelectImportAsync()).IsTrue();
+        shell.ImportReview.ImportPurposeIndex = 1;
+        await Assert.That(await shell.ImportReview.SelectImportAsync()).IsTrue();
         await Assert.That(shell.Workspace.Form!.Fields.Single(input => input.Definition.Id == "owner").Text)
             .Contains("synthetic-private-answer");
         await shell.Publisher.PrepareAsync();

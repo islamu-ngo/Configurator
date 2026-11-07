@@ -1,9 +1,6 @@
 namespace Configurator.Desktop.ViewModels;
 
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using System.Text;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -20,44 +17,26 @@ using Configurator.Presentation;
 public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisposable
 {
     private DesktopStrings Strings => new(_form?.Locale);
-    private const int ImportPageSize = 32;
     private readonly IMessenger _messenger;
     private readonly IStorageDialogService _dialogs;
-    private readonly Func<string, Stream> _openImport;
-    private readonly Func<CancellationToken, ValueTask> _cooperativeYield;
     private readonly Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>> _save;
     private readonly Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>, CancellationToken,
         Task<ProtectedArtifactBundleResult>> _publishBundle;
-    private readonly PresentationSession _session;
     private DefinitionFormModel? _form;
-    private PresentationWorkspace? _preparationWorkspace;
+    private PresentationOutcome? _preparedOutcome;
     private string[]? _preparedBundleSelection;
     private long _preparedBundleInputRevision;
     private readonly HashSet<string> _selectedArtifactIds = new(StringComparer.Ordinal);
-    private IReadOnlyList<ArtifactSelectionViewModel> _artifactSelections = [];
+    private ArtifactSelectionViewModel[] _artifactSelections = [];
     private readonly object _receiptGate = new();
     private readonly Queue<ProtectedArtifactPublicationReceipt> _publicationHistory = new();
     private DesktopPublicationOperation? _publication;
     private long _generation;
     private bool _disposed;
     private bool _replacingForm;
-    private bool _comparingInput;
-    private long _reviewGeneration;
-    private int _importPage;
-    private ImportFindingViewModel[] _importFindings = [];
-
     [ObservableProperty]
-    private int _importPurposeIndex;
-    [ObservableProperty]
-    private string _importExplanation = string.Empty;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(PrepareCommand))]
-    [NotifyCanExecuteChangedFor(nameof(PrepareBundleCommand))]
-    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
-    [NotifyCanExecuteChangedFor(nameof(SaveBundleCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ImportFileCommand))]
-    [NotifyCanExecuteChangedFor(nameof(SelectImportCommand))]
+    [NotifyCanExecuteChangedFor(nameof(PrepareSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveSelectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(SelectOutputDirectoryCommand))]
     private bool _isBusy;
     [ObservableProperty]
@@ -69,14 +48,12 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     [ObservableProperty]
     private string _fileName = string.Empty;
     [ObservableProperty]
-    private string _existingFilePath = string.Empty;
-    [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedArtifact))]
     [NotifyPropertyChangedFor(nameof(ArtifactConsequences))]
     private string? _artifactId;
 
     public ArtifactPublisherViewModel(IMessenger messenger, IStorageDialogService dialogs,
-        IProtectedArtifactWriter writer, Func<CancellationToken, ValueTask>? cooperativeYield = null)
+        IProtectedArtifactWriter writer)
         : this(messenger, dialogs, async (path, bytes, token) =>
         {
             using ProtectedArtifactPreparation preparation = await writer.PrepareAsync(
@@ -88,7 +65,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             }
         }, Directory.GetCurrentDirectory(), writer.IsAvailable,
             (artifacts, directory, observe, token) => ProtectedArtifactBundlePublisher.PublishAsync(
-                writer, artifacts, directory, observe, token), cooperativeYield: cooperativeYield)
+                writer, artifacts, directory, observe, token))
     {
     }
 
@@ -96,38 +73,27 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         Func<string, ReadOnlyMemory<byte>, CancellationToken, Task<ProtectedArtifactCommitResult>> save,
         string outputDirectory, bool protectedOutputAvailable,
         Func<IReadOnlyList<DefinitionArtifact>, string, Action<ProtectedArtifactBundleOutcome>, CancellationToken,
-            Task<ProtectedArtifactBundleResult>>? publishBundle = null,
-        Func<string, Stream>? openImport = null,
-        Func<CancellationToken, ValueTask>? cooperativeYield = null)
+            Task<ProtectedArtifactBundleResult>>? publishBundle = null)
     {
         _messenger = messenger;
         _dialogs = dialogs;
-        _cooperativeYield = cooperativeYield ?? YieldDispatcherAsync;
-        _openImport = openImport ?? (path => new FileStream(path, FileMode.Open, FileAccess.Read,
-            FileShare.Read, 4096, FileOptions.Asynchronous));
         _save = save;
         _publishBundle = publishBundle ?? ((artifacts, directory, observe, token) =>
             ProtectedArtifactBundlePublisher.PublishAsync(new ProtectedArtifactWriter(), artifacts, directory, observe, token));
         _outputDirectory = outputDirectory;
         ProtectedSaveAvailable = protectedOutputAvailable;
-        _session = new PresentationSession(messenger);
-        PrepareBundleCommand = new RelayCommand(() => PrepareBundle(), () => CanPrepare);
-        FillImportFieldsCommand = new AsyncRelayCommand(
-            async token => { await FillImportFieldsAsync(token); }, () => CanFillImportFields);
         messenger.Register<ArtifactPublisherViewModel, FormWorkspaceChangedMessage>(this,
             static (publisher, message) => publisher.ReplaceForm(message.Form));
         messenger.Register<ArtifactPublisherViewModel, WorkspaceInvalidatedMessage>(this,
             static (publisher, message) =>
             {
                 publisher._generation = message.Generation;
-                publisher.ClearImportComparison();
                 publisher.ClearPreparation();
                 publisher.RefreshEligibleArtifacts();
             });
         messenger.Register<ArtifactPublisherViewModel, OperationStateMessage>(this,
             static (publisher, message) =>
             {
-                if (message.IsBusy && message.Kind != "fill-import") publisher.ClearImportComparison();
                 publisher.IsBusy = message.IsBusy;
                 publisher.IsSaving = message.IsBusy && message.Kind == "save";
                 publisher.IsSelecting = message.IsBusy && message.Kind == "selection";
@@ -146,44 +112,17 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         .Select(item => item.Id).ToArray();
     public bool ProtectedSaveAvailable { get; }
     public string ProtectedCapability => Strings[ProtectedSaveAvailable ? "ProtectedSaveAvailable" : "ProtectedSaveUnavailable"];
-    public string ArtifactConsequences => SelectedArtifact is { } artifact
-        ? Strings.Format("ArtifactConsequences", artifact.Format.ToToken(), artifact.ApplySemantics.ToToken(), artifact.Restart.ToToken())
-        : Strings["SelectArtifact"];
-    public DefinitionPreparationMetadata? Preparation => _preparationWorkspace?.Result as DefinitionPreparationMetadata;
+    public string ArtifactConsequences => string.Join("\n", Artifacts.Where(artifact => _selectedArtifactIds.Contains(artifact.Id))
+        .Select(artifact => artifact.Title + ": " + Strings.Format("ArtifactConsequences",
+            artifact.Format.ToToken(), artifact.ApplySemantics.ToToken(), artifact.Restart.ToToken())));
+    public DefinitionPreparationMetadata? Preparation => _preparedOutcome?.CoreResult as DefinitionPreparationMetadata;
     public bool CanSelectPath => !_disposed && !IsBusy;
-    public bool CanPrepare => !_disposed && !IsBusy && _form is not null;
-    public bool CanImport => CanPrepare && Artifacts.Any(artifact => artifact.Id == ArtifactId);
-    public IReadOnlyList<string> ImportPurposes => [Text("CompareLabel"), Text("FillFieldsLabel")];
-    public string ImportPurposeLabel => Text(nameof(ImportPurposeLabel));
-    public string ReviewFileLabel => Text(nameof(ReviewFileLabel));
-    public string ImportLimitHelp => Text(nameof(ImportLimitHelp));
-    public string ImportComparisonTitle => Text(nameof(ImportComparisonTitle));
-    public string FillFieldsLabel => Text(nameof(FillFieldsLabel));
-    public string DismissImportLabel => Text(nameof(DismissImportLabel));
-    public string PreviousImportPageLabel => Text(nameof(PreviousImportPageLabel));
-    public string NextImportPageLabel => Text(nameof(NextImportPageLabel));
-    public string ImportSchemaHelp => Text(nameof(ImportSchemaHelp));
-    public bool HasImportComparison => !_disposed && _form?.ImportComparison is not null;
-    public bool CanFillImportFields => CanImport && _form?.CanAdoptImportComparison == true;
-    public string ImportFacts => _form?.ImportComparison is { } report
-        ? Strings.Format("ImportFactsFormat", report.ArtifactId,
-            PresentationStrings.ImportCompatibility(report.Compatibility, _form.Locale),
-            Strings[report.ExecutionCompleted ? "Yes" : "No"], Strings[report.CoverageComplete ? "Yes" : "No"],
-            Strings[report.InventoryComplete ? "Yes" : "No"], Strings[report.AutofillEligible ? "Yes" : "No"]) : string.Empty;
-    public string ImportAdoption => Strings.Format("ImportAdoptionFormat",
-        PresentationStrings.ImportAutofill(_form?.ImportAutofillCode, _form?.Locale ?? "en"));
-    public IReadOnlyList<ImportFindingViewModel> ImportFindings => _importFindings;
-    public string ImportPageText => Strings.Format("ImportPageFormat",
-        _importFindings.Length == 0 ? 0 : _importPage * ImportPageSize + 1,
-        _importPage * ImportPageSize + _importFindings.Length, _form?.ImportComparison?.RetainedFindingCount ?? 0);
-    public bool CanPreviousImportPage => HasImportComparison && _importPage > 0;
-    public bool CanNextImportPage => HasImportComparison &&
-        (_importPage + 1) * ImportPageSize < _form!.ImportComparison!.RetainedFindingCount;
+    public bool CanPrepare => !_disposed && !IsBusy && _form is not null && SelectedArtifactIds.Count > 0;
+    public bool IsSingleSelection => SelectedArtifactIds.Count == 1;
+    public bool CanSaveSelection => CanSave || CanSaveBundle;
     public bool CanSave => !_disposed && !IsBusy && ProtectedSaveAvailable &&
-        Preparation is { Succeeded: true } && _preparationWorkspace is { Output.IsEmpty: false };
+        Preparation is { Succeeded: true } && _preparedOutcome is { Output.IsEmpty: false };
     public bool CanSaveBundle => !_disposed && !IsBusy && ProtectedSaveAvailable && _preparedBundleSelection is not null;
-    public IRelayCommand PrepareBundleCommand { get; }
-    public IAsyncRelayCommand FillImportFieldsCommand { get; }
     public IReadOnlyList<ProtectedArtifactPublicationReceipt> PublicationHistory
     {
         get { lock (_receiptGate) return Array.AsReadOnly(_publicationHistory.ToArray()); }
@@ -199,16 +138,16 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     public string PublicationSummary => LatestPublication is { } receipt ? FormatReceipt(receipt) : Strings["NoPublication"];
     public IReadOnlyList<string> PublicationHistoryText => PublicationHistory.Select(FormatReceipt).ToArray();
 
-    private DesktopPublicationOperation BeginPublication(DesktopOperation operation, IEnumerable<string> artifactIds,
-        byte[]? bytes = null, DefinitionBundleResult? bundle = null)
+    private DesktopPublicationOperation BeginPublication(IEnumerable<string> artifactIds, byte[]? bytes = null)
     {
-        var publication = new DesktopPublicationOperation(operation, artifactIds, PublicationChanged, bytes, bundle);
+        SynchronizationContext? owner = SynchronizationContext.Current;
+        var publication = new DesktopPublicationOperation(artifactIds, receipt => PublicationChanged(receipt, owner), bytes);
         lock (_receiptGate) _publication = publication;
-        NotifyPublication();
+        NotifyPublication(owner);
         return publication;
     }
 
-    private void PublicationChanged(ProtectedArtifactPublicationReceipt receipt)
+    private void PublicationChanged(ProtectedArtifactPublicationReceipt receipt, SynchronizationContext? owner)
     {
         if (receipt.IsSettled)
         {
@@ -219,17 +158,23 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
                 _publication = null;
             }
         }
-        NotifyPublication();
+        NotifyPublication(owner);
     }
 
-    private void NotifyPublication()
+    private void NotifyPublication(SynchronizationContext? owner)
     {
         if (_disposed) return;
-        if (!Dispatcher.UIThread.CheckAccess())
+        if (owner is not null && !ReferenceEquals(SynchronizationContext.Current, owner))
         {
-            Dispatcher.UIThread.Post(NotifyPublication);
+            owner.Post(_ => RaisePublicationChanged(), null);
             return;
         }
+        RaisePublicationChanged();
+    }
+
+    private void RaisePublicationChanged()
+    {
+        if (_disposed) return;
         OnPropertyChanged(nameof(PublicationHistory));
         OnPropertyChanged(nameof(CurrentPublication));
         OnPropertyChanged(nameof(LatestPublication));
@@ -263,16 +208,8 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     {
         if (!_replacingForm) _messenger.Send(new InputsInvalidatedMessage());
     }
-    partial void OnExistingFilePathChanged(string value)
-    {
-        ClearImportComparison();
-        if (IsBusy && !_comparingInput) _messenger.Send(new InputsInvalidatedMessage());
-    }
-    partial void OnImportPurposeIndexChanged(int value) => ClearImportComparison();
     partial void OnArtifactIdChanged(string? value)
     {
-        if (!_replacingForm) _messenger.Send(new InputsInvalidatedMessage());
-        FileName = Artifacts.FirstOrDefault(item => item.Id == value)?.FileName ?? string.Empty;
         NotifyCommands();
     }
 
@@ -281,19 +218,14 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     {
         if (_form is not null)
         {
-            _form.ImportComparisonChanged -= ImportComparisonChanged;
             _form.ViewChanged -= LocaleChanged;
-            _form.ClearImportComparison();
         }
         _form = form;
         ClearPreparation();
         if (form is not null)
         {
-            form.ImportComparisonChanged += ImportComparisonChanged;
             form.ViewChanged += LocaleChanged;
         }
-        ImportPurposeIndex = 0;
-        RefreshImportComparison();
         _selectedArtifactIds.Clear();
         _replacingForm = true;
         try
@@ -304,8 +236,9 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         }
         finally { _replacingForm = false; }
         if (ArtifactId is not null) _selectedArtifactIds.Add(ArtifactId);
-        _artifactSelections = Artifacts.Select(item => new ArtifactSelectionViewModel(item.Id, item.Title, _form?.Locale ?? "en",
-            _selectedArtifactIds.Contains(item.Id), selected => SelectArtifact(item.Id, selected))).ToArray();
+        _artifactSelections = Artifacts.Select(item => new ArtifactSelectionViewModel(item, _form?.Locale ?? "en",
+            _selectedArtifactIds.Contains(item.Id), selected => SelectArtifact(item.Id, selected),
+            () => OutputPreparationStatus(item.Id))).ToArray();
         OnPropertyChanged(nameof(ArtifactSelections));
         OnPropertyChanged(nameof(SelectedArtifactIds));
         OnPropertyChanged(nameof(ArtifactId));
@@ -314,6 +247,15 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         OnPropertyChanged(nameof(ArtifactConsequences));
         LocaleChanged(form, EventArgs.Empty);
         NotifyCommands();
+    }
+
+    private void LocaleChanged(object? sender, EventArgs args)
+    {
+        if (_disposed || !ReferenceEquals(sender, _form)) return;
+        foreach (ArtifactSelectionViewModel selection in _artifactSelections) selection.SetLocale(_form?.Locale ?? "en");
+        foreach (string property in new[] { nameof(ProtectedCapability), nameof(ArtifactConsequences),
+            nameof(PublicationSummary), nameof(PublicationHistoryText) })
+            OnPropertyChanged(property);
     }
 
     private void RefreshEligibleArtifacts()
@@ -334,9 +276,14 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
             if (ArtifactId == previous) FileName = previousFileName;
         }
         finally { _replacingForm = false; }
-        if (hadSelection && _selectedArtifactIds.Count == 0 && ArtifactId is not null) _selectedArtifactIds.Add(ArtifactId);
-        _artifactSelections = artifacts.Select(item => new ArtifactSelectionViewModel(item.Id, item.Title, _form?.Locale ?? "en",
-            _selectedArtifactIds.Contains(item.Id), selected => SelectArtifact(item.Id, selected))).ToArray();
+        if ((hadSelection || _artifactSelections.Length == 0) && _selectedArtifactIds.Count == 0 && ArtifactId is not null)
+        {
+            _selectedArtifactIds.Add(ArtifactId);
+            FileName = artifacts.Single(item => item.Id == ArtifactId).FileName;
+        }
+        _artifactSelections = artifacts.Select(item => new ArtifactSelectionViewModel(item, _form?.Locale ?? "en",
+            _selectedArtifactIds.Contains(item.Id), selected => SelectArtifact(item.Id, selected),
+            () => OutputPreparationStatus(item.Id))).ToArray();
         OnPropertyChanged(nameof(ArtifactSelections));
         OnPropertyChanged(nameof(SelectedArtifactIds));
         OnPropertyChanged(nameof(SelectedArtifact));
@@ -350,223 +297,375 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         if (!(selected ? _selectedArtifactIds.Add(artifactId) : _selectedArtifactIds.Remove(artifactId))) return;
         _artifactSelections.First(item => item.Id == artifactId).SetSelected(selected);
         _messenger.Send(new InputsInvalidatedMessage());
+        if (IsSingleSelection) FileName = Artifacts.Single(item => item.Id == SelectedArtifactIds[0]).FileName;
         OnPropertyChanged(nameof(SelectedArtifactIds));
+        NotifyCommands();
     }
 
     private bool Validate()
     {
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("owner-validation-start");
+#endif
         bool ready = false;
         _messenger.Send(new FormValidationRequestedMessage(value => ready = value));
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("owner-validation-end");
+#endif
         return ready;
     }
 
+    internal Task<DesktopPreparationOutcome> PrepareAsync(CancellationToken cancellationToken = default) =>
+        PrepareOutputAsync(bundle: false, cancellationToken);
+
+    internal Task<DesktopPreparationOutcome> PrepareBundleAsync(CancellationToken cancellationToken = default) =>
+        PrepareOutputAsync(bundle: true, cancellationToken);
+
     [RelayCommand(CanExecute = nameof(CanPrepare))]
-    public async Task<bool> PrepareAsync()
+    public Task<DesktopPreparationOutcome> PrepareSelectionAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (IsBusy) return false;
-        _messenger.Send(new InputsInvalidatedMessage());
-        if (!Validate() || _form is null || ArtifactId is null) return false;
-        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "prepare");
-        if (operation is null) return false;
-        if (!WorkspaceId.TryCreate("desktop-definition", out var id))
-            throw new InvalidOperationException("desktop-workspace-invalid");
-        PresentationWorkspace workspace = _session.CreateWorkspace(id,
-            new DefinitionPresentationOperation(_form.Definition, ArtifactId, _form.Snapshot()));
-        _preparationWorkspace = workspace;
-        workspace.Activate();
-        await workspace.ExecuteAsync(Guid.CreateVersion7());
-        if (!operation.IsCurrent || !ReferenceEquals(_preparationWorkspace, workspace)) return false;
-        _messenger.Send(new StatusChangedMessage(Preparation is { Succeeded: true } metadata
-            ? $"artifact-ready:{metadata.ArtifactId}:{metadata.Digest?.Value}"
-            : "preparation-invalid:" + string.Join(",", Preparation?.DiagnosticCodes ?? []), operation.Generation,
-            Preparation?.Succeeded == true ? DesktopStatusGuidance.General : DesktopStatusGuidance.PreparationInvalid));
-        NotifyCommands();
-        return Preparation?.Succeeded == true;
-    }
-
-    public bool PrepareBundle()
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (IsBusy) return false;
-        _messenger.Send(new InputsInvalidatedMessage());
-        if (!Validate() || _form is null) return false;
-        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "prepare");
-        if (operation is null) return false;
         string[] selection = SelectedArtifactIds.ToArray();
-        using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(_form.Definition, selection, _form.Snapshot());
-        if (!bundle.Succeeded)
-        {
-            _messenger.Send(new StatusChangedMessage("bundle-invalid:" +
-                string.Join(",", bundle.Diagnostics.Select(item => item.Code)), operation.Generation, DesktopStatusGuidance.PreparationInvalid));
-            return false;
-        }
-        _preparedBundleSelection = selection;
-        _preparedBundleInputRevision = _form.InputRevision;
-        _messenger.Send(new StatusChangedMessage($"bundle-selected:{selection.Length}", operation.Generation));
-        NotifyCommands();
-        return true;
+        if (selection.Length == 0) return Task.FromResult(DesktopPreparationOutcome.Invalid);
+        return PrepareOutputAsync(selection.Length > 1, cancellationToken, selection);
     }
 
-    [RelayCommand(CanExecute = nameof(CanSave))]
-    public async Task<ProtectedArtifactCommitResult> SaveAsync(CancellationToken cancellationToken = default)
+    [RelayCommand(CanExecute = nameof(CanSaveSelection))]
+    public async Task<ProtectedArtifactPublicationReceipt?> SaveSelectionAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (IsBusy || Preparation is not { Succeeded: true } || _preparationWorkspace is null)
-            return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest);
-        byte[] bytes = _preparationWorkspace.Output.ToArray();
+        if (IsBusy || !CanSaveSelection) return null;
+        DesktopPublicationOperation? publication = null;
+        Task saving = _preparedBundleSelection is not null
+            ? SaveBundleAsync(started => publication = started, cancellationToken)
+            : SaveAsync(started => publication = started, cancellationToken);
+        await saving.ConfigureAwait(false);
+        return publication?.Receipt;
+    }
+
+    private Task<DesktopPreparationOutcome> PrepareOutputAsync(bool bundle, CancellationToken cancellationToken,
+        string[]? selected = null)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (IsBusy) return Task.FromResult(DesktopPreparationOutcome.Busy);
+        if (cancellationToken.IsCancellationRequested) return Task.FromResult(DesktopPreparationOutcome.Cancelled);
+        _messenger.Send(new InputsInvalidatedMessage());
+        if (!Validate() || _form is null || (!bundle && selected is null && ArtifactId is null))
+            return Task.FromResult(DesktopPreparationOutcome.Invalid);
+        DefinitionFormModel form = _form;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("capture-start");
+#endif
+        Definition definition = form.Definition;
+        AnswerSnapshot answers = form.Snapshot();
+        string[] selection = selected ?? (bundle ? SelectedArtifactIds.ToArray() : [ArtifactId!]);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("capture-end");
+#endif
+        DesktopOperation? operation = DesktopOperation.Begin(_messenger, "prepare", cancellationToken);
+        if (operation is null) return Task.FromResult(DesktopPreparationOutcome.Busy);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("dispatch");
+#endif
+        return Task.Run(async () =>
+        {
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            Configurator.Engineering.MeasureNativePreparation.Mark("worker-start");
+#endif
+            PresentationOutcome? prepared = null;
+            DefinitionBundleResult? composed = null;
+            Action? failure = null;
+            try
+            {
+                bool succeeded;
+                IReadOnlyList<string> diagnostics;
+                if (bundle)
+                {
+                    composed = DefinitionBundleComposer.Compose(definition, selection, answers, operation.Token);
+                    succeeded = composed.Succeeded;
+                    diagnostics = composed.Diagnostics.Select(item => item.Code).ToArray();
+                }
+                else
+                {
+                    prepared = await new DefinitionPresentationOperation(definition, selection[0], answers)
+                        .ExecuteAsync(operation.Token).ConfigureAwait(false);
+                    var metadata = (DefinitionPreparationMetadata)prepared.CoreResult;
+                    succeeded = metadata.Succeeded;
+                    diagnostics = metadata.DiagnosticCodes;
+                }
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+                Configurator.Engineering.MeasureNativePreparation.Mark("composition-end");
+#endif
+                bool accepted = false;
+                bool current = await operation.TryApplyAsync(() =>
+                {
+                    if (_disposed || !ReferenceEquals(_form, form) || form.InputRevision != answers.InputRevision) return;
+                    try
+                    {
+                        accepted = true;
+                        if (bundle && succeeded)
+                        {
+                            _preparedBundleSelection = selection;
+                            _preparedBundleInputRevision = answers.InputRevision;
+                        }
+                        else if (!bundle)
+                        {
+                            _preparedOutcome = prepared;
+                            prepared = null;
+                        }
+                        _messenger.Send(new StatusChangedMessage(succeeded
+                            ? bundle ? $"bundle-selected:{selection.Length}"
+                                : $"artifact-ready:{Preparation!.ArtifactId}:{Preparation.Digest?.Value}"
+                            : (bundle ? "bundle-invalid:" : "preparation-invalid:") + string.Join(",", diagnostics),
+                            operation.Generation, succeeded ? DesktopStatusGuidance.General : DesktopStatusGuidance.PreparationInvalid));
+                        NotifyCommands();
+                    }
+                    catch (Exception)
+                    {
+                        ClearPreparation();
+                        throw;
+                    }
+                }).ConfigureAwait(false);
+                return current && accepted
+                    ? succeeded ? DesktopPreparationOutcome.Prepared : DesktopPreparationOutcome.Invalid
+                    : operation.WasCancelled ? DesktopPreparationOutcome.Cancelled : DesktopPreparationOutcome.Retired;
+            }
+            catch (OperationCanceledException) when (operation.Token.IsCancellationRequested)
+            {
+                return operation.WasCancelled ? DesktopPreparationOutcome.Cancelled : DesktopPreparationOutcome.Retired;
+            }
+            catch (Exception)
+            {
+                failure = () => _messenger.Send(new StatusChangedMessage("preparation-fault", operation.Generation));
+                return DesktopPreparationOutcome.Faulted;
+            }
+            finally
+            {
+                prepared?.Dispose();
+                composed?.Dispose();
+                operation.Finish(failure);
+            }
+        }, CancellationToken.None);
+    }
+
+    internal Task<ProtectedArtifactCommitResult> SaveAsync(Action<DesktopPublicationOperation>? started = null,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (IsBusy || Preparation is not { Succeeded: true } || _preparedOutcome is null)
+            return Task.FromResult(ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest));
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("capture-start");
+#endif
+        byte[] bytes = _preparedOutcome.Output.ToArray();
         string artifactId = Preparation.ArtifactId;
         string fileName = FileName;
         string directory = OutputDirectory;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("capture-end");
+#endif
         ClearPreparation();
-        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "save", cancellationToken);
+        DesktopOperation? operation = DesktopOperation.Begin(_messenger, "save", cancellationToken);
         if (operation is null)
         {
             CryptographicOperations.ZeroMemory(bytes);
-            return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest);
+            return Task.FromResult(ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest));
         }
-        using DesktopPublicationOperation publication = BeginPublication(operation, [artifactId], bytes);
-        try
+        DesktopPublicationOperation publication = BeginPublication([artifactId], bytes);
+        started?.Invoke(publication);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("dispatch");
+#endif
+        return Task.Run(async () =>
         {
-            ProtectedArtifactCommitResult result = !ProtectedSaveAvailable
-                ? ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsupportedPlatform)
-                : !SafeFileName(fileName) || string.IsNullOrWhiteSpace(directory)
-                    ? ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsafeTarget)
-                : !operation.IsCurrent ? ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest)
-                : await _save(Path.Combine(directory, fileName), bytes, operation.Token);
-            publication.Complete([new(artifactId, result)], operation.Token.IsCancellationRequested
-                ? ProtectedArtifactBundleCompletionCode.Cancelled : ProtectedArtifactBundleCompletionCode.Completed);
-            if (operation.IsCurrent)
-                _messenger.Send(new StatusChangedMessage(result.Succeeded ? "save-complete"
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            Configurator.Engineering.MeasureNativePreparation.Mark("worker-start");
+            Configurator.Engineering.MeasureNativePreparation.Mark("consumer-start");
+#endif
+            Action? completion = null;
+            try
+            {
+                ProtectedArtifactCommitResult result = !ProtectedSaveAvailable
+                    ? ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsupportedPlatform)
+                    : !SafeFileName(fileName) || string.IsNullOrWhiteSpace(directory)
+                        ? ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.UnsafeTarget)
+                    : operation.Token.IsCancellationRequested
+                        ? ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest)
+                    : await _save(Path.Combine(directory, fileName), bytes, operation.Token).ConfigureAwait(false);
+                publication.Complete([new(artifactId, result)], operation.Token.IsCancellationRequested
+                    ? ProtectedArtifactBundleCompletionCode.Cancelled : ProtectedArtifactBundleCompletionCode.Completed);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+                Configurator.Engineering.MeasureNativePreparation.Mark("consumer-end");
+#endif
+                completion = () => _messenger.Send(new StatusChangedMessage(result.Succeeded ? "save-complete"
                     : "save-" + FormatCommitResult(result), operation.Generation,
                     result.Succeeded ? DesktopStatusGuidance.General : !result.InstallationEstablished
                         ? DesktopStatusGuidance.SaveFailed : result.VerificationSucceeded
                             ? DesktopStatusGuidance.SaveInstalledVerified : DesktopStatusGuidance.SaveInstalledUnverified));
-            return result;
-        }
-        catch (OperationCanceledException)
-        {
-            publication.MarkUnknown(cancelled: true);
-            _messenger.Send(new StatusChangedMessage("save-cancelled", operation.Generation, DesktopStatusGuidance.Cancelled));
-            return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            publication.MarkUnknown(failed: true);
-            _messenger.Send(new StatusChangedMessage("save-failed:IoFailure", operation.Generation, DesktopStatusGuidance.SaveFailed));
-            return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.IoFailure);
-        }
-        catch (Exception)
-        {
-            publication.MarkUnknown(failed: true);
-            throw;
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(CanSaveBundle))]
-    public async Task<ProtectedArtifactBundleResult?> SaveBundleAsync(CancellationToken cancellationToken = default)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (IsBusy || _preparedBundleSelection is null || _form is null) return null;
-        string[] selection = _preparedBundleSelection;
-        long inputRevision = _preparedBundleInputRevision;
-        string directory = OutputDirectory;
-        _preparedBundleSelection = null;
-        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "save", cancellationToken);
-        if (operation is null) return null;
-        try
-        {
-            if (!ProtectedSaveAvailable)
-            {
-                _messenger.Send(new StatusChangedMessage("bundle-save-blocked:UnsupportedPlatform", operation.Generation, DesktopStatusGuidance.SaveFailed));
-                return null;
-            }
-            if (!operation.IsCurrent || _form.InputRevision != inputRevision) return null;
-            DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(_form.Definition, selection, _form.Snapshot(), operation.Token);
-            if (!bundle.Succeeded)
-            {
-                _messenger.Send(new StatusChangedMessage("bundle-invalid:" +
-                    string.Join(",", bundle.Diagnostics.Select(item => item.Code)), operation.Generation, DesktopStatusGuidance.PreparationInvalid));
-                bundle.Dispose();
-                return null;
-            }
-            if (!operation.IsCurrent)
-            {
-                bundle.Dispose();
-                return null;
-            }
-            using DesktopPublicationOperation publication = BeginPublication(operation,
-                bundle.Artifacts.Select(item => item.ArtifactId), bundle: bundle);
-            try
-            {
-                ProtectedArtifactBundleResult result = await _publishBundle(bundle.Artifacts, directory,
-                    publication.Observe, operation.Token);
-                publication.Complete(result.Outcomes, result.CompletionCode, result.CleanupFailed);
-                if (operation.IsCurrent)
-                    _messenger.Send(new StatusChangedMessage(result.Succeeded ? "bundle-save-complete" :
-                        (result.Outcomes.Any(item => item.Result is { InstallationEstablished: true })
-                            ? "bundle-save-partial:" : "bundle-save-blocked:") +
-                        string.Join(",", result.Outcomes.Select(item =>
-                            $"{item.ArtifactId}:{(item.Result is { } commit ? FormatCommitResult(commit) : "not-attempted")}"))
-                        + (result.CleanupFailed ? ";cleanup-failed" : string.Empty), operation.Generation,
-                        result.Succeeded ? DesktopStatusGuidance.General
-                            : result.Outcomes.Any(item => item.Result is { InstallationEstablished: true })
-                                ? DesktopStatusGuidance.BundleSavePartial : DesktopStatusGuidance.SaveFailed));
                 return result;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (operation.Token.IsCancellationRequested)
             {
                 publication.MarkUnknown(cancelled: true);
-                throw;
+                return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.InvalidRequest);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                publication.MarkUnknown(failed: true);
+                completion = () => _messenger.Send(new StatusChangedMessage("save-failed:IoFailure",
+                    operation.Generation, DesktopStatusGuidance.SaveFailed));
+                return ProtectedArtifactCommitResult.NotInstalled(ProtectedArtifactStatus.IoFailure);
             }
             catch (Exception)
             {
                 publication.MarkUnknown(failed: true);
                 throw;
             }
-        }
-        catch (OperationCanceledException)
+            finally
+            {
+                try { publication.Dispose(); }
+                finally { operation.Finish(completion); }
+            }
+        }, CancellationToken.None);
+    }
+
+    internal Task<ProtectedArtifactBundleResult?> SaveBundleAsync(Action<DesktopPublicationOperation>? started = null,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (IsBusy || _preparedBundleSelection is null || _form is null)
+            return Task.FromResult<ProtectedArtifactBundleResult?>(null);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("capture-start");
+#endif
+        string[] selection = _preparedBundleSelection;
+        long inputRevision = _preparedBundleInputRevision;
+        string directory = OutputDirectory;
+        Definition definition = _form.Definition;
+        AnswerSnapshot answers = _form.Snapshot();
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("capture-end");
+#endif
+        _preparedBundleSelection = null;
+        DesktopOperation? operation = DesktopOperation.Begin(_messenger, "save", cancellationToken);
+        if (operation is null) return Task.FromResult<ProtectedArtifactBundleResult?>(null);
+        DesktopPublicationOperation publication = BeginPublication(selection);
+        started?.Invoke(publication);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        Configurator.Engineering.MeasureNativePreparation.Mark("dispatch");
+#endif
+        return Task.Run<ProtectedArtifactBundleResult?>(async () =>
         {
-            _messenger.Send(new StatusChangedMessage("bundle-save-cancelled", operation.Generation, DesktopStatusGuidance.Cancelled));
-            return null;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            _messenger.Send(new StatusChangedMessage("bundle-save-blocked:IoFailure", operation.Generation, DesktopStatusGuidance.SaveFailed));
-            return null;
-        }
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            Configurator.Engineering.MeasureNativePreparation.Mark("worker-start");
+#endif
+            Action? completion = null;
+            bool consumerStarted = false;
+            try
+            {
+                if (!ProtectedSaveAvailable)
+                {
+                    publication.Complete(selection.Select(id => new ProtectedArtifactBundleOutcome(id, null)),
+                        ProtectedArtifactBundleCompletionCode.Completed);
+                    completion = () => _messenger.Send(new StatusChangedMessage("bundle-save-blocked:UnsupportedPlatform",
+                        operation.Generation, DesktopStatusGuidance.SaveFailed));
+                    return null;
+                }
+                operation.Token.ThrowIfCancellationRequested();
+                if (answers.InputRevision != inputRevision) return null;
+                using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(definition, selection, answers, operation.Token);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+                Configurator.Engineering.MeasureNativePreparation.Mark("composition-end");
+#endif
+                if (!bundle.Succeeded)
+                {
+                    string codes = string.Join(",", bundle.Diagnostics.Select(item => item.Code));
+                    publication.Complete(selection.Select(id => new ProtectedArtifactBundleOutcome(id, null)),
+                        ProtectedArtifactBundleCompletionCode.Completed);
+                    completion = () => _messenger.Send(new StatusChangedMessage("bundle-invalid:" + codes,
+                        operation.Generation, DesktopStatusGuidance.PreparationInvalid));
+                    return null;
+                }
+                operation.Token.ThrowIfCancellationRequested();
+                consumerStarted = true;
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+                Configurator.Engineering.MeasureNativePreparation.Mark("consumer-start");
+#endif
+                ProtectedArtifactBundleResult result = await _publishBundle(bundle.Artifacts, directory,
+                    publication.Observe, operation.Token).ConfigureAwait(false);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+                Configurator.Engineering.MeasureNativePreparation.Mark("consumer-end");
+#endif
+                publication.Complete(result.Outcomes, result.CompletionCode, result.CleanupFailed);
+                completion = () => _messenger.Send(new StatusChangedMessage(result.Succeeded ? "bundle-save-complete" :
+                    (result.Outcomes.Any(item => item.Result is { InstallationEstablished: true })
+                        ? "bundle-save-partial:" : "bundle-save-blocked:") +
+                    string.Join(",", result.Outcomes.Select(item =>
+                        $"{item.ArtifactId}:{(item.Result is { } commit ? FormatCommitResult(commit) : "not-attempted")}"))
+                    + (result.CleanupFailed ? ";cleanup-failed" : string.Empty), operation.Generation,
+                    result.Succeeded ? DesktopStatusGuidance.General
+                        : result.Outcomes.Any(item => item.Result is { InstallationEstablished: true })
+                            ? DesktopStatusGuidance.BundleSavePartial : DesktopStatusGuidance.SaveFailed));
+                return result;
+            }
+            catch (OperationCanceledException) when (operation.Token.IsCancellationRequested)
+            {
+                if (consumerStarted) publication.MarkUnknown(cancelled: true);
+                else publication.Complete(selection.Select(id => new ProtectedArtifactBundleOutcome(id, null)),
+                    ProtectedArtifactBundleCompletionCode.Cancelled);
+                return null;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                publication.MarkUnknown(failed: true);
+                completion = () => _messenger.Send(new StatusChangedMessage("bundle-save-blocked:IoFailure",
+                    operation.Generation, DesktopStatusGuidance.SaveFailed));
+                return null;
+            }
+            catch (Exception)
+            {
+                publication.MarkUnknown(failed: true);
+                throw;
+            }
+            finally
+            {
+                try { publication.Dispose(); }
+                finally { operation.Finish(completion); }
+            }
+        }, CancellationToken.None);
     }
 
     private void ClearPreparation()
     {
         _preparedBundleSelection = null;
-        if (_preparationWorkspace is not null)
-        {
-            if (MemoryMarshal.TryGetArray(_preparationWorkspace.Output, out ArraySegment<byte> segment))
-                CryptographicOperations.ZeroMemory(segment.AsSpan());
-            _preparationWorkspace.Dispose();
-            _preparationWorkspace = null;
-        }
+        _preparedOutcome?.Dispose();
+        _preparedOutcome = null;
         NotifyCommands();
     }
 
     private void NotifyCommands()
     {
+        foreach (ArtifactSelectionViewModel artifact in _artifactSelections) artifact.RefreshPreparation();
         OnPropertyChanged(nameof(CanPrepare));
-        OnPropertyChanged(nameof(CanImport));
         OnPropertyChanged(nameof(CanSave));
         OnPropertyChanged(nameof(CanSaveBundle));
+        OnPropertyChanged(nameof(CanSaveSelection));
+        OnPropertyChanged(nameof(IsSingleSelection));
+        OnPropertyChanged(nameof(ArtifactConsequences));
         OnPropertyChanged(nameof(CanSelectPath));
         OnPropertyChanged(nameof(Preparation));
-        OnPropertyChanged(nameof(CanFillImportFields));
-        FillImportFieldsCommand.NotifyCanExecuteChanged();
-        PrepareCommand.NotifyCanExecuteChanged();
-        PrepareBundleCommand.NotifyCanExecuteChanged();
-        SaveCommand.NotifyCanExecuteChanged();
-        SaveBundleCommand.NotifyCanExecuteChanged();
-        ImportFileCommand.NotifyCanExecuteChanged();
-        SelectImportCommand.NotifyCanExecuteChanged();
+        PrepareSelectionCommand.NotifyCanExecuteChanged();
+        SaveSelectionCommand.NotifyCanExecuteChanged();
         SelectOutputDirectoryCommand.NotifyCanExecuteChanged();
+    }
+
+    private string OutputPreparationStatus(string artifactId)
+    {
+        if (Preparation is { } metadata && metadata.ArtifactId == artifactId)
+            return Strings[!metadata.Succeeded ? "OutputPreparationInvalid"
+                : metadata.IsDraft || metadata.Completions.Count > 0 ? "OutputPreparedIncomplete" : "OutputPreparedComplete"];
+        return Strings[_preparedBundleSelection?.Contains(artifactId, StringComparer.Ordinal) == true
+            ? "OutputPreparedComplete" : "OutputNotEvaluated"];
     }
 
     private static string FormatCommitResult(ProtectedArtifactCommitResult result) =>
@@ -584,17 +683,25 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
     {
         if (_disposed) return;
         _disposed = true;
-        ClearImportComparison();
         if (_form is not null)
         {
-            _form.ImportComparisonChanged -= ImportComparisonChanged;
             _form.ViewChanged -= LocaleChanged;
         }
         ClearPreparation();
         _form = null;
-        _session.Dispose();
         _messenger.UnregisterAll(this);
     }
 
     public override string ToString() => nameof(ArtifactPublisherViewModel);
+}
+
+/// <summary>Distinguishes invalid input from cancellation, retired work, and an implementation fault.</summary>
+public enum DesktopPreparationOutcome
+{
+    Prepared,
+    Invalid,
+    Cancelled,
+    Retired,
+    Faulted,
+    Busy
 }

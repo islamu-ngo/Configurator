@@ -39,12 +39,12 @@ public sealed class DesktopImportComparisonTests
         var dialogs = new AvaloniaStorageDialogService(() => provider);
         using var loader = new DefinitionLoaderViewModel(messenger, dialogs);
         using var workspace = new FormWorkspaceViewModel(messenger);
-        using var publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter(),
-            _ => ValueTask.CompletedTask);
-        using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher);
+        using var publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter());
+        using var importReview = new DesktopImportReviewViewModel(messenger, dialogs, publisher, _ => ValueTask.CompletedTask);
+        using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher, importReview);
         loader.LoadDefinition(DesktopApplicationTests.Definition());
         long revision = workspace.Form!.InputRevision;
-        Task<bool> pending = publisher.SelectImportAsync();
+        Task<bool> pending = importReview.SelectImportAsync();
         try
         {
             await Task.WhenAny(stream.Entered.Task, pending).WaitAsync(TimeSpan.FromSeconds(10));
@@ -52,7 +52,7 @@ public sealed class DesktopImportComparisonTests
             await Assert.That(disposed).IsFalse();
             await Assert.That(shell.IsBusy).IsTrue();
             if (retirement == "cancel") shell.Cancel();
-            else if (retirement == "purpose") publisher.ImportPurposeIndex = 1;
+            else if (retirement == "purpose") importReview.ImportPurposeIndex = 1;
             await Assert.That(shell.ActiveCompletion.IsCompleted).IsFalse();
         }
         finally { stream.Release.TrySetResult(); }
@@ -73,13 +73,13 @@ public sealed class DesktopImportComparisonTests
         using var shell = DesktopTestContext.Root(openImport: _ =>
             new MemoryStream("""{"name":"imported-private-sentinel"}"""u8.ToArray()));
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        shell.Publisher.ExistingFilePath = "synthetic.json";
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+        shell.ImportReview.ExistingFilePath = "synthetic.json";
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         var form = shell.Workspace.Form!;
         var preparation = shell.Publisher.Preparation;
         var editor = (StringFieldViewModel)shell.Workspace.Fields.Single(field => field.Id == "name");
         long revision = form.InputRevision;
-        await Assert.That(await shell.Publisher.ImportFileAsync()).IsTrue();
+        await Assert.That(await shell.ImportReview.ImportFileAsync()).IsTrue();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.Snapshot().Values.ContainsKey("name")).IsFalse();
         await Assert.That(ReferenceEquals(shell.Publisher.Preparation, preparation)).IsTrue();
@@ -97,13 +97,13 @@ public sealed class DesktopImportComparisonTests
         using var shell = DesktopTestContext.Root(openImport: _ =>
             new MemoryStream("""{"name":"imported-private-sentinel"}"""u8.ToArray()));
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        shell.Publisher.ExistingFilePath = "synthetic.json";
+        shell.ImportReview.ExistingFilePath = "synthetic.json";
         var editor = (StringFieldViewModel)shell.Workspace.Fields.Single(field => field.Id == "name");
         editor.Text = draft;
         var form = shell.Workspace.Form!;
         string before = form.Snapshot().Values["name"].GetRawText();
         long revision = form.InputRevision;
-        await Assert.That(await shell.Publisher.ImportFileAsync()).IsTrue();
+        await Assert.That(await shell.ImportReview.ImportFileAsync()).IsTrue();
         await Assert.That(editor.Text).IsEqualTo(draft);
         await Assert.That(form.Snapshot().Values["name"].GetRawText()).IsEqualTo(before);
         await Assert.That(form.InputRevision).IsEqualTo(revision);
@@ -116,7 +116,7 @@ public sealed class DesktopImportComparisonTests
         using var shell = DesktopTestContext.Root(openImport: _ => new MemoryStream(
             """{"rows":[{"name":"imported-b","count":0},{"name":"imported-a","count":0}],"named":{"private-imported-key":0}}"""u8.ToArray()));
         shell.Loader.LoadDefinition(StructuredDefinition().CanonicalBytes);
-        shell.Publisher.ExistingFilePath = "synthetic.json";
+        shell.ImportReview.ExistingFilePath = "synthetic.json";
         var form = shell.Workspace.Form!;
         form.SetValue(["rows"], JsonSerializer.SerializeToElement(new[]
         {
@@ -137,7 +137,7 @@ public sealed class DesktopImportComparisonTests
         int viewEvents = 0;
         form.InputChanged += (_, _) => inputEvents++;
         form.ViewChanged += (_, _) => viewEvents++;
-        await Assert.That(await shell.Publisher.ImportFileAsync()).IsTrue();
+        await Assert.That(await shell.ImportReview.ImportFileAsync()).IsTrue();
         var report = form.ImportComparison!;
         await Assert.That(report.Findings.Any(finding => finding.Schema?.FieldId == "rows")).IsTrue();
         await Assert.That(report.Findings.Any(finding => finding.Schema?.FieldId == "named")).IsTrue();
@@ -174,18 +174,18 @@ public sealed class DesktopImportComparisonTests
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         var supplied = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
         byte[] bytes = """{"name":"late-private-value"}"""u8.ToArray();
-        Task<bool> pending = shell.Publisher.CompareAsync(_ => supplied.Task);
+        Task<bool> pending = shell.ImportReview.CompareAsync(_ => supplied.Task);
         switch (change)
         {
-            case "purpose": shell.Publisher.ImportPurposeIndex = 1; break;
-            case "source": shell.Publisher.ExistingFilePath = "replacement.json"; break;
+            case "purpose": shell.ImportReview.ImportPurposeIndex = 1; break;
+            case "source": shell.ImportReview.ExistingFilePath = "replacement.json"; break;
             case "artifact": shell.Publisher.ArtifactId = "yaml"; break;
-            case "discard": shell.Publisher.ClearImportComparison(); break;
+            case "discard": shell.ImportReview.ClearImportComparison(); break;
         }
         supplied.SetResult(bytes);
         await Assert.That(await pending.WaitAsync(TimeSpan.FromSeconds(10))).IsFalse();
         await Assert.That(shell.Workspace.Form!.ImportComparison).IsNull();
-        await Assert.That(await shell.Publisher.FillImportFieldsAsync()).IsFalse();
+        await Assert.That(await shell.ImportReview.FillImportFieldsAsync()).IsFalse();
         await Assert.That(bytes.All(value => value == 0)).IsTrue();
     }
 
@@ -194,13 +194,13 @@ public sealed class DesktopImportComparisonTests
     {
         using var shell = DesktopTestContext.Root();
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        shell.Publisher.ExistingFilePath = "first.json";
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+        shell.ImportReview.ExistingFilePath = "first.json";
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         var preparation = shell.Publisher.Preparation;
         long revision = shell.Workspace.Form!.InputRevision;
         var supplied = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Task<bool> pending = shell.Publisher.CompareAsync(_ => supplied.Task);
-        shell.Publisher.ExistingFilePath = "replacement.json";
+        Task<bool> pending = shell.ImportReview.CompareAsync(_ => supplied.Task);
+        shell.ImportReview.ExistingFilePath = "replacement.json";
         await Assert.That(ReferenceEquals(preparation, shell.Publisher.Preparation)).IsTrue();
         supplied.SetResult("""{"name":"obsolete"}"""u8.ToArray());
         await Assert.That(await pending.WaitAsync(TimeSpan.FromSeconds(10))).IsFalse();
@@ -215,15 +215,15 @@ public sealed class DesktopImportComparisonTests
         using var shell = DesktopTestContext.Root();
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         var form = shell.Workspace.Form!;
-        await Assert.That(await shell.Publisher.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(
+        await Assert.That(await shell.ImportReview.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(
             """{"name":"adopted"}"""u8.ToArray()))).IsTrue();
-        await Assert.That(shell.Publisher.CanFillImportFields).IsTrue();
+        await Assert.That(shell.ImportReview.CanFillImportFields).IsTrue();
         await Assert.That(form.Snapshot().Values.ContainsKey("name")).IsFalse();
         long adoptedRevision = form.InputRevision;
         int focus = shell.Workspace.FirstVisible!.FocusRequestVersion;
         int inputEvents = 0;
         form.InputChanged += (_, _) => inputEvents++;
-        await Assert.That(await shell.Publisher.FillImportFieldsAsync()).IsTrue();
+        await Assert.That(await shell.ImportReview.FillImportFieldsAsync()).IsTrue();
         await Assert.That(form.InputRevision).IsEqualTo(adoptedRevision + 1);
         await Assert.That(inputEvents).IsEqualTo(1);
         await Assert.That(shell.Status).IsEqualTo("import-ready");
@@ -233,11 +233,11 @@ public sealed class DesktopImportComparisonTests
         await Assert.That(form.AnswerOrigin(["name"])).IsEqualTo(Configurator.Presentation.DefinitionAnswerOrigin.Imported);
         await Assert.That(form.ImportComparison).IsNull();
         form.ResetValue(["name"]);
-        await Assert.That(await shell.Publisher.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(
+        await Assert.That(await shell.ImportReview.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(
             """{"name":"must-not-replace-current"}"""u8.ToArray()))).IsTrue();
         shell.Workspace.Fields.Single(field => field.Id == "name").Text = "current";
         long revision = form.InputRevision;
-        await Assert.That(await shell.Publisher.FillImportFieldsAsync()).IsFalse();
+        await Assert.That(await shell.ImportReview.FillImportFieldsAsync()).IsFalse();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.Snapshot().Values["name"].GetString()).IsEqualTo("current");
     }
@@ -264,12 +264,12 @@ public sealed class DesktopImportComparisonTests
         byte[] bytes = """{"name":"obsolete-private-import"}"""u8.ToArray();
         if (fill)
         {
-            await Assert.That(await shell.Publisher.CompareAsync(
+            await Assert.That(await shell.ImportReview.CompareAsync(
                 _ => Task.FromResult<ReadOnlyMemory<byte>>(bytes))).IsTrue();
             suspend = true;
         }
-        Task<bool> pending = fill ? shell.Publisher.FillImportFieldsAsync()
-            : shell.Publisher.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(bytes));
+        Task<bool> pending = fill ? shell.ImportReview.FillImportFieldsAsync()
+            : shell.ImportReview.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(bytes));
         Task settlement = shell.ActiveCompletion;
         string status;
         int focus;
@@ -310,7 +310,7 @@ public sealed class DesktopImportComparisonTests
         using var shell = DesktopTestContext.Root();
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
         var form = shell.Workspace.Form!;
-        await Assert.That(await shell.Publisher.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(
+        await Assert.That(await shell.ImportReview.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(
             """{"name":"adopted"}"""u8.ToArray()))).IsTrue();
         int inputEvents = 0;
         form.InputChanged += (_, _) =>
@@ -324,7 +324,7 @@ public sealed class DesktopImportComparisonTests
                 form.SetValue(["name"], JsonSerializer.SerializeToElement("later"));
         };
         int focus = shell.Workspace.FirstVisible!.FocusRequestVersion;
-        await Assert.That(await shell.Publisher.FillImportFieldsAsync()).IsTrue();
+        await Assert.That(await shell.ImportReview.FillImportFieldsAsync()).IsTrue();
         await Assert.That(inputEvents).IsEqualTo(2);
         await Assert.That(form.Snapshot().Values["name"].GetString()).IsEqualTo("later");
         await Assert.That(shell.Status).IsEqualTo("inputs-changed");
@@ -345,7 +345,8 @@ public sealed class DesktopImportComparisonTests
                 using var loader = new DefinitionLoaderViewModel(messenger, dialogs);
                 using var workspace = new FormWorkspaceViewModel(messenger);
                 using var publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter());
-                using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher);
+                using var importReview = new DesktopImportReviewViewModel(messenger, dialogs, publisher);
+                using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher, importReview);
                 loader.LoadDefinition(DesktopApplicationTests.Definition());
                 var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 bool heldLease = false;
@@ -356,7 +357,7 @@ public sealed class DesktopImportComparisonTests
                     cancelled.TrySetResult();
                 }, DispatcherPriority.Input);
                 byte[] bytes = """{"name":"obsolete-private-import"}"""u8.ToArray();
-                Task<bool> pending = publisher.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(bytes));
+                Task<bool> pending = importReview.CompareAsync(_ => Task.FromResult<ReadOnlyMemory<byte>>(bytes));
                 await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(10));
                 await Assert.That(await pending.WaitAsync(TimeSpan.FromSeconds(10))).IsFalse();
                 await Assert.That(heldLease).IsTrue();
@@ -382,23 +383,23 @@ public sealed class DesktopImportComparisonTests
                 using var shell = DesktopTestContext.Root(openImport: _ =>
                     new MemoryStream("""{"name":7}"""u8.ToArray()));
                 shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-                shell.Publisher.ExistingFilePath = "synthetic.json";
+                shell.ImportReview.ExistingFilePath = "synthetic.json";
                 bool owner = true;
                 int publications = 0;
                 int inputEvents = 0;
                 int viewEvents = 0;
-                shell.Publisher.PropertyChanged += (_, args) =>
+                shell.ImportReview.PropertyChanged += (_, args) =>
                 {
-                    if (args.PropertyName != nameof(shell.Publisher.ImportFacts)) return;
+                    if (args.PropertyName != nameof(shell.ImportReview.ImportFacts)) return;
                     publications++;
                     owner &= Dispatcher.UIThread.CheckAccess();
                 };
                 shell.Workspace.Form!.InputChanged += (_, _) => inputEvents++;
                 shell.Workspace.Form.ViewChanged += (_, _) => viewEvents++;
-                await Assert.That(await shell.Publisher.ImportFileAsync()).IsTrue();
-                await Assert.That(shell.Publisher.ImportFindings.Count > 0).IsTrue();
-                shell.Publisher.ImportFindings.First(item => item.CanExplain).ExplainCommand.Execute(null);
-                await Assert.That(shell.Publisher.ImportExplanation.Length > 0).IsTrue();
+                await Assert.That(await shell.ImportReview.ImportFileAsync()).IsTrue();
+                await Assert.That(shell.ImportReview.ImportFindings.Count > 0).IsTrue();
+                shell.ImportReview.ImportFindings.First(item => item.CanExplain).ExplainCommand.Execute(null);
+                await Assert.That(shell.ImportReview.ImportExplanation.Length > 0).IsTrue();
                 await Assert.That(publications > 0).IsTrue();
                 await Assert.That(owner).IsTrue();
                 await Assert.That(inputEvents).IsEqualTo(0);
@@ -428,9 +429,9 @@ public sealed class DesktopImportComparisonTests
             {
                 shell = DesktopTestContext.Root(openImport: _ => stream);
                 shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-                shell.Publisher.ExistingFilePath = "synthetic.json";
+                shell.ImportReview.ExistingFilePath = "synthetic.json";
                 var form = shell.Workspace.Form!;
-                Task<bool> reviewing = shell.Publisher.ImportFileAsync();
+                Task<bool> reviewing = shell.ImportReview.ImportFileAsync();
                 await stream.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
@@ -481,9 +482,9 @@ public sealed class DesktopImportComparisonTests
         using var shell = DesktopTestContext.Root(openImport: _ =>
             boundary == "open" ? throw new IOException("private-input-sentinel") : stream);
         shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
-        shell.Publisher.ExistingFilePath = "synthetic.json";
+        shell.ImportReview.ExistingFilePath = "synthetic.json";
         long revision = shell.Workspace.Form!.InputRevision;
-        await Assert.That(await shell.Publisher.ImportFileAsync()).IsFalse();
+        await Assert.That(await shell.ImportReview.ImportFileAsync()).IsFalse();
         await Assert.That(shell.Workspace.Form.ImportComparison).IsNull();
         await Assert.That(shell.Workspace.Form.InputRevision).IsEqualTo(revision);
         await Assert.That(shell.Status).IsEqualTo("import-unreadable");

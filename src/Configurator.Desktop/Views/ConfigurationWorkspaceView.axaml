@@ -1,0 +1,98 @@
+<UserControl x:Class="Configurator.Desktop.Views.ConfigurationWorkspaceView"
+    xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Configurator.Desktop.ViewModels"
+    xmlns:local="using:Configurator.Desktop.Views"
+    x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
+  <UserControl.Styles>
+    <Style Selector="ListBox.section-rail">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <ContainerQuery Name="Workspace" Query="min-width: 900">
+      <Style Selector="ListBox.section-rail">
+        <Setter Property="IsVisible" Value="True" />
+      </Style>
+      <Style Selector="StackPanel.compact-navigation">
+        <Setter Property="IsVisible" Value="False" />
+      </Style>
+    </ContainerQuery>
+  </UserControl.Styles>
+  <Grid Container.Name="Workspace" Container.Sizing="Width">
+  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+    <ListBox Name="SectionRail" Classes="section-rail" Width="224"
+             ItemsSource="{Binding Navigation.Sections}" SelectedItem="{Binding Navigation.SelectedSection, Mode=TwoWay}"
+             AutomationProperties.Name="{Binding Workspace.Strings[Section]}" VerticalAlignment="Top">
+      <ListBox.ItemTemplate>
+        <DataTemplate x:DataType="vm:DesktopSectionViewModel">
+          <TextBlock Text="{Binding Title}" TextWrapping="Wrap" Margin="8" />
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+  <StackPanel Grid.Column="1" Spacing="16" MaxWidth="800">
+    <TextBlock Text="{Binding Workspace.Strings[Configure]}" FontSize="{DynamicResource ConfiguratorHeadingFontSize}" FontWeight="SemiBold" />
+    <StackPanel Spacing="8">
+      <TextBlock Text="{Binding Workspace.Strings[Experience]}" />
+      <ComboBox Name="Experience" ItemsSource="{Binding Workspace.Experiences}"
+                SelectedItem="{Binding Workspace.SelectedExperience, Mode=TwoWay}"
+                HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Workspace.Strings[Experience]}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:ExperienceChoiceViewModel">
+            <TextBlock Text="{Binding Title}" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <CheckBox Name="OptionalEditors" IsChecked="{Binding Workspace.OptionalEditorsExpanded, Mode=TwoWay}"
+                AutomationProperties.Name="{Binding Workspace.Strings[OptionalEditors]}">
+        <TextBlock Text="{Binding Workspace.Strings[OptionalEditors]}" />
+      </CheckBox>
+    </StackPanel>
+    <local:ConfigurationDiscoveryView />
+    <StackPanel Classes="compact-navigation" Spacing="8">
+      <TextBlock Text="{Binding Workspace.Strings[Section]}" />
+      <ComboBox Name="SectionSelector" ItemsSource="{Binding Navigation.Sections}"
+                SelectedItem="{Binding Navigation.SelectedSection, Mode=TwoWay}"
+                HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Workspace.Strings[Section]}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:DesktopSectionViewModel">
+            <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Text="{Binding Navigation.SelectedSection.Description}" TextWrapping="Wrap" />
+    </StackPanel>
+    <StackPanel IsVisible="{Binding Workspace.HasConfigurationContext}" Spacing="8">
+      <TextBlock Text="{Binding Workspace.Strings[ConfigurationContext]}" />
+      <ComboBox Name="ConfigurationContext" ItemsSource="{Binding Workspace.ConfigurationChoices}"
+                SelectedItem="{Binding Workspace.SelectedConfigurationContext, Mode=TwoWay}"
+                AutomationProperties.Name="{Binding Workspace.Strings[ConfigurationContext]}"
+                AutomationProperties.HelpText="{Binding Workspace.Strings[ConfigurationContextHelp]}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:ConfigurationContextChoice">
+            <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <TextBlock Text="{Binding Workspace.Strings[ConfigurationContextHelp]}" TextWrapping="Wrap" />
+    </StackPanel>
+    <WrapPanel Orientation="Horizontal">
+      <TextBlock Margin="0,0,16,8" Text="{Binding Workspace.Strings[RequiredCount]}" />
+      <TextBlock Margin="0,0,16,8" Text="{Binding Navigation.Progress.Required}" />
+      <TextBlock Margin="0,0,16,8" Text="{Binding Workspace.Strings[MissingCount]}" />
+      <TextBlock Margin="0,0,16,8" Text="{Binding Navigation.Progress.Missing}" />
+      <TextBlock Margin="0,0,16,8" Text="{Binding Workspace.Strings[InvalidCount]}" />
+      <TextBlock Margin="0,0,16,8" Text="{Binding Navigation.Progress.Invalid}" />
+    </WrapPanel>
+    <ItemsControl Name="Fields" ItemsSource="{Binding Navigation.VisibleFields}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate><StackPanel Spacing="16" /></ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
+    <WrapPanel IsVisible="{Binding Navigation.HasPages}">
+      <Button Content="{Binding Workspace.Strings[PreviousPage]}" Command="{Binding Navigation.PreviousPageCommand}" />
+      <TextBlock Margin="12" Text="{Binding Navigation.PageNumber}" VerticalAlignment="Center" />
+      <TextBlock Margin="12" Text="{Binding Navigation.PageCount}" VerticalAlignment="Center" />
+      <Button Content="{Binding Workspace.Strings[NextPage]}" Command="{Binding Navigation.NextPageCommand}" />
+    </WrapPanel>
+  </StackPanel>
+  </Grid>
+  </Grid>
+</UserControl>

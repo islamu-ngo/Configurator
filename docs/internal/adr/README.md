@@ -17,6 +17,7 @@ for procedures and dated observations. No record is promoted by this index.
 
 | Decision record | Accepted scope and historical qualifications | Delivery / evidence owner |
 | --- | --- | --- |
+| [Desktop workspace composition](ADR-desktop-workspace-composition.md) | Accepted three-stage projection, bounded visible scopes and existing semantic/publication owners; implementation verification in progress | [Desktop contract](../DESKTOP_CLIENT.md) |
 | [Domain vocabulary and workspace ownership](ADR-domain-vocabulary-and-workspace-ownership.md) | Explicit wire maps, pure Core operations and one interactive mutation authority; implementation qualification in progress | [Core](../CORE_DEFINITION_CONTRACT.md), [Presentation](../PRESENTATION_STATE.md), [Operations](../OPERATIONS.md) |
 | [Definition runtime boundary](ADR-definition-runtime-boundary.md) | Bounded data, native protection, canonical identity and target independence; original public-only Browser paragraphs are explicitly superseded by the Browser trust amendment | [Core](../CORE_DEFINITION_CONTRACT.md), [launch](../LAUNCH_CONTRACT.md), [protected artifacts](../PROTECTED_ARTIFACTS.md) |
 | [Browser session trust and export](ADR-browser-session-trust-and-export.md) | Accepted design for static WASM, bounded sources, transient consented custody and deliberate export | [Browser custody procedure/evidence](../OPERATIONS.md#browser-custody-and-offline-verification) |

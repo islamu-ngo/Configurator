@@ -1,0 +1,28 @@
+Change-Id: CHG-01M6V72D2GBEE4D75JDJA8Y40N
+Title: "Guide Desktop preparation through explicit output review"
+Type: feat
+Scope: self-hosting
+Summary: "Compose Open, Configure and Review over one workspace, separate import review from export selection, and keep preparation distinct from deliberate protected saving."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Replace the old public single/bundle preparation and save commands with PrepareSelectionAsync and SaveSelectionAsync; import APIs belong to ImportReview."
+  Security:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Update direct DesktopShellViewModel callers for the import-review dependency and use the selected-output workflow; no compatibility facade is retained."
+  Configuration:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Prepare selected exports in Review, then deliberately save. Import source changes do not invalidate unrelated export preparation; native save and external qualification limits remain explicit."

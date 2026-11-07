@@ -14,7 +14,6 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     private readonly TimeProvider _timeProvider;
     private readonly DesktopTheme? _theme;
     private int _appearanceIndex;
-    private CancellationTokenSource? _operationCancellation;
     private DesktopOperation? _activeOperation;
     private TaskCompletionSource<bool>? _closeDecision;
     private Task<bool>? _closeTask;
@@ -46,7 +45,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
 
     public DesktopShellViewModel(IMessenger messenger, DefinitionLoaderViewModel loader,
         FormWorkspaceViewModel workspace, ArtifactPublisherViewModel publisher,
-        TimeProvider? timeProvider = null, DesktopTheme? theme = null)
+        DesktopImportReviewViewModel importReview, TimeProvider? timeProvider = null, DesktopTheme? theme = null)
     {
         _messenger = messenger;
         _timeProvider = timeProvider ?? TimeProvider.System;
@@ -54,7 +53,9 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         _appearanceIndex = (int)(theme?.Preference ?? DesktopAppearance.System);
         Loader = loader;
         Workspace = workspace;
+        Navigation = new DesktopNavigationViewModel(workspace);
         Publisher = publisher;
+        ImportReview = importReview;
         messenger.Register<DesktopShellViewModel, OperationRequestedMessage>(this,
             static (root, message) => root.Begin(message));
         messenger.Register<DesktopShellViewModel, InputsInvalidatedMessage>(this,
@@ -72,6 +73,11 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         messenger.Register<DesktopShellViewModel, FocusRequestedMessage>(this, static (root, message) =>
         {
             if (root._disposed) return;
+            if (message.Target is "DefinitionPath" or "SelectDefinition")
+                root.Navigation.Stage = DesktopWorkspaceStage.Open;
+            else if (message.Target is "SelectImport" or "ExistingFilePath" or "SelectOutput" or
+                "OutputDirectory" or "FileName" or "StayOpen" or "ForceClose")
+                root.Navigation.Stage = DesktopWorkspaceStage.Review;
             root.FocusTarget = message.Target;
             root.FocusRequestGeneration = checked(root.FocusRequestGeneration + 1);
         });
@@ -79,7 +85,9 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
 
     public DefinitionLoaderViewModel Loader { get; }
     public FormWorkspaceViewModel Workspace { get; }
+    public DesktopNavigationViewModel Navigation { get; }
     public ArtifactPublisherViewModel Publisher { get; }
+    public DesktopImportReviewViewModel ImportReview { get; }
     public int AppearanceIndex
     {
         get => _appearanceIndex;
@@ -121,21 +129,19 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
             return;
         }
         long generation = _generation;
-        _operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(message.CancellationToken);
-        CancellationTokenSource cancellation = _operationCancellation;
         SetOperationState(true, message.Kind);
+        DesktopOperation? operation = null;
         _activeOperation = new DesktopOperation(generation,
-            () => !_disposed && generation == _generation && !cancellation.IsCancellationRequested,
+            () => !_disposed && generation == _generation,
             () =>
             {
-                if (ReferenceEquals(_operationCancellation, cancellation))
+                if (ReferenceEquals(_activeOperation, operation))
                 {
-                    _operationCancellation = null;
                     _activeOperation = null;
                     SetOperationState(false, null);
                 }
-                cancellation.Dispose();
-            }, cancellation.Token);
+            }, message.CancellationToken);
+        operation = _activeOperation;
         message.Reply(_activeOperation);
     }
 
@@ -151,14 +157,15 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
             Publisher.IsBusy = busy;
             Publisher.IsSaving = IsSaving;
             Publisher.IsSelecting = IsSelecting;
+            ImportReview.IsBusy = busy;
         }
         else _messenger.Send(new OperationStateMessage(busy, kind));
     }
 
-    private void Invalidate()
+    private void Invalidate(bool explicitlyCancelled = false)
     {
         checked { _generation++; }
-        _operationCancellation?.Cancel();
+        _activeOperation?.Cancel(explicitlyCancelled);
         _messenger.Send(new WorkspaceInvalidatedMessage(_generation));
         if (!_disposed) SetStatus(Workspace.Form is null ? "definition-required" : "inputs-changed",
             Workspace.Form is null ? DesktopStatusGuidance.DefinitionRequired : DesktopStatusGuidance.InputsChanged);
@@ -168,12 +175,20 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     public void Cancel()
     {
         if (_disposed) return;
-        Invalidate();
+        Invalidate(explicitlyCancelled: true);
         SetStatus("operation-cancelled", DesktopStatusGuidance.Cancelled);
     }
 
     [RelayCommand]
     private void FocusDefinitionPath() => _messenger.Send(new FocusRequestedMessage("DefinitionPath"));
+
+    [RelayCommand]
+    private async Task ReviewAndPrepareAsync()
+    {
+        if (_disposed) return;
+        Navigation.Stage = DesktopWorkspaceStage.Review;
+        await Publisher.PrepareSelectionAsync();
+    }
 
     /// <summary>Shares one close intent while retaining the exact physical settlement task.</summary>
     public Task<bool> RequestCloseAsync()
@@ -253,7 +268,9 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         IsClosing = false;
         Invalidate();
         Loader.Dispose();
+        ImportReview.Dispose();
         Publisher.Dispose();
+        Navigation.Dispose();
         Workspace.Dispose();
         _messenger.UnregisterAll(this);
         ForceCloseCommand.NotifyCanExecuteChanged();

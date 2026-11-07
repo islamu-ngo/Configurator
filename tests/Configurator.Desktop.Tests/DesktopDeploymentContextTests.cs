@@ -16,8 +16,8 @@ public sealed class DesktopDeploymentContextTests
         shell.Publisher.SelectArtifact("worker", true);
         await Assert.That(shell.Publisher.SelectedArtifactIds.Contains("worker")).IsFalse();
         shell.Publisher.ArtifactId = "worker";
-        await Assert.That(shell.Publisher.CanImport).IsFalse();
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsFalse();
+        await Assert.That(shell.ImportReview.CanImport).IsFalse();
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Invalid);
         await Assert.That(shell.Publisher.CanSave).IsFalse();
     }
 
@@ -35,7 +35,7 @@ public sealed class DesktopDeploymentContextTests
         shell.Loader.LoadDefinition(Definition().CanonicalBytes);
         shell.Publisher.ArtifactId = "worker";
         shell.Workspace.Form!.Fields.Single(field => field.Definition.Id == "workerSecret").Text = "synthetic-worker-only";
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         Task<ProtectedArtifactCommitResult> saving = shell.Publisher.SaveAsync();
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         try
@@ -75,7 +75,7 @@ public sealed class DesktopDeploymentContextTests
         shell.Publisher.ArtifactId = "worker";
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Task<bool> import = shell.Publisher.ImportAsync(_ => { entered.TrySetResult(); return release.Task; });
+        Task<bool> import = shell.ImportReview.ImportAsync(_ => { entered.TrySetResult(); return release.Task; });
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
         shell.Workspace.SelectedConfigurationContext = shell.Workspace.ConfigurationChoices.Single(choice => choice.ScopeId == "dashboard");
         release.SetResult(Encoding.UTF8.GetBytes("{\"credential\":\"synthetic-late-worker\"}"));
@@ -91,7 +91,7 @@ public sealed class DesktopDeploymentContextTests
         await Assert.That(shell.Loader.LoadDefinition(Definition().CanonicalBytes)).IsTrue();
         shell.Publisher.ArtifactId = "worker";
         shell.Workspace.Form!.Fields.Single(field => field.Definition.Id == "workerSecret").Text = "synthetic-worker-only";
-        await Assert.That(await shell.Publisher.PrepareAsync()).IsTrue();
+        await Assert.That(await shell.Publisher.PrepareAsync()).IsEqualTo(DesktopPreparationOutcome.Prepared);
         await Assert.That(shell.Publisher.CanSave).IsTrue();
         shell.Workspace.SelectedConfigurationContext = shell.Workspace.ConfigurationChoices.Single(choice => choice.ScopeId == "dashboard");
         await Assert.That(string.Join(",", shell.Publisher.Artifacts.Select(artifact => artifact.Id))).IsEqualTo("dashboard");
