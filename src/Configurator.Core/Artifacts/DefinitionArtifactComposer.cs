@@ -73,9 +73,21 @@ public static class DefinitionArtifactComposer
             var unknown = validation.DeferredFields.Concat(validation.UnresolvedFields).ToHashSet(StringComparer.Ordinal);
             var activeRoots = validation.Fields.Where(field => field.IsActive).Select(field => field.Definition.Name)
                 .Concat(validation.Values.Keys).ToHashSet(StringComparer.Ordinal);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            if (PreparationDiagnostics.IsEnabled("ProjectionStarted"))
+                PreparationDiagnostics.Write("ProjectionStarted", null);
+#endif
             (bool include, JsonNode? output) = Project(artifact.Data.GetProperty("projection"), null, null, null, "", "", 1);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            if (PreparationDiagnostics.IsEnabled("ProjectionCompleted"))
+                PreparationDiagnostics.Write("ProjectionCompleted", null);
+#endif
             if (!include) return new(null, [new("artifact-omitted", "")]);
             cancellationToken.ThrowIfCancellationRequested();
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+            if (PreparationDiagnostics.IsEnabled("SerializationStarted"))
+                PreparationDiagnostics.Write("SerializationStarted", null);
+#endif
             using JsonDocument document = JsonDocument.Parse(output?.ToJsonString() ?? "null");
             byte[] canonical = DefinitionJson.Canonicalize(document.RootElement, keyPolicy: CompositionKeyPolicy.Exact);
             byte[]? bytes = null;
@@ -99,6 +111,10 @@ public static class DefinitionArtifactComposer
                 if (bytes.Length > CompositionLimits.DefaultAggregateSourceBytes)
                     throw new DefinitionException("artifact-limit");
                 cancellationToken.ThrowIfCancellationRequested();
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+                if (PreparationDiagnostics.IsEnabled("SerializationCompleted"))
+                    PreparationDiagnostics.Write("SerializationCompleted", null);
+#endif
                 if (PreparationDiagnostics.IsEnabled("ArtifactComposed"))
                     PreparationDiagnostics.Write("ArtifactComposed", artifact.Id);
                 return new(new(definition, artifact, answers, bytes), []);

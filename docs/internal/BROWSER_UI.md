@@ -64,6 +64,69 @@ verify rendered structure, preference admission and presentation changes.
 Published-browser keyboard, zoom/reflow, theme, RTL, offline and CSP evidence
 is separate from component-test evidence.
 
+## Synthetic interaction evidence
+
+`eng/configurator/MeasureInteractiveWork.cs` validates supplied synthetic timing
+records; it neither drives the Browser nor authenticates their producer.
+Its input binds independently retained fixture, payload and host SHA-256
+identities. Unknown fields, duplicate cohorts, missing journeys, untrusted or
+failed records, nonfinite timestamps and incomplete sample sequences reject.
+Each journey includes both directions at 1x and 4x, a separate first-use sample,
+five warmups and forty measured samples. All nine inherited operator journeys
+remain required; descendant/composition cases can extend that set.
+
+Feedback stays strictly below 50/200 milliseconds. Warmed 1x tasks may not exceed
+50 milliseconds. Measured final-content p95 must stay below the declared journey
+budget; this validator conservatively caps that declaration at 100/400
+milliseconds. Supply any tighter inherited threshold explicitly. Completion
+and physical settlement are separate intervals; a long complete parse is not
+declared a paint-budget success. Aggregation retains raw samples, first use,
+all outlier ordinals, maxima and nearest-rank p50/p95. A slow tail remains visible
+even when its cohort's p95 passes.
+
+Run `dotnet run --file eng/configurator/MeasureInteractiveWork.cs -- --self-test`
+for independent positive/negative synthetic specifications. Validate an explicit
+file with `--input FILE --fixture SHA256 --payload SHA256 --host SHA256`, in that
+order; each digest is 64 lowercase hexadecimal characters. Exit 0 means the
+supplied records pass, 1 rejects the input, 2 retains a valid failed timing
+cohort, and 64 rejects arguments. Input is bounded to 16 MiB and JSON depth eight.
+Matching hashes and a `trusted` flag do not establish actual trusted events,
+detect fabricated records, or replace published AOT, device or AT qualification.
+
+### Public collection fixtures
+
+`eng/configurator/BuildInteractiveWorkFixtures.cs` creates five bounded public
+synthetic inputs through the existing Core authoring/admission contract. Run
+from the repository root:
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+dotnet run --file eng/configurator/BuildInteractiveWorkFixtures.cs --configuration Release -- --self-test
+dotnet run --file eng/configurator/BuildInteractiveWorkFixtures.cs --configuration Release -- --output "$PWD/.tmp/interactive-work-fixtures"
+```
+
+The destination must not exist. Each file is create-only; `manifest.json` is
+written last as the completion record. A failed partial directory must not be
+treated as a complete fixture set or reused as one. The manifest binds each
+source, canonical definition, answer input and independent expected output by
+SHA-256. English/Arabic titles are synthetic; all values are public.
+
+| Fixture | Baseline work |
+| --- | --- |
+| `few-root-deep-tree` | One root entry, 137 answer nodes and 128 scalar leaves |
+| `wide-nested-object` | One root entry, 514 answer nodes and 512 scalar leaves |
+| `large-map-list` | Two root entries, 256 map entries and 256 list rows; 255–257 bounds allow add/remove/reverse |
+| `many-active-corrections` | 256 distinct invalid-value findings, plus valid correction answers |
+| `multi-artifact` | 128 scalar leaves and eight complete declared outputs |
+
+Self-checks admit and compose the definitions, compare against independently
+authored output specifications, verify changed answers affect output, exercise
+collection add/remove/reverse and reject existing destinations. They establish
+fixture behavior, not input dispatch, paint, timing or package equivalence.
+These five cases extend the nine required journeys; they do not replace them.
+Actual collection still requires trusted input, full raw cohorts, independently
+bound payload/host identities and the existing stricter timing gates.
+
 ## Schema-driven secret controls
 
 `ConfigurationField` classifies sensitivity through `DefinitionSensitivityPolicy`

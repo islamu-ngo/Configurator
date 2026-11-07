@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup Condition="'$(ConfiguratorNativeImportComparisonProbe)' == 'true' and ('$(MSBuildProjectName)' == 'Configurator.Desktop' or '$(MSBuildProjectName)' == 'Configurator.Terminal')">
     <Compile Include="$(MSBuildThisFileDirectory)MeasureNativeImportComparison.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MeasureNativePreparation.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(ConfiguratorNativeImportComparisonProbe)' == 'true' and '$(MSBuildProjectName)' == 'Configurator.Core'">
     <Compile Include="$(MSBuildThisFileDirectory)NativeImportComparisonProbe.cs" />

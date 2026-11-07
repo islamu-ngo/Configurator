@@ -18,6 +18,10 @@ internal static class DefinitionValidationSession
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(answers);
+#if CONFIGURATOR_NATIVE_IMPORT_PROBE
+        if (scopeObservation is null && DefinitionArtifactComposer.PreparationDiagnostics.IsEnabled("ValidationStarted"))
+            DefinitionArtifactComposer.PreparationDiagnostics.Write("ValidationStarted", null);
+#endif
         DefinitionNode rootSchema = definition.Configuration;
         if (rootSchema.Discriminator is { } discriminator)
         {

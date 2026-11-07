@@ -22,6 +22,25 @@ These earlier observations do not qualify the new artifact-comparison journey;
 its published Release/AOT and custody evidence is recorded separately in
 [Operations](../internal/OPERATIONS.md).
 
+Contributors can validate explicitly supplied synthetic interaction measurements
+with the native [measurement tool](../internal/BROWSER_UI.md#synthetic-interaction-evidence).
+It preserves first-use costs, every sample and outlier, and separate feedback,
+completion and settlement intervals. A passing synthetic record is not evidence
+that an unmeasured Browser, device or assistive technology meets those budgets.
+The [public collection fixtures](../internal/BROWSER_UI.md#public-collection-fixtures)
+provide reproducible nested-tree, wide-object, map/list, correction and
+multi-file inputs. Their generated hashes and independent expected files make
+measurement inputs checkable; generating them does not measure the Browser.
+Repeated control-identity lookup uses admitted schema metadata for mapping keys
+and current row tokens for lists. This reduces repeated work without changing
+answers, consent or stale-edit checks; timing acceptance still requires the
+published-payload measurements described above.
+Field reads also reuse their current admitted coordinates, while moved list
+rows and replaced workspaces retain the existing revision checks.
+Unchanged inner text controls can reuse their rendered output while their parent
+refreshes current edit callbacks. Value, consent, masking and validation changes
+retain normal updates; earlier captured callbacks remain fenced.
+
 ## Typed editing and language
 
 Definitions can declare deployment recipes and component scopes. The workspace
@@ -414,7 +433,7 @@ network requests.
 
 Once answers are validated, choose **Prepare complete configuration** or **Prepare draft**:
 
-- **Hidden Staging:** Output is not inserted into the private preview until you deliberately choose **Reveal**. **Hide** clears that preview again.
+- **Hidden Staging:** Output is not inserted into the private preview until you deliberately choose **Reveal**. **Hide** clears that preview again. The file's visibility notice follows the preview state in English and Arabic; revealing it does not make the output public.
 - **Export Actions:** Use **Copy** to copy contents to the clipboard, or **Download** to trigger a browser file download via short-lived Blob URLs.
 - **File-local Recovery:** Copy or download feedback belongs to its file. If clipboard access fails, **Download** remains immediately available; no answer or artifact contents appear in the error.
 - **Preparation Recovery:** Failed preparation preserves your answers and invalid drafts while retiring previous prepared files. Use the displayed correction to return to the affected field, then prepare again.
@@ -437,6 +456,13 @@ To prepare for offline work:
 ---
 
 ## Self-Hosting & Deployment
+
+The optional .NET static Host denies framing and serves only its admitted public
+asset inventory with known content types. Adding a file to the webroot does not
+make it HTTP-accessible. It accepts GET/HEAD on intended assets and navigation
+routes; other methods and unknown assets/routes reject. The
+[packaging contract](../internal/PACKAGING.md#browser-container) describes the
+container and qualification limits.
 
 ### Building Static Assets
 

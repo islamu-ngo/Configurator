@@ -36,6 +36,13 @@ internal static class MeasureNativeImportComparison
 
     public static void Attach(object root)
     {
+        // The partial-save driver is bound by TerminalApplication before the owner loop starts.
+        if (Environment.GetEnvironmentVariable("CONFIGURATOR_NATIVE_PROBE_MODE") == "partial-save") return;
+        if (Environment.GetEnvironmentVariable("CONFIGURATOR_NATIVE_PROBE_MODE") == "preparation")
+        {
+            MeasureNativePreparation.Attach(root);
+            return;
+        }
         if (Environment.GetEnvironmentVariable("CONFIGURATOR_NATIVE_PROBE_INPUT") is not { Length: > 0 } input)
             return;
         _root = root;
@@ -214,9 +221,9 @@ internal static class MeasureNativeImportComparison
         {
 #if CONFIGURATOR_DESKTOP_NATIVE_PROBE
             DesktopShellViewModel shell = Shell;
-            shell.Publisher.ExistingFilePath = _input!;
-            shell.Publisher.ImportPurposeIndex = 0;
-            physical = shell.Publisher.ImportFileAsync();
+            shell.ImportReview.ExistingFilePath = _input!;
+            shell.ImportReview.ImportPurposeIndex = 0;
+            physical = shell.ImportReview.ImportFileAsync();
 #else
             physical = TerminalWindow.StartProbeImport(_input!);
 #endif
@@ -243,9 +250,9 @@ internal static class MeasureNativeImportComparison
         await UiAsync(() =>
         {
 #if CONFIGURATOR_DESKTOP_NATIVE_PROBE
-            if (Shell.Publisher.CanNextImportPage)
+            if (Shell.ImportReview.CanNextImportPage)
             {
-                Shell.Publisher.NextImportPageCommand.Execute(null);
+                Shell.ImportReview.NextImportPageCommand.Execute(null);
                 navigated = true;
             }
 #else
@@ -263,7 +270,7 @@ internal static class MeasureNativeImportComparison
         await UiAsync(() =>
         {
 #if CONFIGURATOR_DESKTOP_NATIVE_PROBE
-            ImportFindingViewModel? finding = Shell.Publisher.ImportFindings.FirstOrDefault(item => item.CanExplain);
+            ImportFindingViewModel? finding = Shell.ImportReview.ImportFindings.FirstOrDefault(item => item.CanExplain);
             if (finding is not null) { finding.ExplainCommand.Execute(null); explained = true; }
 #else
             // The native Next finding control publishes schema explanation together with the finding.
@@ -275,7 +282,7 @@ internal static class MeasureNativeImportComparison
         await UiAsync(() =>
         {
 #if CONFIGURATOR_DESKTOP_NATIVE_PROBE
-            Shell.Publisher.ClearImportComparisonCommand.Execute(null);
+            Shell.ImportReview.ClearImportComparisonCommand.Execute(null);
 #else
             TerminalWindow.ClearProbeState();
 #endif
@@ -316,8 +323,8 @@ internal static class MeasureNativeImportComparison
         await UiAsync(() =>
         {
 #if CONFIGURATOR_DESKTOP_NATIVE_PROBE
-            Shell.Publisher.ExistingFilePath = _input!;
-            physical = Shell.Publisher.ImportFileAsync();
+            Shell.ImportReview.ExistingFilePath = _input!;
+            physical = Shell.ImportReview.ImportFileAsync();
 #else
             physical = TerminalWindow.StartProbeImport(_input!);
 #endif
@@ -366,15 +373,15 @@ internal static class MeasureNativeImportComparison
         {
             await UiAsync(() =>
             {
-                if (Shell.Publisher.CanImport) { ready.TrySetResult(); return; }
+                if (Shell.ImportReview.CanImport) { ready.TrySetResult(); return; }
                 PropertyChangedEventHandler? changed = null;
                 changed = (_, _) =>
                 {
-                    if (!Shell.Publisher.CanImport) return;
-                    Shell.Publisher.PropertyChanged -= changed;
+                    if (!Shell.ImportReview.CanImport) return;
+                    Shell.ImportReview.PropertyChanged -= changed;
                     ready.TrySetResult();
                 };
-                Shell.Publisher.PropertyChanged += changed;
+                Shell.ImportReview.PropertyChanged += changed;
             });
             await ready.Task.WaitAsync(TimeSpan.FromSeconds(30));
         }
