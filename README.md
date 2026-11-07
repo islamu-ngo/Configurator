@@ -443,8 +443,6 @@ This project is licensed under the terms of the [MIT license][license-link].
 
 ### 🌐 The ISLAMU Ecosystem
 
-Configurator is a standalone offline utility. Event remains a separately governed application with its own AGPL community/enterprise/partner model. Configurator's MIT license does not impose Event's AGPL service covenant or create a shared runtime dependency.
-
 The Steward's transfer authority covers ISLAMU-owned material only. Third-party libraries, datasets, fonts and assets retain their respective licenses, disclaimers and other terms. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), [IP Governance](docs/internal/legal/IP_GOVERNANCE.md) and [Transfer Provenance](docs/internal/extraction/PROVENANCE.md).
 
 ### Standalone Core And Optional Clients
