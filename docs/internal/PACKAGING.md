@@ -263,6 +263,32 @@ Request-access logging is disabled; ordinary missing/rejected requests must not
 write user-supplied URL text to logs. There is no upload handler, proxy, target
 API or private persistence. Only `/tmp` needs runtime write access.
 
+The Host CSP includes `frame-ancestors 'none'`. Its content-type provider admits
+exact ordinal paths from the SDK's `service-worker-assets.js` JSON assignment
+(read as data, never executed), plus worker/inventory URLs, root license/notices
+and the fixed schemas/contracts copied by `Configurator.Release.proj`.
+The manifest is bounded to 4 MiB and 10,000 entries; malformed or noncanonical
+paths reject startup. Unknown MIME types reject even an inventoried path.
+JavaScript uses `text/javascript`, WASM `application/wasm`, ICU data
+`application/octet-stream`, web manifests `application/manifest+json`, source
+maps `application/json`, and the exact extensionless `/LICENSE` uses `text/plain`.
+No unknown-file fallback or webroot directory enumeration grants publication.
+Dependency-notice trees remain distributed attribution, outside HTTP admission.
+SDK compression sidecars are not separate admitted URLs; response compression
+operates on canonical admitted bytes.
+
+GET/HEAD preserve the five existing navigation patterns: `/`, `/open`, `/help`,
+`/store/{slug:nonfile}`, `/launch/{id:nonfile}`. Unknown routes/assets return 404
+and other methods return 405. All responses retain `Cache-Control: no-cache`.
+This transport revalidation policy does not broaden the Browser worker's cache
+allowlist or authorize storing answers, drafts or prepared artifacts.
+`BrowserHostPolicyTests` exercises a running Host at `CONFIGURATOR_HOST_URL`;
+qualification must first copy the public package into an isolated tree and add
+synthetic `host-attack.json`, `host-attack.unknown` and `host-attack` files.
+Run its nonempty filtered cohort against both Store modes and separately record
+actual nonroot/read-only container execution; an ordinary HTTP test run does
+not qualify container restrictions or a complete Browser journey.
+
 The image is deployment-neutral. Its .NET process serves public static files; it
 contains no reverse-proxy upstream, TLS termination, public hostname, host-port
 binding, Docker network or platform-specific routing labels. Coolify or another

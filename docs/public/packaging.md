@@ -195,6 +195,22 @@ The browser output in `artifacts/configurator/browser/wwwroot/` consists entirel
 - No backend API, application server, or database is required.
 - Detailed hosting guidance, Content Security Policy (CSP) headers, and Docker container instructions are documented in the [Browser Guide](browser.md).
 
+The optional .NET Host denies framing (`frame-ancestors 'none'`) and accepts
+only GET and HEAD. It serves application assets named in the published SDK
+`service-worker-assets.js` inventory, the worker and its inventory, root license
+and notices, and the fixed public schemas and capability contracts added by
+packaging. Adding a file to `wwwroot` does not publish it over HTTP. Files with
+unknown MIME types are refused, including inventory entries with unknown types.
+The extensionless root `LICENSE` is explicitly served as plain text.
+
+Navigation fallback is limited to `/`, `/open`, `/help`, `/store/{slug}` and
+`/launch/{id}` (one extensionless segment). Missing assets and unknown routes
+return 404; other methods return 405. Public responses require revalidation.
+Optional Store assets retain their manifest membership; a Store-free package
+does not gain Store content. Dependency notice trees remain in the distributed
+package but are not exposed by this Host. Compressed sidecars remain packaging
+outputs; the Host compresses admitted canonical assets during transport.
+
 ---
 
 ## Where to Go Next

@@ -1,0 +1,27 @@
+Change-Id: CHG-01M6V08P2PDAPJFF6J0PAV874K
+Title: "Serve only declared browser publication assets"
+Type: fix
+Scope: privacy
+Summary: "Reject files outside the published asset inventory and deny framing while preserving declared assets and application routes."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: mitigated
+    Detail: "Only declared public assets are served; framing is denied and unlisted files remain unavailable."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/packaging.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/packaging.md
+    Disposition: documented
+    Detail: "Publish declared application assets through the existing package target; placing extra files in webroot does not publish them."
