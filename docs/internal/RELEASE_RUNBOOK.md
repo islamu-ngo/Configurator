@@ -33,6 +33,13 @@ credentials and any trust activation remain separately authorized G-TRUST work.
 No provider, account, signer or external write is implied by local verification.
 Raw TRX, logs, coverage and private paths stay outside the safe archive.
 
+Use the [detached package provenance procedure](PACKAGING.md#detached-package-provenance)
+to verify exact inventories, native capture/check bindings and an independently
+retained provenance digest. The required owner profile comes from release
+policy, not the supplied manifest. Local consistency does not promote trust or
+qualify missing scenarios. Freeze payloads first, then finalize detached
+receipts, provenance and support matrices without silently rebuilding them.
+
 ## Current procedure
 
 Use [the release tool instructions](../../eng/release/README.md#collision-proof-change-workflow)

@@ -42,6 +42,34 @@ each admitted client, target, language and scenario. Missing, failed,
 unsupported and unexecuted rows remain explicit; one passing scenario does
 not qualify the remaining rows.
 
+Maintainers can also verify [detached package provenance](../internal/PACKAGING.md#detached-package-provenance)
+against independently retained identities. A matching unsigned digest proves
+local consistency under that procedure; publisher authenticity and actual
+host qualification require their separate evidence and authority.
+
+Rejected task-factory declarations can retain bounded diagnostic fingerprints
+without admitting the factory. Missing observations remain explicit. These
+diagnostics do not prove which declaration executed or permit a rejected
+capture to become package provenance.
+Refused-task item diagnostics can also retain bounded metadata field names
+without their values. They describe the received build event, not a complete
+task-input contract; truncated or oversized observations remain explicit.
+Task-shape inventories bind the frozen SDK and selected package assemblies
+they inspect as consumed tool inputs, including dependencies resolved during
+that inspection. An inventoried shape still does not admit the task.
+
+One Linux capture adapter has an explicit contract for the SDK 10.0.302
+`ReadWasmProps` JSON reader. It binds the exact declaration, reader bytes,
+JSON input and tool/runtime dependencies before delegated SDK activation.
+The controlled binding also applies to child projects; early declaration
+admission rejects competing definitions and removes rejected XML from the
+native cache before a parent can retry it.
+This relies on the pinned reader consuming its JSON input without reading
+paths contained in its output items or starting independent processes.
+It does not admit other task factories or establish arbitrary file-read
+mediation. A complete publication capture must still pass every other
+consumer boundary before provenance can be sealed.
+
 | Surface | Target Platform / Architecture | Runtime Identifier (RID) | Package Executable / Output Root |
 |---|---|---|---|
 | **[CLI](cli.md)** | Linux (glibc) x64 / Arm64<br/>Linux (musl) x64 / Arm64<br/>macOS Intel / Apple Silicon<br/>Windows 10/11 x64 | `linux-x64`<br/>`linux-arm64`<br/>`linux-musl-x64`<br/>`linux-musl-arm64`<br/>`osx-x64`, `osx-arm64`<br/>`win-x64` | `artifacts/configurator/cli/<rid>/islamu-configurator`<br/>*(Windows: `.exe`)* |

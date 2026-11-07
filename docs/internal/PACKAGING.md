@@ -563,6 +563,145 @@ this matrix outside the candidate payload so later qualification does not
 change the bytes it describes. `--self-test` tests rendering with synthetic
 projections; it does not execute support scenarios.
 
+## Detached package provenance
+
+`eng/configurator/VerifyPackageProvenance.cs` checks local integrity from
+retained capture sessions, exact payload bytes and detached evidence. Its
+success does not authenticate a publisher, activate trust or establish that
+the capture owner observed every consuming task. Capture qualification has its
+own actual-graph and consumption-boundary checks.
+
+Rejected factory declarations retain diagnostic fingerprints separately from
+admission. These include the expanded assembly-reference digest, a logical
+assembly alias and file digest when safely observable, and construction-API
+markup digests for the task body and parameter group. Fragment fingerprints
+are bounded to 16 KiB; assembly hashing is bounded to 64 MiB and rejects linked
+paths, including linked ancestors. Absent, oversized and unavailable observations
+remain explicit. An exact top-level type definition can also be observed from
+PE metadata in the same bounded byte buffer whose digest is recorded. This
+does not inspect method bodies, instantiate a factory or establish interface,
+loader-selection or execution semantics. Assembly-name resolution remains
+unavailable: diagnostics
+neither load factories nor expose raw references, physical paths or body source.
+Declared parameter metadata can separately retain up to 128 names, types and
+required/output flags, bounded to 16 KiB of identifier/type text. Unsupported,
+absent and over-budget groups remain explicit without partial lists being
+presented as complete. These declarations are not observed runtime CLR types
+or proof that every execution input was reported.
+These observations do not identify the selected declaration, prove factory
+initialization or setter semantics, or authorize sealing a rejected capture.
+Private refused-task parameter records also project the metadata names on each
+received `ITaskItem`, without reading or retaining metadata values in that
+projection. Each item retains at most 128 names of at most 256 characters,
+ordered ordinally; count and size limits have explicit availability states.
+Non-item values have no item-metadata observation. The existing record-size and
+record-count limits still apply. This describes only the native event
+representation: it does not establish that the engine reported every final
+task metadata field, expose an independent child process, or admit the task.
+Public task-shape discovery records each inspected frozen assembly as a tool
+input before loading its metadata, including the native framework/engine and
+dependencies resolved during inspection. The optional pinned ILLink task
+assembly comes from `microsoft.net.illink.tasks/10.0.10`, selected through the
+existing generated lock. Its public shapes join the same native-generated
+inventory; no reflected type is added to task or task-host admission by that
+observation.
+
+`ReadWasmPropsCaptureFactory` supplies one separate, inert Linux adapter for
+the SDK 10.0.302 JSON reader. `ReadWasmPropsProfile` owns the exact SDK recipe,
+assembly and parameter-group fingerprints, absent original task body, runtime
+type and six-parameter shape: required input `JsonFilePath` and five optional
+item-array outputs. The host requires exactly the pinned original declaration
+and its generated first-party project and toolset bindings; competing
+declarations still reject.
+Other SDK tasks retain their native bindings and other factories remain refused.
+
+The toolset binding keeps the reader inert when a child removes the capture
+imports. A project-local explicit override can defeat that binding, so the host
+also admits reader declarations directly when XML enters its project
+collection. This early check uses fixed recipe identity rather than inferred
+child globals. A shared factory or variable namespace prefix alone does not
+identify the reader; an unrelated fixed task-name leaf retains its separate
+admission path. Refusal unloads the rejected XML root before throwing and
+invalidates capture: otherwise a parent using `ContinueOnError` can reuse that
+cached root without another admission callback. Native experiments separately
+cover ordinary dispatch, explicit overrides, imported declarations, repeated
+requests and preloaded admitted XML. Effective project/parameter admission and
+the task-context receipt remain required after this early boundary.
+
+The adapter retains parameters without activating the SDK reader. Its native
+task-context request must receive exactly one synchronous token/context/thread
+acknowledgement before loading the reader, initializing its factory, creating
+its task or assigning delegated properties. The logger records frozen JSON,
+recipe, reader and tool/runtime identities, including host dependencies such
+as ICU. The adapter preserves unset output defaults and reports a bound
+outcome after execution and cleanup; replayed, missing, duplicate or incomplete
+receipts cannot seal. This is an explicit finite semantic assumption about
+the pinned reader: it consumes the JSON input, treats output item values as
+data rather than additional file reads, and starts no independent processes.
+Dependency byte binding is not a purity claim or universal read interception.
+Actual complete publication capture remains a separate acceptance requirement;
+this adapter does not admit the remaining refused consumers or subprocesses.
+
+Use task-owned, separate payload, capture, evidence and manifest locations.
+The manifest and qualification receipts stay outside the published payload.
+An independently retained source/build/payload identity is required:
+
+```bash
+dotnet run --file eng/configurator/VerifyPackageProvenance.cs -- \
+  --verify --package "$PACKAGE" --manifest "$MANIFEST" \
+  --capture "$PUBLICATION_SESSION" \
+  --source "$SOURCE_SHA256" --build "$BUILD_SHA256" \
+  --payload "$PAYLOAD_SHA256" --payload-prefix "$CAPTURED_PAYLOAD_PREFIX" \
+  --evidence "$EVIDENCE_DIRECTORY" --evidence-digest "$EVIDENCE_SHA256" \
+  --checks "$CHECK_BINDINGS" --required-checks "$REQUIRED_OWNERS" \
+  --client "$CLIENT" --package-rid "$PACKAGE_RID" \
+  --expected-digest "$PROVENANCE_SHA256"
+```
+
+`CAPTURED_PAYLOAD_PREFIX` identifies the generated publication directory in the
+capture, beginning with `generated/repo/` and ending with `/`. The package
+inventory must match every captured output beneath that prefix. The native
+capture executable must already be built in its Release output and its private
+sessions retained; public capture JSON alone is insufficient.
+
+`REQUIRED_OWNERS` is an ordinal-sorted, duplicate-free list such as
+`Configurator.Artifacts,Configurator.Cli,Configurator.Core`, or `none` when no
+owner check is being asserted. The caller's release policy supplies that
+requirement independently; it must not copy the manifest's claimed coverage.
+The private check-binding array names each owner, its retained test session,
+and execution/report paths relative to the evidence directory. Physical session
+paths never enter the public manifest. Native controlled-check verification
+binds actual executable/dependency identities, the safe report hash, scope and
+outcome. Focused, failed, skipped or unbound checks cannot satisfy a required
+full owner. Test/publication graphs compare their relevant product-source
+projections rather than requiring identical complete graphs.
+
+### Detached identity chain and local limits
+
+The acyclic chain is verified source/build identities, sorted payload inventory,
+typed detached evidence inventory, detached manifest, then an external expected
+manifest digest. Inventories contain relative paths, lengths and lowercase
+SHA-256; compact declaration-order camelCase UTF-8 has no BOM or trailing
+newline. No manifest field contains its own digest, expected digest or
+signature. Support receipts retain failed and unexecuted outcomes rather than
+turning structural acceptance into qualification.
+
+Replace `--verify` with `--write` and omit `--expected-digest` to create a new
+manifest after validation; existing files are not overwritten. Successful
+commands print `PACKAGE_PROVENANCE_VALID` or `PACKAGE_PROVENANCE_WRITTEN` with
+the detached digest. Rejection returns 1 with `PACKAGE_PROVENANCE_REJECTED`.
+`--self-test`, `--schema-write` and `--schema-check` exercise synthetic
+specifications and own `schemas/configurator-package-provenance.schema.json`.
+
+This local implementation runs on Linux and rejects unsupported hosts. Static
+filesystem admission rejects links, hard links and special entries. Keep inputs
+quiescent and task-owned; this is not a hostile-host isolation or filesystem
+authenticity guarantee. Limits are 10,000 inventory entries, depth 32,
+512 MiB per file, 4 GiB per inventory and 16 MiB per JSON document, with tighter
+receipt/report bounds retained. Copied-evidence consistency and synthetic
+tamper tests do not supply actual-host, participant, signer, reproducibility
+or SLSA claims.
+
 ## Generated contracts and package verification
 
 `GenerateConfiguratorRatchets.cs` uses compiled Core definition schema and CLI

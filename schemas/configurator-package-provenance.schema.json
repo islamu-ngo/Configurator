@@ -1,0 +1,163 @@
+{
+  "type": [
+    "object",
+    "null"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "0.0.1"
+    },
+    "client": {
+      "type": "string"
+    },
+    "packageRid": {
+      "type": "string"
+    },
+    "productSourceInputsDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "buildRecipeDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "payloadDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "evidenceSetDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "publicationCaptureSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "payloadPrefix": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "array",
+      "items": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 536870912
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "path",
+          "length",
+          "sha256"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 10000
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 536870912
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "support",
+              "report",
+              "execution"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "length",
+          "sha256",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 10000
+    },
+    "requiredChecks": {
+      "type": "array",
+      "items": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "owner": {
+            "type": "string"
+          },
+          "execution": {
+            "type": "string"
+          },
+          "report": {
+            "type": "string"
+          },
+          "testCaptureSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "owner",
+          "execution",
+          "report",
+          "testCaptureSha256"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 10000
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "client",
+    "packageRid",
+    "productSourceInputsDigest",
+    "buildRecipeDigest",
+    "payloadDigest",
+    "evidenceSetDigest",
+    "publicationCaptureSha256",
+    "payloadPrefix",
+    "payload",
+    "evidence",
+    "requiredChecks"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "configurator-package-provenance"
+}
