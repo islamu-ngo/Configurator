@@ -13,5 +13,7 @@
     <ProjectReference Include="../../src/Configurator.Desktop/Configurator.Desktop.csproj" />
     <None Include="../../examples/islamu-event/definition.json"
           Link="Fixtures/Event/definition.json" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="../Conformance/root-map.definition.json" LogicalName="Conformance.RootMap" />
+    <EmbeddedResource Include="../Conformance/root-variant.definition.json" LogicalName="Conformance.RootVariant" />
   </ItemGroup>
 </Project>
