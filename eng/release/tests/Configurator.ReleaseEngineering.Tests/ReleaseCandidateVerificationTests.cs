@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Configurator.ReleaseEngineering;
 
 namespace Configurator.ReleaseEngineering.Tests;
@@ -9,6 +11,285 @@ namespace Configurator.ReleaseEngineering.Tests;
 [NotInParallel("RuntimePromotionTrustRoot")]
 public sealed class ReleaseCandidateVerificationTests
 {
+    [Test]
+    public async Task VerifyCandidateRejectsMissingDetachedPackageEvidence()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+
+        (int code, _) = fixture.Verify(fixture.B, includePackageEvidence: false);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected);
+        await Assert.That(File.Exists(fixture.CandidateManifestPath)).IsFalse();
+    }
+
+    [Test]
+    [Arguments("payload")]
+    [Arguments("private-session")]
+    [Arguments("expected-digest")]
+    [Arguments("claimed-profile")]
+    [Arguments("caller-profile")]
+    [Arguments("evidence")]
+    public async Task CandidateRejectsUnboundOrAlteredPackageEvidence(string attack)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        PackageEvidenceFixture evidence = fixture.PackageEvidence;
+        string[] arguments = evidence.Arguments;
+        switch (attack)
+        {
+            case "payload": File.WriteAllText(Path.Combine(evidence.Package, "app.txt"), "altered"); break;
+            case "private-session": Directory.Delete(Path.Combine(evidence.Session, "private"), true); break;
+            case "expected-digest": arguments[^1] = new string('0', 64); break;
+            case "claimed-profile":
+                var manifest = JsonNode.Parse(File.ReadAllBytes(evidence.Manifest))!;
+                manifest["requiredChecks"] = new JsonArray();
+                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(manifest);
+                File.WriteAllBytes(evidence.Manifest, bytes);
+                arguments[^1] = Sha256(bytes);
+                break;
+            case "caller-profile": arguments = [.. arguments, "--required-checks", "none"]; break;
+            case "evidence": File.AppendAllText(Path.Combine(evidence.Evidence, "Configurator.Core.report.json"), "changed"); break;
+        }
+
+        (int code, _) = fixture.Verify(fixture.B, packageArguments: arguments);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected).Because(attack);
+        await Assert.That(File.Exists(fixture.CandidateManifestPath)).IsFalse();
+    }
+
+    [Test]
+    public async Task CandidateRequiresEveryCompiledOwnerRegardlessOfManifestClaims()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        byte[] original = File.ReadAllBytes(fixture.PackageEvidence.Checks);
+        var checks = JsonNode.Parse(original)!.AsArray();
+        foreach (JsonNode? omitted in checks)
+        {
+            string owner = omitted!["owner"]!.GetValue<string>();
+            var remaining = new JsonArray(checks.Where(check => check!["owner"]!.GetValue<string>() != owner)
+                .Select(check => check!.DeepClone()).ToArray());
+            File.WriteAllBytes(fixture.PackageEvidence.Checks, JsonSerializer.SerializeToUtf8Bytes(remaining));
+
+            (int code, _) = fixture.Verify(fixture.B);
+
+            await Assert.That(code).IsEqualTo(Program.ToolchainRejected).Because(owner);
+            await Assert.That(File.Exists(fixture.CandidateManifestPath)).IsFalse();
+        }
+    }
+
+    [Test]
+    public async Task CandidateRejectsAuthenticatedIncompleteVerifierProfileWithoutThrowing()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        fixture.RemoveVerifierAssetAndReadmit();
+
+        (int code, string output) = fixture.Verify(fixture.B);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected);
+        await Assert.That(output).IsEqualTo("verify_candidate_failed: candidate_input_invalid\n");
+        await Assert.That(File.Exists(fixture.CandidateManifestPath)).IsFalse();
+    }
+
+    [Test]
+    public async Task CandidateNeverExecutesRepositoryGitFromInheritedPath()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        using var fixture = CandidateFixture.Create();
+        string poison = Path.Combine(fixture.Root, "poison");
+        Directory.CreateDirectory(poison);
+        string executable = Path.Combine(poison, "git");
+        string marker = Path.Combine(poison, "executed");
+        File.WriteAllText(executable, "#!/bin/sh\n: > \"" + marker + "\"\nexit 1\n");
+        File.SetUnixFileMode(executable, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        string? original = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            Environment.SetEnvironmentVariable("PATH", poison + ":/usr/bin");
+
+            (int code, string output) = fixture.Verify(fixture.B);
+
+            await Assert.That(File.Exists(marker)).IsFalse().Because("Candidate verification must not execute inherited-path tooling.");
+            await Assert.That(code).IsEqualTo(Program.Success).Because(output);
+        }
+        finally { Environment.SetEnvironmentVariable("PATH", original); }
+    }
+
+    [Test]
+    [Arguments("dirty")]
+    [Arguments("missing")]
+    [Arguments("moved")]
+    [Arguments("other-commit")]
+    [Arguments("symlink")]
+    [Arguments("hardlink")]
+    public async Task PackageSourceProjectionBindsRawBlobsOfExactCandidate(string state)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        string source = Path.Combine(fixture.RepositoryPath, "src/Configurator.Core/fixture.txt");
+        if (state is "dirty" or "other-commit") File.WriteAllText(source, "different relevant bytes\n");
+        if (state == "missing") File.Delete(source);
+        if (state == "moved") File.Move(source, source + ".moved");
+        if (state == "symlink")
+        {
+            File.Move(source, source + ".outside");
+            File.CreateSymbolicLink(source, source + ".outside");
+        }
+        if (state == "other-commit") fixture.CommitDifferentSourceAndRecapture();
+        if (state == "hardlink") fixture.HardlinkSource(source);
+
+        (int code, _) = fixture.Verify(fixture.B);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected).Because(state);
+        await Assert.That(File.Exists(fixture.CandidateManifestPath)).IsFalse();
+    }
+
+    [Test]
+    [Arguments("dirty")]
+    [Arguments("staged")]
+    [Arguments("missing")]
+    [Arguments("other-commit")]
+    [Arguments("conflicting-capture")]
+    public async Task FullCapturedTestInputsBindExactCandidateOutsideProductProjection(string state)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        string source = Path.Combine(fixture.RepositoryPath, PackageEvidenceFixture.TestSource);
+        string publicationSource = fixture.PackageEvidence.Source;
+        string publicationBuild = fixture.PackageEvidence.Build;
+        string payload = fixture.PackageEvidence.Payload;
+        using (JsonDocument check = JsonDocument.Parse(File.ReadAllBytes(
+            Path.Combine(fixture.PackageEvidence.CheckSession("Configurator.Core"), "capture.json"))))
+        {
+            string logical = "repo/" + PackageEvidenceFixture.TestSource;
+            await Assert.That(check.RootElement.GetProperty("inputs").EnumerateArray()
+                .Any(input => input.GetProperty("path").GetString() == logical)).IsTrue();
+            await Assert.That(check.RootElement.GetProperty("productSourceProjection").EnumerateArray()
+                .Any(input => input.GetProperty("path").GetString() == logical)).IsFalse();
+            await Assert.That(check.RootElement.GetProperty("productSourceInputsDigest").GetString())
+                .IsNotEqualTo(publicationSource);
+        }
+        if (state is "dirty" or "staged" or "other-commit") File.AppendAllText(source, "// Different test bytes.\n");
+        if (state == "staged") fixture.StageTestSource();
+        if (state == "missing") File.Delete(source);
+        if (state == "other-commit") fixture.CommitDifferentSourceAndRecapture();
+        if (state == "conflicting-capture") fixture.RecaptureConflictingTestInput();
+        await Assert.That(fixture.PackageEvidence.Source).IsEqualTo(publicationSource);
+        await Assert.That(fixture.PackageEvidence.Build).IsEqualTo(publicationBuild);
+        await Assert.That(fixture.PackageEvidence.Payload).IsEqualTo(payload);
+
+        (int code, string output) = fixture.Verify(fixture.B);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected).Because(state + ": " + output);
+        await Assert.That(File.Exists(fixture.CandidateManifestPath)).IsFalse();
+    }
+
+    [Test]
+    [Arguments("product-add")]
+    [Arguments("test-add")]
+    [Arguments("resource-add")]
+    [Arguments("import-add")]
+    [Arguments("remove")]
+    [Arguments("rename")]
+    public async Task CandidateRepositoryNamespaceRejectsUnconsumedNameChanges(string change)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        string candidate = fixture.ChangeCandidateNamespace(change);
+
+        (int code, string output) = fixture.Verify(candidate);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected).Because(change + ": " + output);
+        await Assert.That(File.Exists(fixture.CandidateManifestPath)).IsFalse();
+    }
+
+    [Test]
+    [Arguments("120000")]
+    [Arguments("160000")]
+    public async Task CandidateRepositoryNamespaceRejectsEligibleNonregularGitModes(string mode)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        string candidate = fixture.ChangeCandidateMode(PackageEvidenceFixture.UnconsumedSource, mode);
+
+        (int code, string output) = fixture.Verify(candidate);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected).Because(mode + ": " + output);
+        await Assert.That(File.Exists(fixture.CandidateManifestPath)).IsFalse();
+    }
+
+    [Test]
+    [Arguments("Configurator.Core")]
+    [Arguments("Configurator.Terminal")]
+    public async Task CandidateRepositoryNamespaceRejectsOneMismatchingRequiredCheck(string owner)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        fixture.PackageEvidence.OmitUnconsumedNamespaceFromCheck(owner);
+
+        (int code, string output) = fixture.Verify(fixture.B);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected).Because(owner + ": " + output);
+        await Assert.That(File.Exists(fixture.CandidateManifestPath)).IsFalse();
+    }
+
+    [Test]
+    public async Task CandidateRepositoryNamespaceRejectsInvalidUtf8GitNames()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        string candidate = fixture.CandidateWithInvalidUtf8Name();
+
+        (int code, string output) = fixture.Verify(candidate);
+
+        await Assert.That(code).IsEqualTo(Program.ToolchainRejected).Because(output);
+        await Assert.That(File.Exists(fixture.CandidateManifestPath)).IsFalse();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task CandidateRepositoryNamespaceUsesExactObjectInsteadOfHeadOrCheckout(bool committed)
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        fixture.AddUnrelatedEligibleWorkingFile(committed);
+
+        (int code, string output) = fixture.Verify(fixture.B);
+
+        await Assert.That(code).IsEqualTo(Program.Success).Because(output);
+    }
+
+    [Test]
+    public async Task CandidateRepositoryNamespaceAllowsExcludedMetadataLinks()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        string candidate = fixture.ChangeCandidateMode("docs/unrelated-link", "120000");
+
+        (int code, string output) = fixture.Verify(candidate);
+
+        await Assert.That(code).IsEqualTo(Program.Success).Because(output);
+    }
+
+    [Test]
+    public async Task DetachedMetadataCommitPreservesExactCandidatePackageBinding()
+    {
+        if (OperatingSystem.IsWindows()) return;
+        using var fixture = CandidateFixture.Create();
+        fixture.CommitUnrelatedMetadata();
+
+        (int code, string output) = fixture.Verify(fixture.B);
+
+        await Assert.That(code).IsEqualTo(Program.Success).Because(output);
+        using JsonDocument manifest = JsonDocument.Parse(File.ReadAllBytes(fixture.CandidateManifestPath));
+        await Assert.That(manifest.RootElement.GetProperty("packageProvenanceSha256").GetString()).IsEqualTo(fixture.PackageEvidence.ExpectedDigest);
+        await Assert.That(manifest.RootElement.GetProperty("payloadDigest").GetString()).IsEqualTo(fixture.PackageEvidence.Payload);
+        await Assert.That(manifest.RootElement.GetProperty("candidateOid").GetString()).IsEqualTo(fixture.B);
+    }
+
     [Test]
     [Arguments("untracked")]
     [Arguments("staged")]
@@ -268,6 +549,7 @@ public sealed class ReleaseCandidateVerificationTests
         private readonly string allowedSignersPath;
         private readonly string configPath;
         private readonly string executablePath;
+        internal PackageEvidenceFixture PackageEvidence { get; private set; }
 
         private CandidateFixture(string objectFormat, bool groupCorrection = false)
         {
@@ -290,6 +572,8 @@ public sealed class ReleaseCandidateVerificationTests
             Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
             Directory.CreateDirectory(authorityRoot);
             Git("init", $"--object-format={objectFormat}", "--initial-branch=main");
+            PackageEvidenceFixture.WriteSources(RepositoryPath);
+            PackageEvidenceFixture.CopyTools(bundleRoot);
             CreatePromotionAuthority();
             if (groupCorrection)
             {
@@ -311,6 +595,7 @@ public sealed class ReleaseCandidateVerificationTests
             Prepare(groupCorrection);
             Git("add", "docs/internal/releases/1.1.0");
             B = Commit("docs(release): prepare 1.1.0\n\nChangelog: skip\nChangelog-Reason: release metadata commit");
+            PackageEvidence = new PackageEvidenceFixture(Path.Combine(Root, "package-evidence"), RepositoryPath);
         }
 
         public string Root { get; }
@@ -344,6 +629,91 @@ public sealed class ReleaseCandidateVerificationTests
         public void DriftContext() => File.AppendAllText(ContextPath, " ");
         public void DeleteNotes() => File.Delete(NotesPath);
         public void DirtyUnrelatedFile() => File.AppendAllText(Path.Combine(RepositoryPath, "file.txt"), "unrelated dirty worktree state\n");
+        internal void CommitUnrelatedMetadata()
+        {
+            File.WriteAllText(Path.Combine(RepositoryPath, "docs/unrelated.md"), "detached metadata\n");
+            Commit("docs(release): update unrelated metadata\n\nChangelog: skip\nChangelog-Reason: Fixture metadata only.");
+        }
+        internal void CommitDifferentSourceAndRecapture()
+        {
+            Commit("chore(release): replace fixture source\n\nChangelog: skip\nChangelog-Reason: Test exact candidate bytes.");
+            PackageEvidence = new PackageEvidenceFixture(Path.Combine(Root, "replacement-evidence"), RepositoryPath);
+        }
+        internal void StageTestSource() => Git("add", PackageEvidenceFixture.TestSource);
+        internal void RecaptureConflictingTestInput() =>
+            PackageEvidence = new PackageEvidenceFixture(Path.Combine(Root, "conflicting-evidence"), RepositoryPath, conflictingTestInput: true);
+        internal string ChangeCandidateNamespace(string change)
+        {
+            string unused = Path.Combine(RepositoryPath, PackageEvidenceFixture.UnconsumedSource);
+            if (change == "remove") File.Delete(unused);
+            else if (change == "rename") File.Move(unused, unused + ".renamed.cs");
+            else
+            {
+                string path = change switch
+                {
+                    "product-add" => "src/Configurator.Core/NewMember.cs",
+                    "test-add" => "tests/NewAssertions.cs",
+                    "resource-add" => "src/Configurator.Core/NewResource.resx",
+                    "import-add" => "Directory.Build.targets",
+                    _ => throw new ArgumentException("Unknown fixture change.", nameof(change))
+                };
+                File.WriteAllText(Path.Combine(RepositoryPath, path), "// Newly eligible fixture member.\n");
+            }
+            Git("add", "--all");
+            return CandidateFromTree(Git("write-tree").Trim());
+        }
+        internal string ChangeCandidateMode(string relative, string mode)
+        {
+            string path = Path.Combine(RepositoryPath, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            if (!File.Exists(path)) File.WriteAllText(path, "inert-link-target");
+            Git("add", "--all");
+            string oid = mode == "160000" ? A : Git("hash-object", "-w", path).Trim();
+            Git("update-index", "--add", "--cacheinfo", mode + "," + oid + "," + relative);
+            return CandidateFromTree(Git("write-tree").Trim());
+        }
+        internal void AddUnrelatedEligibleWorkingFile(bool committed)
+        {
+            File.WriteAllText(Path.Combine(RepositoryPath, "src/Configurator.Core/LaterMember.cs"), "// Later work.\n");
+            if (committed) Commit("chore(release): retain later work\n\nChangelog: skip\nChangelog-Reason: Test exact object selection.");
+        }
+        internal string CandidateWithInvalidUtf8Name()
+        {
+            string oid = Git("rev-parse", B + ":file.txt").Trim();
+            byte[] entries = [.. Encoding.UTF8.GetBytes(Git("ls-tree", "-z", B)),
+                .. Encoding.ASCII.GetBytes("100644 blob " + oid + "\tinvalid-"), 0xff, 0];
+            return CandidateFromTree(GitWithInput(entries, "mktree", "-z").Trim());
+        }
+        private string CandidateFromTree(string tree) =>
+            Git("-c", "user.name=Release Test", "-c", "user.email=release@example.invalid",
+                "commit-tree", tree, "-p", A, "-m",
+                "docs(release): prepare 1.1.0\n\nChangelog: skip\nChangelog-Reason: release metadata commit").Trim();
+        private string GitWithInput(byte[] input, params string[] arguments)
+        {
+            var start = new ProcessStartInfo("/usr/bin/git") { WorkingDirectory = RepositoryPath, UseShellExecute = false,
+                RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
+                StandardInputEncoding = new UTF8Encoding(false, true) };
+            start.Environment["GIT_CONFIG_NOSYSTEM"] = "1";
+            start.Environment["GIT_CONFIG_GLOBAL"] = "/dev/null";
+            start.ArgumentList.Add("-c");
+            start.ArgumentList.Add("core.hooksPath=/dev/null");
+            foreach (string argument in arguments) start.ArgumentList.Add(argument);
+            using Process process = Process.Start(start)!;
+            Task<string> stdout = process.StandardOutput.ReadToEndAsync();
+            Task<string> stderr = process.StandardError.ReadToEndAsync();
+            process.StandardInput.BaseStream.Write(input);
+            process.StandardInput.Close();
+            try { Task.WhenAll(process.WaitForExitAsync(), stdout, stderr).WaitAsync(TimeSpan.FromSeconds(10)).GetAwaiter().GetResult(); }
+            catch (TimeoutException) { process.Kill(entireProcessTree: true); throw; }
+            if (process.ExitCode != 0) throw new InvalidOperationException("fixture_git_input_failed");
+            return stdout.Result;
+        }
+        internal void HardlinkSource(string source) => RunProcess("/usr/bin/ln", null, source, source + ".alias");
+        internal void RemoveVerifierAssetAndReadmit()
+        {
+            File.Delete(Path.Combine(bundleRoot, "bin/package-verification/support/Configurator.SupportQualification.dll"));
+            RewriteManifestAndReceipt();
+        }
 
         public void ReplaceNotesWithSymlink()
         {
@@ -359,7 +729,7 @@ public sealed class ReleaseCandidateVerificationTests
             return oid;
         }
 
-        public (int ExitCode, string Output) Verify(string candidateOid)
+        public (int ExitCode, string Output) Verify(string candidateOid, bool includePackageEvidence = true, string[]? packageArguments = null)
         {
             var variables = new Dictionary<string, string>(StringComparer.Ordinal)
             {
@@ -380,7 +750,9 @@ public sealed class ReleaseCandidateVerificationTests
                 foreach ((string name, string value) in variables) Environment.SetEnvironmentVariable(name, value);
                 using RuntimePromotionTrustRootScope trustRoot = RuntimePromotionTrustRootScope.Use(allowedSignersPath);
                 using var output = new StringWriter();
-                int exitCode = CandidateCommand.Run(["verify-candidate", "docs/internal/releases/1.1.0", candidateOid], output, RepositoryPath, "linux-x64", TimeSpan.FromSeconds(2));
+                int exitCode = CandidateCommand.Run(["verify-candidate", "docs/internal/releases/1.1.0", candidateOid,
+                    .. includePackageEvidence ? packageArguments ?? PackageEvidence.Arguments : []],
+                    output, RepositoryPath, "linux-x64", TimeSpan.FromSeconds(2));
                 return (exitCode, output.ToString());
             }
             finally

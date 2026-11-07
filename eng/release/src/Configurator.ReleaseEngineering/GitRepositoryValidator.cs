@@ -510,7 +510,7 @@ public static class GitRepositoryValidator
             File.WriteAllText(deterministicEnvironment["GIT_CONFIG_GLOBAL"], string.Empty);
             using var process = new Process
             {
-                StartInfo = new ProcessStartInfo("git")
+                StartInfo = new ProcessStartInfo(ReleaseToolPaths.Git)
                 {
                     UseShellExecute = false,
                     RedirectStandardOutput = true,

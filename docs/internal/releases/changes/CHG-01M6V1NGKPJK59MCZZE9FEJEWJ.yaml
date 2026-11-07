@@ -1,0 +1,29 @@
+Change-Id: CHG-01M6V1NGKPJK59MCZZE9FEJEWJ
+Title: "Bind release candidates to complete package evidence"
+Type: fix
+Scope: release
+Summary: "Require detached package proof, controlled full-owner checks and the exact candidate repository namespace through a packaged verifier runtime before candidate acceptance."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: eng/release/README.md
+    Disposition: documented
+    Detail: "Candidate verification requires detached package operands, complete controlled owner checks and packaged verification tools; prior candidate manifests and verifier profiles must be recreated."
+  Security:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: mitigated
+    Detail: "Verify the complete eligible candidate namespace and consumed Git blob identities with fixed verifier-owned requirements; caller claims cannot reduce owner coverage."
+  Migration:
+    Reference: eng/release/README.md
+    Disposition: documented
+    Detail: "Update verify-candidate callers and assemble a fresh unsigned verifier bundle for independent review and promotion; local assembly creates no signing authority."
+  Configuration:
+    Reference: eng/release/README.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: documented
+    Detail: "Complete real capture, retained evidence and separately authorized Configurator trust remain required; synthetic verification does not close those gates."

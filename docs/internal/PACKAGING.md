@@ -676,6 +676,32 @@ outcome. Focused, failed, skipped or unbound checks cannot satisfy a required
 full owner. Test/publication graphs compare their relevant product-source
 projections rather than requiring identical complete graphs.
 
+### Candidate-bound repository namespace
+
+Capture records require `repositoryNamespace`: the sorted, unique eligible
+`repo/` aliases frozen before evaluation and build. Verification compares that
+set with the private session and actual frozen repository. Missing fields
+reject; old records are not silently upgraded.
+
+Standalone local integrity verification can omit candidate context. Candidate
+verification additionally invokes the fixed capture tool with
+`--verify SESSION --repository-names FILE` for publication and all ten required
+test sessions before accepting native package proof. `FILE` is a private,
+strict UTF-8 JSON array containing the exact candidate object's complete,
+sorted, unique Git leaf names as canonical `repo/` aliases. It is bounded to
+16 MiB, 100,000 names and 4,096 UTF-16 characters per alias. The capture owner
+validates all aliases before applying its existing eligibility and exclusion
+policy; the candidate verifier does not maintain a second classifier.
+
+After native verification, the verified eligible namespace determines which
+Git entries must have regular-file modes. Full captured repository inputs,
+including test sources outside the product projection, also bind their lengths
+and digests to the exact candidate's raw blobs. Name completeness, consumed
+bytes and actual check execution are separate requirements. Synthetic attacks
+prove rejection behavior, not completeness of an actual publication capture.
+The authenticated verifier profile and its independently authorized promotion
+remain G-TRUST requirements; this local mechanism activates no signer or key.
+
 ### Detached identity chain and local limits
 
 The acyclic chain is verified source/build identities, sorted payload inventory,

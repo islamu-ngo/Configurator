@@ -206,8 +206,54 @@ After `prepare` output is committed as final preparation commit `B`,
 
 ```bash
 dotnet run --project eng/release/src/Configurator.ReleaseEngineering/Configurator.ReleaseEngineering.csproj --configuration Release -- \
-  verify-candidate docs/internal/releases/<version> <full-B-oid>
+  verify-candidate docs/internal/releases/<version> <full-B-oid> \
+  --package <package-directory> --manifest <provenance-file> \
+  --capture <publish-capture-session> --source <source-sha256> \
+  --build <build-sha256> --payload <payload-sha256> \
+  --payload-prefix <captured-publish-prefix> \
+  --evidence <qualification-directory> --evidence-digest <qualification-sha256> \
+  --checks <check-session-list> --client <client> --package-rid <rid> \
+  --expected-digest <provenance-sha256>
 ```
+
+The promoted bundle must include the compiled package verification profile.
+`TrustedBundleRuntime` stages and rehashes that authenticated profile before
+running its fixed provenance entry point with the installed .NET executable.
+The profile contains the provenance, capture, support and test-evidence tools,
+their declared runtime closure, capability admission data and the MIT license.
+Candidate or capture-session executables, build/restore commands and injected
+.NET runtime settings are not execution authorities.
+
+Candidate verification independently requires full-owner execution evidence
+for all ten owners: AgentWorkflow, Architecture, Artifacts, Browser, Cli, Core,
+Desktop, Presentation, ReleaseEngineering and Terminal. Callers cannot supply
+`--required-checks` or substitute focused runs. Relevant repository entries in
+the full publication and test inputs must match the exact candidate's raw Git
+blobs, including test inputs outside the product-source projection. A dirty
+checkout or another candidate's consumed bytes cannot satisfy this binding.
+
+The verifier also supplies the exact candidate object's complete Git leaf-name
+set to the fixed capture verifier for publication and all ten test sessions.
+The capture owner applies its own eligibility and exclusion policy and requires
+the frozen, private and public repository namespaces to agree. Eligible entries
+must be regular Git blobs; links and submodules cannot supply captured inputs.
+This closes omissions that a comparison of consumed byte hashes alone cannot
+detect. See the [namespace contract](../../docs/internal/PACKAGING.md#candidate-bound-repository-namespace).
+
+To assemble an unsigned bundle locally, prepare a compiled profile directory
+with `provenance/`, `capture/`, `support/`, `evidence/`, `admission/` and
+`licenses/` entries. Use the fixed closure accepted by
+`TrustedBundleRuntime.ValidateProfile`, without apphosts, debug symbols,
+diagnostic tools or signer roots. Then run:
+
+```bash
+dotnet run --file eng/release/AssembleTrustedBundle.cs -- \
+  --base <existing-bundle> --profile <compiled-profile> --output <new-bundle>
+```
+
+Assembly is create-only and updates the complete inventory. It creates no
+signature, promotion receipt or trust root. A separately authorized promotion
+must bind the assembled bytes before the bundle can verify a candidate.
 
 It never commits, tags, pushes, fetches or executes candidate code. It recomputes
 the descriptor-selected range through exact `B`, requires `B`'s terminal

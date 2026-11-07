@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -17,6 +18,53 @@ public static class ReleaseArtifactPolicy
     public const int MaximumCollectionItems = 1_024;
 
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
+
+    internal static byte[] ReadRegularFile(string path, long maximumBytes)
+    {
+        for (string? current = Path.GetFullPath(path); current is not null; current = Path.GetDirectoryName(current))
+            if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                throw new InvalidDataException("artifact_alias_invalid");
+        if ((File.GetAttributes(path) & (FileAttributes.Directory | FileAttributes.Device)) != 0)
+            throw new InvalidDataException("artifact_file_invalid");
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo("/usr/bin/stat")
+                {
+                    UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true
+                }
+            };
+            process.StartInfo.ArgumentList.Add(OperatingSystem.IsLinux() ? "-c" : "-f");
+            process.StartInfo.ArgumentList.Add(OperatingSystem.IsLinux() ? "%f %h" : "%p %l");
+            process.StartInfo.ArgumentList.Add(Path.GetFullPath(path));
+            process.Start();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            Task<string> stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
+            Task<string> stderr = process.StandardError.ReadToEndAsync(timeout.Token);
+            try
+            {
+                Task.WhenAll(process.WaitForExitAsync(timeout.Token), stdout, stderr).GetAwaiter().GetResult();
+                string[] fields = stdout.Result.Trim().Split(' ');
+                if (process.ExitCode != 0 || stderr.Result.Length != 0 || fields.Length != 2 ||
+                    fields[0].Length > 8 || fields[1] != "1" ||
+                    (Convert.ToUInt32(fields[0], OperatingSystem.IsLinux() ? 16 : 8) & 0xf000) != 0x8000)
+                    throw new InvalidDataException("artifact_file_invalid");
+            }
+            catch (OperationCanceledException)
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+                throw;
+            }
+        }
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (stream.Length > maximumBytes) throw new InvalidDataException("artifact_size_invalid");
+        var bytes = new byte[checked((int)stream.Length)];
+        stream.ReadExactly(bytes);
+        if (stream.ReadByte() != -1) throw new InvalidDataException("artifact_size_invalid");
+        return bytes;
+    }
+
     private static readonly Regex SecretPattern = new("(?:-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|\\bBearer\\s+[A-Za-z0-9._~+/=-]{16,}|\\b(?:gh[pousr]_|github_pat_|glpat-|xox[baprs]-)[A-Za-z0-9_-]{8,}|\\b(?:password|passwd|client_secret|api[_-]?key|(?:access|output)[_-]?token|refresh[_-]?token)\\s*[:=]\\s*\\S+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
     private static readonly Regex IdentityOrProviderPattern = new("(?:(?<![\\p{L}\\p{N}._%+-])[\\p{L}\\p{N}._%+-]+@[\\p{L}\\p{N}.-]+\\.[\\p{L}]{2,}|https?://(?:www\\.)?(?:github\\.com|gitlab\\.com|codeberg\\.org|bitbucket\\.org)/\\S+|(?<![\\w@])@[A-Za-z0-9][A-Za-z0-9-]{0,38}(?![\\w-])|\\b(?:workflow|pipeline|job|run)[ _-]?id\\s*[:=]\\s*[0-9]{3,}\\b)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
     private static readonly Regex RawHtmlPattern = new("<\\s*(?:!|/?[A-Za-z])[^>]*>", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));

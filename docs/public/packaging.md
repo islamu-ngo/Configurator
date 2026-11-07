@@ -70,6 +70,13 @@ It does not admit other task factories or establish arbitrary file-read
 mediation. A complete publication capture must still pass every other
 consumer boundary before provenance can be sealed.
 
+Candidate verification checks both the complete eligible repository file set
+and the consumed bytes against the exact Git candidate, including required
+test inputs. A matching subset of file hashes is insufficient. The
+[candidate namespace procedure](../internal/PACKAGING.md#candidate-bound-repository-namespace)
+explains this additional boundary; unsigned local consistency does not activate
+release trust.
+
 | Surface | Target Platform / Architecture | Runtime Identifier (RID) | Package Executable / Output Root |
 |---|---|---|---|
 | **[CLI](cli.md)** | Linux (glibc) x64 / Arm64<br/>Linux (musl) x64 / Arm64<br/>macOS Intel / Apple Silicon<br/>Windows 10/11 x64 | `linux-x64`<br/>`linux-arm64`<br/>`linux-musl-x64`<br/>`linux-musl-arm64`<br/>`osx-x64`, `osx-arm64`<br/>`win-x64` | `artifacts/configurator/cli/<rid>/islamu-configurator`<br/>*(Windows: `.exe`)* |

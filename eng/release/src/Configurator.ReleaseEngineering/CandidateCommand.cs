@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -8,13 +9,15 @@ namespace Configurator.ReleaseEngineering;
 public static class CandidateCommand
 {
     private const int MaximumGitOutputCharacters = 65_536;
+    private const int MaximumGitNamespaceBytes = PackageEvidencePolicy.MaximumJsonBytes
+        + PackageEvidencePolicy.MaximumRepositoryNames * 80;
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     private static readonly Regex FullOidPattern = new("^(?:[0-9a-f]{40}|[0-9a-f]{64})$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
 
     public static int Run(string[] args, TextWriter output, string repositoryRoot, string platform, TimeSpan timeout)
     {
-        if (args.Length != 3)
+        if (args.Length < 3)
         {
             output.WriteLine("invalid_arguments: verify-candidate requires release directory and candidate oid");
             return Program.UsageError;
@@ -46,6 +49,10 @@ public static class CandidateCommand
             {
                 return Reject(output, "candidate_trusted_bundle_invalid");
             }
+
+            PackageEvidenceOperands? packageOperands = PackageEvidencePolicy.ParseArguments(args[3..]);
+            if (packageOperands is null)
+                return Reject(output, "candidate_package_evidence_required");
 
             BundleDigests bundleDigests = ReadBundleDigests(trusted.Bundle.Root);
 
@@ -213,6 +220,19 @@ public static class CandidateCommand
                 return Reject(output, "candidate_release_notes_mismatch");
             }
 
+            using TrustedBundleRuntime verifier = TrustedBundleRuntime.Stage(trusted.Bundle, root, packageVerification: true);
+            Dictionary<string, string> repositoryModes = ReadCandidateRepositoryModes(root, candidateOid);
+            string[] repositoryNames = repositoryModes.Keys.Order(StringComparer.Ordinal).ToArray();
+            TrustedBundleRuntime.VerifiedPackageEvidence? verifiedPackage = verifier.VerifyPackage(packageOperands, repositoryNames);
+            if (verifiedPackage is null)
+                return Reject(output, "candidate_package_evidence_invalid");
+            PackageEvidenceBinding package = PackageEvidencePolicy.Bind(verifiedPackage, packageOperands);
+            if (package.RepositoryNamespace.Any(name => !repositoryModes.TryGetValue(name, out string? mode)
+                || mode is not ("100644" or "100755")))
+                return Reject(output, "candidate_package_namespace_mode_invalid");
+            if (!PackageSourcesMatch(root, candidateOid, package.RepositoryInputs))
+                return Reject(output, "candidate_package_source_mismatch");
+
             byte[] manifest = BuildManifest(
                 git.Identity,
                 descriptor,
@@ -224,7 +244,8 @@ public static class CandidateCommand
                 releaseSourceDocuments,
                 summaryBytes,
                 committedContext,
-                committedNotes);
+                committedNotes,
+                package);
 
             // The manifest is derived entirely from immutable objects, but the *refs* naming the base
             // and previous tags could be recreated while this command runs. Re-resolving them around
@@ -249,7 +270,7 @@ public static class CandidateCommand
                 manifestCreated = true;
             }
 
-            if (!ObjectAnchorsUnchanged(root, git.Identity))
+            if (!ObjectAnchorsUnchanged(root, git.Identity) || !PackageSourcesMatch(root, candidateOid, package.RepositoryInputs))
             {
                 if (manifestCreated && File.Exists(manifestPath)) File.Delete(manifestPath);
                 return Reject(output, "candidate_object_anchors_moved");
@@ -258,7 +279,9 @@ public static class CandidateCommand
             output.WriteLine($"release_candidate_verified: {Path.GetRelativePath(root, manifestPath).Replace(Path.DirectorySeparatorChar, '/')}");
             return Program.Success;
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or DecoderFallbackException or JsonException or InvalidOperationException)
+        catch (Exception exception) when (exception is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException or DecoderFallbackException
+            or JsonException or InvalidOperationException or KeyNotFoundException or OverflowException or OperationCanceledException
+            or System.ComponentModel.Win32Exception)
         {
             return Reject(output, "candidate_input_invalid");
         }
@@ -322,7 +345,8 @@ public static class CandidateCommand
         IReadOnlyList<string> releaseSourceDocuments,
         byte[] summaryBytes,
         byte[] contextBytes,
-        byte[] notesBytes)
+        byte[] notesBytes,
+        PackageEvidenceBinding package)
     {
         string json = JsonSerializer.Serialize(new
         {
@@ -356,6 +380,13 @@ public static class CandidateCommand
             releaseSummarySha256 = Sha256(summaryBytes),
             releaseContextSha256 = Sha256(contextBytes),
             releaseNotesSha256 = Sha256(notesBytes),
+            packageProvenanceSha256 = package.ProvenanceDigest,
+            productSourceInputsDigest = package.ProductSourceInputsDigest,
+            buildRecipeDigest = package.BuildRecipeDigest,
+            payloadDigest = package.PayloadDigest,
+            evidenceSetDigest = package.EvidenceSetDigest,
+            packageClient = package.Client,
+            packageRid = package.PackageRid,
         }, JsonOptions);
         ArtifactPolicyResult normalized = ReleaseArtifactPolicy.NormalizeJson(json);
         if (!normalized.IsValid || normalized.Bytes is null)
@@ -453,6 +484,87 @@ public static class CandidateCommand
         return FullOidPattern.IsMatch(committed.Trim()) && string.Equals(committed.Trim(), observed, StringComparison.Ordinal);
     }
 
+    private static bool PackageSourcesMatch(string root, string candidateOid, IReadOnlyList<CapturedRepositoryInput> inputs)
+    {
+        foreach (CapturedRepositoryInput input in inputs)
+        {
+            string path = ResolveChild(root, input.Path, mustExist: true);
+            for (string? parent = Path.GetDirectoryName(path); parent is not null; parent = Path.GetDirectoryName(parent))
+                if (IsLink(parent)) return false;
+            if (IsDirty(root, path)) return false;
+            byte[] bytes = ReleaseArtifactPolicy.ReadRegularFile(path, 512L * 1024 * 1024);
+            if (bytes.LongLength != input.Length || Sha256(bytes) != input.Sha256) return false;
+            string tree = RunGit(root, "ls-tree", "-z", "--full-name", candidateOid, "--", input.Path);
+            int tab = tree.IndexOf('\t');
+            if (tab < 0 || tree[(tab + 1)..] != input.Path + "\0") return false;
+            string[] fields = tree[..tab].Split(' ');
+            if (fields.Length != 3 || fields[0] is not ("100644" or "100755") || fields[1] != "blob"
+                || !FullOidPattern.IsMatch(fields[2])) return false;
+            HashAlgorithmName algorithm = candidateOid.Length == 40 ? HashAlgorithmName.SHA1 : HashAlgorithmName.SHA256;
+            using IncrementalHash hash = IncrementalHash.CreateHash(algorithm);
+            hash.AppendData(Encoding.ASCII.GetBytes("blob " + bytes.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\0"));
+            hash.AppendData(bytes);
+            if (Convert.ToHexStringLower(hash.GetHashAndReset()) != fields[2]) return false;
+        }
+        return true;
+    }
+
+    private static Dictionary<string, string> ReadCandidateRepositoryModes(string root, string candidateOid)
+    {
+        using Process process = CreateGitProcess(root, ["ls-tree", "-r", "-z", "--full-tree", candidateOid]);
+        byte[] bytes;
+        try
+        {
+            process.Start();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            Task<byte[]> stdout = ReadGitNamespaceAsync(process.StandardOutput.BaseStream, timeout.Token);
+            Task<string> stderr = ReadBoundedAsync(process.StandardError, timeout.Token);
+            Task.WhenAll(process.WaitForExitAsync(timeout.Token), stdout, stderr).GetAwaiter().GetResult();
+            if (process.ExitCode != 0 || stderr.Result.Length != 0) throw new IOException("candidate_git_failed");
+            bytes = stdout.Result;
+        }
+        catch (Exception error) when (error is IOException or InvalidOperationException or OperationCanceledException
+            or System.ComponentModel.Win32Exception)
+        {
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
+            throw new IOException("candidate_git_failed", error);
+        }
+        string entries = StrictUtf8.GetString(bytes);
+        if (entries.Length == 0 || entries[^1] != '\0') throw new InvalidDataException("candidate_repository_namespace_invalid");
+        var modes = new Dictionary<string, string>(StringComparer.Ordinal);
+        int offset = 0;
+        while (offset < entries.Length)
+        {
+            int end = entries.IndexOf('\0', offset);
+            int tab = entries.IndexOf('\t', offset, end - offset);
+            if (end <= offset || tab <= offset) throw new InvalidDataException("candidate_repository_namespace_invalid");
+            string[] header = entries[offset..tab].Split(' ');
+            string alias = "repo/" + entries[(tab + 1)..end];
+            if (header.Length != 3 || header[2].Length != candidateOid.Length || !FullOidPattern.IsMatch(header[2])
+                || !((header[0] is "100644" or "100755" or "120000") && header[1] == "blob"
+                    || header[0] == "160000" && header[1] == "commit")
+                || !PackageEvidencePolicy.IsRepositoryAlias(alias)
+                || modes.Count >= PackageEvidencePolicy.MaximumRepositoryNames || !modes.TryAdd(alias, header[0]))
+                throw new InvalidDataException("candidate_repository_namespace_invalid");
+            offset = end + 1;
+        }
+        return modes;
+    }
+
+    private static async Task<byte[]> ReadGitNamespaceAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        using var output = new MemoryStream();
+        var buffer = new byte[65_536];
+        while (true)
+        {
+            int available = Math.Min(buffer.Length, MaximumGitNamespaceBytes - checked((int)output.Length) + 1);
+            int read = await stream.ReadAsync(buffer.AsMemory(0, available), cancellationToken);
+            if (read == 0) return output.ToArray();
+            if (output.Length + read > MaximumGitNamespaceBytes) throw new OperationCanceledException();
+            output.Write(buffer, 0, read);
+        }
+    }
+
     /// <summary>
     /// Confirms the annotated tags that bound the release range still resolve to the objects the
     /// manifest recorded. Tag refs are immutable by policy but deletable in practice, so this closes
@@ -505,9 +617,29 @@ public static class CandidateCommand
 
     private static string RunGit(string repositoryRoot, params string[] arguments)
     {
-        using var process = new System.Diagnostics.Process
+        using Process process = CreateGitProcess(repositoryRoot, arguments);
+        try
         {
-            StartInfo = new System.Diagnostics.ProcessStartInfo("git")
+            process.Start();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            Task<string> standardOutput = ReadBoundedAsync(process.StandardOutput, timeout.Token);
+            Task<string> standardError = ReadBoundedAsync(process.StandardError, timeout.Token);
+            Task.WhenAll(process.WaitForExitAsync(timeout.Token), standardOutput, standardError).GetAwaiter().GetResult();
+            if (process.ExitCode != 0 || standardError.Result.Length != 0) throw new IOException();
+            return standardOutput.Result;
+        }
+        catch (Exception exception) when (exception is OperationCanceledException or InvalidOperationException or IOException or System.ComponentModel.Win32Exception)
+        {
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
+            throw new IOException("candidate_git_failed", exception);
+        }
+    }
+
+    private static Process CreateGitProcess(string repositoryRoot, string[] arguments)
+    {
+        var process = new Process
+        {
+            StartInfo = new ProcessStartInfo(ReleaseToolPaths.Git)
             {
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
@@ -521,6 +653,7 @@ public static class CandidateCommand
         process.StartInfo.Environment["GIT_NO_REPLACE_OBJECTS"] = "1";
         process.StartInfo.Environment["GIT_NO_LAZY_FETCH"] = "1";
         process.StartInfo.ArgumentList.Add("--no-replace-objects");
+        process.StartInfo.ArgumentList.Add("--literal-pathspecs");
         process.StartInfo.ArgumentList.Add("-c");
         process.StartInfo.ArgumentList.Add($"core.hooksPath={nullDevice}");
         foreach (string argument in arguments)
@@ -528,25 +661,7 @@ public static class CandidateCommand
             process.StartInfo.ArgumentList.Add(argument);
         }
 
-        try
-        {
-            process.Start();
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            Task<string> standardOutput = ReadBoundedAsync(process.StandardOutput, timeout.Token);
-            Task<string> standardError = ReadBoundedAsync(process.StandardError, timeout.Token);
-            Task.WhenAll(process.WaitForExitAsync(timeout.Token), standardOutput, standardError).GetAwaiter().GetResult();
-            if (process.ExitCode != 0 || standardError.Result.Length != 0)
-            {
-                throw new IOException();
-            }
-
-            return standardOutput.Result;
-        }
-        catch (Exception exception) when (exception is OperationCanceledException or InvalidOperationException or IOException or System.ComponentModel.Win32Exception)
-        {
-            if (!process.HasExited) process.Kill(entireProcessTree: true);
-            throw new IOException("candidate_git_failed", exception);
-        }
+        return process;
     }
 
     private static async Task<string> ReadBoundedAsync(StreamReader reader, CancellationToken cancellationToken)

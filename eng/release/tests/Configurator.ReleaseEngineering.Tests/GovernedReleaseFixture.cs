@@ -38,6 +38,7 @@ internal sealed class GovernedReleaseFixture : IDisposable
     private readonly string configPath;
     private readonly string executablePath;
     private readonly List<string> clonePaths = [];
+    private readonly Dictionary<string, PackageEvidenceFixture> packageEvidence = new(StringComparer.Ordinal);
 
     private GovernedReleaseFixture(string objectFormat, bool firstGovernedRelease = false, string? rendererBundle = null, bool categorized = false, bool groupCorrection = false)
     {
@@ -63,6 +64,8 @@ internal sealed class GovernedReleaseFixture : IDisposable
         CreatePromotionAuthority();
         CreateReleaseAuthority();
         WriteWorkspace();
+        PackageEvidenceFixture.WriteSources(RepositoryPath);
+        PackageEvidenceFixture.CopyTools(bundleRoot);
         if (groupCorrection)
             File.AppendAllText(Path.Join(RepositoryPath, "docs/internal/releases/changes/CHG-2026-0001.yaml"), "Group: original-group\n");
         if (categorized) WriteUpgradeFragment();
@@ -178,13 +181,23 @@ internal sealed class GovernedReleaseFixture : IDisposable
         }
     }
 
-    public (int ExitCode, string Output) VerifyCandidate(string version, string candidateOid, string? repositoryPath = null) =>
-        RunWithEnvironment(writer => CandidateCommand.Run(
-            ["verify-candidate", $"docs/internal/releases/{version}", candidateOid],
+    public (int ExitCode, string Output) VerifyCandidate(string version, string candidateOid, string? repositoryPath = null)
+    {
+        if (!packageEvidence.TryGetValue(version, out PackageEvidenceFixture? evidence))
+        {
+            evidence = new PackageEvidenceFixture(Path.Combine(Root, "package-evidence-" + version), RepositoryPath);
+            packageEvidence.Add(version, evidence);
+        }
+        return RunWithEnvironment(writer => CandidateCommand.Run(
+            ["verify-candidate", $"docs/internal/releases/{version}", candidateOid, .. evidence.Arguments],
             writer,
             repositoryPath ?? RepositoryPath,
             "linux-x64",
             CommandTimeout));
+    }
+
+    internal PackageEvidenceFixture EvidenceFor(string version) => packageEvidence[version];
+    internal void ReadmitBundle() => RewriteManifestAndReceipt();
 
     public (int ExitCode, string Output) VerifyTag(string version, string candidateOid, string tagObjectId, string? repositoryPath = null) =>
         RunWithEnvironment(writer => TagCommand.Run(
