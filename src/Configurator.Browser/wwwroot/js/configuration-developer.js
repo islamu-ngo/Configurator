@@ -5,8 +5,18 @@ export function createBridge() {
   let active = null;
   let fence = 0;
 
+  function bound(owned) {
+    return owned.host?.isConnected && owned.consent?.isConnected &&
+      owned.consent.checked && owned.consent.dataset.workspaceLifetime === owned.workspaceLifetime &&
+      owned.host.dataset.editorLifetime === owned.editorLifetime;
+  }
+
   function current(token, version) {
     const owned = active;
+    if (owned && !bound(owned)) {
+      retire(owned.token);
+      throw new Error("developer-stale");
+    }
     if (!owned || token !== owned.token || token <= fence ||
         (version !== undefined && !owned.editor.isCurrent(version)))
       throw new Error("developer-stale");
@@ -45,6 +55,7 @@ export function createBridge() {
     clearRead(owned);
     owned.locations = null;
     owned.callback = null;
+    owned.consent = null;
     try { owned.editor.dispose(); }
     finally {
       owned.editor = null;
@@ -58,10 +69,12 @@ export function createBridge() {
       const source = options.source;
       try {
         if (token <= fence || active) throw new Error("developer-stale");
-        const workspace = host.closest(".configuration-editor");
-        const consent = workspace?.querySelector("#secret-consent") ?? null;
-        if (consent && !consent.checked) throw new Error("developer-consent-required");
-        const owned = { token, host, callback, consent, editor: null, transfer: null, locations: null, suppress: false, historyLimited: false };
+        const consent = options.consent;
+        const owned = { token, host, callback, consent, workspaceLifetime: options.workspaceLifetime,
+          editorLifetime: options.editorLifetime, editor: null, transfer: null, locations: null, suppress: false, historyLimited: false };
+        if (!(consent instanceof HTMLInputElement) || consent.type !== "checkbox" ||
+            !owned.workspaceLifetime || !owned.editorLifetime || !bound(owned))
+          throw new Error("developer-consent-required");
         owned.revoke = () => {
           if (!consent.checked) retire(token);
         };
@@ -70,6 +83,7 @@ export function createBridge() {
           ...options,
           onChange: metadata => {
             if (active !== owned || owned.suppress || token <= fence) return;
+            if (!bound(owned)) { retire(token); return; }
             owned.historyLimited ||= metadata.historyLimited === true;
             clearRead(owned);
             owned.locations = null;
@@ -78,7 +92,7 @@ export function createBridge() {
           }
         });
         active = owned;
-        consent?.addEventListener("change", owned.revoke, true);
+        consent.addEventListener("change", owned.revoke, true);
         globalThis.addEventListener("configurator-custody-abandoned", owned.abandon);
         return owned.editor.version;
       } finally {

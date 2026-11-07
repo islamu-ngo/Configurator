@@ -18,12 +18,15 @@ public partial class ConfigurationDeveloper : ComponentBase
     [Parameter] public string? EnvironmentArtifactId { get; set; }
     [Parameter] public EventCallback<bool> DirtyChanged { get; set; }
     [Parameter] public EventCallback RequestConsent { get; set; }
+    [Parameter] public Func<ElementReference>? ConsentControl { get; set; }
+    [Parameter] public string WorkspaceLifetime { get; set; } = string.Empty;
 
     private ElementReference _heading;
     public ElementReference? Heading => _disposed ? null : _heading;
 
     private readonly string _id = "developer-" + Guid.NewGuid().ToString("N");
     private DefinitionFormModel? _observedForm;
+    private string _observedWorkspaceLifetime = string.Empty;
     private DefinitionDocumentSession? _session;
     private DefinitionDocumentParseResult? _preview;
     private DefinitionDocumentRepresentation _representation;
@@ -34,6 +37,7 @@ public partial class ConfigurationDeveloper : ComponentBase
     private IJSObjectReference? _bridge;
     private IJSObjectReference? _rendering;
     private byte[]? _mountSource;
+    private byte[]? _formatSource;
     private DotNetObjectReference<ConfigurationDeveloper>? _callback;
     private CancellationTokenSource? _operation;
     private CancellationTokenSource _lifetime = new();
@@ -86,11 +90,12 @@ public partial class ConfigurationDeveloper : ComponentBase
 
     protected override void OnParametersSet()
     {
-        if (!ReferenceEquals(_observedForm, Form))
+        if (!ReferenceEquals(_observedForm, Form) || _observedWorkspaceLifetime != WorkspaceLifetime)
         {
             Unsubscribe();
             _retirement = RetireAsync();
             _observedForm = Form;
+            _observedWorkspaceLifetime = WorkspaceLifetime;
             _privacy = Form.SessionPrivacy;
             _artifactId = EnvironmentArtifactId;
             _representation = DefinitionDocumentRepresentation.Canonical;
@@ -167,6 +172,8 @@ public partial class ConfigurationDeveloper : ComponentBase
         {
             await _retirement;
             if (!LeaseCurrent(owner, session, token)) return;
+            if (ConsentControl is null || string.IsNullOrEmpty(WorkspaceLifetime))
+                throw new JSException("developer-consent-required");
             if (_module is null)
             {
                 IJSObjectReference module = await Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-developer.js");
@@ -177,6 +184,11 @@ public partial class ConfigurationDeveloper : ComponentBase
             {
                 IJSObjectReference bridge = await _module.InvokeAsync<IJSObjectReference>("createBridge");
                 if (!LeaseCurrent(owner, session, token)) { await bridge.DisposeAsync(); return; }
+                if (bridge is not IJSInProcessObjectReference)
+                {
+                    await bridge.DisposeAsync();
+                    throw new JSException("developer-synchronous-retirement-required");
+                }
                 _bridge = bridge;
             }
             if (!LeaseCurrent(owner, session, token)) return;
@@ -230,12 +242,13 @@ public partial class ConfigurationDeveloper : ComponentBase
     private bool LeaseCurrent(long generation, DefinitionDocumentSession session, CancellationToken token) =>
         !_disposed && !_retired && !token.IsCancellationRequested && generation == _generation
         && ReferenceEquals(_observedForm, Form) && ReferenceEquals(_session, session) && Permitted
+        && _observedWorkspaceLifetime == WorkspaceLifetime
         && Form.InputRevision == session.InputRevision && Form.Definition.Digest == session.DefinitionDigest;
     private bool ModelCurrent(long generation, DefinitionDocumentSession session, long version, CancellationToken token) =>
         _modelReady && version == _version && LeaseCurrent(generation, session, token);
 
     private EditorOptions Options(byte[] source) => new(source, RepresentationName, Text("EditorLabel"), HelpId,
-        Form.Locale, CompletionItems(), EditorPhrases());
+        Form.Locale, CompletionItems(), EditorPhrases(), ConsentControl!(), WorkspaceLifetime, _id);
 
     private Dictionary<string, string> EditorPhrases() => new()
     {
@@ -456,8 +469,7 @@ public partial class ConfigurationDeveloper : ComponentBase
         try
         {
             // WASM's in-process invocation closes the DOM/model boundary synchronously.
-            if (bridge is IJSInProcessObjectReference synchronous) synchronous.InvokeVoid("retire", generation);
-            else if (bridge is not null) await bridge.InvokeVoidAsync("retire", generation);
+            if (bridge is not null) ((IJSInProcessObjectReference)bridge).InvokeVoid("retire", generation);
         }
         catch (JSException) { if (!_disposed) SetStatus("Unavailable", "developer-retire-failed"); }
         finally { callback?.Dispose(); }
@@ -494,6 +506,7 @@ public partial class ConfigurationDeveloper : ComponentBase
 
     public sealed record CompletionItem(string Label, string Apply, string Detail, string Type);
     public sealed record EditorOptions(byte[] Source, string Representation, string Label, string DescribedBy,
-        string Locale, IReadOnlyList<CompletionItem> CompletionItems, Dictionary<string, string> Phrases);
+        string Locale, IReadOnlyList<CompletionItem> CompletionItems, Dictionary<string, string> Phrases,
+        ElementReference Consent, string WorkspaceLifetime, string EditorLifetime);
     public sealed record EditorState(long Version, bool Dirty, bool HistoryLimited);
 }

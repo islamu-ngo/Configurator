@@ -17,6 +17,61 @@ using Microsoft.JSInterop;
 public sealed class BrowserDeveloperEditingTests
 {
     [Test]
+    public async Task MissingConsentBindingNeverAcquiresSource()
+    {
+        await using var context = BrowserFixture.Context();
+        using var form = Form();
+        await using var engine = Boundary(context);
+        var component = context.Render<ConfigurationDeveloper>(parameters => parameters.Add(item => item.Form, form));
+        await Assert.That(engine.Active).IsFalse();
+        await Assert.That(engine.MountSource).IsNull();
+        await Assert.That(component.Find("[data-developer-status]").GetAttribute("data-code")).IsEqualTo("developer-unavailable");
+    }
+
+    [Test]
+    [Arguments("revoke")]
+    [Arguments("replacement")]
+    [Arguments("dispose")]
+    public async Task RetirementClearsFormattingTransferBeforeHeldReplacementReturns(string transition)
+    {
+        await using var context = BrowserFixture.Context();
+        using var form = Form();
+        using var replacement = Form(false);
+        await using var engine = Boundary(context);
+        var component = Render(context, form);
+        await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await component.InvokeAsync(() => engine.ChangeAsync(Pending));
+        engine.ReplaceRelease = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task formatting = Click(component, "developer-format");
+        await engine.ReplaceStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        if (transition == "revoke") await component.InvokeAsync(() => form.SetSecretEntryEnabled(false));
+        else if (transition == "replacement")
+            await component.InvokeAsync(() => component.Render(parameters => parameters.Add(item => item.Form, replacement)));
+        else await component.InvokeAsync(async () => await component.Instance.DisposeAsync());
+        bool clearedBeforeReturn = engine.LastReplacement!.All(value => value == 0);
+        engine.ReplaceRelease.TrySetResult();
+        await formatting.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(clearedBeforeReturn).IsTrue();
+        await Assert.That(component.Instance.HasWork).IsFalse();
+        await Assert.That(form.Snapshot().Values).IsEmpty();
+    }
+
+    [Test]
+    public async Task RootSuppliesExactConsentAndEditorLifetimes()
+    {
+        await using var context = BrowserFixture.Context();
+        await using var engine = Boundary(context);
+        var root = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await root.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs());
+        var panel = root.FindComponent<ConfigurationDeveloper>();
+        await panel.InvokeAsync(() => panel.Instance.Form.SetSecretEntryEnabled(true));
+        await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(engine.Options!.Consent.Id).IsNotNull();
+        await Assert.That(engine.Options.WorkspaceLifetime).IsEqualTo(root.Find("#secret-consent").GetAttribute("data-workspace-lifetime"));
+        await Assert.That(engine.Options.EditorLifetime).IsEqualTo(panel.Find("[data-developer-editor]").GetAttribute("data-editor-lifetime"));
+    }
+
+    [Test]
     [Arguments("apply")]
     [Arguments("discard")]
     [Arguments("stay")]
@@ -818,7 +873,9 @@ public sealed class BrowserDeveloperEditingTests
         return boundary;
     }
     private static IRenderedComponent<ConfigurationDeveloper> Render(BunitContext context, DefinitionFormModel form, string? artifact = null) =>
-        context.Render<ConfigurationDeveloper>(parameters => parameters.Add(item => item.Form, form).Add(item => item.EnvironmentArtifactId, artifact));
+        context.Render<ConfigurationDeveloper>(parameters => parameters.Add(item => item.Form, form).Add(item => item.EnvironmentArtifactId, artifact)
+            .Add(item => item.ConsentControl, () => new ElementReference("synthetic-consent"))
+            .Add(item => item.WorkspaceLifetime, "synthetic-workspace"));
     private static Task Click(IRenderedComponent<ConfigurationDeveloper> component, string action) =>
         component.Find($"[data-action='{action}']").ClickAsync(new MouseEventArgs());
 
@@ -842,7 +899,7 @@ public sealed class BrowserDeveloperEditingTests
 
     // Only the external engine boundary is replaced. Parsing, candidates, consent,
     // accepted answers and revisions are the real Presentation/Core owners.
-    private sealed class EditorBoundary(IJSRuntime fallback) : IJSRuntime, IJSObjectReference
+    private sealed class EditorBoundary(IJSRuntime fallback) : IJSRuntime, IJSInProcessObjectReference
     {
         private byte[] _source = [];
         private bool _dirty;
@@ -866,6 +923,8 @@ public sealed class BrowserDeveloperEditingTests
         internal TaskCompletionSource? FreezeRelease { get; set; }
         internal TaskCompletionSource? FrameRelease { get; set; }
         internal TaskCompletionSource? TaskRelease { get; set; }
+        internal TaskCompletionSource ReplaceStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource? ReplaceRelease { get; set; }
         internal ConfigurationDeveloper? Owner { get; private set; }
         internal long Generation { get; private set; }
         internal long Version { get; private set; }
@@ -875,6 +934,7 @@ public sealed class BrowserDeveloperEditingTests
         internal byte[]? LastRead { get; private set; }
         internal byte[]? MountSource { get; private set; }
         internal byte[]? LastReplacement { get; private set; }
+        internal ConfigurationDeveloper.EditorOptions? Options { get; private set; }
         internal IReadOnlyList<ConfigurationDeveloper.CompletionItem> Completions { get; private set; } = [];
         internal string CurrentText => Encoding.UTF8.GetString(_source);
 
@@ -890,6 +950,20 @@ public sealed class BrowserDeveloperEditingTests
             if (!Active || Owner is null) throw new InvalidOperationException("editor-retired");
             AdvanceWithoutNotification(text);
             return Owner.OnEditorChangedAsync(Generation, Version, true, false);
+        }
+        public TValue Invoke<TValue>(string identifier, params object?[]? args)
+        {
+            if (identifier != "retire") throw new JSException("unexpected-synchronous-invocation");
+            if (args is not null && (long)args[0]! >= Generation) Retire();
+            return default!;
+        }
+        private void Retire()
+        {
+            Active = false;
+            Owner = null;
+            Completions = [];
+            CryptographicOperations.ZeroMemory(_source);
+            _source = [];
         }
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
             InvokeAsync<TValue>(identifier, CancellationToken.None, args);
@@ -937,6 +1011,7 @@ public sealed class BrowserDeveloperEditingTests
                 Generation = (long)args![0]!;
                 Owner = ((DotNetObjectReference<ConfigurationDeveloper>)args[2]!).Value;
                 var options = (ConfigurationDeveloper.EditorOptions)args[3]!;
+                Options = options;
                 MountSource = options.Source;
                 CryptographicOperations.ZeroMemory(_source);
                 _source = options.Source.ToArray();
@@ -984,6 +1059,9 @@ public sealed class BrowserDeveloperEditingTests
             {
                 RequireVersion(args!);
                 LastReplacement = (byte[])args![2]!;
+                ReplaceStarted.TrySetResult();
+                if (ReplaceRelease is not null) await ReplaceRelease.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                RequireVersion(args);
                 CryptographicOperations.ZeroMemory(_source);
                 _source = LastReplacement.ToArray();
                 Version++;
@@ -993,11 +1071,7 @@ public sealed class BrowserDeveloperEditingTests
             }
             else if (identifier == "retire" && args is not null && (long)args[0]! >= Generation)
             {
-                Active = false;
-                Owner = null;
-                Completions = [];
-                CryptographicOperations.ZeroMemory(_source);
-                _source = [];
+                Retire();
             }
             return result is null ? default! : (TValue)result;
         }
@@ -1005,7 +1079,7 @@ public sealed class BrowserDeveloperEditingTests
         {
             if (!Active || (long)args[0]! != Generation || (long)args[1]! != Version) throw new JSException("developer-stale");
         }
-        public ValueTask DisposeAsync()
+        public void Dispose()
         {
             DisposeCount++;
             if (_delayedHandleReturned) LateHandleDisposed.TrySetResult();
@@ -1013,6 +1087,10 @@ public sealed class BrowserDeveloperEditingTests
             _source = [];
             Active = false;
             Owner = null;
+        }
+        public ValueTask DisposeAsync()
+        {
+            Dispose();
             return ValueTask.CompletedTask;
         }
     }

@@ -112,6 +112,7 @@
                 </div>
             }
             <ConfigurationDeveloper @key="(_form, _developerEpoch)" @ref="_developerPanel" Form="_form"
+                                    ConsentControl="() => _consentControl" WorkspaceLifetime="@_workspaceLifetime"
                                     EnvironmentArtifactId="@DeveloperArtifactId"
                                     DirtyChanged="_ => { if (IsCurrentView(actionForm, actionView)) _navigation?.RefreshWork(this, _navigationLease); }"
                                     RequestConsent="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }" />
@@ -308,7 +309,7 @@
         <details class="configuration-editor__privacy" data-secret-consent open="@_consentOpen">
             <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _consentOpen = !_consentOpen; }" @onclick:preventDefault>@UiText("ReviewSecretConsent")</summary>
             <div class="configuration-editor__consent">
-                <input @ref="_consentControl" id="secret-consent" type="checkbox" checked="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
+                <input @ref="_consentControl" id="secret-consent" type="checkbox" data-workspace-lifetime="@_workspaceLifetime" checked="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
                        aria-describedby="session-boundary secret-consent-help" @onchange="args => IsCurrentView(actionForm, actionView) ? ConsentAsync(args) : Task.CompletedTask" />
                 <div>
                     <label for="secret-consent">@UiText("EnableWorkspaceSecrets")</label>

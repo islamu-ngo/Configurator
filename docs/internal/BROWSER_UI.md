@@ -181,6 +181,11 @@ invalidate newly reopened authority. Revocation's capture-phase listener
 destroys JS state synchronously before asynchronous managed cleanup. Retirement
 clears reads, candidates, diagnostics, callbacks and listeners; it does not
 promise physical string erasure.
+The bridge receives the explicit consent checkbox reference together with the
+workspace and editor identities; it does not discover custody through ancestor
+DOM queries. Synchronous retirement requires the in-process browser JS bridge.
+Managed `_formatSource` bytes are cleared immediately on revocation,
+replacement and disposal, before any held format operation returns.
 Explicit user cancellation requests focus on the rendered retirement notice,
 whose next Tab stop is the reopen action. The request is generation-fenced and
 cleared by subsequent retirement; consent revocation, replacement and disposal

@@ -1,0 +1,28 @@
+Change-Id: CHG-01M6V4AAFS85P9VW2KV6PS80NK
+Title: "Bind browser developer buffers to live workspace consent"
+Type: fix
+Scope: privacy
+Summary: "Require the actual consent control and workspace/editor lifetimes for raw developer models, retire stale JavaScript buffers and clear owned formatting bytes on cancellation."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: mitigated
+    Detail: "Bind raw models to the explicit live consent checkbox and workspace/editor markers, require synchronous browser retirement, and zero owned formatting bytes during cancellation."
+  Migration:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "First-party component callers supply ConsentControl and WorkspaceLifetime together with the in-process bridge; no ancestor-query or asynchronous-retirement fallback remains."
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Existing explicit workspace consent remains necessary. Browser retirement does not promise physical string erasure or native protected-save guarantees."

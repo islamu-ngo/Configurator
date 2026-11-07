@@ -24,6 +24,8 @@ public partial class ConfigurationDeveloper
 
     private void CancelOperation()
     {
+        if (_formatSource is { } source) CryptographicOperations.ZeroMemory(source);
+        _formatSource = null;
         _operation?.Cancel();
         _operation?.Dispose();
         _operation = null;
@@ -184,7 +186,7 @@ public partial class ConfigurationDeveloper
             using DefinitionDocumentParseResult parsed = await session.ParseAsync(async cancellation =>
             {
                 byte[] source = await ReadEditorAsync(generation, session, version, bridge, cancellation);
-                try { formatted = FormatSource(source, session.Representation); }
+                try { _formatSource = formatted = FormatSource(source, session.Representation); }
                 catch (Exception exception) when (exception is DefinitionException or JsonException or InvalidOperationException)
                 { /* The owning session returns the value-free diagnostic; invalid text remains untouched. */ }
                 return source;
@@ -208,6 +210,7 @@ public partial class ConfigurationDeveloper
             await SetDirtyAsync(state.Dirty);
             if (!ModelCurrent(generation, session, state.Version, token)) return;
         }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         catch (JSException)
         {
             if (LeaseCurrent(generation, session, token)) SetStatus("Unavailable", "developer-unavailable");
@@ -215,6 +218,7 @@ public partial class ConfigurationDeveloper
         finally
         {
             if (formatted is not null) CryptographicOperations.ZeroMemory(formatted);
+            if (ReferenceEquals(_formatSource, formatted)) _formatSource = null;
             if (LeaseCurrent(generation, session, token)) _busy = false;
         }
     }

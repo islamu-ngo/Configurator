@@ -73,7 +73,7 @@
                 <summary>@Text("EditorHelpTitle")</summary>
                 <p id="@HelpId" class="configuration-developer__help">@Text("EditorHelp")</p>
             </details>
-            <div @ref="_host" class="configuration-developer__editor" data-developer-editor dir="ltr"></div>
+            <div @ref="_host" class="configuration-developer__editor" data-developer-editor data-editor-lifetime="@_id" dir="ltr"></div>
         </div>
         <div class="actions configuration-developer__actions">
             <AppButton Variant="Variant.Outlined" data-action="developer-preview" Disabled="@(!_modelReady || _busy)" OnClick="PreviewAsync">@Text("Preview")</AppButton>

@@ -72,6 +72,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private long _focusGeneration;
     private bool _returnToReview;
     private ElementReference _consentControl;
+    private string _workspaceLifetime = Guid.NewGuid().ToString("N");
     private long _generation;
     private CancellationTokenSource _mountCancellation = new();
     private Task _outputRetirement = Task.CompletedTask;
@@ -134,6 +135,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
             BrowserLaunchSelection.EditingCapabilities, Definition.Presentation is null
                 ? DefinitionEditorVisibilityPolicy.Direct : DefinitionEditorVisibilityPolicy.Authored);
+        _workspaceLifetime = Guid.NewGuid().ToString("N");
         if (Definition.Presentation is not null) _form.SetDisclosureOverride(FieldDisclosure.Essential);
         if (InitialLocale is not null && !_form.SelectLocale(InitialLocale))
             throw new InvalidOperationException("locale-unsupported");
@@ -648,6 +650,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             _form = new DefinitionFormModel(Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
                 editorVisibility: Definition.Presentation is null
                     ? DefinitionEditorVisibilityPolicy.Direct : DefinitionEditorVisibilityPolicy.Authored);
+            _workspaceLifetime = Guid.NewGuid().ToString("N");
             if (Definition.Presentation is not null) _form.SetDisclosureOverride(FieldDisclosure.Essential);
             _compact = false;
             _consentOpen = false;
