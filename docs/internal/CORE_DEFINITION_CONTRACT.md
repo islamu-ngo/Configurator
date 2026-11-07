@@ -630,6 +630,16 @@ erase outstanding target-owned obligations.
 policy retain their independent writer role. Event manifest/tenant/legal DTO and
 platform catalogue ownership does not move into Core. `CompositionCompiler`
 is a bounded offline normalizer, not an Event DTO builder.
+Its ordered `IEnumerable<CompositionSource>` overload accepts existing immutable
+JSON/YAML sources without paths. Input bytes, normalized nodes, scalar totals,
+YAML parser events and merged mapping cardinality are aggregate ceilings;
+serialized JSON must also fit the 4 MiB source/output ceiling. Each successful
+YAML parser advance charges stream/document markers, keys and container endings
+to the same compilation budget. JSON fragments do not reset that budget or
+consume YAML events. Separate compilations, definition admission and imports
+retain independent budgets. Directory traversal, source rechecks and the native
+barrier belong to Artifacts, as described in the
+[native acquisition decision](adr/ADR-native-directory-acquisition.md).
 `SecretGenerator` consumes the admitted `DefinitionSecretSpecification`, not
 Event keys or environment-specific credential hints. Shared validation,
 generation eligibility, entropy floors and result disposal belong to the

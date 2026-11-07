@@ -1,4 +1,4 @@
-namespace Configurator.Core.Composition;
+namespace Configurator.Artifacts.Composition;
 
 using System.Text.Json;
 

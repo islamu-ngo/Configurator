@@ -14,6 +14,23 @@ public sealed class CoreArchitectureTests
     private static readonly Assembly ProductAssembly = typeof(ArtifactDigest).Assembly;
 
     [Test]
+    public async Task CompiledVerifierRejectsNativeImportsInsideComposition()
+    {
+        AssemblyBuilder assembly = AssemblyBuilder.DefineDynamicAssembly(
+            new AssemblyName("Configurator.SyntheticNativeBoundary"), AssemblyBuilderAccess.Run);
+        TypeBuilder type = assembly.DefineDynamicModule("main").DefineType(
+            "Configurator.Core.Composition.NativeCanary", TypeAttributes.NotPublic);
+        type.DefinePInvokeMethod("ReadNative", "libc", "getpid",
+            MethodAttributes.Static | MethodAttributes.PinvokeImpl,
+            CallingConventions.Standard, typeof(int), Type.EmptyTypes,
+            System.Runtime.InteropServices.CallingConvention.Cdecl,
+            System.Runtime.InteropServices.CharSet.Ansi);
+        Type compiled = type.CreateType()!;
+        await Assert.That(SetupCoreAssemblyVerifier.VerifyTypes([compiled], assembly))
+            .IsNotEmpty();
+    }
+
+    [Test]
     public async Task ProductAssemblyKeepsApprovedDependenciesAndBoundedCryptoAuthority()
     {
         string[] violations = SetupCoreAssemblyVerifier.VerifyAssembly(ProductAssembly);
@@ -100,7 +117,7 @@ public sealed class CoreArchitectureTests
 
         await Assert.That(assemblyViolations).HasSingleItem();
         await Assert.That(assemblyViolations[0]).Contains("Unapproved.Dependency");
-        await Assert.That(exact).IsEmpty().Because(string.Join("; ", exact));
+        await Assert.That(exact.Any(item => item.Contains("ambient call", StringComparison.Ordinal))).IsTrue();
         await Assert.That(denied.Any(item =>
             item.Contains(canaries.ChildNamespaceIo.FullName!, StringComparison.Ordinal)
             && item.Contains("namespace", StringComparison.Ordinal))).IsTrue();
@@ -350,6 +367,12 @@ internal static class SetupCoreAssemblyVerifier
                         failures.Add($"ambient call {type.FullName}.{method.Name} -> {called.DeclaringType?.FullName}.{called.Name}");
                 }
             }
+            foreach (MethodInfo method in type.GetMethods(
+                         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.DeclaredOnly))
+            {
+                if ((method.Attributes & MethodAttributes.PinvokeImpl) != 0)
+                    failures.Add($"native import {type.FullName}.{method.Name}");
+            }
 
             foreach (Type dependency in ReferencedTypes(type)
                          .SelectMany(TypeClosure)
@@ -573,10 +596,10 @@ internal static class SetupCoreAssemblyVerifier
             && caller == typeof(Configurator.Core.Definitions.Authoring.DefinitionAuthoringIdentityEditor)
             && called.DeclaringType == typeof(StringReader))
             return true;
-        string calledNamespace = called.DeclaringType?.Namespace ?? string.Empty;
         if (IsReviewedAssembly(caller.Assembly, reviewedAssembly)
-            && caller.Namespace == CompositionNamespace
-            && calledNamespace.StartsWith("System.IO", StringComparison.Ordinal))
+            && caller == typeof(Configurator.Core.Composition.CompositionCompiler).Assembly.GetType(
+                "Configurator.Core.Composition.CompositionYamlParser")
+            && called.DeclaringType == typeof(StringReader))
             return true;
         return caller.FullName == "Configurator.Core.Secrets.SecretGenerator"
             && (called.DeclaringType == typeof(System.Security.Cryptography.RandomNumberGenerator)

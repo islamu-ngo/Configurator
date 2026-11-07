@@ -9,6 +9,20 @@ Each file is prepared anonymously and installed atomically with create-only,
 owner-only (`0600`) protection. Existing files are never overwritten and there is
 no ordinary-file fallback. A multi-file bundle is not one atomic transaction.
 
+Native integrations that combine a directory use
+`Configurator.Artifacts.Composition.CompositionDirectoryCompiler`. Directory
+access is Linux-only, requires supported x64/arm64 native interfaces, and refuses
+links, special entries, unsafe names, collisions and changed sources. Core
+accepts only bounded in-memory JSON/YAML fragments.
+
+The compiler prepares a valid serialized candidate before invoking its single
+caller barrier, then checks cancellation and recaptures the directory.
+An earlier input, grammar, merge or output-limit failure invokes no barrier.
+Observed cancellation returns `Cancelled`; a later source mismatch returns
+`SourceChanged`. Failed results expose no output. This operation does not save,
+apply or grant target acceptance. Linux x64 execution does not qualify arm64,
+other libc implementations or every filesystem.
+
 ---
 
 ## Linux Protected Save Lifecycle

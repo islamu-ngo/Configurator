@@ -15,46 +15,49 @@ public sealed class CompositionCompiler
 
     public ValueTask<CompositionResult> CompileAsync(
         CompositionSource source, CancellationToken cancellationToken = default) =>
-        CompileAsync(source, CompositionImmediatePublicationCommitBarrier.Instance, cancellationToken);
+        CompileAsync([source], cancellationToken);
 
-    public async ValueTask<CompositionResult> CompileAsync(
-        CompositionSource source, ICompositionPublicationCommitBarrier publicationCommitBarrier,
+    /// <summary>Compiles ordered, path-free fragments under one aggregate semantic budget.</summary>
+    public ValueTask<CompositionResult> CompileAsync(
+        IEnumerable<CompositionSource> sources,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(source);
-        ArgumentNullException.ThrowIfNull(publicationCommitBarrier);
+        ArgumentNullException.ThrowIfNull(sources);
+        return ValueTask.FromResult(Compile(sources, cancellationToken));
+    }
 
+    private CompositionResult Compile(IEnumerable<CompositionSource> sources, CancellationToken cancellationToken)
+    {
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            CompositionMap normalized;
-            bool barrierAlreadyApplied = false;
-            switch (source)
+            var budget = new CompositionBudget(_limits);
+            var fragments = new List<CompositionMap>();
+            int bytes = 0;
+            foreach (CompositionSource source in sources)
             {
-                case CompositionJsonSource json:
-                    normalized = CompositionNormalizer.ParseJson(
-                        json.Bytes, _limits, cancellationToken);
-                    break;
-                case CompositionYamlSource yaml:
-                    normalized = CompositionYamlParser.Parse(
-                        yaml.Bytes, _limits, cancellationToken);
-                    break;
-                case CompositionDirectorySource directory:
-                    normalized = await CompositionDirectoryReader.ReadAsync(
-                        directory, _limits, publicationCommitBarrier, cancellationToken).ConfigureAwait(false);
-                    barrierAlreadyApplied = true;
-                    break;
-                default:
-                    throw new CompositionException(CompositionFailureCode.InvalidSource);
+                cancellationToken.ThrowIfCancellationRequested();
+                ReadOnlyMemory<byte> input = source switch
+                {
+                    CompositionJsonSource json => json.Bytes,
+                    CompositionYamlSource yaml => yaml.Bytes,
+                    _ => throw new CompositionException(CompositionFailureCode.InvalidSource)
+                };
+                bytes = checked(bytes + input.Length);
+                if (bytes > _limits.AggregateSourceBytes)
+                    throw new CompositionException(CompositionFailureCode.LimitExceeded);
+                fragments.Add(source is CompositionJsonSource
+                    ? CompositionNormalizer.ParseJson(input, _limits, cancellationToken, budget)
+                    : CompositionYamlParser.Parse(input, _limits, cancellationToken, budget));
             }
-
+            CompositionMap normalized = CompositionNormalizer.Merge(fragments, _limits, cancellationToken);
+            if (normalized.Entries.Count > _limits.MappingEntries)
+                throw new CompositionException(CompositionFailureCode.LimitExceeded);
             cancellationToken.ThrowIfCancellationRequested();
             byte[] normalizedJson = CompositionNormalizer.WriteJson(normalized, cancellationToken);
             if (normalizedJson.Length > _limits.AggregateSourceBytes)
                 throw new CompositionException(CompositionFailureCode.LimitExceeded);
             CompositionResult result = CompositionResult.Success(normalizedJson);
-            if (!barrierAlreadyApplied)
-                await publicationCommitBarrier.AwaitPublicationCommitAsync(cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             return result;
         }
@@ -66,8 +69,11 @@ public sealed class CompositionCompiler
         {
             return CompositionResult.Failed(exception.Code);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
-            or NotSupportedException or ArgumentException or OverflowException)
+        catch (OverflowException)
+        {
+            return CompositionResult.Failed(CompositionFailureCode.LimitExceeded);
+        }
+        catch (ArgumentException)
         {
             return CompositionResult.Failed(CompositionFailureCode.InvalidSource);
         }

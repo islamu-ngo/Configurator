@@ -1,38 +1,38 @@
-namespace Configurator.Core.Composition;
+namespace Configurator.Artifacts.Composition;
 
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using Configurator.Core.Composition;
 using Microsoft.Win32.SafeHandles;
+using static LinuxDirectoryInterop;
 
 internal static class CompositionDirectoryReader
 {
-    internal static async ValueTask<CompositionMap> ReadAsync(
-        CompositionDirectorySource source, CompositionLimits limits,
+    internal static async ValueTask<CompositionResult> ReadAsync(
+        string rootDirectory, CompositionDirectoryLimits limits,
         ICompositionPublicationCommitBarrier barrier, CancellationToken cancellationToken)
     {
         if (!OperatingSystem.IsLinux())
             throw new CompositionException(CompositionFailureCode.UnsupportedFilesystem);
 
-        string root = Path.GetFullPath(source.RootDirectory);
+        string root = Path.GetFullPath(rootDirectory);
         if (!Path.IsPathFullyQualified(root))
             throw new CompositionException(CompositionFailureCode.UnsafePath);
 
         DirectorySnapshot first = await CaptureAsync(root, limits, cancellationToken).ConfigureAwait(false);
-        var budget = new CompositionBudget(limits);
-        var fragments = new List<CompositionMap>(first.Files.Count);
+        var fragments = new List<CompositionSource>(first.Files.Count);
         foreach (SnapshotFile file in first.Files)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            CompositionMap fragment = file.Format == FragmentFormat.Json
-                ? CompositionNormalizer.ParseJson(file.Bytes, limits, cancellationToken, budget)
-                : CompositionYamlParser.Parse(file.Bytes, limits, cancellationToken, budget);
-            if (budget.Nodes > limits.AggregateDirectoryNodes)
-                throw new CompositionException(CompositionFailureCode.LimitExceeded);
-            fragments.Add(fragment);
+            fragments.Add(file.Format == FragmentFormat.Json
+                ? new CompositionJsonSource(file.Bytes)
+                : new CompositionYamlSource(file.Bytes));
         }
 
-        CompositionMap merged = CompositionNormalizer.Merge(fragments, limits, cancellationToken);
+        CompositionResult candidate = await new CompositionCompiler().CompileAsync(
+            fragments, cancellationToken).ConfigureAwait(false);
+        if (!candidate.Succeeded) return candidate;
+        cancellationToken.ThrowIfCancellationRequested();
         await barrier.AwaitPublicationCommitAsync(cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         DirectorySnapshot second;
@@ -46,11 +46,12 @@ internal static class CompositionDirectoryReader
         }
         if (!first.IdentityEquals(second))
             throw new CompositionException(CompositionFailureCode.SourceChanged);
-        return merged;
+        cancellationToken.ThrowIfCancellationRequested();
+        return candidate;
     }
 
     private static async ValueTask<DirectorySnapshot> CaptureAsync(
-        string root, CompositionLimits limits, CancellationToken cancellationToken)
+        string root, CompositionDirectoryLimits limits, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         NativeIdentity rootIdentity = NativeIdentity.ReadPath(root);
@@ -126,7 +127,7 @@ internal static class CompositionDirectoryReader
                 try { aggregateBytes = checked(aggregateBytes + file.Bytes.Length); }
                 catch (OverflowException) { throw new CompositionException(CompositionFailureCode.LimitExceeded); }
                 if (aggregateBytes > limits.AggregateDirectoryBytes
-                    || aggregateBytes > limits.AggregateSourceBytes)
+                    || aggregateBytes > CompositionLimits.DefaultAggregateSourceBytes)
                     throw new CompositionException(CompositionFailureCode.LimitExceeded);
                 files.Add(file);
             }
@@ -143,7 +144,7 @@ internal static class CompositionDirectoryReader
 
     private static async ValueTask<SnapshotFile> ReadFileAsync(
         SafeFileHandle rootHandle, string relative, FragmentFormat format,
-        NativeIdentity discovered, CompositionLimits limits, CancellationToken cancellationToken)
+        NativeIdentity discovered, CompositionDirectoryLimits limits, CancellationToken cancellationToken)
     {
         using SafeFileHandle handle = NativeMethods.OpenRelative(rootHandle, relative, directory: false);
         NativeIdentity before = NativeIdentity.ReadHandle(handle);
@@ -169,7 +170,7 @@ internal static class CompositionDirectoryReader
     }
 
     private static void ValidateRelativePath(
-        string relative, CompositionLimits limits, Dictionary<string, string> identities)
+        string relative, CompositionDirectoryLimits limits, Dictionary<string, string> identities)
     {
         if (relative.Length == 0 || relative.Length > limits.RelativePathCharacters
             || Path.IsPathFullyQualified(relative) || Path.IsPathRooted(relative)
@@ -245,114 +246,4 @@ internal static class CompositionDirectoryReader
         }
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    private readonly record struct NativeIdentity(
-        ulong Device, ulong Inode, ulong LinkCount, uint Mode, uint UserId, uint GroupId,
-        int Padding, ulong DeviceType, long Size, long BlockSize, long Blocks,
-        long AccessSeconds, long AccessNanoseconds, long ModifySeconds, long ModifyNanoseconds,
-        long ChangeSeconds, long ChangeNanoseconds, long Reserved0, long Reserved1, long Reserved2)
-    {
-        private const uint TypeMask = 0xF000;
-        private const uint Regular = 0x8000;
-        private const uint Directory = 0x4000;
-        private const uint SymbolicLink = 0xA000;
-
-        internal bool IsRegularFile => (Mode & TypeMask) == Regular;
-        internal bool IsDirectory => (Mode & TypeMask) == Directory;
-        internal bool IsLink => (Mode & TypeMask) == SymbolicLink;
-        internal bool IsSpecial => !IsRegularFile && !IsDirectory && !IsLink;
-
-        internal bool StableEquals(NativeIdentity other) =>
-            Device == other.Device && Inode == other.Inode && LinkCount == other.LinkCount
-            && Mode == other.Mode && UserId == other.UserId && GroupId == other.GroupId
-            && DeviceType == other.DeviceType && Size == other.Size && Blocks == other.Blocks
-            && ModifySeconds == other.ModifySeconds && ModifyNanoseconds == other.ModifyNanoseconds
-            && ChangeSeconds == other.ChangeSeconds && ChangeNanoseconds == other.ChangeNanoseconds;
-
-        internal static NativeIdentity ReadPath(string path)
-        {
-            if (NativeMethods.LStat(path, out NativeIdentity identity) != 0)
-                throw new CompositionException(CompositionFailureCode.UnsafeEntry);
-            return identity;
-        }
-
-        internal static NativeIdentity ReadHandle(SafeFileHandle handle)
-        {
-            if (NativeMethods.FStat(handle, out NativeIdentity identity) != 0)
-                throw new CompositionException(CompositionFailureCode.UnsupportedFilesystem);
-            return identity;
-        }
-    }
-
-    private static class NativeMethods
-    {
-        private const int ReadOnly = 0;
-        private const int CloseOnExec = 0x80000;
-        private const int NoFollow = 0x20000;
-        private const int Directory = 0x10000;
-        private const long OpenAt2SystemCall = 437;
-        private const ulong ResolveNoCrossDevice = 0x01;
-        private const ulong ResolveNoMagicLinks = 0x02;
-        private const ulong ResolveNoSymbolicLinks = 0x04;
-        private const ulong ResolveBeneath = 0x08;
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct OpenHow
-        {
-            internal ulong Flags;
-            internal ulong Mode;
-            internal ulong Resolve;
-        }
-
-        [DllImport("libc", EntryPoint = "open", SetLastError = true)]
-        private static extern int Open(byte[] path, int flags);
-
-        [DllImport("libc", EntryPoint = "syscall", SetLastError = true)]
-        private static extern long SystemCall(long number, int directoryFileDescriptor,
-            byte[] path, ref OpenHow how, nuint size);
-
-        [DllImport("libc", EntryPoint = "lstat", SetLastError = true)]
-        private static extern int LStatNative(byte[] path, out NativeIdentity identity);
-
-        internal static int LStat(string path, out NativeIdentity identity) =>
-            LStatNative(Utf8Path(path), out identity);
-
-        [DllImport("libc", EntryPoint = "fstat", SetLastError = true)]
-        internal static extern int FStat(SafeFileHandle handle, out NativeIdentity identity);
-
-        internal static SafeFileHandle OpenRoot(string root)
-        {
-            int descriptor = Open(Utf8Path(root), ReadOnly | CloseOnExec | NoFollow | Directory);
-            if (descriptor < 0)
-                throw new CompositionException(CompositionFailureCode.UnsupportedFilesystem);
-            return new SafeFileHandle((IntPtr)descriptor, ownsHandle: true);
-        }
-
-        internal static SafeFileHandle OpenRelative(SafeFileHandle root, string relative, bool directory)
-        {
-            var how = new OpenHow
-            {
-                Flags = (ulong)(ReadOnly | CloseOnExec | NoFollow | (directory ? Directory : 0)),
-                Resolve = ResolveNoCrossDevice | ResolveNoMagicLinks | ResolveNoSymbolicLinks | ResolveBeneath
-            };
-            long descriptor = SystemCall(OpenAt2SystemCall, root.DangerousGetHandle().ToInt32(),
-                Utf8Path(relative), ref how, (nuint)Marshal.SizeOf<OpenHow>());
-            if (descriptor < 0)
-                throw new CompositionException(CompositionFailureCode.UnsafeEntry);
-            return new SafeFileHandle(checked((IntPtr)descriptor), ownsHandle: true);
-        }
-
-        internal static NativeIdentity OpenIdentity(SafeFileHandle root, string relative, bool directory)
-        {
-            using SafeFileHandle handle = OpenRelative(root, relative, directory);
-            return NativeIdentity.ReadHandle(handle);
-        }
-
-        private static byte[] Utf8Path(string path)
-        {
-            byte[] bytes = Encoding.UTF8.GetBytes(path);
-            Array.Resize(ref bytes, checked(bytes.Length + 1));
-            return bytes;
-        }
-    }
 }

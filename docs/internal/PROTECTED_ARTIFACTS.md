@@ -75,6 +75,30 @@ infer that failure means no file was installed.
 
 ## Bounded native input lifetime
 
+`Configurator.Artifacts.Composition.CompositionDirectoryCompiler` owns bounded
+Linux directory acquisition. It captures descriptor-checked files and directory
+identities, sends ordered path-free JSON/YAML fragments to Core, and privately
+holds the serialized candidate. Only a successful candidate reaches the caller's
+publication barrier, once. It then checks cancellation and recaptures the source
+before returning output. This barrier does not install files.
+
+Capture, parse, merge and serialization failures return before the barrier.
+Cancellation observed at a checkpoint returns `Cancelled`; after the barrier it
+wins before the source recheck. Otherwise a changed source returns
+`SourceChanged`. Every failed result has empty output. This deliberately replaces
+the former barrier-before-serialization order.
+
+The directory adapter admits Linux x64/arm64 flag layouts explicitly and rejects
+other process architectures. It uses fixed-layout 256-byte `statx` with required
+basic-stat masks, nanosecond validation and complete stable identity comparison
+(device, inode, links, mode, owner/group, device type, size, block count/size and
+modification/change timestamps). Access time is excluded because reading may
+change it. `openat2` resolution rejects cross-device traversal, magic links,
+symbolic links and escape from the retained root. Missing native capabilities
+refuse; there is no ordinary-read or alternate-ABI fallback. Real filesystem
+evidence qualifies only its executing host. See the
+[native acquisition decision](adr/ADR-native-directory-acquisition.md).
+
 `BoundedFileInput` is the native assembly's disposable byte owner for local
 definition and import acquisition. Its path or caller-supplied opener selects
 file authority; the helper supplies no admission or trust policy. Open, initial

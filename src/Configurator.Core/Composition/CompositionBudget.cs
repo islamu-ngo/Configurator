@@ -10,9 +10,18 @@ internal sealed class CompositionBudget
     private readonly CompositionLimits _limits;
     private int _nodes;
     private int _scalarCharacters;
+    private int _parserEvents;
 
     internal CompositionBudget(CompositionLimits limits) => _limits = limits;
     internal int Nodes => _nodes;
+
+    internal void ParserEvent()
+    {
+        try { _parserEvents = checked(_parserEvents + 1); }
+        catch (OverflowException) { throw new CompositionException(CompositionFailureCode.LimitExceeded); }
+        if (_parserEvents > _limits.ParserEvents)
+            throw new CompositionException(CompositionFailureCode.LimitExceeded);
+    }
 
     internal void Node(int depth)
     {

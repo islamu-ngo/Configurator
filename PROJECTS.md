@@ -20,6 +20,10 @@
 ## 2. Solution Structure & Project Roles
 
 The product dependency direction is clients -> Presentation/Artifacts -> Core.
+Core compiles ordered in-memory composition sources with aggregate semantic
+limits. Artifacts owns Linux directory capture, descriptor-relative reads,
+the native commit barrier and source recheck; this grants no target apply
+authority. See the [native acquisition ADR](docs/internal/adr/ADR-native-directory-acquisition.md).
 Browser references browser-safe Presentation and Core, never native Artifacts,
 and ships public static data. No sibling Event
 checkout, backend contracts or running service may be a build input.

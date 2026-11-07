@@ -5,6 +5,5 @@ using System.Text.Json;
 public enum CompositionSourceKind
 {
     Json,
-    Yaml,
-    Directory
+    Yaml
 }

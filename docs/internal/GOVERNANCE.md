@@ -135,14 +135,15 @@ and Browser or Browser.Host to Artifacts. The negative assertion requires the sp
 edge, so an unrelated failure cannot satisfy it. No source text or class-name
 inventory supplies the boundary evidence.
 
-This assembly-edge policy does not remove the deliberate Linux directory-source
-acquisition exception inside Core's composition owner. The existing Core guard
-qualifies I/O calls by reviewed assembly and exact
-`Configurator.Core.Composition` namespace; its separate public-contract checks
-remain authoritative. This is not permission for a native Artifacts dependency,
-arbitrary ambient I/O, or a claim that the directory path is browser portable.
-Relocation remains a focused follow-up. Compiled edge checks also do not prove
-published package closure; that gate runs separately against actual publications.
+Core composition accepts ordered, path-free JSON/YAML fragments under one
+aggregate budget. Native directory acquisition belongs to Artifacts; Core has
+no directory dispatch, native imports or namespace-wide I/O exception. Its
+compiled guard permits only the exact in-memory parser roles needed by YAML
+and rejects native-import canaries through the same verifier as product code.
+The [native acquisition ADR](adr/ADR-native-directory-acquisition.md) describes
+descriptor ownership and serialization-before-barrier/recheck ordering.
+Compiled boundary checks do not establish published package closure or another
+host's filesystem behavior; those gates run against actual publications/hosts.
 
 Local preparation never grants a host's apply or admin authority. Keep the
 definition/runtime boundary in the

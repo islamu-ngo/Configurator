@@ -1,0 +1,28 @@
+Change-Id: CHG-01M6V0D1YS7XPXWR9YXGR58YV3
+Title: "Keep native directory acquisition outside the offline engine"
+Type: refactor
+Scope: architecture
+Summary: "Move directory composition and its commit barrier to Artifacts; keep Core limited to ordered in-memory sources with aggregate semantic limits."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/adr/ADR-native-directory-acquisition.md
+    Disposition: documented
+    Detail: "Use Artifacts CompositionDirectoryCompiler instead of Core directory sources and barriers; Core accepts ordered in-memory JSON and YAML sources."
+  Security:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: mitigated
+    Detail: "Native reads and rechecks stay in Artifacts; Core has no native filesystem authority."
+  Migration:
+    Reference: docs/internal/adr/ADR-native-directory-acquisition.md
+    Disposition: documented
+    Detail: "Migrate native composition callers and custom barriers to Configurator.Artifacts.Composition; directory traversal limits are separate from Core semantic limits."
+  Configuration:
+    Reference: docs/public/native-output.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/native-output.md
+    Disposition: not-applicable

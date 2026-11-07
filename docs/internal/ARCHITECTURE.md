@@ -120,13 +120,11 @@ prefix; there is no whole-bundle rollback. See
 Contributors and automated agents must adhere to strict architectural dependency rules:
 
 - **`Configurator.Core` owns semantics without adapter dependencies:** Admission,
-  validation and projection are in-memory mechanisms. One bounded exception is
-  the reviewed Linux directory-source acquisition in
-  `Configurator.Core.Composition`, implemented by
-  `CompositionDirectoryReader`. It does not permit arbitrary ambient I/O,
-  network access, an Artifacts dependency or a browser-portability claim.
-  [Relocation follow-up](../../dev/backlog/core-directory-source-boundary.md)
-  records the intended separation; the exception has not already been removed.
+  validation and projection are in-memory mechanisms. `CompositionCompiler`
+  accepts ordered JSON/YAML fragments under one aggregate budget. It has no
+  directory source, native import or filesystem dispatch. Native acquisition
+  belongs to `Configurator.Artifacts.Composition`; see the
+  [directory acquisition decision](adr/ADR-native-directory-acquisition.md).
 - **`Configurator.Presentation` is Browser-Safe:** It depends only on `Core`. It coordinates in-memory UI state, form indexes, and workspace generations. It must **never** reference `Artifacts` or perform filesystem I/O.
 - **`Configurator.Artifacts` Owns Native File Access:** It depends only on `Core`. It contains native file operations and enforces Linux create-only permissions.
 - **`Configurator.Browser` Never Touches `Artifacts`:** It references `Presentation` and `Core`. File export occurs via deliberate browser downloads and Blob URLs; it has no access to native file protection.

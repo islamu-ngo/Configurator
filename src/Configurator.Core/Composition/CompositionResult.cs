@@ -32,7 +32,7 @@ public sealed class CompositionResult
         return new(document.RootElement, bytes, ArtifactDigest.Compute(bytes), default);
     }
 
-    internal static CompositionResult Failed(CompositionFailureCode code) =>
+    public static CompositionResult Failed(CompositionFailureCode code) =>
         new(null, null, default, new CompositionFailure(code));
 
     public override string ToString() =>

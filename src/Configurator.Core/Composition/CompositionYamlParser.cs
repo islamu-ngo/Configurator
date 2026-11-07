@@ -34,7 +34,8 @@ internal static partial class CompositionYamlParser
             if (ContainsDirectiveLine(text))
                 throw new CompositionException(CompositionFailureCode.UnsupportedYamlGrammar);
 
-            var reader = new EventReader(new Parser(new StringReader(text)), limits, cancellationToken);
+            var budget = sharedBudget ?? new CompositionBudget(limits);
+            var reader = new EventReader(new Parser(new StringReader(text)), budget, cancellationToken);
             reader.Advance();
             reader.Require<StreamStart>();
             reader.Advance();
@@ -43,7 +44,6 @@ internal static partial class CompositionYamlParser
                 throw new CompositionException(CompositionFailureCode.UnsupportedYamlGrammar);
             reader.Advance();
 
-            var budget = sharedBudget ?? new CompositionBudget(limits);
             CompositionNode root = ReadNode(reader, new CompositionSourceText(text), budget, limits, 1, keyPolicy, cancellationToken);
             if (root is not CompositionMap map)
                 throw new CompositionException(CompositionFailureCode.InvalidDocument);
@@ -194,14 +194,13 @@ internal static partial class CompositionYamlParser
     private sealed class EventReader
     {
         private readonly IParser _parser;
-        private readonly CompositionLimits _limits;
+        private readonly CompositionBudget _budget;
         private readonly CancellationToken _cancellationToken;
-        private int _events;
 
-        internal EventReader(IParser parser, CompositionLimits limits, CancellationToken cancellationToken)
+        internal EventReader(IParser parser, CompositionBudget budget, CancellationToken cancellationToken)
         {
             _parser = parser;
-            _limits = limits;
+            _budget = budget;
             _cancellationToken = cancellationToken;
         }
 
@@ -212,10 +211,7 @@ internal static partial class CompositionYamlParser
             _cancellationToken.ThrowIfCancellationRequested();
             if (!_parser.MoveNext())
                 return false;
-            try { _events = checked(_events + 1); }
-            catch (OverflowException) { throw new CompositionException(CompositionFailureCode.LimitExceeded); }
-            if (_events > _limits.ParserEvents)
-                throw new CompositionException(CompositionFailureCode.LimitExceeded);
+            _budget.ParserEvent();
             return true;
         }
 
