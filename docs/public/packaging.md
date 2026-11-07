@@ -166,6 +166,13 @@ sudo pacman -R islamu-configurator-desktop
 
 To compile ISLAMU Configurator yourself, install the [.NET SDK 10.0.302](https://dotnet.microsoft.com/download/dotnet/10.0).
 
+Keep the Desktop, Desktop test and native-host projects' declared exclusion of Avalonia's
+build-statistics assets when restoring dependencies. This policy removes the
+optional telemetry build task while retaining Avalonia's resource and XAML
+compilation. It does not change the application's offline configuration workflow.
+The [internal packaging contract](../internal/PACKAGING.md#desktop-build-statistics-policy)
+owns the package configuration and verification requirements.
+
 ### 1. Prepare Your Environment
 
 Set your temporary directory and ensure workloads are up to date:

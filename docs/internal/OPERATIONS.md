@@ -38,6 +38,23 @@ is recorded separately.
 Earlier machine delivery evidence below remains evidence for its recorded
 candidate and does not qualify the current payload.
 
+## Desktop build-statistics verification
+
+The approved Desktop dependency policy excludes build-statistics assets through
+the three first-party project references and central package version described in
+[Packaging](PACKAGING.md#desktop-build-statistics-policy). Preserve the failed
+capture identifying `AvaloniaStatsTask` as the counterexample. Capture rejection
+blocks qualification; it does not prevent an unknown task from executing.
+
+After native lock regeneration, verify effective imports and actual Desktop,
+Desktop.Tests and Desktop.NativeHost graphs: no statistics-task invocation, required XAML/resource
+tasks retained, complete native capture bindings, affected Release/full-owner
+checks and actual publication/dependency notices. Record exact commands,
+results and identities in the active workstream before promoting this policy
+to execution evidence. Central props changes require refreshing affected
+consumed-input capture/check receipts. Earlier receipts remain historical
+evidence for their original inputs; they do not qualify changed build inputs.
+
 ## Operational Runbooks
 
 - [Packaging technical anchor](PACKAGING.md) and [adopter guide](../public/packaging.md)

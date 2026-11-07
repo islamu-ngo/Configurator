@@ -194,6 +194,26 @@ requests must not return `index.html`. Base path, worker scope and manifest
 must agree. Worker activation waits for a clean lifecycle across tabs; a package
 does not prove real browser update/network/cache behavior.
 
+## Desktop build-statistics policy
+
+Desktop, Desktop.Tests and Desktop.NativeHost must exclude the existing Avalonia.BuildServices
+package's build and buildTransitive assets. `Directory.Packages.props` owns its
+11.3.2 pin; the three project references own the asset exclusions. Restore owns
+lock-file regeneration. Avalonia's required resource/XAML build assets remain
+enabled. No capture task admission or unknown-task exemption follows from this
+dependency policy.
+
+Verify the effective imports and actual capture graphs for these projects:
+the statistics task must be absent and the required resource/XAML tasks must
+retain their normal execution and capture bindings. A declared exclusion or
+environment opt-out alone is not proof. Verify Desktop's Release/full owner,
+actual publication and dependency/notices closure before claiming acceptance.
+Central package configuration is a consumed build input; refresh affected
+capture/check identities even when product payload bytes happen to agree.
+See [Operations](OPERATIONS.md#desktop-build-statistics-verification) for the
+evidence boundary and the [source-build guide](../public/packaging.md#building-from-source)
+for contributor guidance.
+
 ## Qualified definition generation
 
 Product and public contract versions stay `0.0.1` during development, including
