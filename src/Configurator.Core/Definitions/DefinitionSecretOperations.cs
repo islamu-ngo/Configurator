@@ -18,11 +18,10 @@ public static class DefinitionSecretOperations
         if (path.Segments.Count == 0) return null;
         if (omissions.Any(omitted => omitted.Segments.Count < path.Segments.Count
             && path.Segments.Take(omitted.Segments.Count).SequenceEqual(omitted.Segments))) return null;
-        FieldDefinition? field = definition.Fields.FirstOrDefault(field => field.Name == path.Segments[0]);
-        if (field is null) return null;
+        string fieldId = validation.Fields.FirstOrDefault(field => field.Definition.Name == path.Segments[0])?.Id ?? "";
         var segments = new List<DefinitionLocationSegment>();
         DefinitionNode schema = definition.Configuration;
-        JsonElement value = schema.Variants.Count == 0 ? default : JsonSerializer.SerializeToElement(validation.Values);
+        JsonElement value = JsonSerializer.SerializeToElement(validation.Values);
         for (int index = 0; index <= path.Segments.Count; index++)
         {
             if (ReadOnly(schema)) return null;
@@ -36,7 +35,7 @@ public static class DefinitionSecretOperations
             {
                 location = segments.ToArray();
                 return schema.Secret is { Acquisition: DefinitionSecretAcquisition.Local, Generation: not null }
-                    && validation.Nodes.Any(state => state.FieldId == field.Id
+                    && validation.Nodes.Any(state => state.FieldId == fieldId
                         && state.Location.Segments.SequenceEqual(segments) && state.IsActive) ? schema : null;
             }
             string segment = path.Segments[index];
@@ -45,7 +44,7 @@ public static class DefinitionSecretOperations
                 bool declared = schema.Properties.TryGetValue(segment, out DefinitionNode? child);
                 if (!declared) child = schema.AdditionalProperties;
                 if (child is null) return null;
-                if (index > 0)
+                if (index > 0 || !declared)
                 {
                     if (declared) segments.Add(DefinitionLocationSegment.Property(segment));
                     else

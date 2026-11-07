@@ -67,6 +67,14 @@ not serialized validation telemetry. Presentation owns disclosure, not validity.
 dependency resolution and composition budget. `DefinitionValidator` retains the
 shared value and condition rules; session state is never cached between answers.
 
+`DefinitionSecretOperations.Resolve` consumes fields and node coordinates from
+that same validation, including the selected root variant and typed root-map
+entry ordinals. Static `Definition.Fields` is not a prerequisite for a root-map
+secret target. Read-only ancestors, omissions, local acquisition and generation
+requirements still determine eligibility. Presentation adds the workspace's
+consent, revision, logical-identity and operation-generation fences before
+adopting generated output.
+
 ## Definition JSON
 
 The codec decodes and canonicalizes source before `DefinitionAdmission` checks

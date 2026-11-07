@@ -32,6 +32,11 @@ does not duplicate their full configurations.
 
 ## Anatomy of a Definition
 
+Literal root coordinates remain separate from declared field metadata IDs.
+Local secret generation resolves root-map entries and selected root-variant
+properties under the same consent and stale-result protections as ordinary
+properties. Public document edits reject supplied protected values.
+
 Four separate documents have different custody and version rules:
 
 | Document | Discriminator and purpose |

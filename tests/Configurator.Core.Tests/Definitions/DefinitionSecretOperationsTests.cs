@@ -7,6 +7,50 @@ using Configurator.Core.Definitions;
 public sealed class DefinitionSecretOperationsTests
 {
     [Test]
+    public async Task RootMapSecretTargetsUseTypedEntryCoordinatesWithoutStaticFields()
+    {
+        Definition definition = DefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151624","revision":1},
+             "project":{"id":"root-secret","name":"Root secret"},"applicationVersions":["1"],
+             "configuration":{"type":"object","additionalProperties":{"type":"string","x-configurator":{
+               "secret":{"kind":"password","acquisition":"local","generation":{"length":24}}}}},
+             "outputs":{"config.json":{"id":"config","format":"json"}}}
+            """u8.ToArray());
+        AnswerSnapshot answers = DefinitionFixture.Answers("""{"0":"synthetic-first","a/b~c":"synthetic-second"}""");
+        DefinitionNode? schema = DefinitionSecretOperations.Resolve(definition, answers.Omitted,
+            DefinitionValidator.Validate(definition, answers), DefinitionPath.Parse("/a~1b~0c"), out var location);
+        await Assert.That(schema).IsNotNull();
+        await Assert.That(location.Single()).IsEqualTo(DefinitionLocationSegment.MapEntry(1));
+        await Assert.That(definition.Fields.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task RootVariantSecretTargetsUseTheSelectedFieldsAndRejectTheOtherBranch()
+    {
+        Definition definition = DefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151625","revision":1},
+             "project":{"id":"variant-secret","name":"Variant secret"},"applicationVersions":["1"],
+             "configuration":{"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
+               {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},
+                 "properties":{"kind":{"type":"string","const":"local","x-configurator":{"sensitivity":"public"}},
+                   "password":{"type":"string","x-configurator":{"secret":{
+                     "kind":"password","acquisition":"local","generation":{"length":24}}}}}},
+               {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},
+                 "properties":{"kind":{"type":"string","const":"remote","x-configurator":{"sensitivity":"public"}}}}]},
+             "outputs":{"config.json":{"id":"config","format":"json"}}}
+            """u8.ToArray());
+        AnswerSnapshot local = DefinitionFixture.Answers("""{"kind":"local"}""");
+        await Assert.That(DefinitionSecretOperations.Resolve(definition, local.Omitted,
+            DefinitionValidator.Validate(definition, local), DefinitionPath.Parse("/password"), out var location)).IsNotNull();
+        await Assert.That(location.Length).IsEqualTo(0);
+        AnswerSnapshot remote = DefinitionFixture.Answers("""{"kind":"remote"}""");
+        await Assert.That(DefinitionSecretOperations.Resolve(definition, remote.Omitted,
+            DefinitionValidator.Validate(definition, remote), DefinitionPath.Parse("/password"), out _)).IsNull();
+    }
+
+    [Test]
     public async Task ReplacingAnEscapedMapLeafPreservesOtherAnswersAndTheOriginalSnapshot()
     {
         Definition definition = Definition();

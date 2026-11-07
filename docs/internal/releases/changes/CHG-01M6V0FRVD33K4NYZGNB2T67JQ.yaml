@@ -1,0 +1,26 @@
+Change-Id: CHG-01M6V0FRVD33K4NYZGNB2T67JQ
+Title: "Resolve local secret targets at recursive roots"
+Type: fix
+Scope: privacy
+Summary: "Resolve eligible root-map entries and selected root-variant properties using validation coordinates while retaining read-only and omission restrictions."
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Eligibility still requires the active validated node, local generation capability, and no read-only ancestor or omission."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/definitions.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definitions.md
+    Disposition: not-applicable
