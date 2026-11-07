@@ -27,8 +27,45 @@
     [Parameter] public bool Error { get; set; }
     [Parameter] public string? ErrorText { get; set; }
     [Parameter] public Dictionary<string, object>? InputAttributes { get; set; }
+    private bool _suppressParameterRender;
     private MudInput<string> _input = null!;
     private ElementReference _textarea;
+
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        bool Changed<T>(string name, T current) =>
+            parameters.TryGetValue<T>(name, out var supplied) && !EqualityComparer<T>.Default.Equals(current, supplied);
+
+        // A reused dictionary may have changed since its last render; retain no snapshot.
+        bool attributesChanged = parameters.TryGetValue(nameof(InputAttributes), out Dictionary<string, object>? attributes)
+            && (attributes is not null && ReferenceEquals(InputAttributes, attributes)
+                || (InputAttributes?.Count ?? 0) != (attributes?.Count ?? 0)
+                || attributes?.Any(item => item.Value is not (null or string or bool)
+                    || InputAttributes is null || !InputAttributes.TryGetValue(item.Key, out object? current)
+                    || !Equals(current, item.Value)) == true);
+        _suppressParameterRender = !(attributesChanged
+            || Changed(nameof(Value), Value)
+            || Changed(nameof(InputId), InputId)
+            || Changed(nameof(Masked), Masked)
+            || Changed(nameof(Multiline), Multiline)
+            || Changed(nameof(ReadOnly), ReadOnly)
+            || Changed(nameof(InputMode), InputMode)
+            || Changed(nameof(Disabled), Disabled)
+            || Changed(nameof(Required), Required)
+            || Changed(nameof(Error), Error)
+            || Changed(nameof(ErrorText), ErrorText));
+        try
+        {
+            return base.SetParametersAsync(parameters);
+        }
+        finally
+        {
+            _suppressParameterRender = false;
+        }
+    }
+
+    protected override bool ShouldRender() => !_suppressParameterRender;
+
     public async Task FocusAsync()
     {
         if (Multiline && !Masked) await _textarea.FocusAsync();
