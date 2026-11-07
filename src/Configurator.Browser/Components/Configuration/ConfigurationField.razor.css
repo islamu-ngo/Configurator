@@ -1,4 +1,11 @@
-.configuration-field { margin-block: 0 var(--isl-field-gap); overflow-wrap: anywhere; }
+.configuration-field {
+    margin-block: 0 var(--isl-field-gap);
+    overflow-wrap: anywhere;
+    &:not(.configuration-field--group) {
+        content-visibility: auto;
+        contain-intrinsic-block-size: auto calc(var(--isl-field-control-height) + var(--isl-target-min));
+    }
+}
 .configuration-field--group { margin-block-end: var(--isl-group-gap); }
 .configuration-field__label, .configuration-field__identity label { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--isl-space-2); margin: 0; font-weight: 500; font-size: .875rem; color: var(--isl-color-text); }
 .configuration-field__requirement { font-family: var(--isl-font-family-mono); font-size: .6875rem; font-weight: 500; color: var(--isl-color-text-secondary); padding: 1px 6px; border-radius: 3px; background: var(--isl-color-surface-muted); border: 1px solid var(--isl-color-border); text-transform: lowercase; }
