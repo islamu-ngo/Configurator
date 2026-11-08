@@ -73,6 +73,8 @@ disposition and replacement evidence.
 | [Knowledge and contributor experience](workstreams/i-vsd-knowledge-contributor-experience.md) | current / plan-aligned | 2026-10-30 |
 | [Browser UX simplification](workstreams/i-vsd-browser-ux-simplification.md) | current / plan-aligned; implementation awaiting approval | 2026-10-31 |
 | [Avalonia desktop UI/UX redesign](workstreams/i-vsd-avalonia-desktop-ui-ux-redesign.md) | current / plan-aligned; implementation authorized; external qualification pending | 2026-11-06 |
+| [Definition schema, authoring compiler, and CLI redesign](workstreams/i-vsd-definition-schema-redesign.md) | current / plan-aligned; awaiting implementation approval | 2026-11-08 |
+| [Configuration workspace, rich schema widgets, and dual-UX redesign](workstreams/i-vsd-configuration-workspace-redesign.md) | current / plan-aligned; awaiting implementation approval | 2026-11-08 |
 
 For each assessment, read its reviewed input, claim boundary, validation gaps,
 finding and mitigation IDs, and lifecycle before reusing a conclusion. A
