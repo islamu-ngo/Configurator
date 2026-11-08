@@ -131,6 +131,19 @@ Contributors and automated agents must adhere to strict architectural dependency
 - **Native Clients Coordinate Shared Layers:** `Configurator.Terminal` and `Configurator.Desktop` reference `Presentation`, `Artifacts`, and `Core` to provide native experiences. `Configurator.Cli` references `Artifacts` and `Core`.
 - **`Configurator.Browser.Host` is Standalone:** It has zero project references to any `Configurator.*` library, serving purely as a static asset container.
 
+## Strategic Integration Boundaries
+
+1. **Secret Management Boundary (`ISLAMU SecretKit`):**
+   * `ISLAMU SecretKit` operates on the **runtime secret consumption plane** inside target applications (such as ISLAMU Event), using scoped stack/span memory (`SecretMaterial.Use(...)`) with immediate zeroing.
+   * `Configurator` operates on the **setup and provisioning plane**. On native Desktop and Terminal surfaces, it provides optional export sinks to push validated secrets directly into Infisical or Azure Key Vault via official provider CLIs. The WebAssembly browser client remains strictly air-gapped with zero network calls.
+2. **Desktop Profile Store & Protocol Handshake:**
+   * The `configurator://` protocol handler enables seamless handoffs from web release notes and deep links to local native desktop sessions.
+   * Desktop catalogs active configuration files under `~/.config/islamu-configurator/profiles/<app-id>/` across environments (`development`, `staging`, `production`).
+3. **Day-2 Semantic Diff Engine:**
+   * AST-based version diffing compares active configurations against new schema releases, isolating newly required variables, auto-migrating renamed keys, and safely retiring deprecated settings.
+
+For full strategic details, see [Product Vision](PRODUCT_VISION.md) and [Marketing & Adoption Strategy](MARKETING_AND_ADOPTION_STRATEGY.md).
+
 > [!CAUTION]
 > Never introduce circular references, invert layer boundaries, or import target application assemblies (such as Event or Keycloak) into Configurator.
 

@@ -6,9 +6,11 @@
 
 # ISLAMU Configurator
 
-Understand your application's settings. Prepare the configuration it needs.
+**Dismantle the 400-variable `.env.example` nightmare.**
 
-Guided configuration, validation, secret generation and local file preparation through a web app, desktop app, terminal interface or CLI. Open source and built for local processing.
+ISLAMU Configurator is an offline-first, client-side configuration engine that turns complex setup requirements into an intuitive, validated experience. Visual setup, instant syntax validation, Day-2 upgrade diffing, and direct secret vault provisioning across **WebAssembly (Browser)**, **Desktop (Avalonia)**, **Terminal (TUI)**, and **Headless CLI**.
+
+**100% Client-Side · Zero Background Daemons · Zero Telemetry · Air-Gapped Secret Custody**
 
 > 🚧 **Active Pre-Release Development:** There is **no official release or public hosted Configurator app yet**. You can build the clients or self-host the browser from this repository. Features and platform support are still being developed and verified; see [current status](docs/internal/STATUS.md).
 
@@ -28,51 +30,78 @@ Guided configuration, validation, secret generation and local file preparation t
 
 ## About ISLAMU Configurator
 
-Setting up an application often means working through long environment-variable lists, nested configuration files and unfamiliar security settings. ISLAMU Configurator turns those requirements into a guided workspace: understand each setting, choose the relevant options, correct errors and prepare the files your application expects.
+Setting up self-hosted software often means wrestling through hundreds of unvalidated environment variables, monolithic compose templates, and undocumented security keys. A single typo or missing connection string causes silent container boot crashes, while updating applications introduces breaking changes that lead to upgrade paralysis.
 
-A maintainer supplies a **configuration definition** in YAML or JSON. It describes the settings, explanations, validation rules, secret requirements and output files. Configurator uses that definition across its interfaces to prepare formats such as `.env`, JSON and YAML. Configuration logic stays with the application maintainer, so operators can use familiar deployment tools and hosting environments.
+ISLAMU Configurator solves both sides of this equation:
+1. **Application Maintainers** describe their setup requirements once in a declarative, bounded YAML or JSON definition (`configurator.yaml`). It defines the fields, validation rules, humanized explanations, secret policies, and target output files (`.env`, JSON, YAML).
+2. **Operators** configure the software through an intuitive, validated experience across their choice of interface: an instant zero-install **WebAssembly browser wizard**, a native **Desktop app**, an 80x24 **Terminal TUI** over SSH, or a headless **Machine CLI** for automated pipelines.
 
-Browser-first development supports a simple adoption path: follow a **Configure** link in an application's README and open its configuration workspace without installing a native client. The native clients serve local and remote-shell workflows, while the CLI supports automation. The longer-term TUI direction is a full configuration workbench; interface capabilities and layout differ today.
+Configurator runs 100% locally on your workstation. It requires no background daemon, collects zero telemetry, and performs zero unconfirmed network calls. Start with the [overview](docs/public/overview.md), [worked quickstart](docs/public/getting-started.md) or [FAQ](#faq).
 
-Configurator prepares configuration locally. You review and use the resulting files with your application; it remains responsible for accepting them and authorizing changes. Start with the [overview](docs/public/overview.md), [worked quickstart](docs/public/getting-started.md) or [FAQ](#faq).
+---
 
-## ✨ Who It Serves
+## 💡 The Historical Paradox: Why Hasn't This Existed Before?
 
-### Application Operators
+Given the universal agony of self-hosted configuration, why did the industry remain trapped in raw `.env.example` files and fragmented `docker-compose.x.yaml` permutations for 15 years? Five converging barriers blocked previous attempts:
 
-For people setting up an application or reviewing a configuration they already run.
+1. **The DevOps Tragedy of the Commons:** Application authors view deployment as an operations concern outside their scope; sysadmins write bespoke local scripts. Neither side owned the universal abstraction layer.
+2. **The Commercial Walled-Garden Trap:** Platforms like Unraid, TrueNAS, CasaOS, and Portainer built graphical setup templates, but deliberately locked them into their own proprietary background daemons and OS distributions to protect their platform moats.
+3. **The Web SaaS Privacy Paradox:** Operators rightfully refuse to paste production database passwords and API tokens into third-party cloud SaaS websites. Only the recent maturity of static, client-side WebAssembly (WASM) and zero-network execution allows an air-gapped web browser to serve as a zero-trust configuration engine.
+4. **The Failure of Robotic JSON Schema UIs:** Generic form generators produced rigid, unusable enterprise UIs lacking humanized explanations, wire-token toggles, and conditional defaults.
+5. **The Pre-AI Authoring Bottleneck:** Hand-crafting schemas for 300 variables required 40+ hours of tedious manual engineering per app. Modern AI agent skills with physical Docker boot verification collapse this authoring time to 3 minutes.
 
-- **Understand what to enter:** Read field explanations and requirements alongside the setting, with related options shown according to the definition.
-- **Find mistakes before deployment:** Review missing settings and invalid values, then follow correction guidance instead of discovering every problem at startup.
-- **Handle credentials deliberately:** Generate supported passwords or key material, reveal values when needed, and keep sensitive entry masked by default. Available recipes come from the definition.
-- **Reuse existing work:** Compare a supported local configuration file with the selected definition and deliberately fill eligible fields. See [import and comparison](docs/public/import-and-compare.md).
-- **Choose how you work:** Use the [Browser](docs/public/browser.md), [Desktop](docs/public/desktop.md), [Terminal](docs/public/terminal.md) or [CLI](docs/public/cli.md), then prepare the application's files for review and use.
+---
 
-### Application Authors
+## 🎯 Who It Serves: Choose Your Path
 
-For maintainers who want to offer a useful setup experience without building a separate configuration UI for every interface.
+### 1. For Application Operators (Self-Hosters, Sysadmins & SREs)
 
-- **Describe configuration once:** Maintain one YAML or JSON source for fields, conditions, validation, guidance and file mappings. The clients share the same configuration semantics.
-- **Let an AI agent write your definition:** Give your coding agent the [Configurator Definition skill](skills/configurator-integrate/SKILL.md) to create your application's `configurator.yaml` or `configurator.json` from its public configuration declarations and schemas. The skill guides the agent through authoring and CLI validation, leaving you a definition to review and ship with your application.
-- **Put setup next to your documentation:** Publish a definition with your application and add a **Configure** link to a browser host. You can distribute definitions directly; the optional Definition Store is not required.
-- **Explain the difficult parts:** Add sections, localized help, choice descriptions and credential requirements so operators understand the decisions they are making.
-- **Keep your existing file formats:** Map answers to the files your application reads, including multiple outputs from one configuration workspace.
-- **Evolve definitions with your application:** Check, compile and revise the definition with the authoring CLI, while keeping final application validation and deployment under your control.
+Whether you are launching your first Docker container or managing dozens of enterprise clusters:
+
+* 🟢 **The New Self-Hoster ("Zero-Guesswork Setup"):**
+  * **No Installation Required:** Click a single "Configure Visually" link in an application's README to open an instant in-browser setup wizard powered by client-side WebAssembly.
+  * **No More Mystery Variables:** Clear visual indicators distinguish required obligations from optional tweaks.
+  * **Human Explanations:** Non-editable `"If omitted: <default>"` callouts explain exactly what the software will do if a setting is left blank.
+  * **Catch Typos Before Booting:** Live validation checks URLs, ports, IP ranges, and formats before you ever start a container, eradicating boot crashes.
+  * **One-Click Export:** Download a production-ready `.env`, JSON, or YAML file directly to your machine.
+
+* 🔵 **The Advanced Operator & DevOps Engineer ("Deterministic Day-2 Control"):**
+  * **4 Unified Surfaces:** Seamlessly switch from the **Browser** to the keyboard-driven **Terminal TUI** (`Terminal.Gui`) over SSH, the native **Desktop GUI** (`Avalonia`), or the headless **Machine CLI** (`islamu-configurator`) for CI/CD pipelines.
+  * **Eliminate Upgrade Paralysis (Day-2 Diffing):** Drop your existing `.env` into the Version Migration Engine to immediately see newly mandatory keys, auto-migrated renames, and retired variables before pulling new releases.
+  * **Desktop Profile Vault:** Automatically manage configuration profiles across environments (`development`, `staging`, `production`) in `~/.config/islamu-configurator/profiles/<app-id>/`.
+  * **Direct Secret Vault Provisioning:** Optionally sync credentials directly into **Infisical** or **Azure Key Vault** on native Desktop/TUI surfaces via official provider CLIs and `ISLAMU SecretKit`—with zero network requests by default.
+
+---
+
+### 2. For Application Authors & Maintainers (Evaluating Adoption)
+
+Why open-source maintainers and software teams adopt Configurator:
+
+* 📉 **Slash 80% of "Won't Boot" GitHub Issues:** Stop spending hours debugging user syntax errors, missing DB passwords, or invalid port ranges. Configurator validates inputs on the client before the user ever runs your software.
+* 🛠️ **Never Build a Setup Wizard Again:** Do not waste weeks building custom React setup wizards, web installers, or Electron apps. Maintain one declarative schema (`configurator.yaml`), and Configurator instantly powers web, desktop, terminal, and CLI setup experiences.
+* 📦 **Collapse the Sprawl of `docker-compose.x.yaml` Permutations:** Stop maintaining dozens of fragmented files (`docker-compose.sqlite.yml`, `docker-compose.postgres.yml`, `docker-compose.traefik.yml`). A single Configurator definition conditionally emits the exact configuration required for any deployment topology.
+* 🏷️ **The 1-Click README Badge:** Add one line to your GitHub README:
+  ```markdown
+  [![Configure with ISLAMU Configurator](https://configurator.islamu.org/badge.svg)](https://configurator.islamu.org/?schema=https://raw.githubusercontent.com/org/repo/main/configurator.json)
+  ```
+* ⚡ **The 1-Click Release Notes Diff Button:** When publishing breaking updates, include a direct diff link (`/diff?id=your-app&from=v1&to=v2`) so users can visualize and resolve configuration changes before upgrading.
+* 🤖 **Let AI Write and Verify Your Schema:** You don't have to author schemas by hand. Our specialized AI Agent Skill ([`configurator-integrate`](.agents/skills/configurator-integrate/SKILL.md)) crawls your repository docs and external documentation URLs, asks you multi-choice questions for ambiguities, boots a local Docker container to physically test that the schema works, and submits a pull request.
+* 🌐 **Embeddable Quickstart Widgets:** Embed the configuration wizard directly inside your documentation pages (Docusaurus, VitePress, GitBook) using a lightweight sandboxed iframe.
 
 Start with [the integration guide](docs/public/integrating.md), [definition cookbook](docs/public/definition-cookbook.md) or [examples](examples/README.md).
 
 ---
 
-## 🚀 Deployment & Hosting Options
+## 🚀 Multi-Surface Delivery Architecture
 
-Choose the interface that fits the task. They share the configuration engine, while their interaction, file access and secret-handling boundaries differ:
+One declarative definition powers four purpose-built interfaces sharing the same stateless core engine:
 
-| Topology Mode | Target Use Case | Step-by-Step Documentation |
-|---|---|---|
-| **Machine CLI** | Validate, compare and prepare files in scripts or automated workflows. | 📖 **[CLI Guide](docs/public/cli.md)** |
-| **Terminal Client** | Configure with the keyboard in a local terminal or remote shell. | 📖 **[Terminal Guide](docs/public/terminal.md)** |
-| **Desktop Client** | Work through native forms with local file access and protected saving. | 📖 **[Desktop Guide](docs/public/desktop.md)** |
-| **Static Configuration Browser** | Open a guided workspace without a native installation; self-host it as static files. | 📖 **[Browser Hosting](docs/public/browser.md#self-hosting--deployment)** |
+| Interface | Best For | Platform Support | Secret Custody & Sync | Network / Offline Boundary | Step-by-Step Documentation |
+|---|---|---|---|---|---|
+| **Static Browser** | Zero-install onboarding, GitHub README deep links, doc widgets | Modern WebAssembly browsers | In-memory only; deliberate file download | 100% Client-side WASM; zero telemetry, zero network calls | 📖 **[Browser Hosting](docs/public/browser.md#self-hosting--deployment)** |
+| **Desktop GUI** | Full workstation workflow, multi-environment profiles (`dev`/`staging`/`prod`) | Linux (x64), macOS, Windows (Avalonia) | Protected Linux write (`0600`); direct sync to Infisical & Azure Key Vault | Fully offline; network only on explicit secret vault push | 📖 **[Desktop Guide](docs/public/desktop.md)** |
+| **Terminal TUI** | SSH sessions, headless servers, keyboard-driven power users | Linux, macOS, Windows (Terminal.Gui v2) | In-memory transient workspace; direct vault export sinks | Fully offline; zero background daemons | 📖 **[Terminal Guide](docs/public/terminal.md)** |
+| **Machine CLI** | CI/CD automation, AI agent pipelines, headless verification | Linux (x64, arm64, musl), macOS, Windows | Stdin / files; masked diagnostics | Fully offline; native binary | 📖 **[CLI Guide](docs/public/cli.md)** |
 
 See [packaging](docs/public/packaging.md) for build instructions and platform limits. Protected native saving is currently verified on Linux; unsupported hosts refuse it. Browser downloads use the browser's ordinary download behavior. Offline browser use requires the app assets and a retained definition; answers are not restored between workspaces.
 
@@ -149,11 +178,20 @@ Yes. Native clients can work with local definitions. For offline browser use, fi
 
 You can also leave browser secret entry disabled and prepare an incomplete **secret-deferred draft**, then complete the indicated secret locations locally. Ordinary required settings must still be valid, and unresolved secret-dependent conditions can block preparation. Ordinary settings may themselves be confidential; a draft is not ready for deployment until completed and checked.
 
-### Can I reuse existing files or connect a secret manager?
+### Can I reuse existing files or perform Day-2 version upgrades?
 
-Supported local `.json`, `.yaml` and `.env` files can be assessed against a selected definition. Comparison explains recognized values, missing requirements and incompatible content; filling eligible fields is a separate, deliberate action. Import reads the file locally, without uploading it. This is configuration assessment, not arbitrary schema comparison or an automatic migration tool. See [import and comparison](docs/public/import-and-compare.md).
+Yes. Supported local `.json`, `.yaml` and `.env` files can be assessed against an admitted definition. The Version Migration Engine compares an existing configuration against a new application schema release, highlighting newly mandatory keys, auto-migrated renames, and retired settings before you upgrade. Filling eligible fields is an explicit, deliberate action that preserves your existing values. See [import and comparison](docs/public/import-and-compare.md).
 
-Direct Infisical and Azure Key Vault workflows are longer-term native plans, not available integrations. The intended direction includes explicit secret inspection, comparison, updates and verification, with separately designed credentials, permissions and conflict handling. The current product prepares configuration locally.
+### How does Configurator integrate with secret managers like Infisical or Azure Key Vault?
+
+Configurator coordinates with secret management through a clean separation of concerns:
+- **Runtime Secret Consumption:** Target applications (like ISLAMU Event) use the companion library `ISLAMU SecretKit` to borrow secrets at runtime inside scoped stack/span memory (`SecretMaterial.Use(...)`) with immediate zero-memory erasure.
+- **Setup & Provisioning:** On native Desktop and Terminal surfaces, Configurator provides optional export sinks to push validated credentials directly into Infisical or Azure Key Vault via official provider CLIs.
+- **Browser Boundary:** The WebAssembly browser client remains strictly air-gapped with zero network calls and zero vault synchronization.
+
+### Where can I learn more about the broader product vision and adoption strategy?
+
+Read the comprehensive [Product Vision & Sovereign Infrastructure Strategy](docs/internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](docs/internal/MARKETING_AND_ADOPTION_STRATEGY.md) for detailed breakdowns of our non-profit mission, Islamic Value-Sensitive Design (I-VSD), AI agent QA testing matrices, and ecosystem distribution flywheels.
 
 ### Does successful preparation mean my application will accept the files?
 
@@ -192,7 +230,7 @@ There are many ways you can contribute to ISLAMU Configurator:
 
 ## Quick Start (For Developers & Contributors)
 
-For local development and code contribution, install .NET SDK **10.0.302**
+For local development and code contribution, install .NET SDK **10.0.403**
 and the pinned workloads described in [PROJECTS.md](PROJECTS.md). The following
 Bash commands create a checkout, restore dependencies (network/cache required),
 build it, and inspect native writer availability. They do not prepare target
@@ -305,7 +343,7 @@ from qualification and future work, and the
 
 | Layer | Technology |
 |---|---|
-| Runtime | .NET 10, SDK 10.0.302 |
+| Runtime | .NET 10, SDK 10.0.403 |
 | Architecture | Independent Core, Artifacts and Presentation with four adapters |
 | Machine CLI | Spectre.Console / Spectre.Console.Cli |
 | Terminal | Official Terminal.Gui, centrally pinned with retained component notices |

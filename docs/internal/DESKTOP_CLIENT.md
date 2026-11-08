@@ -149,6 +149,22 @@ field focus or issue a workspace correction token. After deliberate successful
 adoption, normal fresh workspace validation owns corrections. No report value,
 private unknown key, raw exception or native input path belongs in feedback.
 
+## Protocol Handshake, Profile Store & Secret Manager Sync
+
+1. **Protocol Handshake (`configurator://`):**
+   * Registered as a native URI scheme on Linux (`.desktop` MIME/scheme entry), macOS (`CFBundleURLTypes`), and Windows (`HKCU\Software\Classes\configurator`).
+   * Passes the inbound definition URL or diff request parameters directly to `DesktopShellViewModel` upon activation.
+2. **Managed Local Profile Store:**
+   * Filesystem location: `~/.config/islamu-configurator/profiles/<app-id>/`
+   * Catalogs separate profile directories per application and deployment environment (`development`, `staging`, `production`), storing `answers.json` alongside compiled output artifacts.
+   * Auto-matching detects and loads matching local configuration profiles when a definition or release notes diff URL is opened.
+3. **Secret Manager Provisioning Bridge:**
+   * Bridges native Desktop preparation to target enterprise vaults (Infisical, Azure Key Vault).
+   * Relies on local provider CLIs for machine credential delegation and `ISLAMU SecretKit` runtime models for disposable in-memory verification.
+   * By default, zero network requests occur; pushing secrets is strictly operator-confirmed.
+
+For full strategic and architectural context, see [Product Vision](PRODUCT_VISION.md) and [Marketing & Adoption Strategy](MARKETING_AND_ADOPTION_STRATEGY.md).
+
 ## Editing and presentation flow
 
 `FormWorkspaceViewModel.ConfigurationChoices` contains declared compatible

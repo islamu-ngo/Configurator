@@ -15,8 +15,18 @@ Setting up modern self-hosted applications often involves navigating dozens of e
 
 - **Guesswork and Broken Syntax:** Typos in `.env` variable names or incorrect YAML indentation crash services on boot.
 - **Hidden Dependencies:** Choosing a specific feature (like enabling metrics or an external database) requires several related settings that are easy to miss.
+- **The Compose Sprawl Anti-Pattern:** Projects frequently attempt to support multiple topologies by publishing dozens of separate files (`docker-compose.sqlite.yml`, `docker-compose.postgres.yml`, `docker-compose.traefik.yml`), creating combinatorial maintenance headaches. Configurator replaces this sprawl with a single declarative schema that conditionally emits the exact files needed.
 - **Accidental Secret Exposure:** Passwords and API tokens frequently get committed to Git, pasted into shared chat channels, or transmitted across unencrypted web forms.
-- **Platform Lock-In:** Many guided setup tools only work if you adopt a specific Docker platform, app store, or cloud provider.
+- **Platform Lock-In & Walled Gardens:** Existing setup wizards (Unraid, TrueNAS, CasaOS, Portainer) lock configurations into proprietary background daemons and distributions. Configurator emits standard, portable text files (`.env`, JSON, YAML) with zero background daemons.
+
+### Why Hasn't a Universal Solution Existed Before?
+
+Despite the acute, universal agony of configuration, five historical barriers prevented a universal tool from emerging until now:
+1. **The DevOps Tragedy of the Commons:** Application authors see deployment as an operations concern; sysadmins write bespoke scripts. Neither built a universal abstraction layer.
+2. **Commercial Walled Gardens:** Homelab platforms built proprietary templates to protect their hardware or software moats.
+3. **The Web SaaS Privacy Paradox:** Operators refuse to paste production database passwords and API tokens into third-party cloud websites. Only modern, static client-side WebAssembly (WASM) and native zero-network runtimes allow air-gapped visual configuration.
+4. **The Failure of Robotic JSON Schema UIs:** Generic form generators produced rigid, unusable enterprise UIs lacking humanized explanations, wire-token toggles, and conditional defaults.
+5. **The Pre-AI Authoring Bottleneck:** Writing schemas for 300 variables required 40+ hours of tedious manual engineering per app. Modern AI agent skills ([`configurator-integrate`](../../.agents/skills/configurator-integrate/SKILL.md)) with physical Docker boot verification reduce this to minutes.
 
 Configurator reduces this friction. Application maintainers describe bounded
 setup requirements in a non-executable definition. Operators answer those
@@ -124,6 +134,7 @@ graph TD
 - **Want to explore the interfaces?** Check out the [Terminal](terminal.md), [Desktop](desktop.md), [Browser](browser.md), or [CLI](cli.md) guides.
 - **Integrating your own application?** Read [Integrate Your Tool](integrate-your-tool.md) to create your first `configurator.yaml`.
 - **Looking up terminology?** Consult our [Glossary](glossary.md) for plain-language definitions of key concepts.
+- **Exploring our strategic direction?** Read the [Product Vision & Sovereign Infrastructure Strategy](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
 - **Checking completion claims?** Use the [current status](../internal/STATUS.md)
   and [knowledge map](../internal/KNOWLEDGE_MAP.md) to distinguish implementation,
   qualification and future work.

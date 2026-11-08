@@ -74,6 +74,14 @@ ISLAMU Configurator takes a fundamentally different path:
 5. **Shared Semantics, Distinct Interfaces:** CLI, TUI, Desktop and Browser
    consume the same Core rules. They do not render identically or have identical
    capabilities, consent requirements or delivery guarantees.
+6. **Eliminating Compose Sprawl:** Replaces the need for dozens of fragmented compose files (`docker-compose.sqlite.yml`, `docker-compose.postgres.yml`, `docker-compose.traefik.yml`) by allowing a single definition to conditionally project the exact required configuration.
+7. **Day-2 Lifecycle & Breaking Change Diffing:** Unlike static templates, Configurator compares existing configuration files against newer application revisions, highlighting newly required variables and deprecated keys before upgrades are applied.
+
+### Why Walled Gardens Failed to Unify the Self-Hosting Space
+
+Platforms like Unraid, TrueNAS, CasaOS, and Portainer offered graphical app stores, but locked their configuration templates into their own proprietary background daemons and OS distributions. An operator running bare-metal systemd, standard Docker Compose, or Podman was completely shut out.
+
+Configurator breaks free of this walled-garden model. It requires **no background daemon, no root access, and no platform lock-in**. It emits standard, portable text configurations that run on any host, while offering deep links, embeddable widgets, and release notes upgrade diffing. For an in-depth strategic analysis, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
 
 ---
 

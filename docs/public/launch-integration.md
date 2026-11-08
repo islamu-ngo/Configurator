@@ -207,6 +207,33 @@ https://<configurator-origin>/launch/4d8950ad-972c-4357-8605-7a7c89c05a17?appVer
 
 ---
 
+## 3. The 1-Click Upgrade Diff Route (`/diff`)
+
+Maintainers can direct users to semantic configuration breaking changes directly from GitHub release notes:
+
+```text
+https://<configurator-origin>/diff?id=immich&from=v1.9.0&to=v2.0.0
+```
+
+* **Desktop Integration:** If the operator has Configurator Desktop installed, the `configurator://` protocol handler can launch Desktop directly, automatically locating saved local profiles (`~/.config/islamu-configurator/profiles/<app-id>/`) and showing the diff report with zero manual input.
+* **Web Integration:** Prompts operators to drop their existing `.env` or `answers.json` into the browser to display newly mandatory settings, renamed keys, and deprecated variables.
+
+---
+
+## 4. Embeddable Documentation Quickstart Widgets (`/embed`)
+
+Project documentation sites can embed Configurator directly inside getting-started pages:
+
+```html
+<iframe src="https://<configurator-origin>/embed?schema=https%3A%2F%2Fraw.githubusercontent.com%2Fyour-org%2Fyour-app%2Fmain%2Fconfigurator.json"
+        width="100%" height="600" frameborder="0" sandbox="allow-scripts allow-downloads">
+</iframe>
+```
+
+The embed layout provides an ultra-compact viewport of the same compiled Blazor WebAssembly engine, allowing users to configure deployments without navigating away from the project documentation.
+
+---
+
 ## Launch Security Boundaries
 
 To protect users against malicious redirects or network tampering, Configurator enforces strict boundary checks:
@@ -245,3 +272,4 @@ the public editing scope and protected-field controls.
 - **Ready to author a definition?** Follow the [Integrate Your Tool](integrate-your-tool.md) guide.
 - **Curious about browser privacy?** Read the [Browser Guide](browser.md) for details on memory handling and export.
 - **Contributing to the public catalog?** Check out the [Definition Store](definition-store.md).
+- **Understanding our product vision?** Read the [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).

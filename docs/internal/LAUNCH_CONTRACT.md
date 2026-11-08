@@ -368,11 +368,24 @@ overrides live workspace custody. Browser online status is eligibility, not proo
 that a remote host is reachable; normal bounded-fetch diagnostics still apply.
 
 Serve the entire published `wwwroot` via a secure context, with SPA fallback
-for `/launch/*` and `/open`, correct WASM MIME types and asset failures distinct
+for `/launch/*`, `/open`, `/diff` and `/embed`, correct WASM MIME types and asset failures distinct
 from HTML navigation. Base path, worker scope and manifest must agree. CSP
 allows reviewed WASM boot/same-origin assets and the bounded HTTPS source path;
 it is not target authentication or a network-isolation certificate. Packaging
 and capabilities are generator-owned; see [Packaging](PACKAGING.md).
+
+## Extended launch routes and protocol handshake
+
+1. **The 1-Click Upgrade Diff Route (`/diff`):**
+   * Parameters: `id` (application definition ID), `from` (current version), `to` (target release version).
+   * Web client mounts the semantic version migration engine, presenting an active-file drop zone to calculate breaking configuration deltas.
+2. **The Protocol Handshake (`configurator://`):**
+   * Web launch routes present an interactive prompt: *"Open in Configurator Desktop or continue in Web?"*
+   * Desktop launch passes parameters directly to native storage, auto-matching local profiles in `~/.config/islamu-configurator/profiles/<app-id>/`.
+3. **Embeddable Documentation Widgets (`/embed`):**
+   * Lightweight layout rendering inside sandboxed iframes (`sandbox="allow-scripts allow-downloads"`) on external project documentation pages.
+
+For full strategic details, see [Product Vision](PRODUCT_VISION.md) and [Marketing & Adoption Strategy](MARKETING_AND_ADOPTION_STRATEGY.md).
 
 ## Verification ownership
 

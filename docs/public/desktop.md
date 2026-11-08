@@ -325,6 +325,28 @@ again using fresh destinations.
 
 ---
 
+## Managed Local Profile Store & Protocol Handshake
+
+Configurator Desktop serves as an operator's local command center for managing applications across multiple deployment environments:
+
+1. **Protocol Handshake (`configurator://`):**
+   * Registered as a native desktop URI scheme on Linux, macOS, and Windows.
+   * When operators click "Configure Visually" or release notes upgrade links, the desktop application can open directly, bypassing browser download steps.
+2. **Local Profile Store (`~/.config/islamu-configurator/profiles/<app-id>/`):**
+   * Automatically catalogs and manages configuration snapshots per application and environment:
+     * `development.env` / `answers.json`
+     * `staging.env` / `answers.json`
+     * `production.env` / `answers.json`
+   * Automatically recognizes and pre-selects active profiles based on definition ID and metadata fingerprints.
+3. **Native Secret Manager Vault Sync (Infisical & Azure Key Vault):**
+   * During the **Review outputs** stage, Desktop provides optional authenticated export sinks to push configured secrets directly into target vaults.
+   * Leverages official provider CLIs (`infisical-cli`, `az`) for local keyring authentication and `ISLAMU SecretKit` runtime models for disposable in-memory verification.
+   * By default, zero network requests occur; vault synchronization happens solely on explicit operator confirmation.
+
+For the underlying architecture and sovereign infrastructure vision, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
+
+---
+
 ## Window Closure & Pending Tasks
 
 Closing the window while background reads or writes are active triggers cooperative cancellation:

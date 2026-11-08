@@ -262,6 +262,36 @@ Before distributing an integration:
 
 ## Distributing Your Definition
 
+### 1. The README "Configure Visually" Badge
+Embed a single badge in your repository README to give operators an instant visual setup wizard:
+
+```markdown
+[![Configure with ISLAMU Configurator](https://configurator.islamu.org/badge.svg)](https://configurator.islamu.org/?schema=https://raw.githubusercontent.com/your-org/your-app/main/configurator.json)
+```
+
+### 2. The Release Notes 1-Click Upgrade Diff Button
+When publishing a new release, include a direct diff link to help operators visualize breaking configuration changes before upgrading:
+
+```markdown
+[⚡ Check Configuration Breaking Changes](https://configurator.islamu.org/diff?id=your-app&from=v1.0.0&to=v2.0.0)
+```
+
+### 3. Embeddable Quickstart Documentation Widgets
+Embed the configuration wizard directly into your project's documentation pages without redirecting users away:
+
+```html
+<iframe src="https://configurator.islamu.org/embed?schema=https://raw.githubusercontent.com/your-org/your-app/main/configurator.json"
+        width="100%" height="600" frameborder="0" sandbox="allow-scripts allow-downloads">
+</iframe>
+```
+
+### 4. AI Agent Authoring with Physical Docker Boot Verification
+Maintainers and contributors can use AI coding agents via [Agentic Engineering Skills](../../.agents/skills/configurator-integrate/SKILL.md) to automatically synthesize and verify schemas:
+1. **Deep Context Crawling:** Ingests repo markdown, Dockerfiles, and crawls external documentation URLs.
+2. **Non-Hallucinating Clarification:** Prompts operators with multi-choice questions for undocumented parameters rather than guessing defaults (*Sidq*).
+3. **Physical Localhost Docker Boot Verification:** Generates a minimal test manifest with only mandatory fields, boots the container locally via Docker, and monitors startup logs/health checks to physically prove the schema works.
+4. **Automated Catalog Contribution:** Submits the certified schema to the public store via PR.
+
 Keep source and canonical revisions beside application code, host canonical
 runtime JSON on an admitted public HTTPS origin for
 [launch integration](launch-integration.md), or contribute through the
@@ -269,7 +299,4 @@ runtime JSON on an admitted public HTTPS origin for
 compiled runtime JSON, not arbitrary remote authoring or answers.
 
 No distribution channel grants target authentication, apply authority or native
-protected-save guarantees. See the portable
-[integration skill](../../skills/configurator-integrate/SKILL.md) for agent
-workflow guidance; the current contract reference and admitted source remain
-authoritative when older guidance differs.
+protected-save guarantees. For full strategic details, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).

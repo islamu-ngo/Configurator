@@ -131,6 +131,26 @@ the original password, and key-format validation does not prove target
 acceptance. See the [secret-policy guide](definition-cookbook.md#secret-policy-and-target-format)
 and [shared import contract](../internal/IMPORT_COMPARISON.md).
 
+## The Release Notes 1-Click Upgrade Diff Workflow
+
+Application maintainers can embed direct upgrade links in their release notes:
+
+```markdown
+### Upgrading to v2.0.0
+[⚡ Check Configuration Breaking Changes](https://configurator.islamu.org/diff?id=immich&from=v1.9.0&to=v2.0.0)
+```
+
+1. **Protocol Handshake (`configurator://`):** Visitors to the link are greeted with a prompt: *"Open in Configurator Desktop or continue in Web?"* (matching Microsoft Teams, VS Code, and Slack UX patterns).
+2. **Desktop Automation:** The Desktop application checks its managed local store (`~/.config/islamu-configurator/profiles/<app-id>/`), identifies the existing profile for the target environment (`development`, `staging`, `production`), and loads the comparison report instantly.
+3. **Web Drop-Zone:** In the Web client, operators simply drop their existing `.env` or `answers.json` file into the page to view the diff.
+4. **Actionable Delta:** The report immediately flags:
+   - 🔴 **Newly Required Variables** that must be answered to avoid container boot crashes.
+   - 🟡 **Renamed Variables** with automatic mapping suggested.
+   - 🟢 **Deprecated / Obsolete Variables** safely removed.
+5. **Direct Vault Sync:** When configured with secret managers (Infisical or Azure Key Vault via `ISLAMU SecretKit`), operators can click **"Apply Upgrade Diff to Staging"** or **"Production"** directly from Desktop without manual copy-pasting.
+
+For the detailed engineering architecture and distribution strategy, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
+
 ## Keep Private Input Local
 
 Treat every configuration file as potentially secret-bearing, even when its
