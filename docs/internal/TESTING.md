@@ -317,7 +317,7 @@ When working on a feature or bug fix:
 
 ### Run Commands
 
-Run from Configurator with SDK 10.0.302. Replace the Core paths below with the
+Run from Configurator with SDK 10.0.403. Replace the Core paths below with the
 affected owner; do not run all product suites for engineering-tool changes.
 
 ```bash

@@ -13,7 +13,7 @@
   </Target>
   <Target Name="ValidateConfiguratorCapture" BeforeTargets="PrepareForBuild"
           Condition="'$(ConfiguratorCaptureSession)' != ''">
-    <Error Condition="'$(NETCoreSdkVersion)' != '10.0.302'" Text="CAPTURE_SDK_UNSUPPORTED" />
+    <Error Condition="'$(NETCoreSdkVersion)' != '10.0.403'" Text="CAPTURE_SDK_UNSUPPORTED" />
     <Error Condition="'$(UseSharedCompilation)' != 'false'" Text="CAPTURE_COMPILER_SERVER_UNSUPPORTED" />
   </Target>
 </Project>

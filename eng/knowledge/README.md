@@ -8,7 +8,7 @@
 Generate a complete, reviewable inventory before choosing a smaller context.
 These commands are local engineering tools, not a second documentation authority
 or a replacement for the repository entry points. They need the repository's
-.NET SDK 10.0.302 and Git, with no added packages, npm, Repomix installation,
+.NET SDK 10.0.403 and Git, with no added packages, npm, Repomix installation,
 network retrieval or product build.
 
 Run from this checkout (a subdirectory also works when the source operand is

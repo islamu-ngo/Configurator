@@ -56,7 +56,7 @@ do not apply.
 
 ## Build And Test Baseline
 
-Use SDK 10.0.302, MTP `--project`, central package versions and generated locks.
+Use SDK 10.0.403, MTP `--project`, central package versions and generated locks.
 The [project map](../../PROJECTS.md) owns exact affected-owner commands and package
 preconditions. Documentation-only changes run link/anchor/whitespace checks,
 not product builds/tests. Engineering changes run engineering suites.

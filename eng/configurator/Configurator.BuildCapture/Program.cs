@@ -192,7 +192,7 @@ internal static class ReadWasmPropsProfile
     internal const string Recipe = "sdk/packs/Microsoft.NET.Runtime.WebAssembly.Sdk/10.0.9/Sdk/WasmApp.Common.targets";
     internal const string RecipeHash = "c92ba321b041e8cf155e7a58fc7875cc6b4d8c94147600c74db63c1335d32b97";
     internal const string GroupHash = "69a09ff309c1996612b7f4c7809415507b18b019a15473f51afd6ce04eed651a";
-    internal const string Body = "pinned-json-reader-10.0.302";
+    internal const string Body = "pinned-json-reader-10.0.403";
     internal const string ToolsetRecipe = "artifacts/capture-task-overrides/ReadWasmProps.overridetasks";
     internal static readonly string[] Outputs = ["EmccDefaultExportedFunctions", "EmccDefaultExportedRuntimeMethods",
         "EmccProperties", "PropertiesThatTriggerRelinking", "WasmOptConfigurationFlags"];
@@ -228,7 +228,7 @@ internal sealed record Observation(string Operation, string Path, string Kind, s
 /// </summary>
 public sealed class CaptureSession
 {
-    internal const string SdkVersion = "10.0.302";
+    internal const string SdkVersion = "10.0.403";
     internal const string WorkloadVersion = "10.0.301.1";
     internal const int MaximumRepositoryNames = 100_000;
     internal const int MaximumRepositoryNameLength = 4096;

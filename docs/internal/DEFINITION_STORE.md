@@ -168,7 +168,7 @@ definition remains a separate deliberate action.
 
 ## Validation and contribution lane
 
-Run from the repository root with SDK 10.0.302 and workstation
+Run from the repository root with SDK 10.0.403 and workstation
 `TMPDIR="$HOME/.cache/agent-tmp"`:
 
 ```bash

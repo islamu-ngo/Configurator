@@ -146,7 +146,7 @@ existing task authorization does not require a second routine approval.
 
 ## 5. Targeted Verification Commands
 
-Run from this repository with SDK 10.0.302:
+Run from this repository with SDK 10.0.403:
 
 ```bash
 export TMPDIR="$HOME/.cache/agent-tmp"
@@ -171,7 +171,7 @@ here. See `docs/internal/TERMINAL_GUI_DEPENDENCY.md` for the decision and histor
 
 For the concrete affected in-memory class, use the MTP `--treenode-filter`
 syntax shown in the [testing guide](docs/internal/TESTING.md#run-commands).
-For example, after building the Core test project in Release with SDK 10.0.302:
+For example, after building the Core test project in Release with SDK 10.0.403:
 
 ```bash
 export TMPDIR="$HOME/.cache/agent-tmp"

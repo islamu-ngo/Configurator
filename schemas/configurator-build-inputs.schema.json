@@ -7,7 +7,7 @@
     },
     "sdkVersion": {
       "type": "string",
-      "const": "10.0.302"
+      "const": "10.0.403"
     },
     "workloadVersion": {
       "type": "string",

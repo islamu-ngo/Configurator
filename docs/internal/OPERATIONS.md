@@ -407,7 +407,7 @@ Other style suggestions remain editor guidance unless explicitly promoted.
 This policy adds no analyzer package or warning suppression; verification must
 compile the affected source to exercise the selected diagnostics.
 
-Use SDK 10.0.302 and Microsoft.Testing.Platform. Set the current workstation
+Use SDK 10.0.403 and Microsoft.Testing.Platform. Set the current workstation
 temporary root before native tool/test execution:
 
 ```bash

@@ -190,7 +190,7 @@ evidence, with retirement annotations rather than rewritten history.
 
 ## Executed verification
 
-All .NET commands use SDK 10.0.302 with `TMPDIR="$HOME/.cache/agent-tmp"`.
+All .NET commands use SDK 10.0.403 with `TMPDIR="$HOME/.cache/agent-tmp"`.
 
 | Check | Executed result |
 | --- | --- |
