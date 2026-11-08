@@ -61,7 +61,7 @@ navigation pages and generated inventories project it rather than replace it.
 | Browser | `LAUNCH_CONTRACT.md`, `BROWSER_UI.md`, public browser guide |
 | Terminal | `TERMINAL_CLIENT.md`, public terminal guide |
 | Desktop | `DESKTOP_CLIENT.md`, public desktop guide |
-| Contributor Experience | `CONTRIBUTING.md`, `PROJECTS.md`, `GOVERNANCE.md`, `TESTING.md`, `STATUS.md`, `KNOWLEDGE_MAP.md`, `DEVELOPER_GUIDE.md`, `FIRST_CONTRIBUTION.md`, `CONTRIBUTOR_RECIPES.md`, `DOCUMENTATION_STYLE_GUIDE.md`, `docs/public/getting-started.md`, this document |
+| Contributor Experience | `CONTRIBUTING.md`, `PROJECTS.md`, `GOVERNANCE.md`, `TESTING.md`, `STATUS.md`, `KNOWLEDGE_MAP.md`, `DEVELOPER_GUIDE.md`, `FIRST_CONTRIBUTION.md`, `CONTRIBUTOR_RECIPES.md`, `DOCUMENTATION_STYLE_GUIDE.md`, `PRODUCT_VISION.md`, `MARKETING_AND_ADOPTION_STRATEGY.md`, `docs/public/getting-started.md`, this document |
 | Agent Context | `AGENTS.md`, `.agents/contract/`, `.agents/skills/`, `dev/_journal/` |
 
 ## Metadata Policy

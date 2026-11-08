@@ -27,6 +27,7 @@ decisions, strategy, proposals and historical evidence relate.
 | Link an application to the browser | [Launch integration](public/launch-integration.md) | [Launch trust boundary](internal/LAUNCH_CONTRACT.md) |
 | Distribute public definitions | [Optional store](public/definition-store.md) | [Store contribution instructions](../store/README.md) |
 | Compare architectural approaches | [Comparison](public/comparison.md) | [Direction and tradeoffs](internal/VISION_AND_APPROACH.md) |
+| Understand product vision and ecosystem | [Product vision](internal/PRODUCT_VISION.md) | [Marketing & adoption strategy](internal/MARKETING_AND_ADOPTION_STRATEGY.md) |
 
 ## Contribute or investigate a mechanism
 

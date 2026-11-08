@@ -28,6 +28,7 @@ replace their evidence.
 | Provider-responsibility governance and assessments | [I-VSD catalog](../../islamic-value-sensitive-design/README.md) | Current root navigation separates governance, consultations and workstreams; recorded report lifecycle/cutoff is not renewed approval or implementation evidence |
 | Transfer provenance | [Foundation](extraction/FOUNDATION.md), [provenance](extraction/PROVENANCE.md) | Source revisions, exclusions and dispositions explain transfer; they do not confer release, target or publisher authority |
 | User strategy and research | [Universal configurator](universal-configurator.md), [go-to-market](go-to-market.md) | User-owned originals remain unchanged; relationships below do not turn recommendations into decisions |
+| Strategic vision and ecosystem adoption | [Product vision](PRODUCT_VISION.md), [Marketing and adoption strategy](MARKETING_AND_ADOPTION_STRATEGY.md) | Grounded strategic product vision, 4-surface architecture, sovereign non-profit ecosystem, secret provisioning and distribution flywheels |
 
 A report recommendation can inform a proposed ADR, an accepted decision can
 guide implementation, and execution can supply qualification evidence. None of
