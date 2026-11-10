@@ -4,6 +4,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <_EmbeddedDefinitionStoreRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../..'))</_EmbeddedDefinitionStoreRoot>
+    <_EmbeddedDefinitionStoreSource Condition="'$(DefinitionStoreSourceRoot)' != ''">$([System.IO.Path]::GetFullPath('$(DefinitionStoreSourceRoot)'))</_EmbeddedDefinitionStoreSource>
+    <_EmbeddedDefinitionStoreSource Condition="'$(_EmbeddedDefinitionStoreSource)' == ''">$(_EmbeddedDefinitionStoreRoot)/store</_EmbeddedDefinitionStoreSource>
+    <_EmbeddedDefinitionStoreOutput>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(BaseIntermediateOutputPath)$(Configuration)/$(TargetFramework)/embedded-store'))</_EmbeddedDefinitionStoreOutput>
+    <_EmbeddedDefinitionStoreSchema>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(BaseIntermediateOutputPath)$(Configuration)/$(TargetFramework)/embedded-store.curation.schema.json'))</_EmbeddedDefinitionStoreSchema>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,4 +24,23 @@
     <EmbeddedResource Update="Resources/PresentationStrings.ar.resx" WithCulture="false"
                       LogicalName="Configurator.Presentation.Resources.PresentationStrings.ar.resources" />
   </ItemGroup>
+
+  <Target Name="GenerateStoreAssets"
+          Inputs="$(_EmbeddedDefinitionStoreSource)/**/*;$(_EmbeddedDefinitionStoreRoot)/eng/configurator/BuildDefinitionStore.cs"
+          Outputs="$(_EmbeddedDefinitionStoreOutput)/index.json">
+    <RemoveDir Directories="$(_EmbeddedDefinitionStoreOutput)" />
+    <Exec Condition="'$(ConfiguratorCaptureSession)' == ''" WorkingDirectory="$(_EmbeddedDefinitionStoreRoot)"
+          Command="dotnet run --file &quot;$(_EmbeddedDefinitionStoreRoot)/eng/configurator/BuildDefinitionStore.cs&quot; -- --source &quot;$(_EmbeddedDefinitionStoreSource)&quot; --output &quot;$(_EmbeddedDefinitionStoreOutput)&quot; --schema &quot;$(_EmbeddedDefinitionStoreSchema)&quot; --write" />
+    <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''"
+      Session="$(ConfiguratorCaptureSession)" Project="$(MSBuildProjectFullPath)" Operation="store"
+      Arguments="--source;$(_EmbeddedDefinitionStoreSource);--output;$(_EmbeddedDefinitionStoreOutput);--schema;$(_EmbeddedDefinitionStoreSchema);--write" />
+  </Target>
+  <Target Name="EmbedStoreAssets" BeforeTargets="SplitResourcesByCulture" DependsOnTargets="GenerateStoreAssets">
+    <ItemGroup>
+      <_EmbeddedDefinitionStoreAsset Include="$(_EmbeddedDefinitionStoreOutput)/**/*.json" />
+      <EmbeddedResource Include="@(_EmbeddedDefinitionStoreAsset)"
+        LogicalName="Configurator.Store.%(RecursiveDir)%(Filename)%(Extension)" />
+      <FileWrites Include="@(_EmbeddedDefinitionStoreAsset)" />
+    </ItemGroup>
+  </Target>
 </Project>
