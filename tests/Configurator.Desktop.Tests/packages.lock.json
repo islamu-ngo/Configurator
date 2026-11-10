@@ -287,6 +287,7 @@
           "Avalonia": "[12.1.6, )",
           "Avalonia.BuildServices": "[11.3.2, )",
           "Avalonia.Desktop": "[12.1.6, )",
+          "Avalonia.Dialogs": "[12.1.6, )",
           "Avalonia.Themes.Fluent": "[12.1.6, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "Configurator.Artifacts": "[0.0.1, )",

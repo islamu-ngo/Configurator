@@ -442,7 +442,7 @@
       },
       "Microsoft.Extensions.DependencyInjection": {
         "type": "CentralTransitive",
-        "requested": "[10.0.10, )",
+        "requested": "[10.0.14, )",
         "resolved": "10.0.14",
         "contentHash": "2LzcuVjemeXR+WdY9wGIr8iGb7fYsDAit+IScxXX2XJnX0b++mWcE/WO6fEGIqhdMfSQM2ZS5JGMHYZix7YXZg==",
         "dependencies": {
@@ -466,7 +466,7 @@
       },
       "Microsoft.Testing.Extensions.CodeCoverage": {
         "type": "CentralTransitive",
-        "requested": "[18.9.0, )",
+        "requested": "[18.12.0, )",
         "resolved": "18.12.0",
         "contentHash": "BST/sWYpKk9OXO7Yxktcg6FWORRsHU0EdCbMwZ7d3OqJsMKlrNHIZ30g0Ib4k5T5acJYXRBmg9mNrTU/N6cy1g==",
         "dependencies": {
