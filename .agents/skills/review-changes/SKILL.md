@@ -14,7 +14,7 @@ priority: high
 # Review Changes: Two-Axis Code Review
 
 Review local diffs across two independent, non-polluting axes:
-1. **Axis 1 (Standards & Smells)**: Does the code adhere to Clean Architecture, repo rules, and the Fowler Smells Baseline?
+1. **Axis 1 (Standards & Smells)**: Does the code adhere to clean code, repo rules, and the Fowler Smells Baseline?
 2. **Axis 2 (Spec & Intent Fidelity)**: Does the diff faithfully satisfy the requested behavior without scope creep or missed edge cases?
 
 ## The Fowler 12-Smell Baseline
