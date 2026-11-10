@@ -6,5 +6,6 @@ public enum DesktopStatusGuidance
     General, DefinitionRequired, DefinitionInvalid, ValidationInvalid, PreparationInvalid,
     SelectionUnavailable, SelectionNonlocal, ImportUnreadable, ImportUnsupported,
     AnswerConflict, InputInvalid, SaveFailed, SaveInstalledUnverified, SaveInstalledVerified,
-    BundleSavePartial, Cancelled, InputsChanged
+    BundleSavePartial, Cancelled, InputsChanged, PathEmpty,
+    RemoteUriInvalid, RemoteHostBlocked, RemotePayloadLimit, RemoteFetchFailed, StoreOpenFailed
 }

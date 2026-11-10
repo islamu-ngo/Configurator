@@ -9,6 +9,8 @@ using Configurator.Desktop.Resources;
 using Configurator.Desktop.Services;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.Views;
+using Configurator.Presentation.Intake;
+using Configurator.Presentation.Store;
 using Microsoft.Extensions.DependencyInjection;
 
 public sealed partial class App : Application, IDisposable
@@ -32,6 +34,8 @@ public sealed partial class App : Application, IDisposable
                     () => provider.GetRequiredService<FormWorkspaceViewModel>().Form?.Locale));
             services.AddSingleton<ISecretClipboardService>(provider =>
                 new AvaloniaSecretClipboardService(() => provider.GetRequiredService<MainWindow>().Clipboard));
+            services.AddSingleton<IDefinitionRemoteFetcher, DefinitionRemoteFetcher>();
+            services.AddSingleton<IDefinitionStoreProvider, EmbeddedDefinitionStoreProvider>();
             services.AddSingleton<DefinitionLoaderViewModel>();
             services.AddSingleton<FormWorkspaceViewModel>();
             services.AddSingleton<Func<CancellationToken, ValueTask>>(
@@ -55,7 +59,15 @@ public sealed partial class App : Application, IDisposable
             {
                 shell.Loader.DefinitionPath = args[0];
                 if (args.Length == 2) shell.Publisher.OutputDirectory = args[1];
-                desktop.MainWindow.Opened += async (_, _) => await shell.Loader.LoadDefinitionAsync();
+                desktop.MainWindow.Opened += async (_, _) =>
+                {
+                    await shell.Loader.LoadStoreAsync();
+                    await shell.Loader.LoadDefinitionAsync();
+                };
+            }
+            else
+            {
+                desktop.MainWindow.Opened += async (_, _) => await shell.Loader.LoadStoreAsync();
             }
             desktop.Exit += (_, _) => Dispose();
         }

@@ -111,6 +111,15 @@
   <data name="DefinitionPath" xml:space="preserve"><value>مسار التعريف المحلي (JSON أو YAML)</value></data>
   <data name="ChooseDefinition" xml:space="preserve"><value>اختيار تعريف…</value></data>
   <data name="LoadDefinition" xml:space="preserve"><value>_تحميل التعريف</value></data>
+  <data name="PublicSchemaUrl" xml:space="preserve"><value>رابط التعريف العام (HTTPS)</value></data>
+  <data name="FetchSchema" xml:space="preserve"><value>_جلب التعريف</value></data>
+  <data name="RepositoryStore" xml:space="preserve"><value>مكتبة التعريفات المدمجة</value></data>
+  <data name="SearchSchemas" xml:space="preserve"><value>البحث في مشاريع المكتبة</value></data>
+  <data name="ConfigureProject" xml:space="preserve"><value>تهيئة المشروع</value></data>
+  <data name="StoreNoProjects" xml:space="preserve"><value>لا توجد مشاريع مطابقة في المكتبة.</value></data>
+  <data name="StoreUnavailable" xml:space="preserve"><value>مكتبة التعريفات المدمجة غير متاحة.</value></data>
+  <data name="LatestRevisionLabel" xml:space="preserve"><value>أحدث مراجعة:</value></data>
+  <data name="ApplicationIdLabel" xml:space="preserve"><value>التطبيق:</value></data>
   <data name="Experience" xml:space="preserve"><value>تجربة التهيئة</value></data>
   <data name="OptionalEditors" xml:space="preserve"><value>إظهار المحررات _الاختيارية</value></data>
   <data name="RightToLeft" xml:space="preserve"><value>اتجاه من _اليمين إلى اليسار</value></data>
@@ -141,6 +150,12 @@
   <data name="StatusGeneral" xml:space="preserve"><value>التحضير المحلي لا يطبّق الإعدادات على التطبيق المستهدف.</value></data>
   <data name="StatusDefinitionRequired" xml:space="preserve"><value>اختر تعريفًا محليًا بتنسيق JSON أو YAML ثم حمّله.</value></data>
   <data name="StatusDefinitionInvalid" xml:space="preserve"><value>تحقق من تنسيق التعريف المحلي وحجمه وأذوناته ثم أعد تحميله.</value></data>
+  <data name="StatusPathEmpty" xml:space="preserve"><value>أدخل مسار تعريف محلياً أو اختر ملف تعريف، ثم حمّله.</value></data>
+  <data name="StatusRemoteUriInvalid" xml:space="preserve"><value>أدخل رابط تعريف عامًا بصيغة https:// دون بيانات اعتماد أو سلاسل استعلام أو أجزاء أو عناوين IP.</value></data>
+  <data name="StatusRemoteHostBlocked" xml:space="preserve"><value>هذا المضيف ليس وجهة إنترنت عامة. استخدم مضيف HTTPS عامًا أو حمّل تعريفًا محليًا.</value></data>
+  <data name="StatusRemotePayloadLimit" xml:space="preserve"><value>يتجاوز التعريف البعيد حد الحجم البالغ 4 ميجابايت.</value></data>
+  <data name="StatusRemoteFetchFailed" xml:space="preserve"><value>تعذر جلب التعريف البعيد. تحقق من الرابط والاتصال، أو حمّل تعريفًا محليًا.</value></data>
+  <data name="StatusStoreOpenFailed" xml:space="preserve"><value>تعذر فتح تعريف المكتبة المدمجة. حمّل تعريفًا محليًا بدلاً من ذلك.</value></data>
   <data name="StatusValidationInvalid" xml:space="preserve"><value>صحح الحقول المحددة ثم أعد التحقق أو التحضير.</value></data>
   <data name="StatusPreparationInvalid" xml:space="preserve"><value>صحح الإجابات أو اختر المخرجات المعلنة النشطة ثم أعد التحضير.</value></data>
   <data name="StatusSelectionUnavailable" xml:space="preserve"><value>اختيار الملفات غير متاح. أدخل مسارًا محليًا واستخدم الإجراء المجاور.</value></data>

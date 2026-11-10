@@ -1,21 +1,83 @@
 <UserControl x:Class="Configurator.Desktop.Views.DefinitionLoaderView"
     xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:vm="using:Configurator.Desktop.ViewModels" xmlns:presentation="using:Configurator.Presentation"
+    xmlns:vm="using:Configurator.Desktop.ViewModels"
+    xmlns:local="using:Configurator.Desktop.Views"
+    xmlns:store="using:Configurator.Presentation.Store"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
-    <StackPanel Spacing="8">
+    <StackPanel Spacing="14">
       <TextBlock Text="{Binding Workspace.Strings[PreparationTitle]}" FontSize="{DynamicResource ConfiguratorTitleFontSize}" FontWeight="SemiBold" />
+
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <StackPanel Spacing="4">
+          <TextBlock Text="{Binding Workspace.Strings[PublicSchemaUrl]}" />
+          <TextBox Name="DefinitionUrl" Text="{Binding Loader.DefinitionUrl, Mode=TwoWay}" FlowDirection="LeftToRight"
+                   PlaceholderText="https://example.org/definition.json"
+                   AutomationProperties.Name="{Binding Workspace.Strings[PublicSchemaUrl]}" />
+        </StackPanel>
+        <Button Grid.Column="1" Name="FetchDefinition" Content="{Binding Workspace.Strings[FetchSchema]}"
+                Command="{Binding Loader.FetchDefinitionCommand}"
+                AutomationProperties.Name="{Binding Workspace.Strings[FetchSchema]}"
+                VerticalAlignment="Bottom" />
+      </Grid>
+
       <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-        <StackPanel>
+        <StackPanel Spacing="4">
           <TextBlock Text="{Binding Workspace.Strings[DefinitionPath]}" />
           <TextBox Name="DefinitionPath" Text="{Binding Loader.DefinitionPath, Mode=TwoWay}" FlowDirection="LeftToRight"
                    AutomationProperties.Name="{Binding Workspace.Strings[DefinitionPath]}" />
         </StackPanel>
         <Button Grid.Column="1" Name="SelectDefinition" Content="{Binding Workspace.Strings[ChooseDefinition]}"
-                Command="{Binding Loader.SelectDefinitionCommand}" AutomationProperties.Name="{Binding Workspace.Strings[ChooseDefinition]}"
+                Command="{Binding Loader.SelectDefinitionCommand}"
+                AutomationProperties.Name="{Binding Workspace.Strings[ChooseDefinition]}"
                 VerticalAlignment="Bottom" />
         <Button Grid.Column="2" Name="LoadDefinition" Content="{Binding Workspace.Strings[LoadDefinition]}"
-                Command="{Binding Loader.LoadDefinitionCommand}" VerticalAlignment="Bottom" />
+                Command="{Binding Loader.LoadDefinitionCommand}"
+                AutomationProperties.Name="{Binding Workspace.Strings[LoadDefinition]}"
+                VerticalAlignment="Bottom" />
       </Grid>
+
       <TextBlock Text="{Binding Loader.DefinitionPin}" TextWrapping="Wrap" />
+
+      <StackPanel Spacing="8">
+        <TextBlock Text="{Binding Workspace.Strings[RepositoryStore]}" FontSize="{DynamicResource ConfiguratorHeadingFontSize}" FontWeight="SemiBold" />
+        <TextBox Name="StoreSearchQuery" Text="{Binding Loader.StoreSearchQuery, Mode=TwoWay}"
+                 PlaceholderText="{Binding Workspace.Strings[SearchSchemas]}"
+                 AutomationProperties.Name="{Binding Workspace.Strings[SearchSchemas]}" />
+        <TextBlock Name="StoreUnavailableText" Text="{Binding Workspace.Strings[StoreUnavailable]}"
+                   IsVisible="{Binding Loader.StoreCatalog.LoadFailed}" Classes="error" TextWrapping="Wrap" />
+        <TextBlock Name="StoreNoProjectsText" Text="{Binding Workspace.Strings[StoreNoProjects]}"
+                   IsVisible="{Binding Loader.StoreCatalog.HasNoMatches}"
+                   Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
+        <ItemsControl Name="StoreProjects" ItemsSource="{Binding Loader.StoreCatalog.Projects}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="store:StoreProjectCardViewModel">
+              <Border BorderBrush="{DynamicResource ConfiguratorBorderBrush}"
+                      Background="{DynamicResource ConfiguratorSurfaceBrush}"
+                      BorderThickness="1" Padding="12" Margin="0,0,0,8">
+                <StackPanel Spacing="6">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+                  <WrapPanel>
+                    <TextBlock Text="{Binding $parent[local:DefinitionLoaderView].((vm:DesktopShellViewModel)DataContext).Workspace.Strings[ApplicationIdLabel]}"
+                               Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" Margin="0,0,4,0" />
+                    <TextBlock Text="{Binding ApplicationId}"
+                               Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" Margin="0,0,12,0" />
+                    <TextBlock Text="{Binding $parent[local:DefinitionLoaderView].((vm:DesktopShellViewModel)DataContext).Workspace.Strings[LatestRevisionLabel]}"
+                               Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" Margin="0,0,4,0" />
+                    <TextBlock Text="{Binding LatestRevision}"
+                               Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+                  </WrapPanel>
+                  <TextBlock Text="{Binding TagsDisplay}" IsVisible="{Binding HasTags}"
+                             Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
+                  <Button Content="{Binding $parent[local:DefinitionLoaderView].((vm:DesktopShellViewModel)DataContext).Workspace.Strings[ConfigureProject]}"
+                          Command="{Binding $parent[local:DefinitionLoaderView].((vm:DesktopShellViewModel)DataContext).Loader.ConfigureStoreProjectCommand}"
+                          CommandParameter="{Binding}"
+                          AutomationProperties.Name="{Binding Name}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
     </StackPanel>
 </UserControl>

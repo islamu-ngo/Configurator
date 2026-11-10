@@ -111,6 +111,15 @@
   <data name="DefinitionPath" xml:space="preserve"><value>Local definition path (JSON or YAML)</value></data>
   <data name="ChooseDefinition" xml:space="preserve"><value>Choose definition…</value></data>
   <data name="LoadDefinition" xml:space="preserve"><value>_Load definition</value></data>
+  <data name="PublicSchemaUrl" xml:space="preserve"><value>Public definition URL (HTTPS)</value></data>
+  <data name="FetchSchema" xml:space="preserve"><value>_Fetch schema</value></data>
+  <data name="RepositoryStore" xml:space="preserve"><value>Embedded repository store</value></data>
+  <data name="SearchSchemas" xml:space="preserve"><value>Search embedded projects</value></data>
+  <data name="ConfigureProject" xml:space="preserve"><value>Configure project</value></data>
+  <data name="StoreNoProjects" xml:space="preserve"><value>No matching store projects.</value></data>
+  <data name="StoreUnavailable" xml:space="preserve"><value>The embedded store catalogue is unavailable.</value></data>
+  <data name="LatestRevisionLabel" xml:space="preserve"><value>Latest revision:</value></data>
+  <data name="ApplicationIdLabel" xml:space="preserve"><value>Application:</value></data>
   <data name="Experience" xml:space="preserve"><value>Configuration experience</value></data>
   <data name="OptionalEditors" xml:space="preserve"><value>Show _optional editors</value></data>
   <data name="RightToLeft" xml:space="preserve"><value>_Right-to-left layout</value></data>
@@ -141,6 +150,12 @@
   <data name="StatusGeneral" xml:space="preserve"><value>Local preparation does not apply configuration to the target application.</value></data>
   <data name="StatusDefinitionRequired" xml:space="preserve"><value>Choose a local JSON or YAML definition, then load it.</value></data>
   <data name="StatusDefinitionInvalid" xml:space="preserve"><value>Check the local definition and its supported format, size and permissions, then load it again.</value></data>
+  <data name="StatusPathEmpty" xml:space="preserve"><value>Enter a local definition path, or choose a definition file, then load it.</value></data>
+  <data name="StatusRemoteUriInvalid" xml:space="preserve"><value>Enter a public https:// definition URL without credentials, query strings, fragments or IP addresses.</value></data>
+  <data name="StatusRemoteHostBlocked" xml:space="preserve"><value>That host is not a public internet destination. Use a public HTTPS host or load a local definition.</value></data>
+  <data name="StatusRemotePayloadLimit" xml:space="preserve"><value>The remote definition exceeds the 4 MiB size limit.</value></data>
+  <data name="StatusRemoteFetchFailed" xml:space="preserve"><value>Unable to fetch the remote definition. Check the URL and connection, or load a local definition.</value></data>
+  <data name="StatusStoreOpenFailed" xml:space="preserve"><value>Unable to open the embedded store definition. Load a local definition instead.</value></data>
   <data name="StatusValidationInvalid" xml:space="preserve"><value>Correct the marked fields, then validate or prepare again.</value></data>
   <data name="StatusPreparationInvalid" xml:space="preserve"><value>Correct the answers or select active declared outputs, then prepare again.</value></data>
   <data name="StatusSelectionUnavailable" xml:space="preserve"><value>Native selection is unavailable. Enter a local path and use the adjacent action.</value></data>

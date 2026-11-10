@@ -5,6 +5,8 @@ using Configurator.Artifacts;
 using Configurator.Core.Artifacts;
 using Configurator.Desktop.Services;
 using Configurator.Desktop.ViewModels;
+using Configurator.Presentation.Intake;
+using Configurator.Presentation.Store;
 
 internal static class DesktopTestContext
 {
@@ -17,7 +19,8 @@ internal static class DesktopTestContext
         Func<DesktopPathSelectionKind, CancellationToken, Task<Uri?>>? select = null,
         Func<string, Stream>? openDefinition = null, Func<string, Stream>? openImport = null,
         TimeProvider? timeProvider = null, Func<CancellationToken, ValueTask>? cooperativeYield = null,
-        IMessenger? messenger = null)
+        IMessenger? messenger = null, IDefinitionRemoteFetcher? remoteFetcher = null,
+        IDefinitionStoreProvider? storeProvider = null)
     {
         messenger ??= new WeakReferenceMessenger();
         var dialogs = new Dialogs(select ?? ((_, _) => Task.FromResult<Uri?>(null)));
@@ -28,8 +31,7 @@ internal static class DesktopTestContext
         DesktopImportReviewViewModel? importReview = null;
         try
         {
-            loader = openDefinition is null ? new DefinitionLoaderViewModel(messenger, dialogs)
-                : new DefinitionLoaderViewModel(messenger, dialogs, openDefinition);
+            loader = Loader(messenger, dialogs, openDefinition, remoteFetcher, storeProvider);
             workspace = new FormWorkspaceViewModel(messenger);
             if (save is null && protectedOutputAvailable is null && publishBundle is null && openImport is null)
             {
@@ -59,6 +61,34 @@ internal static class DesktopTestContext
             importReview?.Dispose();
             publisher?.Dispose();
         }
+    }
+
+    internal static DefinitionLoaderViewModel Loader(IMessenger messenger, IStorageDialogService dialogs,
+        Func<string, Stream>? openDefinition = null, IDefinitionRemoteFetcher? remoteFetcher = null,
+        IDefinitionStoreProvider? storeProvider = null)
+    {
+        IDefinitionRemoteFetcher fetcher = remoteFetcher ?? EmptyRemoteFetcher.Instance;
+        IDefinitionStoreProvider provider = storeProvider ?? EmptyStoreProvider.Instance;
+        return openDefinition is null
+            ? new DefinitionLoaderViewModel(messenger, dialogs, fetcher, provider)
+            : new DefinitionLoaderViewModel(messenger, dialogs, openDefinition, fetcher, provider);
+    }
+
+    private sealed class EmptyRemoteFetcher : IDefinitionRemoteFetcher
+    {
+        internal static EmptyRemoteFetcher Instance { get; } = new();
+        public Task<DefinitionRemoteResult> FetchAsync(string url, CancellationToken cancellationToken = default) =>
+            Task.FromResult<DefinitionRemoteResult>(new DefinitionRemoteResult.InvalidUri());
+        public void Dispose() { }
+    }
+
+    private sealed class EmptyStoreProvider : IDefinitionStoreProvider
+    {
+        internal static EmptyStoreProvider Instance { get; } = new();
+        public Task<IReadOnlyList<DefinitionStoreProject>> LoadAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DefinitionStoreProject>>([]);
+        public Task<DefinitionStoreResult> OpenAsync(string projectId, long revision, CancellationToken cancellationToken = default) =>
+            Task.FromResult<DefinitionStoreResult>(new DefinitionStoreResult.ProjectNotFound());
     }
 
     private sealed class Dialogs(

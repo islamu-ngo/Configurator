@@ -16,7 +16,7 @@ using Configurator.Desktop.Views;
 
 public sealed class MainWindowBindingTests
 {
-    private static readonly string[] PathEditorNames = ["DefinitionPath", "ExistingFilePath", "OutputDirectory", "FileName"];
+    private static readonly string[] PathEditorNames = ["DefinitionUrl", "DefinitionPath", "ExistingFilePath", "OutputDirectory", "FileName"];
 
     [Test]
     [Arguments(0)]
@@ -139,9 +139,57 @@ public sealed class MainWindowBindingTests
 
     private static readonly string[] ActionNames =
     [
-        "LoadDefinition", "Validate", "PrepareSelection", "SaveSelection",
+        "FetchDefinition", "LoadDefinition", "Validate", "PrepareSelection", "SaveSelection",
         "Import", "Cancel", "SelectDefinition", "SelectImport", "SelectOutput"
     ];
+
+    [Test]
+    [NotInParallel]
+    public async Task EmbeddedStoreCardsRenderFilterAndConfigureDirectly()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(MainWindowBindingTests));
+        try
+        {
+            var result = await session.Dispatch(async () =>
+            {
+                var messenger = new WeakReferenceMessenger();
+                var dialogs = new NoDialogs();
+                using var storeProvider = new Configurator.Presentation.Store.EmbeddedDefinitionStoreProvider();
+                using var loader = new DefinitionLoaderViewModel(messenger, dialogs, storeProvider: storeProvider);
+                using var workspace = new FormWorkspaceViewModel(messenger);
+                using var publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter());
+                using var importReview = new DesktopImportReviewViewModel(messenger, dialogs, publisher);
+                using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher, importReview);
+                var window = new MainWindow { DataContext = shell };
+                try
+                {
+                    window.Show();
+                    await loader.LoadStoreAsync();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    var cards = window.GetNamedControl<ItemsControl>("StoreProjects");
+                    int initialCount = cards.ItemCount;
+                    var search = window.GetNamedControl<TextBox>("StoreSearchQuery");
+                    search.Text = "minimal-self-hosted";
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    int filteredCount = cards.ItemCount;
+                    Button configure = cards.GetVisualDescendants().OfType<Button>().Single();
+                    await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)configure.Command!).ExecuteAsync(configure.CommandParameter);
+                    Dispatcher.UIThread.RunJobs();
+                    return (initialCount, filteredCount,
+                        stage: shell.Navigation.Stage,
+                        familyId: shell.Workspace.Form?.Definition.FamilyId);
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+            await Assert.That(result.initialCount).IsGreaterThanOrEqualTo(2);
+            await Assert.That(result.filteredCount).IsEqualTo(1);
+            await Assert.That(result.stage).IsEqualTo(DesktopWorkspaceStage.Configure);
+            await Assert.That(result.familyId).IsNotNull();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
 
     public static Avalonia.AppBuilder BuildAvaloniaApp() => DesktopApplicationTests.BuildAvaloniaApp();
 

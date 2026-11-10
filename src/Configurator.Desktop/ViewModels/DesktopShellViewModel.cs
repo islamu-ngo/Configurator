@@ -73,7 +73,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         messenger.Register<DesktopShellViewModel, FocusRequestedMessage>(this, static (root, message) =>
         {
             if (root._disposed) return;
-            if (message.Target is "DefinitionPath" or "SelectDefinition")
+            if (message.Target is "DefinitionUrl" or "DefinitionPath" or "SelectDefinition")
                 root.Navigation.Stage = DesktopWorkspaceStage.Open;
             else if (message.Target is "SelectImport" or "ExistingFilePath" or "SelectOutput" or
                 "OutputDirectory" or "FileName" or "StayOpen" or "ForceClose")
