@@ -23,12 +23,9 @@ public sealed class BrowserEditorPackageTests
     }
 
     [Test]
-    [Arguments(false)]
-    [Arguments(true)]
-    public async Task PublishedEditorRetainsExactAssetsAndOfflineInventory(bool includeStore)
+    public async Task PublishedEditorRetainsExactAssetsAndOfflineInventory()
     {
-        string directory = Path.Combine(includeStore ? ReleaseTestPaths.StorePackageRoot : ReleaseTestPaths.PackageRoot,
-            "browser/wwwroot");
+        string directory = Path.Combine(ReleaseTestPaths.PackageRoot, "browser/wwwroot");
         string source = Path.Combine(ReleaseTestPaths.Root, "src/Configurator.Browser/wwwroot");
         string worker = await File.ReadAllTextAsync(Path.Combine(directory, "service-worker-assets.js"));
         using JsonDocument assets = JsonDocument.Parse(worker[worker.IndexOf('{')..(worker.LastIndexOf('}') + 1)]);

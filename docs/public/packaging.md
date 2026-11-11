@@ -225,18 +225,9 @@ output directory and the [measurement build procedure](../internal/IMPORT_COMPAR
 
 ---
 
-## Bundling the Public Definition Store
+## Bundled Public Definition Store
 
-By default, the browser package compiles without a bundled definition store. To package the reviewed public store catalog into the static web assets:
-
-```bash
-dotnet msbuild eng/configurator/Configurator.Release.proj \
-  -t:PublishConfiguratorBrowser \
-  -p:ConfiguratorOutputRoot="$PWD/artifacts/configurator-with-store" \
-  -p:DefinitionStoreSourceRoot="$PWD/store"
-```
-
-The build process validates every definition revision in `store/` and generates static `index.json` manifests under `wwwroot/definition-store/`.
+Both native Desktop and static Browser distributions automatically validate every definition in `store/` and embed the compiled store index and canonical snapshots inside `Configurator.Presentation` during build. No separate `-p:DefinitionStoreSourceRoot` build flag or extra `wwwroot/definition-store/` copy is needed for normal publication (maintainers running deterministic capture verification can still override `DefinitionStoreSourceRoot`).
 
 ---
 
@@ -264,8 +255,7 @@ The extensionless root `LICENSE` is explicitly served as plain text.
 Navigation fallback is limited to `/`, `/open`, `/help`, `/store/{slug}` and
 `/launch/{id}` (one extensionless segment). Missing assets and unknown routes
 return 404; other methods return 405. Public responses require revalidation.
-Optional Store assets retain their manifest membership; a Store-free package
-does not gain Store content. Dependency notice trees remain in the distributed
+The curated Store ships embedded inside Presentation WebAssembly assets, so no runtime `definition-store/` tree or `browser-store.js` loader is exposed over HTTP. Dependency notice trees remain in the distributed
 package but are not exposed by this Host. Compressed sidecars remain packaging
 outputs; the Host compresses admitted canonical assets during transport.
 

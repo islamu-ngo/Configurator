@@ -90,7 +90,7 @@ public sealed class BrowserHostPolicyTests
     }
 
     [Test]
-    public async Task PublishedApplicationInventorySupportsWasmAndOptionalStore()
+    public async Task PublishedApplicationInventorySupportsWasmAndOmitsStaticStore()
     {
         using HttpClient client = CreateClient();
         string manifest = (await client.GetStringAsync("/service-worker-assets.js")).Trim();
@@ -98,7 +98,10 @@ public sealed class BrowserHostPolicyTests
         bool foundWasm = false;
         foreach (JsonElement asset in document.RootElement.GetProperty("assets").EnumerateArray())
         {
-            string path = "/" + asset.GetProperty("url").GetString();
+            string url = asset.GetProperty("url").GetString()!;
+            await Assert.That(url.StartsWith("definition-store/", StringComparison.Ordinal)).IsFalse();
+            await Assert.That(url).IsNotEqualTo("js/browser-store.js");
+            string path = "/" + url;
             using HttpResponseMessage response = await client.GetAsync(path);
             await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK).Because(path);
             if (path.EndsWith(".wasm", StringComparison.Ordinal))
@@ -106,8 +109,6 @@ public sealed class BrowserHostPolicyTests
                 foundWasm = true;
                 await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("application/wasm");
             }
-            if (path.StartsWith("/definition-store/", StringComparison.Ordinal))
-                await Assert.That(response.Content.Headers.ContentType?.MediaType).IsEqualTo("application/json");
         }
         await Assert.That(foundWasm).IsTrue();
     }

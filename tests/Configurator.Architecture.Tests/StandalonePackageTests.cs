@@ -58,15 +58,13 @@ public sealed class StandalonePackageTests
     }
 
     [Test]
-    [Arguments(false)]
-    [Arguments(true)]
-    public async Task BrowserPackageIsCompleteStaticWasmWithoutNativeOrTestAssemblies(bool includeStore)
+    public async Task BrowserPackageIsCompleteStaticWasmWithoutNativeOrTestAssemblies()
     {
-        string directory = Path.Combine(includeStore ? ReleaseTestPaths.StorePackageRoot : ReleaseTestPaths.PackageRoot, "browser/wwwroot");
+        string directory = Path.Combine(ReleaseTestPaths.PackageRoot, "browser/wwwroot");
         foreach (string path in new[] { "index.html", "manifest.webmanifest", "service-worker.js", "service-worker-assets.js",
             "pwa-lifecycle.js", "LICENSE", "THIRD-PARTY-NOTICES.md",
             "css/layers.css", "css/reset.css", "css/base.css", "css/tokens.css", "css/mudblazor-overrides.css",
-            "css/components.css", "css/utilities.css", "js/browser-appearance.js", "js/browser-store.js", "js/workspace-interactions.js",
+            "css/components.css", "css/utilities.css", "js/browser-appearance.js", "js/workspace-interactions.js",
             "js/browser-artifacts.js", "js/browser-definition-source.js", "js/configuration-rendering.js",
             "_content/MudBlazor/MudBlazor.min.css", "_content/MudBlazor/MudBlazor.min.js",
             "contracts/browser-release-capabilities.json", "schemas/setup-definition.schema.json" })

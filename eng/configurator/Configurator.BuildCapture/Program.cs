@@ -674,7 +674,7 @@ public sealed class CaptureSession
         if (operation == "check")
             foreach (string name in new[]
             {
-                "CONFIGURATOR_HOST_URL", "CONFIGURATOR_PACKAGE_ROOT", "CONFIGURATOR_STORE_PACKAGE_ROOT",
+                "CONFIGURATOR_HOST_URL", "CONFIGURATOR_PACKAGE_ROOT",
                 "DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"
             })
                 if (Environment.GetEnvironmentVariable(name) is { } value) start.Environment[name] = value;

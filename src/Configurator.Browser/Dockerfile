@@ -31,20 +31,13 @@ RUN dotnet build src/Configurator.Browser.Host/Configurator.Browser.Host.csproj 
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-ARG INCLUDE_DEFINITION_STORE=false
 RUN dotnet publish src/Configurator.Browser.Host/Configurator.Browser.Host.csproj \
     --configuration "$BUILD_CONFIGURATION" --output /publish/host \
     --no-build --no-restore /p:UseAppHost=false
-RUN case "$INCLUDE_DEFINITION_STORE" in \
-        false) set -- "-property:DefinitionStoreSourceRoot=" ;; \
-        true) set -- "-property:DefinitionStoreSourceRoot=/source/store" ;; \
-        *) printf '%s\n' 'INCLUDE_DEFINITION_STORE must be true or false.' >&2; exit 64 ;; \
-    esac; \
-    dotnet msbuild eng/configurator/Configurator.Release.proj \
-        -target:PublishConfiguratorBrowser \
-        "-property:Configuration=$BUILD_CONFIGURATION" \
-        -property:ConfiguratorOutputRoot=/publish \
-        "$@"
+RUN dotnet msbuild eng/configurator/Configurator.Release.proj \
+    -target:PublishConfiguratorBrowser \
+    "-property:Configuration=$BUILD_CONFIGURATION" \
+    -property:ConfiguratorOutputRoot=/publish
 
 FROM base AS final
 COPY --from=publish /publish/host/ .

@@ -1,9 +1,6 @@
-using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.Json;
-using Configurator.Core.Definitions;
-using TUnit.Assertions;
-using TUnit.Assertions.Extensions;
-using TUnit.Core;
+using Configurator.Presentation.Store;
 
 namespace Configurator.Architecture.Tests;
 
@@ -11,114 +8,82 @@ namespace Configurator.Architecture.Tests;
 public sealed class BrowserStorePackageTests
 {
     [Test]
-    [Arguments(false)]
-    [Arguments(true)]
-    public async Task BothVariantsInventoryCompletePublicInterfaceAssets(bool includeStore)
-    {
-        string directory = Path.Combine(includeStore ? ReleaseTestPaths.StorePackageRoot : ReleaseTestPaths.PackageRoot, "browser/wwwroot");
-        using JsonDocument assets = ReadWorkerAssets(directory);
-        Dictionary<string, string> inventory = assets.RootElement.GetProperty("assets").EnumerateArray()
-            .ToDictionary(asset => asset.GetProperty("url").GetString()!, asset => asset.GetProperty("hash").GetString()!, StringComparer.Ordinal);
-        string[] styles = Directory.GetFiles(Path.Combine(directory, "css"), "*.css", SearchOption.AllDirectories);
-        await Assert.That(styles.Length).IsGreaterThan(0);
-        foreach (string relative in styles.Select(path => Path.GetRelativePath(directory, path)).Concat(
-            ["_content/MudBlazor/MudBlazor.min.css", "_content/MudBlazor/MudBlazor.min.js", "js/browser-appearance.js", "js/browser-store.js", "js/configuration-rendering.js"]))
-        {
-            await Assert.That(inventory.ContainsKey(relative)).IsTrue().Because(relative);
-            string hash = "sha256-" + Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(
-                File.ReadAllBytes(Path.Combine(directory, relative))));
-            await Assert.That(inventory[relative]).IsEqualTo(hash).Because(relative);
-        }
-    }
-
-    [Test]
-    public async Task StoreFreePackageHasNoCatalogueOrCachedSnapshots()
+    public async Task PublishedBrowserPackageOmitsLegacyStaticStoreAndEmbedsPresentationStore()
     {
         string directory = Path.Combine(ReleaseTestPaths.PackageRoot, "browser/wwwroot");
-        await Assert.That(Directory.Exists(directory)).IsTrue();
         await Assert.That(Directory.Exists(Path.Combine(directory, "definition-store"))).IsFalse();
-        using JsonDocument assets = ReadWorkerAssets(directory);
-        await Assert.That(assets.RootElement.GetProperty("assets").EnumerateArray().Any(asset =>
-            asset.GetProperty("url").GetString()!.StartsWith("definition-store/", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(directory, "js/browser-store.js"))).IsFalse();
+
+        string workerAssets = await File.ReadAllTextAsync(Path.Combine(directory, "service-worker-assets.js"));
+        using JsonDocument assets = JsonDocument.Parse(workerAssets[workerAssets.IndexOf('{')..(workerAssets.LastIndexOf('}') + 1)]);
+        Dictionary<string, string> inventory = assets.RootElement.GetProperty("assets").EnumerateArray()
+            .ToDictionary(asset => asset.GetProperty("url").GetString()!, asset => asset.GetProperty("hash").GetString()!,
+                StringComparer.Ordinal);
+
+        await Assert.That(inventory.Keys.Any(url => url.StartsWith("definition-store/", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(inventory.ContainsKey("js/browser-store.js")).IsFalse();
+        await Assert.That(inventory.Keys.Any(url => url.StartsWith("_framework/Configurator.Presentation.", StringComparison.Ordinal))).IsTrue();
+
+        foreach (string relative in new[]
+        {
+            "_content/MudBlazor/MudBlazor.min.css",
+            "_content/MudBlazor/MudBlazor.min.js",
+            "js/browser-appearance.js",
+            "js/browser-definition-source.js",
+            "js/browser-artifacts.js",
+            "js/workspace-interactions.js",
+            "js/configuration-rendering.js"
+        })
+        {
+            await Assert.That(inventory.ContainsKey(relative)).IsTrue().Because(relative);
+            byte[] bytes = await File.ReadAllBytesAsync(Path.Combine(directory, relative));
+            await Assert.That(inventory[relative]).IsEqualTo("sha256-" + Convert.ToBase64String(SHA256.HashData(bytes)));
+        }
+
+        string serviceWorker = await File.ReadAllTextAsync(Path.Combine(directory, "service-worker.js"));
+        await Assert.That(serviceWorker).DoesNotContain("browser-store.js");
+        await Assert.That(serviceWorker).DoesNotContain("definition-store/");
     }
 
     [Test]
-    public async Task StoreEnabledPackagePinsEverySnapshotAndCachesItsExactPublishedBytes()
+    public async Task EmbeddedStoreProviderMatchesGeneratedCheckedInStoreCatalog()
     {
-        string directory = Path.Combine(ReleaseTestPaths.StorePackageRoot, "browser/wwwroot");
-        using JsonDocument index = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(directory, "definition-store/index.json")));
-        using JsonDocument assets = ReadWorkerAssets(directory);
-        Dictionary<string, string> inventory = assets.RootElement.GetProperty("assets").EnumerateArray()
-            .ToDictionary(asset => asset.GetProperty("url").GetString()!, asset => asset.GetProperty("hash").GetString()!, StringComparer.Ordinal);
-        await Assert.That(index.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("0.0.1");
-        await Assert.That(index.RootElement.GetProperty("projects").GetArrayLength()).IsGreaterThan(0);
-        await AssertAssetHash("definition-store/index.json");
-        var expectedFiles = new HashSet<string>(StringComparer.Ordinal) { "index.json" };
-        foreach (JsonElement project in index.RootElement.GetProperty("projects").EnumerateArray())
+        string tempRoot = Path.Combine(Path.GetTempPath(), "configurator-store-check-" + Guid.NewGuid().ToString("N"));
+        try
         {
-            await Assert.That(project.GetProperty("revisions").GetArrayLength()).IsGreaterThan(0);
-            long[] numbers = project.GetProperty("revisions").EnumerateArray()
-                .Select(revision => revision.GetProperty("revision").GetInt64()).ToArray();
-            await Assert.That(numbers.Distinct().Count()).IsEqualTo(numbers.Length);
-            await Assert.That(numbers.SequenceEqual(numbers.Order())).IsTrue();
-            foreach (JsonElement revision in project.GetProperty("revisions").EnumerateArray())
+            Directory.CreateDirectory(tempRoot);
+            var build = await ReleaseTestPaths.Run("dotnet", "run", "--file",
+                "eng/configurator/BuildDefinitionStore.cs", "--",
+                "--source", Path.Combine(ReleaseTestPaths.Root, "store"),
+                "--output", tempRoot,
+                "--write");
+            await Assert.That(build.ExitCode).IsEqualTo(0).Because(build.Output);
+
+            IReadOnlyList<DefinitionStoreProject> expected =
+                DefinitionStoreIndexParser.ParseIndex(await File.ReadAllBytesAsync(Path.Combine(tempRoot, "index.json")));
+
+            using var provider = new EmbeddedDefinitionStoreProvider();
+            IReadOnlyList<DefinitionStoreProject> embedded = await provider.LoadAsync();
+
+            await Assert.That(embedded.Count).IsEqualTo(expected.Count);
+            foreach (DefinitionStoreProject project in expected)
             {
-                string relative = revision.GetProperty("snapshotPath").GetString()!;
-                await Assert.That(relative.StartsWith("definitions/", StringComparison.Ordinal)
-                    && !relative.Contains("..", StringComparison.Ordinal) && !relative.Contains('\\')).IsTrue();
-                string path = "definition-store/" + relative;
-                await Assert.That(expectedFiles.Add(relative)).IsTrue();
-                byte[] snapshot = File.ReadAllBytes(Path.Combine(directory, path));
-                Definition definition = DefinitionCodec.ParseJson(snapshot);
-                await Assert.That(snapshot.AsSpan().SequenceEqual(definition.CanonicalBytes.Span)).IsTrue();
-                await Assert.That(definition.FamilyId.ToString("D")).IsEqualTo(project.GetProperty("familyId").GetString());
-                await Assert.That(definition.ApplicationId).IsEqualTo(project.GetProperty("applicationId").GetString());
-                await Assert.That(definition.Revision).IsEqualTo(revision.GetProperty("revision").GetInt64());
-                await Assert.That(definition.Digest.Value).IsEqualTo(revision.GetProperty("digest").GetString());
-                await Assert.That(definition.ApplicationVersions.SequenceEqual(revision.GetProperty("applicationVersions")
-                    .EnumerateArray().Select(version => version.GetString()!))).IsTrue();
-                await AssertAssetHash(path);
+                DefinitionStoreProject? match = embedded.SingleOrDefault(candidate => candidate.ProjectId == project.ProjectId);
+                await Assert.That(match).IsNotNull().Because(project.ProjectId);
+                await Assert.That(match!.FamilyId).IsEqualTo(project.FamilyId);
+                await Assert.That(match.Revisions.Count).IsEqualTo(project.Revisions.Count);
+                foreach (DefinitionStoreRevision revision in project.Revisions)
+                {
+                    DefinitionStoreResult opened = await provider.OpenAsync(project.ProjectId, revision.Revision);
+                    await Assert.That(opened).IsTypeOf<DefinitionStoreResult.Success>().Because($"{project.ProjectId}@{revision.Revision}");
+                    var success = (DefinitionStoreResult.Success)opened;
+                    await Assert.That(success.Definition.Digest.Value).IsEqualTo(revision.Digest);
+                }
             }
         }
-        string[] published = Directory.GetFiles(Path.Combine(directory, "definition-store"), "*", SearchOption.AllDirectories)
-            .Select(path => Path.GetRelativePath(Path.Combine(directory, "definition-store"), path).Replace('\\', '/')).ToArray();
-        foreach (string canonical in expectedFiles.ToArray())
+        finally
         {
-            byte[] canonicalBytes = await File.ReadAllBytesAsync(Path.Combine(directory, "definition-store", canonical));
-            foreach (string encoding in new[] { ".br", ".gz" })
-            {
-                string relative = canonical + encoding;
-                string compressedPath = Path.Combine(directory, "definition-store", relative);
-                if (!File.Exists(compressedPath)) continue;
-                await using FileStream compressed = File.OpenRead(compressedPath);
-                await using Stream decoded = encoding == ".br"
-                    ? new BrotliStream(compressed, CompressionMode.Decompress)
-                    : new GZipStream(compressed, CompressionMode.Decompress);
-                byte[] expanded = new byte[canonicalBytes.Length];
-                await decoded.ReadExactlyAsync(expanded);
-                await Assert.That(expanded.AsSpan().SequenceEqual(canonicalBytes)).IsTrue()
-                    .Because(relative + " must encode its admitted canonical asset exactly.");
-                await Assert.That(decoded.ReadByte()).IsEqualTo(-1);
-                expectedFiles.Add(relative);
-            }
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
         }
-        await Assert.That(expectedFiles.SetEquals(published)).IsTrue()
-            .Because("Published store contains only admitted canonical assets and their verified transport encodings.");
-
-        async Task AssertAssetHash(string relative)
-        {
-            await Assert.That(inventory.ContainsKey(relative)).IsTrue().Because(relative);
-            string hash = "sha256-" + Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(
-                File.ReadAllBytes(Path.Combine(directory, relative))));
-            await Assert.That(inventory[relative]).IsEqualTo(hash).Because(relative);
-        }
-    }
-
-    private static JsonDocument ReadWorkerAssets(string directory)
-    {
-        string manifest = File.ReadAllText(Path.Combine(directory, "service-worker-assets.js"));
-        int start = manifest.IndexOf('{');
-        int end = manifest.LastIndexOf('}');
-        return JsonDocument.Parse(manifest[start..(end + 1)]);
     }
 }

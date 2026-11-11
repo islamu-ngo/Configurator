@@ -9,8 +9,6 @@ internal static class ReleaseTestPaths
     internal static string Root { get; } = FindRoot();
     internal static string PackageRoot => Environment.GetEnvironmentVariable("CONFIGURATOR_PACKAGE_ROOT")
         ?? Path.Combine(Root, "artifacts/configurator");
-    internal static string StorePackageRoot => Environment.GetEnvironmentVariable("CONFIGURATOR_STORE_PACKAGE_ROOT")
-        ?? Path.Combine(Root, "artifacts/configurator-with-store");
     internal static string NativeCliRid => RuntimeInformation.RuntimeIdentifier;
     internal static string NativeCliPackage => Path.Combine(PackageRoot, "cli", NativeCliRid);
     internal static string CliExecutableName => OperatingSystem.IsWindows() ? "islamu-configurator.exe" : "islamu-configurator";

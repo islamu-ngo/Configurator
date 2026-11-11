@@ -54,9 +54,9 @@ internal static class Program
     }
 
     /// <summary>
-    /// The SDK PWA manifest identifies application assets, including optional
-    /// Store content. Release.proj adds a fixed set of public contracts afterward.
-    /// Merely placing another file in webroot never grants HTTP publication.
+    /// The SDK PWA manifest identifies application assets; the curated Definition Store is
+    /// embedded inside Configurator.Presentation. Release.proj adds a fixed set of public contracts
+    /// afterward. Merely placing another file in webroot never grants HTTP publication.
     /// </summary>
     private sealed class PublicationContentTypes : IContentTypeProvider
     {

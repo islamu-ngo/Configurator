@@ -151,30 +151,28 @@ The [native owner guide](../../eng/configurator/editor/README.md) describes
 metadata-only review and generation. Reproducible assets and package hashes do
 not establish runtime custody or user-experience qualification.
 
-### Optional definition store assets
+### Embedded definition store assets
 
-Optional store inclusion is explicit through `DefinitionStoreSourceRoot` on
-`PublishConfiguratorBrowser`; the empty property never reads or requires `store/`.
-`PrepareDefinitionStoreAssets` in the Browser project invokes the native
-`BuildDefinitionStore.cs --source ... --output ... --write` before
-`ResolveProjectStaticWebAssets`. Generated index and canonical snapshots live
-under the configuration-specific intermediate directory, mapped to
-`wwwroot/definition-store/`, rather than being copied after publication. The SDK
-therefore inventories and hashes every generated public asset in
-`service-worker-assets.js`. Metadata schema generation remains owned by the
-builder and repository schema; it is not a second hand-maintained contract.
+Store assets live directly in `Configurator.Presentation` rather than as separate
+Browser `wwwroot/definition-store/` files. During compilation, `GenerateStoreAssets`
+and `EmbedStoreAssets` in `src/Configurator.Presentation/Configurator.Presentation.csproj`
+invoke `BuildDefinitionStore.cs --source ... --output ... --schema ... --write`
+into the intermediate output directory (passing `--schema` to an intermediate
+path so tracked schemas under `schemas/` never mutate during MSBuild) and embed
+the generated `index.json` and canonical revision snapshots as `Configurator.Store.*`
+manifest resources. When `DefinitionStoreSourceRoot` is omitted or empty,
+Presentation defaults to the repository's `store/` folder; deterministic capture
+runs (`Configurator.BuildCapture`) override `DefinitionStoreSourceRoot` with
+their isolated `external-store` tree. Metadata schema generation remains owned by
+the builder and repository schema; it is not a second hand-maintained contract.
 
-The generation target clears its owned intermediate store output on each build.
-`ClearPublishedDefinitionStore` clears only the owned `definition-store/` subtree
-before publication, including when the property is empty. A store-enabled build
-followed by a store-free build in the same destination cannot retain catalogue
-files or manifest entries. No source directory mutation is required. Invalid
-explicit store content fails validation before assets are admitted.
-
-Store snapshots are bounded public app content. Packaging them does not grant
-consent to retain independently opened definitions, and never admits answers or
-prepared artifacts into public caches. Discovery remains lazy in the browser;
-store absence cannot become a startup, Core, CLI or native-client dependency.
+Invalid explicit store content fails validation during compilation before any
+desktop or browser package finishes. Both native Desktop and static Browser
+consume those public embedded resources offline via `EmbeddedDefinitionStoreProvider`;
+Browser no longer contains `PrepareDefinitionStoreAssets`,
+`ClearPublishedDefinitionStore`, `wwwroot/definition-store/`, or
+`js/browser-store.js`. Store snapshots remain strictly public app content; no
+answers or prepared artifacts ever enter `Configurator.Store.*` or public caches.
 
 Local source loading in Terminal, Desktop and Browser uses Core's shared
 compact-source compiler independently of store assets. Browser local upload
@@ -279,10 +277,9 @@ The final stage runs `dotnet Configurator.Browser.Host.dll` as the base image's
 non-root application user. No external web-server configuration is generated,
 copied or required.
 
-`INCLUDE_DEFINITION_STORE` is a closed `true`/`false` build argument, defaulting
-to `false`. Only `true` passes the copied public Store directory as
-`DefinitionStoreSourceRoot` to the existing publication target. Container
-packaging never revises Store sources or retained revisions, authenticates a
+`src/Configurator.Browser/Dockerfile` builds from the repository root and produces
+one static Browser container image embedding `store/` via `Configurator.Presentation`.
+Container packaging never revises Store sources or retained revisions, authenticates a
 publisher or repairs same-family/revision content conflicts.
 
 `src/Configurator.Browser.Host/Program.cs` owns origin-root public-file hosting:
@@ -778,22 +775,18 @@ package inspection requires Presentation/Core WASM and excludes native UI,
 Artifacts, Event and test assemblies. Package tests also require PWA assets and
 check generated capability flags; they do not inspect source/CSS text.
 
-The current package tests require the three Linux x64 packages and Browser
-package from the public commands first, plus a second browser publication with
-explicit store inclusion. Set `CONFIGURATOR_PACKAGE_ROOT` for the store-free root
-and `CONFIGURATOR_STORE_PACKAGE_ROOT` for the store-enabled root; the latter
-defaults to `artifacts/configurator-with-store`. `BrowserStorePackageTests` runs
-independently of native package tests and compares each indexed revision's
-family, application, application versions and digest against Core readmission,
-then verifies the published bytes against their SDK worker asset hashes.
-The CI lane publishes store-enabled content first, then republishes that same
-destination without inclusion before validating the store-free package. This
-also exercises stale intermediate/output removal.
+The current package tests require the three Linux x64 packages and single static
+Browser package from the public commands under `CONFIGURATOR_PACKAGE_ROOT`
+(defaulting to `artifacts/configurator`). `BrowserStorePackageTests` verifies that
+`browser/wwwroot/` omits `definition-store/` and `js/browser-store.js`, retains
+`Configurator.Presentation` in `_framework/` and valid `service-worker-assets.js`
+integrity digests, and that `EmbeddedDefinitionStoreProvider` matches fresh
+`BuildDefinitionStore.cs --source store` canonical output across all families and revisions.
 
-For a browser-only verification with explicit roots:
+For a browser-only verification against `CONFIGURATOR_PACKAGE_ROOT`:
 
 ```bash
-CONFIGURATOR_PACKAGE_ROOT="$PWD/.tmp/browser-without-store" CONFIGURATOR_STORE_PACKAGE_ROOT="$PWD/.tmp/browser-with-store" dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release -- --treenode-filter '/*/*/*BrowserStorePackageTests/*' --minimum-expected-tests 2
+CONFIGURATOR_PACKAGE_ROOT="$PWD/artifacts/configurator" dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release -- --treenode-filter '/*/*/*BrowserStorePackageTests/*' --minimum-expected-tests 2
 ```
 
 Full package and engineering checks:
