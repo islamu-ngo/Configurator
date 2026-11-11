@@ -7,7 +7,7 @@ const publicAssets = new Set([
     'css/mudblazor-overrides.css', 'css/components.css', 'css/utilities.css',
     'Configurator.Browser.styles.css', 'manifest.webmanifest',
     'pwa-lifecycle.js', 'js/browser-definition-source.js', 'js/browser-artifacts.js',
-    'js/browser-appearance.js', 'js/browser-store.js', 'js/workspace-interactions.js', 'js/configuration-rendering.js',
+    'js/browser-appearance.js', 'js/workspace-interactions.js', 'js/configuration-rendering.js',
     'js/configuration-developer.js', 'vendor/configuration-editor.js',
     'vendor/configuration-editor.manifest.json', 'vendor/configuration-editor.LICENSE.txt',
     '_content/MudBlazor/MudBlazor.min.css', '_content/MudBlazor/MudBlazor.min.js',
@@ -16,9 +16,7 @@ const publicAssets = new Set([
 const assets = self.assetsManifest.assets.filter(asset =>
     asset.url.startsWith('_framework/') || publicAssets.has(asset.url));
 const requiredUrls = new Set(assets.map(asset => new URL(asset.url, scope).href));
-const storeAssets = new Map(self.assetsManifest.assets.filter(asset => asset.url.startsWith('definition-store/'))
-    .map(asset => [new URL(asset.url, scope).href, asset]));
-const appUrls = new Set([...requiredUrls, ...storeAssets.keys()]);
+const appUrls = requiredUrls;
 const activeClients = new Set();
 const permittedSources = new Map();
 
@@ -74,17 +72,7 @@ self.addEventListener('fetch', event => {
             const cache = await caches.open(cacheName);
             const key = request.mode === 'navigate' ? new URL('index.html', scope).href : url.href;
             const cached = await cache.match(key);
-            if (cached) return cached;
-            // Optional discovery cannot hold core readiness hostage; cache only deliberate public asset reads.
-            const asset = storeAssets.get(key);
-            if (!asset || activeClients.has(event.clientId) || !self.navigator.onLine || request.credentials !== 'omit') return Response.error();
-            try {
-                const response = await fetch(new Request(key,
-                    { integrity: asset.hash, credentials: 'omit', referrerPolicy: 'no-referrer', redirect: 'error', cache: 'no-store' }));
-                if (!response.ok) return Response.error();
-                await cache.put(key, response.clone());
-                return response;
-            } catch { return Response.error(); }
+            return cached || Response.error();
         })());
         return;
     }

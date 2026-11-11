@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Integrators | AI agents
 > **Status:** Implemented browser boundary; target acceptance is separate
 > **Owner:** Browser
-> **Last Verified:** 2026-11-01
+> **Last Verified:** 2026-11-11
 > **Source Anchors:** `src/Configurator.Browser/`, `src/Configurator.Presentation/`
 
 ## V3 typed workspace admission and callbacks
@@ -89,13 +89,16 @@ admission. Concurrent initialization retains one code-module handle and releases
 redundant handles; definition transport bytes retain their existing clearing and
 generation fences.
 
-Optional `DefinitionStoreCatalog` discovery is browser-owned public metadata,
-loaded only on catalogue/source pages without an active workspace. Packaged same-origin
-snapshots use a separate bounded asset reader; Core admission, exact indexed
-identity/digest checks and `BrowserDefinitionRegistry` history still gate entry.
-No store index is required by startup, independent sources, Core or native
-clients. Store metadata cannot authenticate publishers or infer application
-compatibility beyond declared versions. See [store ownership](DEFINITION_STORE.md).
+`DefinitionStoreCatalog` enforces Browser custody, workspace generation fencing,
+and `BrowserDefinitionRegistry` admission over the shared Presentation
+`IDefinitionStoreProvider` (`EmbeddedDefinitionStoreProvider`), which reads
+compiled `Configurator.Store.*` resources in memory without JavaScript
+asset fetches or `wwwroot/definition-store/` static files. Reads are blocked
+while a workspace is active (`BeginWorkspaceAsync`); Core admission, exact indexed
+identity/digest matching (`DefinitionStoreIndexParser.MatchesDefinition`), and
+registry conflict history gate every `OpenAsync` result before navigation. Store
+metadata never authenticates publishers or infers target compatibility beyond
+declared versions. See [store ownership](DEFINITION_STORE.md).
 
 The home catalogue groups public candidates by exact application identifier,
 retains canonical source alternatives, and opens an exact directory candidate
@@ -110,12 +113,10 @@ directly after fetch/admission and the existing component generation check.
 Pointers without an explicit entry retain source inspection. No answer controls
 mount while source admission is pending.
 
-The worker inventories optional store URLs separately from required app assets.
-Only required assets determine installation and readiness. Explicit Store reads
-may cache the exact SDK-hashed public asset before answer custody; unavailable
-or corrupt store content cannot disable an otherwise ready local workspace.
-Offline uncached revisions fail as unavailable discovery, with local-file entry
-still usable. No private answers or output enter this optional read/cache path.
+Because store resources ship inside `Configurator.Presentation` in the standard
+`_framework/` WebAssembly asset inventory, offline Store discovery does not rely
+on separate worker fetch caching or `js/browser-store.js`. No private answers or
+output ever enter the embedded Store cache or registry.
 
 Bundled query selectors are closed, unique and bounded. Remote `/open` metadata
 is fragment-only: `src` plus optional digest/version/entry/locale, never answers.

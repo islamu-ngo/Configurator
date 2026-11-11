@@ -25,7 +25,7 @@ decisions, strategy, proposals and historical evidence relate.
 | Diagnose a failure | [Troubleshooting](public/troubleshooting.md) | [Safe publication recovery](public/native-output.md) |
 | Build or package a client | [Packaging guide](public/packaging.md) | [Project commands](../PROJECTS.md), [technical packaging contract](internal/PACKAGING.md) |
 | Link an application to the browser | [Launch integration](public/launch-integration.md) | [Launch trust boundary](internal/LAUNCH_CONTRACT.md) |
-| Distribute public definitions | [Optional store](public/definition-store.md) | [Store contribution instructions](../store/README.md) |
+| Distribute public definitions | [Definition store](public/definition-store.md) | [Store contribution instructions](../store/README.md) |
 | Compare architectural approaches | [Comparison](public/comparison.md) | [Direction and tradeoffs](internal/VISION_AND_APPROACH.md) |
 | Understand product vision and ecosystem | [Product vision](internal/PRODUCT_VISION.md) | [Marketing & adoption strategy](internal/MARKETING_AND_ADOPTION_STRATEGY.md) |
 

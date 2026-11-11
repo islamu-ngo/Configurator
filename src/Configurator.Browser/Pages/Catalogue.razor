@@ -1,6 +1,7 @@
 @page "/"
 @implements IDisposable
 @using Configurator.Core.Definitions
+@using Configurator.Presentation.Store
 @inject BrowserDefinitionRegistry Registry
 @inject DefinitionStoreCatalog Catalog
 @inject NavigationManager Navigation
@@ -156,7 +157,7 @@
                 int index = choices.FindIndex(choice => choice.Family == project.FamilyId
                     && choice.Revision == revision.Revision && choice.Digest == revision.Digest
                     && choice.ApplicationId == project.ApplicationId
-                    && (choice.Local is { } local ? DefinitionStoreCatalog.MatchesDefinition(project, revision, local)
+                    && (choice.Local is { } local ? DefinitionStoreIndexParser.MatchesDefinition(project, revision, local)
                         : SameMetadata(choice.Directory!, revision)));
                 if (index < 0)
                     choices.Add(new CatalogueDefinition(project.FamilyId, revision.Revision, revision.Digest, revision.Title, null, revision, [project]));

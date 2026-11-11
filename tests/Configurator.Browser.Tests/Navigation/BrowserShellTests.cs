@@ -169,6 +169,10 @@ public sealed class BrowserShellTests
     public async Task ShellProvidesNamedRoutesMainSkipAndLocalSourceWhenDirectoryUnavailable()
     {
         await using var context = BrowserFixture.Context();
+        context.Services.AddSingleton<Configurator.Presentation.Store.IDefinitionStoreProvider>(
+            new TestDefinitionStoreProvider(
+                load: _ => Task.FromException<IReadOnlyList<Configurator.Presentation.Store.DefinitionStoreProject>>(
+                    new Configurator.Presentation.Store.DefinitionStoreException("store-unavailable"))));
         var component = context.Render<App>();
         await Assert.That(component.FindAll("main")).Count().IsEqualTo(1);
         await Assert.That(component.Find("a[href='#main-content']").TextContent).IsEqualTo("Skip to main content");
@@ -182,7 +186,7 @@ public sealed class BrowserShellTests
         await Assert.That(component.FindAll("footer")).Count().IsEqualTo(1);
         await Assert.That(component.FindComponents<WorkspaceSearch>()).Count().IsEqualTo(1);
         await Assert.That(component.FindComponents<WorkspaceNavigationGuard>()).Count().IsEqualTo(1);
-        await Assert.That(component.FindAll("[data-code='store-size-invalid']")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-code='store-unavailable']")).Count().IsEqualTo(1);
         await Assert.That(component.FindAll("a[href^='launch/']")).Count().IsEqualTo(1);
         var help = context.Render<Help>();
         await Assert.That(help.FindAll("h1")).Count().IsEqualTo(1);

@@ -3,7 +3,7 @@
 > **Audience:** Operators | Integrators | Contributors
 > **Status:** Implemented browser workspace; target acceptance remains separate
 > **Owner:** Browser
-> **Last Verified:** 2026-10-28
+> **Last Verified:** 2026-11-11
 > **Source Anchors:** `src/Configurator.Browser/`, `src/Configurator.Presentation/`, `docs/internal/LAUNCH_CONTRACT.md`
 
 ISLAMU Configurator Browser is a static, client-side web application built with Blazor WebAssembly and MudBlazor. It prepares configuration artifacts for validation by the target application without installing native software.
@@ -162,8 +162,8 @@ Configurator uses standalone Blazor WebAssembly rather than Blazor Server:
 
 ### Loading Definitions
 
-Start at **Choose a project**. One search covers definitions available in the app
-and optional [Definition Store](definition-store.md) metadata. A card identifies
+Start at **Choose a project**. One search covers definitions available in the
+local workspace and the bundled [Definition Store](definition-store.md). A card identifies
 the application and whether its primary definition is available locally or comes
 from the directory. **Configure** admits an exact directory snapshot and opens
 it directly. **Source details** preserves alternate families and revisions;
@@ -505,7 +505,7 @@ docker run --rm --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   -p 127.0.0.1:8080:8080 islamu-configurator-browser
 ```
 
-To include the public Definition Store catalogue in your image, pass `--build-arg INCLUDE_DEFINITION_STORE=true` during build.
+The container builds and serves one static Browser distribution with the bundled Definition Store already embedded.
 
 ### Deploying with Coolify
 

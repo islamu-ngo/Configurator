@@ -38,33 +38,6 @@
                       LogicalName="Configurator.Browser.Definitions.islamu-event.public.json" />
   </ItemGroup>
 
-  <Target Name="PrepareDefinitionStoreAssets" BeforeTargets="ResolveProjectStaticWebAssets">
-    <PropertyGroup>
-      <_DefinitionStoreOutput>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)definition-store'))</_DefinitionStoreOutput>
-    </PropertyGroup>
-    <RemoveDir Directories="$(_DefinitionStoreOutput)" />
-    <Exec Condition="'$(DefinitionStoreSourceRoot)' != '' and '$(ConfiguratorCaptureSession)' == ''"
-          WorkingDirectory="$(MSBuildProjectDirectory)/../.."
-          Command="dotnet run --file &quot;$(MSBuildProjectDirectory)/../../eng/configurator/BuildDefinitionStore.cs&quot; -- --source &quot;$(DefinitionStoreSourceRoot)&quot; --output &quot;$(_DefinitionStoreOutput)&quot; --write" />
-    <BuildCaptureTask Condition="'$(DefinitionStoreSourceRoot)' != '' and '$(ConfiguratorCaptureSession)' != ''"
-      Session="$(ConfiguratorCaptureSession)" Project="$(MSBuildProjectFullPath)" Operation="store"
-      Arguments="--source;$(DefinitionStoreSourceRoot);--output;$(_DefinitionStoreOutput);--write" />
-    <ItemGroup Condition="'$(DefinitionStoreSourceRoot)' != ''">
-      <_DefinitionStoreAsset Include="$(_DefinitionStoreOutput)/**/*" />
-      <Content Include="@(_DefinitionStoreAsset)">
-        <Link>wwwroot/definition-store/%(_DefinitionStoreAsset.RecursiveDir)%(_DefinitionStoreAsset.Filename)%(_DefinitionStoreAsset.Extension)</Link>
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      </Content>
-      <FileWrites Include="@(_DefinitionStoreAsset)" />
-    </ItemGroup>
-  </Target>
-
-  <Target Name="ClearPublishedDefinitionStore" BeforeTargets="PrepareForPublish"
-          Condition="'$(PublishDir)' != ''">
-    <RemoveDir Directories="$(PublishDir)wwwroot/definition-store" />
-  </Target>
-
   <Target Name="VerifyBrowserEditorAssets" BeforeTargets="PrepareForPublish">
     <Exec Condition="'$(ConfiguratorCaptureSession)' == ''" WorkingDirectory="$(MSBuildProjectDirectory)/../.."
           Command="dotnet run --file &quot;$(MSBuildProjectDirectory)/../../eng/configurator/BuildBrowserEditor.cs&quot; -- --check &quot;$(MSBuildProjectDirectory)/../..&quot;" />

@@ -1,35 +1,35 @@
 ---
-description: "Discover public configuration definitions in the browser catalog or contribute your application to the bundled definition store."
+description: "Discover bundled public configuration definitions offline across Desktop and Browser, or contribute your application to the definition store."
 ---
 
 # Public Definition Store
 
-The Definition Store is an optional, reviewed catalog of configuration definitions bundled directly into the ISLAMU Configurator web client.
+The Definition Store is a reviewed catalog of configuration definitions compiled directly into `Configurator.Presentation` and shipped offline inside both the ISLAMU Configurator Desktop and Browser clients.
 
-It allows operators to discover and configure popular self-hosted applications with a single click, completely offline, without needing to author or download raw definition files manually.
+It allows operators to discover and configure popular self-hosted applications with a single click, completely offline, without needing to author, host, or download raw definition files manually.
 
 ---
 
 ## How Store Bundling Works
 
-Definitions contributed to the repository are validated, compiled, and bundled into the static browser application at build time:
+Definitions contributed to the repository are validated, compiled, and embedded into the shared Presentation assembly at build time:
 
 ```mermaid
 flowchart LR
-    SRC["store/ folder<br/>• configurator.yaml<br/>• curation.json<br/>• releases/*.json"] --> BUILD["BuildDefinitionStore.cs<br/>(Validates constraints & schemas)"]
-    BUILD --> ASSETS["wwwroot/definition-store/<br/>• index.json<br/>• definitions/ snapshots"]
-    ASSETS --> PWA["Bundled Browser PWA<br/>(Cached locally for offline discovery)"]
+    SRC["store/ folder<br/>• configurator.json / yaml<br/>• curation.json<br/>• releases/*.json"] --> BUILD["BuildDefinitionStore.cs<br/>(Validates constraints & schemas)"]
+    BUILD --> ASSETS["Configurator.Presentation.dll<br/>(Embedded Configurator.Store.* resources)"]
+    ASSETS --> CLIENTS["Desktop & Browser Clients<br/>(Zero runtime HTTP or JS fetches)"]
 
     style SRC fill:#e1f5fe,stroke:#0288d1,stroke-width:2px
     style BUILD fill:#fff3e0,stroke:#e65100,stroke-width:2px
     style ASSETS fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
-    style PWA fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style CLIENTS fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 ```
 
 1. **Repository Sources:** Maintainers store human-readable definitions in `store/<project-slug>/`.
-2. **Compilation:** The store builder validates schema adherence, checks revision immutability, and generates search manifests.
-3. **PWA Bundling:** The resulting index and immutable revision snapshots are packaged into the browser's static assets.
-4. **Offline Browsing:** The browser client caches the catalog, allowing full search and configuration even when disconnected from the internet.
+2. **Compilation:** `BuildDefinitionStore.cs` validates schema adherence, checks revision immutability, and generates search manifests into an intermediate build directory.
+3. **Assembly Embedding:** MSBuild embeds the generated `index.json` and canonical revision snapshots directly into `Configurator.Presentation` (`Configurator.Store.*` manifest resources), distributing them identically to Desktop and WebAssembly packages.
+4. **Offline Browsing:** Both Desktop (`Open`) and Browser (`/`) query `EmbeddedDefinitionStoreProvider` from local memory, allowing full search and configuration even without network connectivity.
 
 ---
 
@@ -48,7 +48,7 @@ The catalogue lives at `/`; the former `/store` alias is removed. Exact
 directory details remain at `/store/{projectId}`.
 
 > [!NOTE]
-> The store is entirely optional. If you run a custom or private Configurator build without a bundled store, the **Open** tab remains fully operational for loading local files or deep-link URLs.
+> Alongside the bundled Store catalog, **Open** remains fully operational in both Desktop and Browser for loading local files or explicit credential-free public HTTPS links.
 
 The Store catalog, curation and definition contracts use the fixed development
 version `0.0.1`. Only the current format is supported; older local copies belong
@@ -93,7 +93,7 @@ To add search tags or specify a custom slug, include an optional `curation.json`
 }
 ```
 
-- **`schemaVersion`**: Must be `1`.
+- **`schemaVersion`**: Must be `"0.0.1"`.
 - **`tags`**: Up to 16 unique lowercase alphanumeric tags (max 32 characters each).
 - **`slug` & `slugReason`**: If the directory name differs from the project ID in `configurator.yaml`, explain the reason in `slugReason` (16–512 characters).
 

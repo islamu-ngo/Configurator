@@ -13,6 +13,7 @@ builder.Services.AddScoped<BrowserOfflinePolicy>();
 builder.Services.AddScoped<AppearanceThemeService>();
 builder.Services.AddScoped<BrowserNavigationState>();
 builder.Services.AddScoped<WorkspaceSearchState>();
+builder.Services.AddSingleton<Configurator.Presentation.Store.IDefinitionStoreProvider, Configurator.Presentation.Store.EmbeddedDefinitionStoreProvider>();
 builder.Services.AddScoped<DefinitionStoreCatalog>();
 builder.Services.AddMudServices();
 WebAssemblyHost host = builder.Build();

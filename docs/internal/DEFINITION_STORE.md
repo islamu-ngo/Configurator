@@ -2,10 +2,10 @@
 
 > **Audience:** Maintainers and contributors
 > **Owner:** Core
-> **Contributing reviewers:** Native store tooling and Browser discovery
-> **Source Anchors:** `eng/configurator/BuildDefinitionStore.cs`, `store/`, `schemas/definition-store-curation.schema.json`
-> **Status:** Optional static discovery; no publisher authentication or host authority
-> **Last Verified:** 2026-11-01
+> **Contributing reviewers:** Native store tooling, Presentation Store provider, Desktop and Browser discovery
+> **Source Anchors:** `eng/configurator/BuildDefinitionStore.cs`, `src/Configurator.Presentation/Store/`, `store/`, `schemas/definition-store-curation.schema.json`
+> **Status:** Bundled offline Store discovery embedded in Presentation; no publisher authentication or host authority
+> **Last Verified:** 2026-11-11
 
 ## Ownership and flow
 
@@ -139,15 +139,18 @@ entryPoints, locales, outputNames, snapshotPath
 Family IDs use GUID `D` format; digest is lowercase 64-character SHA-256 from
 Core canonical bytes. Application/version/entry/locale/output metadata comes
 from the admitted definition. `snapshotPath` is relative to the generated
-index folder. Browser publishing copies the generated root beneath
-`definition-store/`; same-origin reads remain distinct from external HTTPS
-source admission. Browser checks snapshot identity/digest against this metadata
-before opening and retains registry conflict history. It loads discovery only
-when requested before live answer work. The public projection is
+index folder. `Configurator.Presentation.csproj` embeds the compiled index and
+canonical snapshots as `Configurator.Store.*` manifest resources, served in-memory
+through `IDefinitionStoreProvider` (`EmbeddedDefinitionStoreProvider`) across
+both Desktop and Browser without external HTTPS fetches or Browser-specific
+`wwwroot/definition-store/` or JavaScript asset loaders. Client wrappers check
+snapshot identity/digest against this metadata before opening and Browser
+retains registry conflict history via `DefinitionStoreCatalog`. It loads
+discovery only before live answer custody. The public projection is
 [definition-store.md](../public/definition-store.md).
 
-The `/` catalogue groups candidates by ordinal application identifier for
-navigation only. Canonical family/revision/digest remains the selection identity.
+In Browser, the `/` catalogue groups candidates by ordinal application identifier
+for navigation only. Canonical family/revision/digest remains the selection identity.
 An unambiguous locally available candidate has the primary action; alternatives
 remain in source details. Otherwise only a sole candidate has a primary action.
 Directory configuration awaits `OpenAsync` admission before navigating to a
@@ -156,15 +159,12 @@ workspace and read generations reject stale publication. Project details retain
 explicit revision choice, with no extra confirmation after successful admission.
 Invalid explicit revisions report unavailable and never select a fallback.
 The obsolete `/store` catalogue alias and its local-host fallback are removed;
-`/store/{projectId}` remains the optional source/revision inspector.
+`/store/{projectId}` remains the project/revision inspector.
 
-The published worker includes optional store URLs in its exact SDK-manifest
-allowlist, but only core UI/runtime assets determine offline readiness. A
-deliberate store read before answer collection fetches credential-free public
-bytes with the manifest integrity hash and caches them for later offline reads.
-Unavailable store content therefore cannot disable local configuration. Offline
-discovery is limited to store assets already read; retaining an admitted external
-definition remains a separate deliberate action.
+Offline store discovery shares the WebAssembly application cache in `service-worker-assets.js`
+because `Configurator.Presentation` embeds `Configurator.Store.*` directly; no
+runtime `definition-store/` fetch or uncached revision divergence occurs after
+app installation. Retaining an admitted external definition remains a separate deliberate action.
 
 ## Validation and contribution lane
 

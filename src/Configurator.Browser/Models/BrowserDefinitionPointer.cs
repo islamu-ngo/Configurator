@@ -1,8 +1,8 @@
 namespace Configurator.Browser.Models;
 
 using System.Net;
-using System.Net.Sockets;
 using Configurator.Core;
+using Configurator.Presentation.Intake;
 
 /// <summary>Public launch metadata only; answers never belong in a source pointer.</summary>
 public sealed record BrowserDefinitionPointer(Uri Source, string? Digest, string? AppVersion, string? Entry, string? Locale)
@@ -47,17 +47,7 @@ public sealed record BrowserDefinitionPointer(Uri Source, string? Digest, string
             || host.EndsWith(".local", StringComparison.OrdinalIgnoreCase)) throw new BrowserLaunchException("source-invalid");
         if (IPAddress.TryParse(host, out IPAddress? address))
         {
-            if (address.IsIPv4MappedToIPv6) address = address.MapToIPv4();
-            byte[] bytes = address.GetAddressBytes();
-            bool publicAddress = address.AddressFamily == AddressFamily.InterNetwork
-                ? bytes[0] is not (0 or 10 or 127) && bytes[0] < 224
-                    && !(bytes[0] == 169 && bytes[1] == 254)
-                    && !(bytes[0] == 172 && bytes[1] is >= 16 and <= 31)
-                    && !(bytes[0] == 192 && bytes[1] == 168)
-                    && !(bytes[0] == 100 && bytes[1] is >= 64 and <= 127)
-                    && !(bytes[0] == 198 && bytes[1] is 18 or 19)
-                : (bytes[0] & 0xe0) == 0x20;
-            if (!publicAddress) throw new BrowserLaunchException("source-invalid");
+            if (!PublicRemoteEndpointPolicy.IsPublicAddress(address)) throw new BrowserLaunchException("source-invalid");
         }
         else if (!host.Contains('.', StringComparison.Ordinal)) throw new BrowserLaunchException("source-invalid");
     }

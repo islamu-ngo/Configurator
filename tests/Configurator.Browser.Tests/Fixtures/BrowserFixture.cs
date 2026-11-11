@@ -57,6 +57,7 @@ internal static class BrowserFixture
         context.Services.AddScoped<AppearanceThemeService>();
         context.Services.AddScoped<BrowserNavigationState>();
         context.Services.AddScoped<BrowserOfflinePolicy>();
+        context.Services.AddSingleton<Configurator.Presentation.Store.IDefinitionStoreProvider, Configurator.Presentation.Store.EmbeddedDefinitionStoreProvider>();
         context.Services.AddScoped<DefinitionStoreCatalog>();
         context.Services.AddScoped<WorkspaceSearchState>();
         context.Services.AddSingleton(new PopoverHost());
@@ -72,8 +73,6 @@ internal static class BrowserFixture
         offline.Setup<BrowserOfflineState>("initialize", _ => true).SetResult(new BrowserOfflineState(true, true, true));
         offline.Setup<bool>("beginWorkspace", _ => true).SetResult(true);
         offline.SetupVoid("endWorkspace", _ => true).SetVoidResult();
-        var store = context.JSInterop.SetupModule("./js/browser-store.js");
-        store.Setup<byte[]>("readAsset", _ => true).SetResult([]);
         var interactions = context.JSInterop.SetupModule("./js/workspace-interactions.js");
         interactions.SetupVoid("watch", _ => true).SetVoidResult();
         interactions.SetupVoid("unwatch", _ => true).SetVoidResult();
