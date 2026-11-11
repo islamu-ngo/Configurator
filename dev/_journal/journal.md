@@ -672,3 +672,62 @@ heading over revealing a hidden label in document flow.
 
 **Promotion Consideration**:
 - [x] Stays in journal; the shared state contract remains the implementation authority.
+
+[2026-11-11 Europe/Brussels] — Linux Avalonia pickers need UseManagedSystemDialogs()
+
+**Context**: Enabling real file and folder pickers on Linux X11 and Wayland desktop sessions in `Configurator.Desktop` during Open/Save unification.
+
+**Symptom / Observation**: Unconfigured `UsePlatformDetect()` desktop lifetimes invoke host DBus portal / GTK / `libEGL` dialogs when `StorageProvider` opens a picker, failing or crashing in minimal X11/Xvfb/Wayland sessions. Simultaneously, attempting to reference a standalone `Avalonia.Dialogs` NuGet package on `Avalonia 12.1.6` is redundant.
+
+**Root Cause**: `Avalonia 12.1.6` already bundles managed dialogs inside the base `Avalonia` package, but `.UseManagedSystemDialogs()` must be opt-in enabled on `AppBuilder` in `Program.cs` so desktop storage providers use Avalonia's managed theme-aware dialogs rather than native host portals.
+
+**Resolution**: Enabled `.UseManagedSystemDialogs()` in `src/Configurator.Desktop/Program.cs` without modifying `Directory.Packages.props`. `AvaloniaStorageDialogService` and `Desktop.Tests` headless storage pickers pass under `Release` (`413/413`).
+
+**Why This Matters for Future Work**: Do not add a separate `Avalonia.Dialogs` package pin for Avalonia `>= 12.x`; configure `.UseManagedSystemDialogs()` in `AppBuilder` and keep `IStorageDialogService` isolated behind explicit `FileTypeFilter` and UI titles.
+
+**References**:
+- `src/Configurator.Desktop/Program.cs`
+- `src/Configurator.Desktop/Services/AvaloniaStorageDialogService.cs`
+- `docs/internal/DESKTOP_CLIENT.md`
+
+**Promotion Consideration**:
+- [x] Documented in `docs/internal/DESKTOP_CLIENT.md`.
+
+[2026-11-11 Europe/Brussels] — MSBuild embedded store generation must isolate --schema
+
+**Context**: Embedding compiled `store/` assets into `Configurator.Presentation.dll` via `GenerateStoreAssets` in `src/Configurator.Presentation/Configurator.Presentation.csproj`.
+
+**Symptom / Observation**: Invoking `BuildDefinitionStore.cs --write` inside an MSBuild target without `--schema` overwrites tracked `schemas/definition-store-curation.schema.json` on ordinary builds, creating working-tree churn and potential parallel build races.
+
+**Root Cause**: `BuildDefinitionStore.cs` defaults `--schema` to the repository-tracked schema path unless `--schema <path>` redirects schema emission elsewhere.
+
+**Resolution**: Both direct `<Exec>` and `<BuildCaptureTask>` invocations in `src/Configurator.Presentation/Configurator.Presentation.csproj` now write `--schema` to `$(BaseIntermediateOutputPath).../embedded-store.curation.schema.json`.
+
+**Why This Matters for Future Work**: Any build target calling `BuildDefinitionStore.cs --write` must redirect `--schema` into an intermediate `obj/` path so ordinary compilation never mutates versioned schemas.
+
+**References**:
+- `src/Configurator.Presentation/Configurator.Presentation.csproj:11`
+- `docs/internal/PACKAGING.md`
+
+**Promotion Consideration**:
+- [x] Documented in `docs/internal/PACKAGING.md`.
+
+[2026-11-11 Europe/Brussels] — Presentation collection ViewModels must marshal to UI SynchronizationContext
+
+**Context**: Implementing `StoreCatalogViewModel` (`ObservableCollection<StoreProjectCardViewModel>`) in framework-agnostic `Configurator.Presentation` for both Avalonia Desktop and unit tests.
+
+**Symptom / Observation**: Updating an `ObservableCollection<T>` after an asynchronous continuation (`await ...ConfigureAwait(false)`) runs on a ThreadPool thread, breaking Avalonia UI thread-affinity assumptions if a UI thread awaits or triggers reload concurrently.
+
+**Root Cause**: `Configurator.Presentation` intentionally takes zero Avalonia or WinUI dispatcher dependencies, so relying on `ConfigureAwait(false)` before mutating UI-bound `ObservableCollection<T>` instances leaks ThreadPool resumes into bindings.
+
+**Resolution**: `StoreCatalogViewModel` captures `SynchronizationContext.Current` on construction and posts/executes `ObservableCollection<T>` updates back on that UI context when non-null.
+
+**Why This Matters for Future Work**: Shared Presentation ViewModels exposing bindable observable collections over async providers should marshal collection mutations via captured `SynchronizationContext` rather than adding UI-framework dispatcher dependencies or mutating collections from arbitrary Task continuations.
+
+**References**:
+- `src/Configurator.Presentation/Store/StoreCatalogViewModel.cs`
+- `tests/Configurator.Presentation.Tests/Store/StoreCatalogViewModelTests.cs`
+- `docs/internal/DESKTOP_CLIENT.md`
+
+**Promotion Consideration**:
+- [x] Documented in `docs/internal/DESKTOP_CLIENT.md`.
