@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-  <data name="Settings" xml:space="preserve"><value>Display settings</value></data>
+  <data name="Settings" xml:space="preserve"><value>Settings</value></data>
   <data name="OutputNotEvaluated" xml:space="preserve"><value>Completeness not evaluated</value></data>
   <data name="OutputPreparedComplete" xml:space="preserve"><value>Prepared; complete output</value></data>
   <data name="OutputPreparedIncomplete" xml:space="preserve"><value>Prepared draft; deferred values remain</value></data>
@@ -207,4 +207,27 @@ Family: {3} | revision: {4} | SHA-256: {5}
 Publisher metadata is not a trust assertion. Local preparation does not apply configuration.</value></data>
   <data name="ConfigurationContext" xml:space="preserve"><value>Deployment recipe and component scope</value></data>
   <data name="ConfigurationContextHelp" xml:space="preserve"><value>Choose a compatible recipe and scope before editing. Readiness and destinations follow these components; changing scope retires prepared output.</value></data>
+  <data name="DirectionLabel" xml:space="preserve"><value>Direction</value></data>
+  <data name="DirectionAuto" xml:space="preserve"><value>Auto direction</value></data>
+  <data name="DirectionLtr" xml:space="preserve"><value>Left to right</value></data>
+  <data name="DirectionRtl" xml:space="preserve"><value>Right to left</value></data>
+  <data name="SettingsAppearanceTitle" xml:space="preserve"><value>Appearance</value></data>
+  <data name="SettingsAppearanceDescription" xml:space="preserve"><value>Session-scoped color theme and native host high-contrast handling.</value></data>
+  <data name="SettingsAppearanceSessionNote" xml:space="preserve"><value>Theme changes apply immediately across the workspace for this session and reset to System on restart.</value></data>
+  <data name="SettingsContrastLabel" xml:space="preserve"><value>Host high contrast</value></data>
+  <data name="SettingsContrastActive" xml:space="preserve"><value>Active — overriding session appearance</value></data>
+  <data name="SettingsContrastInactive" xml:space="preserve"><value>Inactive — following selected session appearance</value></data>
+  <data name="SettingsLanguageTitle" xml:space="preserve"><value>Language &amp; layout</value></data>
+  <data name="SettingsLanguageDescription" xml:space="preserve"><value>Workspace localization and bidirectional layout direction without losing answers.</value></data>
+  <data name="SettingsNoWorkspaceLocales" xml:space="preserve"><value>Load a definition with multiple declared languages from the Open stage to switch workspace language.</value></data>
+  <data name="SettingsKeyboardTitle" xml:space="preserve"><value>Keyboard &amp; dialogs</value></data>
+  <data name="SettingsKeyboardDescription" xml:space="preserve"><value>Desktop navigation shortcuts and managed cross-platform file pickers.</value></data>
+  <data name="SettingsShortcutsHelp" xml:space="preserve"><value>Ctrl+O (or Cmd+O): Open stage and focus local definition path
+Ctrl+Enter (or Cmd+Enter): Review stage and prepare selected outputs
+Escape: Close open popup or cancel active operation
+File and folder pickers use Avalonia managed system dialogs on X11, Wayland, macOS, and Windows.</value></data>
+  <data name="SettingsPrivacyTitle" xml:space="preserve"><value>Privacy &amp; host output</value></data>
+  <data name="SettingsPrivacyDescription" xml:space="preserve"><value>Offline custody guarantees and local protected-save capability.</value></data>
+  <data name="SettingsPrivacyHelp" xml:space="preserve"><value>Answers remain in local memory with zero background telemetry or target apply authority. Remote HTTPS schema fetches execute only on explicit Fetch action on the Open stage with private/local IP blocking, zero redirects, and a 4 MiB ceiling.</value></data>
+  <data name="SettingsWorkstationHostLabel" xml:space="preserve"><value>Workstation protected-save capability</value></data>
 </root>

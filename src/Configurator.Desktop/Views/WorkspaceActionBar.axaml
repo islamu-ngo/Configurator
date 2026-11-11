@@ -2,17 +2,20 @@
     xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:Configurator.Desktop.ViewModels"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
-  <StackPanel Spacing="8">
+  <StackPanel Spacing="6">
     <WrapPanel>
       <Button Name="Validate" Content="{Binding Workspace.Strings[Validate]}" Margin="0,0,8,0"
               Command="{Binding Workspace.ValidateCommand}" />
       <Button Name="Cancel" Content="{Binding Workspace.Strings[Cancel]}" Command="{Binding CancelCommand}" />
     </WrapPanel>
-    <TextBlock Name="ProtectedCapability" Text="{Binding Publisher.ProtectedCapability}" TextWrapping="Wrap" />
+    <TextBlock Name="ProtectedCapability" Text="{Binding Publisher.ProtectedCapability}" TextWrapping="Wrap"
+               IsVisible="{Binding Publisher.ProtectedCapability, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     <TextBlock Name="Status" AutomationProperties.AutomationId="OperationStatus" Text="{Binding Status}" TextWrapping="Wrap"
-               AutomationProperties.Name="{Binding Workspace.Strings[OperationStatus]}" AutomationProperties.LiveSetting="Polite" />
+               AutomationProperties.Name="{Binding Workspace.Strings[OperationStatus]}" AutomationProperties.LiveSetting="Polite"
+               IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     <TextBlock Name="StatusHelp" Text="{Binding StatusHelp}" TextWrapping="Wrap"
-               AutomationProperties.Name="{Binding Workspace.Strings[NextStep]}" />
+               AutomationProperties.Name="{Binding Workspace.Strings[NextStep]}"
+               IsVisible="{Binding StatusHelp, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     <Border IsVisible="{Binding IsClosing}" BorderBrush="{DynamicResource ConfiguratorBorderBrush}"
             BorderThickness="1" Padding="12">
       <StackPanel Spacing="8">

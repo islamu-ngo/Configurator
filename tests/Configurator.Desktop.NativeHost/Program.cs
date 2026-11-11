@@ -487,7 +487,6 @@ internal static class Program
                 await appearanceShell.Publisher.PrepareSelectionAsync();
                 var preparation = appearanceShell.Publisher.Preparation;
                 long revision = appearanceShell.Workspace.Form!.InputRevision;
-                appearanceWindow.GetNamedControl<Expander>("WorkspaceSettings").IsExpanded = true;
                 await FlushAsync();
                 var selector = appearanceWindow.GetNamedControl<ComboBox>("Appearance");
                 Require(selector.ItemCount == 3 && selector.Focus(), "appearance-selector");

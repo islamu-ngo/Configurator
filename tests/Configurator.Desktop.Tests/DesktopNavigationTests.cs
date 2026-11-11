@@ -138,4 +138,35 @@ public sealed class DesktopNavigationTests
         }
         finally { await Task.Run(session.Dispose); }
     }
+
+    [Test]
+    public async Task SettingsStageRemainsReachableWithoutWorkspaceAndDirectionModeSyncsBidirectionally()
+    {
+        using var shell = DesktopTestContext.Root();
+        using var navigation = new DesktopNavigationViewModel(shell.Workspace);
+
+        navigation.Stage = DesktopWorkspaceStage.Configure;
+        await Assert.That(navigation.Stage).IsEqualTo(DesktopWorkspaceStage.Open);
+
+        navigation.SettingsCommand.Execute(null);
+        await Assert.That(navigation.Stage).IsEqualTo(DesktopWorkspaceStage.Settings);
+        await Assert.That(navigation.SettingsSections.Count).IsEqualTo(4);
+        await Assert.That(navigation.SelectedSettingsSection?.Id).IsEqualTo(DesktopSettingsSectionId.Appearance);
+
+        navigation.SelectedSettingsSection = navigation.SettingsSections[1];
+        await Assert.That(navigation.IsLanguageSettings).IsTrue();
+
+        shell.Workspace.DirectionModeIndex = 2;
+        await Assert.That(shell.Workspace.FollowLocaleDirection).IsFalse();
+        await Assert.That(shell.Workspace.IsRightToLeft).IsTrue();
+        await Assert.That(shell.Workspace.FlowDirection).IsEqualTo(Avalonia.Media.FlowDirection.RightToLeft);
+
+        shell.Workspace.DirectionModeIndex = 1;
+        await Assert.That(shell.Workspace.FollowLocaleDirection).IsFalse();
+        await Assert.That(shell.Workspace.IsRightToLeft).IsFalse();
+        await Assert.That(shell.Workspace.FlowDirection).IsEqualTo(Avalonia.Media.FlowDirection.LeftToRight);
+
+        shell.Workspace.DirectionModeIndex = 0;
+        await Assert.That(shell.Workspace.FollowLocaleDirection).IsTrue();
+    }
 }

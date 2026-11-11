@@ -1,3 +1,3 @@
 namespace Configurator.Desktop.ViewModels;
 
-public enum DesktopWorkspaceStage { Open, Configure, Review }
+public enum DesktopWorkspaceStage { Open, Configure, Review, Settings }

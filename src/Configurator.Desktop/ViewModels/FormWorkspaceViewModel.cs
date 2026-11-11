@@ -27,9 +27,11 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     private bool _isBusy;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FlowDirection))]
+    [NotifyPropertyChangedFor(nameof(DirectionModeIndex))]
     private bool _isRightToLeft;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(FlowDirection))]
+    [NotifyPropertyChangedFor(nameof(DirectionModeIndex))]
     private bool _followLocaleDirection = true;
     partial void OnIsRightToLeftChanged(bool value) => FollowLocaleDirection = false;
 
@@ -99,6 +101,23 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         ? Form is null ? Strings.Culture.TextInfo.IsRightToLeft : Form.Direction == "rtl"
         : IsRightToLeft)
         ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+    public int DirectionModeIndex
+    {
+        get => FollowLocaleDirection ? 0 : IsRightToLeft ? 2 : 1;
+        set
+        {
+            if (_disposed || value is < 0 or > 2 || value == DirectionModeIndex) return;
+            if (value == 0)
+            {
+                FollowLocaleDirection = true;
+                return;
+            }
+            FollowLocaleDirection = false;
+            IsRightToLeft = value == 2;
+            OnPropertyChanged(nameof(DirectionModeIndex));
+            OnPropertyChanged(nameof(FlowDirection));
+        }
+    }
     public FieldViewModel? FirstError => Fields.FirstOrDefault(item => item.IsVisible && item.HasError);
     public FieldViewModel? FirstVisible => Fields.FirstOrDefault(item => item.IsVisible && item.IsRequired)
         ?? Fields.FirstOrDefault(item => item.IsVisible);

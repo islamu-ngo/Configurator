@@ -8,7 +8,10 @@ independently validates, authorizes and applies them.
 Use the [support index](../internal/STATUS.md) to distinguish packaged targets
 from actual-host and protected-save evidence.
 
-Everything runs locally on your workstation. The desktop client makes no network calls, contains no background telemetry, and requires no target application credentials or remote access.
+Everything runs locally on your workstation. The desktop client has zero
+background telemetry, requires no target application credentials, and performs
+outbound HTTPS requests only when you explicitly enter a public HTTPS
+definition URL and choose **Fetch** on the **Open** screen.
 
 ---
 
@@ -25,9 +28,12 @@ dotnet run --project src/Configurator.Desktop/Configurator.Desktop.csproj \
 ```
 
 Command-line arguments are optional:
-- **No arguments:** Click **Choose definition…** to select a definition file, or enter its path and click **Load definition**.
-- **One argument:** Automatically loads the specified definition file on launch.
-- **Two arguments:** Loads the definition and sets the target output directory.
+- **No arguments:** **Open** organizes definition intake into three tiers:
+  1. **Catalog (Offline Bundled Store):** Filter the built-in public catalog by name, description, or tags and select **Configure** to load a vetted definition immediately offline.
+  2. **Local File:** Click **Choose definition…** to open Avalonia's managed cross-platform file picker, or enter a local `.json` / `.yaml` path and click **Load definition** (4 MiB limit).
+  3. **Public HTTPS Link:** Paste a credential-free public `https://` URL (no query, fragment, userinfo, redirects, localhost, or private IP targets) and click **Fetch** to admit a definition without disturbing active workspace answers.
+- **One argument:** Automatically loads the specified local definition file on launch.
+- **Two arguments:** Loads the local definition and sets the target output directory.
 
 Open displays the loaded definition's title, application ID, publisher, family
 UUID, revision and SHA-256 digest pin. Changing the file on disk does not alter
@@ -41,9 +47,17 @@ after cancellation or workspace replacement cannot change the new workspace.
 
 ## Desktop GUI Layout
 
-The workspace has three stages. **Open** admits a local definition.
+The workspace has four top-level stages accessible from the fixed header bar:
+**Open** admits a definition from the bundled catalog, local file, or public HTTPS link.
 **Configure** shows its authored sections and the current section's editors.
 **Review outputs** contains preparation and deliberate protected saving.
+**Settings** provides a dedicated left-sidebar workspace organized into sections
+(**Appearance**, **Language & layout**, **Keyboard & dialogs**, and
+**Privacy & host output**) for session display preferences, keyboard shortcuts,
+and local host output guarantees.
+Compact **Appearance**, **Language**, and **Direction** selectors also remain
+directly accessible in the top header without an extra dropdown panel. The top
+header stays fixed while only the active stage body scrolls.
 Changing stages does not collect another copy of your answers or discard
 unfinished numeric text. Validation and missing counts cover the whole active
 configuration, including fields on other pages.
@@ -53,9 +67,11 @@ Paging changes the displayed editors while the workspace retains their drafts
 and identities. Definitions whose root is a map or a variant have a neutral
 Configure section so their recursive editor remains reachable.
 
-Small windows use a section picker. Wider workspaces can show a section rail;
-the editing column stays within an 800-unit reading width. Resizing rearranges
-the existing editing surface rather than replacing an in-progress text input.
+Small windows use a section picker. Wider workspaces show a fixed left section
+rail that scrolls independently when a definition has more sections than fit in
+the viewport, while the editing body scrolls separately within an 800-unit
+reading width. Resizing rearranges the existing editing surface rather than
+replacing an in-progress text input.
 
 Appearance offers **System**, **Light** (Latte), and **Dark** (Macchiato).
 The preference lasts for this application session; restarting uses System.

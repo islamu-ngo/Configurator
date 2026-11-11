@@ -13,44 +13,127 @@
     Title="{Binding Workspace.Strings[WindowTitle]}"
     Width="960" Height="800" MinWidth="600" MinHeight="540"
     AutomationProperties.Name="{Binding Workspace.Strings[WindowTitle]}">
-  <ScrollViewer Name="WorkspaceScroll" Margin="20" HorizontalScrollBarVisibility="Disabled">
-  <StackPanel Spacing="14">
-    <WrapPanel>
-      <Button Name="OpenStage" AutomationProperties.AutomationId="OpenStage" Content="{Binding Workspace.Strings[Open]}" Command="{Binding Navigation.OpenCommand}" />
-      <Button Name="ConfigureStage" AutomationProperties.AutomationId="ConfigureStage" Content="{Binding Workspace.Strings[Configure]}"
-              Command="{Binding Navigation.ConfigureCommand}" IsEnabled="{Binding Navigation.HasWorkspace}" />
-      <Button Name="ReviewStage" AutomationProperties.AutomationId="ReviewStage" Content="{Binding Workspace.Strings[ReviewOutputs]}"
-              Command="{Binding Navigation.ReviewCommand}" IsEnabled="{Binding Navigation.HasWorkspace}" />
-    </WrapPanel>
-    <Expander Name="WorkspaceSettings" Header="{Binding Workspace.Strings[Settings]}" HorizontalAlignment="Stretch">
-      <StackPanel Spacing="8" MaxWidth="800">
-        <TextBlock Text="{Binding Workspace.Strings[AppearanceLabel]}" />
-        <ComboBox Name="Appearance" SelectedIndex="{Binding AppearanceIndex, Mode=TwoWay}"
-                  AutomationProperties.Name="{Binding Workspace.Strings[AppearanceLabel]}">
-          <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceSystem]}" />
-          <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceLight]}" />
-          <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceDark]}" />
-        </ComboBox>
-        <StackPanel IsVisible="{Binding Navigation.HasWorkspace}" Spacing="8">
-          <TextBlock Text="{Binding Workspace.LocaleLabel}" />
+  <Window.Styles>
+    <Style Selector="WrapPanel.header-controls">
+      <Setter Property="Grid.Row" Value="1" />
+      <Setter Property="Grid.Column" Value="0" />
+      <Setter Property="Grid.ColumnSpan" Value="2" />
+      <Setter Property="HorizontalAlignment" Value="Left" />
+    </Style>
+    <ContainerQuery Name="Header" Query="min-width: 820">
+      <Style Selector="WrapPanel.header-controls">
+        <Setter Property="Grid.Row" Value="0" />
+        <Setter Property="Grid.Column" Value="1" />
+        <Setter Property="Grid.ColumnSpan" Value="1" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+      </Style>
+    </ContainerQuery>
+    <Style Selector="ListBox.section-rail">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="StackPanel.compact-navigation">
+      <Setter Property="IsVisible" Value="True" />
+    </Style>
+    <ContainerQuery Name="Workspace" Query="min-width: 900">
+      <Style Selector="ListBox.section-rail">
+        <Setter Property="IsVisible" Value="True" />
+      </Style>
+      <Style Selector="StackPanel.compact-navigation">
+        <Setter Property="IsVisible" Value="False" />
+      </Style>
+    </ContainerQuery>
+  </Window.Styles>
+  <Grid RowDefinitions="Auto,*" Margin="20" RowSpacing="12">
+    <Border Grid.Row="0" BorderBrush="{DynamicResource ConfiguratorBorderBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,8">
+      <Grid Classes="header-bar" Container.Name="Header" Container.Sizing="Width" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <WrapPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
+          <Button Name="OpenStage" AutomationProperties.AutomationId="OpenStage"
+                  Classes.active-stage="{Binding Navigation.IsOpen}"
+                  Content="{Binding Workspace.Strings[Open]}"
+                  Command="{Binding Navigation.OpenCommand}" />
+          <Button Name="ConfigureStage" AutomationProperties.AutomationId="ConfigureStage"
+                  Classes.active-stage="{Binding Navigation.IsConfigure}"
+                  Content="{Binding Workspace.Strings[Configure]}"
+                  Command="{Binding Navigation.ConfigureCommand}"
+                  IsEnabled="{Binding Navigation.HasWorkspace}" />
+          <Button Name="ReviewStage" AutomationProperties.AutomationId="ReviewStage"
+                  Classes.active-stage="{Binding Navigation.IsReview}"
+                  Content="{Binding Workspace.Strings[ReviewOutputs]}"
+                  Command="{Binding Navigation.ReviewCommand}"
+                  IsEnabled="{Binding Navigation.HasWorkspace}" />
+        </WrapPanel>
+        <WrapPanel Classes="header-controls" VerticalAlignment="Center">
+          <ComboBox Name="Appearance" SelectedIndex="{Binding AppearanceIndex, Mode=TwoWay}"
+                    AutomationProperties.Name="{Binding Workspace.Strings[AppearanceLabel]}"
+                    ToolTip.Tip="{Binding Workspace.Strings[AppearanceLabel]}"
+                    MinWidth="108">
+            <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceSystem]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceLight]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceDark]}" />
+          </ComboBox>
           <ComboBox Name="DefinitionLocale" ItemsSource="{Binding Workspace.Locales}"
                     SelectedItem="{Binding Workspace.SelectedLocale, Mode=TwoWay}"
-                    AutomationProperties.Name="{Binding Workspace.LocaleLabel}" />
-          <CheckBox AutomationProperties.Name="{Binding Workspace.FollowLocaleDirectionLabel}"
-                    IsChecked="{Binding Workspace.FollowLocaleDirection, Mode=TwoWay}">
-            <TextBlock Text="{Binding Workspace.FollowLocaleDirectionLabel}" />
-          </CheckBox>
-          <CheckBox AutomationProperties.Name="{Binding Workspace.Strings[RightToLeft]}"
-                    IsChecked="{Binding Workspace.IsRightToLeft, Mode=TwoWay}">
-            <TextBlock Text="{Binding Workspace.Strings[RightToLeft]}" />
-          </CheckBox>
+                    IsVisible="{Binding Navigation.HasWorkspace}"
+                    AutomationProperties.Name="{Binding Workspace.LocaleLabel}"
+                    ToolTip.Tip="{Binding Workspace.LocaleLabel}"
+                    MinWidth="76" />
+          <ComboBox Name="DirectionMode" SelectedIndex="{Binding Workspace.DirectionModeIndex, Mode=TwoWay}"
+                    IsVisible="{Binding Navigation.HasWorkspace}"
+                    AutomationProperties.Name="{Binding Workspace.Strings[DirectionLabel]}"
+                    ToolTip.Tip="{Binding Workspace.Strings[DirectionLabel]}"
+                    MinWidth="136">
+            <ComboBoxItem Content="{Binding Workspace.Strings[DirectionAuto]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[DirectionLtr]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[DirectionRtl]}" />
+          </ComboBox>
+          <Button Name="SettingsStage" AutomationProperties.AutomationId="SettingsStage"
+                  Classes.active-stage="{Binding Navigation.IsSettings}"
+                  Content="{Binding Workspace.Strings[Settings]}"
+                  Command="{Binding Navigation.SettingsCommand}" />
+        </WrapPanel>
+      </Grid>
+    </Border>
+    <Grid Grid.Row="1" Container.Name="Workspace" Container.Sizing="Width" ColumnDefinitions="Auto,*">
+      <Grid Grid.Column="0">
+        <Panel IsVisible="{Binding Navigation.IsConfigure}">
+          <ListBox Name="SectionRail" Classes="section-rail" Width="224" Margin="0,0,16,0"
+                   ItemsSource="{Binding Navigation.Sections}" SelectedItem="{Binding Navigation.SelectedSection, Mode=TwoWay}"
+                   AutomationProperties.Name="{Binding Workspace.Strings[Section]}"
+                   VerticalAlignment="Stretch"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:DesktopSectionViewModel">
+                <TextBlock Text="{Binding Title}" TextWrapping="Wrap" Margin="8" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Panel>
+        <Panel IsVisible="{Binding Navigation.IsSettings}">
+          <ListBox Name="SettingsSectionRail" Classes="section-rail" Width="224" Margin="0,0,16,0"
+                   ItemsSource="{Binding Navigation.SettingsSections}"
+                   SelectedItem="{Binding Navigation.SelectedSettingsSection, Mode=TwoWay}"
+                   AutomationProperties.Name="{Binding Workspace.Strings[Settings]}"
+                   VerticalAlignment="Stretch"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:DesktopSettingsSection">
+                <TextBlock Text="{Binding Title}" TextWrapping="Wrap" Margin="8" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Panel>
+      </Grid>
+      <ScrollViewer Grid.Column="1" Name="WorkspaceScroll" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+        <StackPanel Spacing="14">
+          <local:DefinitionLoaderView IsVisible="{Binding Navigation.IsOpen}" MaxWidth="800" HorizontalAlignment="Stretch" />
+          <local:ConfigurationWorkspaceView IsVisible="{Binding Navigation.IsConfigure}" MaxWidth="800" HorizontalAlignment="Stretch" />
+          <local:ArtifactPublicationView IsVisible="{Binding Navigation.IsReview}" MaxWidth="800" HorizontalAlignment="Stretch" />
+          <local:SettingsWorkspaceView IsVisible="{Binding Navigation.IsSettings}" MaxWidth="800" HorizontalAlignment="Stretch" />
+          <local:WorkspaceActionBar IsVisible="{Binding !Navigation.IsSettings}" MaxWidth="800" HorizontalAlignment="Stretch" />
         </StackPanel>
-      </StackPanel>
-    </Expander>
-    <local:DefinitionLoaderView IsVisible="{Binding Navigation.IsOpen}" MaxWidth="800" HorizontalAlignment="Stretch" />
-    <local:ConfigurationWorkspaceView IsVisible="{Binding Navigation.IsConfigure}" />
-    <local:ArtifactPublicationView IsVisible="{Binding Navigation.IsReview}" MaxWidth="800" HorizontalAlignment="Stretch" />
-    <local:WorkspaceActionBar />
-  </StackPanel>
-  </ScrollViewer>
+      </ScrollViewer>
+    </Grid>
+  </Grid>
 </Window>

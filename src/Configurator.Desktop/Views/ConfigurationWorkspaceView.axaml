@@ -3,31 +3,7 @@
     xmlns:vm="using:Configurator.Desktop.ViewModels"
     xmlns:local="using:Configurator.Desktop.Views"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
-  <UserControl.Styles>
-    <Style Selector="ListBox.section-rail">
-      <Setter Property="IsVisible" Value="False" />
-    </Style>
-    <ContainerQuery Name="Workspace" Query="min-width: 900">
-      <Style Selector="ListBox.section-rail">
-        <Setter Property="IsVisible" Value="True" />
-      </Style>
-      <Style Selector="StackPanel.compact-navigation">
-        <Setter Property="IsVisible" Value="False" />
-      </Style>
-    </ContainerQuery>
-  </UserControl.Styles>
-  <Grid Container.Name="Workspace" Container.Sizing="Width">
-  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
-    <ListBox Name="SectionRail" Classes="section-rail" Width="224"
-             ItemsSource="{Binding Navigation.Sections}" SelectedItem="{Binding Navigation.SelectedSection, Mode=TwoWay}"
-             AutomationProperties.Name="{Binding Workspace.Strings[Section]}" VerticalAlignment="Top">
-      <ListBox.ItemTemplate>
-        <DataTemplate x:DataType="vm:DesktopSectionViewModel">
-          <TextBlock Text="{Binding Title}" TextWrapping="Wrap" Margin="8" />
-        </DataTemplate>
-      </ListBox.ItemTemplate>
-    </ListBox>
-  <StackPanel Grid.Column="1" Spacing="16" MaxWidth="800">
+  <StackPanel Spacing="16" MaxWidth="800">
     <TextBlock Text="{Binding Workspace.Strings[Configure]}" FontSize="{DynamicResource ConfiguratorHeadingFontSize}" FontWeight="SemiBold" />
     <StackPanel Spacing="8">
       <TextBlock Text="{Binding Workspace.Strings[Experience]}" />
@@ -93,6 +69,4 @@
       <Button Content="{Binding Workspace.Strings[NextPage]}" Command="{Binding Navigation.NextPageCommand}" />
     </WrapPanel>
   </StackPanel>
-  </Grid>
-  </Grid>
 </UserControl>

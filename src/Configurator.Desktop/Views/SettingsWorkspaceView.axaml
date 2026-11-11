@@ -1,0 +1,110 @@
+<UserControl x:Class="Configurator.Desktop.Views.SettingsWorkspaceView"
+    xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Configurator.Desktop.ViewModels"
+    x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
+  <StackPanel Spacing="16" MaxWidth="800">
+    <TextBlock Text="{Binding Workspace.Strings[Settings]}"
+               FontSize="{DynamicResource ConfiguratorHeadingFontSize}"
+               FontWeight="SemiBold" />
+    <StackPanel Classes="compact-navigation" Spacing="8">
+      <TextBlock Text="{Binding Workspace.Strings[Section]}" />
+      <ComboBox Name="SettingsSectionSelector"
+                ItemsSource="{Binding Navigation.SettingsSections}"
+                SelectedItem="{Binding Navigation.SelectedSettingsSection, Mode=TwoWay}"
+                HorizontalAlignment="Stretch"
+                AutomationProperties.Name="{Binding Workspace.Strings[Settings]}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:DesktopSettingsSection">
+            <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+    </StackPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Text="{Binding Navigation.SelectedSettingsSection.Title}"
+                 FontSize="{DynamicResource ConfiguratorTitleFontSize}"
+                 FontWeight="SemiBold" />
+      <TextBlock Text="{Binding Navigation.SelectedSettingsSection.Description}"
+                 Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
+                 TextWrapping="Wrap" />
+    </StackPanel>
+
+    <Border BorderBrush="{DynamicResource ConfiguratorBorderBrush}"
+            Background="{DynamicResource ConfiguratorSurfaceBrush}"
+            BorderThickness="1" Padding="16"
+            IsVisible="{Binding Navigation.IsAppearanceSettings}">
+      <StackPanel Spacing="12">
+        <StackPanel Spacing="4">
+          <TextBlock Text="{Binding Workspace.Strings[AppearanceLabel]}" FontWeight="SemiBold" />
+          <ComboBox Name="SettingsAppearance"
+                    SelectedIndex="{Binding AppearanceIndex, Mode=TwoWay}"
+                    AutomationProperties.Name="{Binding Workspace.Strings[AppearanceLabel]}"
+                    HorizontalAlignment="Left" MinWidth="180">
+            <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceSystem]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceLight]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceDark]}" />
+          </ComboBox>
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Text="{Binding Workspace.Strings[SettingsContrastLabel]}" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding HighContrastStatus}"
+                     Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
+                     TextWrapping="Wrap" />
+        </StackPanel>
+        <TextBlock Text="{Binding Workspace.Strings[SettingsAppearanceSessionNote]}"
+                   Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
+                   TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
+    <Border BorderBrush="{DynamicResource ConfiguratorBorderBrush}"
+            Background="{DynamicResource ConfiguratorSurfaceBrush}"
+            BorderThickness="1" Padding="16"
+            IsVisible="{Binding Navigation.IsLanguageSettings}">
+      <StackPanel Spacing="12">
+        <StackPanel Spacing="4" IsVisible="{Binding Navigation.HasWorkspace}">
+          <TextBlock Text="{Binding Workspace.LocaleLabel}" FontWeight="SemiBold" />
+          <ComboBox Name="SettingsDefinitionLocale"
+                    ItemsSource="{Binding Workspace.Locales}"
+                    SelectedItem="{Binding Workspace.SelectedLocale, Mode=TwoWay}"
+                    AutomationProperties.Name="{Binding Workspace.LocaleLabel}"
+                    HorizontalAlignment="Left" MinWidth="180" />
+        </StackPanel>
+        <TextBlock Text="{Binding Workspace.Strings[SettingsNoWorkspaceLocales]}"
+                   IsVisible="{Binding !Navigation.HasWorkspace}"
+                   Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
+                   TextWrapping="Wrap" />
+        <CheckBox Name="SettingsFollowLocaleDirection"
+                  Content="{Binding Workspace.FollowLocaleDirectionLabel}"
+                  AutomationProperties.Name="{Binding Workspace.FollowLocaleDirectionLabel}"
+                  IsChecked="{Binding Workspace.FollowLocaleDirection, Mode=TwoWay}" />
+        <CheckBox Name="SettingsRightToLeft"
+                  Content="{Binding Workspace.Strings[RightToLeft]}"
+                  AutomationProperties.Name="{Binding Workspace.Strings[RightToLeft]}"
+                  IsChecked="{Binding Workspace.IsRightToLeft, Mode=TwoWay}" />
+      </StackPanel>
+    </Border>
+
+    <Border BorderBrush="{DynamicResource ConfiguratorBorderBrush}"
+            Background="{DynamicResource ConfiguratorSurfaceBrush}"
+            BorderThickness="1" Padding="16"
+            IsVisible="{Binding Navigation.IsKeyboardSettings}">
+      <TextBlock Text="{Binding Workspace.Strings[SettingsShortcutsHelp]}" TextWrapping="Wrap" />
+    </Border>
+
+    <Border BorderBrush="{DynamicResource ConfiguratorBorderBrush}"
+            Background="{DynamicResource ConfiguratorSurfaceBrush}"
+            BorderThickness="1" Padding="16"
+            IsVisible="{Binding Navigation.IsPrivacySettings}">
+      <StackPanel Spacing="12">
+        <StackPanel Spacing="4">
+          <TextBlock Text="{Binding Workspace.Strings[SettingsWorkstationHostLabel]}" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Publisher.ProtectedCapability}" TextWrapping="Wrap" />
+        </StackPanel>
+        <TextBlock Text="{Binding Workspace.Strings[SettingsPrivacyHelp]}"
+                   Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
+                   TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
+</UserControl>

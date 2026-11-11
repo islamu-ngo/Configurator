@@ -51,6 +51,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         _timeProvider = timeProvider ?? TimeProvider.System;
         _theme = theme;
         _appearanceIndex = (int)(theme?.Preference ?? DesktopAppearance.System);
+        if (_theme is not null) _theme.HighContrastChanged += OnHighContrastChanged;
         Loader = loader;
         Workspace = workspace;
         Navigation = new DesktopNavigationViewModel(workspace);
@@ -105,6 +106,15 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     public bool CanForceClose => !_disposed && CloseDecisionRequired;
     public bool CanStayOpen => !_disposed && IsClosing;
     public string StatusHelp => Workspace.Strings.Read("Status" + _guidance);
+    public bool IsHighContrast => _theme?.IsHighContrast ?? false;
+    public string HighContrastStatus => Workspace.Strings.Read(IsHighContrast ? "SettingsContrastActive" : "SettingsContrastInactive");
+
+    private void OnHighContrastChanged(object? sender, EventArgs args)
+    {
+        if (_disposed) return;
+        OnPropertyChanged(nameof(IsHighContrast));
+        OnPropertyChanged(nameof(HighContrastStatus));
+    }
 
     private void SetStatus(string status, DesktopStatusGuidance guidance)
     {
@@ -119,6 +129,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         Loader.SetLocale(Workspace.SelectedLocale);
         OnPropertyChanged(nameof(StatusHelp));
         OnPropertyChanged(nameof(CloseMessage));
+        OnPropertyChanged(nameof(HighContrastStatus));
     }
 
     private void Begin(OperationRequestedMessage message)
@@ -260,6 +271,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     public void Dispose()
     {
         Workspace.PropertyChanged -= WorkspaceChanged;
+        if (_theme is not null) _theme.HighContrastChanged -= OnHighContrastChanged;
         if (_disposed) return;
         _disposed = true;
         _closeDecision?.TrySetResult(false);

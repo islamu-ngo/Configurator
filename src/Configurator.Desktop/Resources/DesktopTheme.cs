@@ -15,6 +15,9 @@ public sealed class DesktopTheme : IDisposable
     private bool _highContrast;
     private DesktopAppearance _preference;
 
+    public bool IsHighContrast => _highContrast;
+    public event EventHandler? HighContrastChanged;
+
     public DesktopAppearance Preference
     {
         get => _preference;
@@ -59,8 +62,11 @@ public sealed class DesktopTheme : IDisposable
     private void Apply(PlatformColorValues values)
     {
         if (_disposed) return;
-        _highContrast = values.ContrastPreference == ColorContrastPreference.High;
+        bool next = values.ContrastPreference == ColorContrastPreference.High;
+        bool changed = _highContrast != next;
+        _highContrast = next;
         ApplyVariant();
+        if (changed) HighContrastChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void ApplyVariant() =>

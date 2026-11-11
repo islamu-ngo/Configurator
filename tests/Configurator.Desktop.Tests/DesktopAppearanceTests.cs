@@ -90,7 +90,6 @@ public sealed class DesktopAppearanceTests
                 try
                 {
                     window.Show();
-                    window.GetNamedControl<Expander>("WorkspaceSettings").IsExpanded = true;
                     Dispatcher.UIThread.RunJobs();
                     var selector = window.FindNamedControl<ComboBox>("Appearance");
                     bool startsSystem = selector?.SelectedIndex == 0;

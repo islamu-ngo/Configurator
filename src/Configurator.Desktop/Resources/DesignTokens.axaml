@@ -56,4 +56,18 @@
     <Setter Property="Foreground" Value="{DynamicResource ConfiguratorErrorBrush}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
+  <Style Selector="Grid.header-bar Button, Grid.header-bar ComboBox">
+    <Setter Property="Margin" Value="0,0,8,4" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button.active-stage, Button.active-stage:pointerover">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSelectedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ConfiguratorSelectedTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorFocusBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Button.active-stage /template/ ContentPresenter, Button.active-stage:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSelectedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ConfiguratorSelectedTextBrush}" />
+  </Style>
 </Styles>

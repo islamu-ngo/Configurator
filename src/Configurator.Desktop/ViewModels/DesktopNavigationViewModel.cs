@@ -16,6 +16,8 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
     private DefinitionFormModel? _form;
     private DesktopSectionViewModel[] _sections = [];
     private DesktopSectionViewModel? _selectedSection;
+    private DesktopSettingsSection[] _settingsSections;
+    private DesktopSettingsSection? _selectedSettingsSection;
     private readonly ObservableCollection<FieldViewModel> _visibleFields = [];
     private DesktopWorkspaceStage _stage;
     private int _pageIndex;
@@ -32,6 +34,14 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
     {
         _workspace = workspace;
         VisibleFields = new(_visibleFields);
+        _settingsSections =
+        [
+            new(DesktopSettingsSectionId.Appearance, workspace.Strings.Read("SettingsAppearanceTitle"), workspace.Strings.Read("SettingsAppearanceDescription")),
+            new(DesktopSettingsSectionId.LanguageAndDirection, workspace.Strings.Read("SettingsLanguageTitle"), workspace.Strings.Read("SettingsLanguageDescription")),
+            new(DesktopSettingsSectionId.KeyboardAndDialogs, workspace.Strings.Read("SettingsKeyboardTitle"), workspace.Strings.Read("SettingsKeyboardDescription")),
+            new(DesktopSettingsSectionId.PrivacyAndHost, workspace.Strings.Read("SettingsPrivacyTitle"), workspace.Strings.Read("SettingsPrivacyDescription"))
+        ];
+        _selectedSettingsSection = _settingsSections[0];
         workspace.PropertyChanged += WorkspaceChanged;
         workspace.EditorFocusRequested += Reveal;
         Refresh();
@@ -42,17 +52,37 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
         get => _stage;
         set
         {
-            if (_disposed || value != DesktopWorkspaceStage.Open && _form is null) return;
+            if (_disposed || value is DesktopWorkspaceStage.Configure or DesktopWorkspaceStage.Review && _form is null) return;
             if (!SetProperty(ref _stage, value)) return;
             OnPropertyChanged(nameof(IsOpen));
             OnPropertyChanged(nameof(IsConfigure));
             OnPropertyChanged(nameof(IsReview));
+            OnPropertyChanged(nameof(IsSettings));
         }
     }
     public bool IsOpen => Stage == DesktopWorkspaceStage.Open;
     public bool IsConfigure => Stage == DesktopWorkspaceStage.Configure;
     public bool IsReview => Stage == DesktopWorkspaceStage.Review;
+    public bool IsSettings => Stage == DesktopWorkspaceStage.Settings;
     public bool HasWorkspace => _form is not null;
+    public IReadOnlyList<DesktopSettingsSection> SettingsSections => _settingsSections;
+    public DesktopSettingsSection? SelectedSettingsSection
+    {
+        get => _selectedSettingsSection;
+        set
+        {
+            if (_disposed || value is null || !_settingsSections.Contains(value) ||
+                !SetProperty(ref _selectedSettingsSection, value)) return;
+            OnPropertyChanged(nameof(IsAppearanceSettings));
+            OnPropertyChanged(nameof(IsLanguageSettings));
+            OnPropertyChanged(nameof(IsKeyboardSettings));
+            OnPropertyChanged(nameof(IsPrivacySettings));
+        }
+    }
+    public bool IsAppearanceSettings => SelectedSettingsSection?.Id == DesktopSettingsSectionId.Appearance;
+    public bool IsLanguageSettings => SelectedSettingsSection?.Id == DesktopSettingsSectionId.LanguageAndDirection;
+    public bool IsKeyboardSettings => SelectedSettingsSection?.Id == DesktopSettingsSectionId.KeyboardAndDialogs;
+    public bool IsPrivacySettings => SelectedSettingsSection?.Id == DesktopSettingsSectionId.PrivacyAndHost;
     public IReadOnlyList<DesktopSectionViewModel> Sections => _sections;
     public DesktopSectionViewModel? SelectedSection
     {
@@ -110,6 +140,7 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
     [RelayCommand] private void Open() => Stage = DesktopWorkspaceStage.Open;
     [RelayCommand] private void Configure() => Stage = DesktopWorkspaceStage.Configure;
     [RelayCommand] private void Review() => Stage = DesktopWorkspaceStage.Review;
+    [RelayCommand] private void Settings() => Stage = DesktopWorkspaceStage.Settings;
     [RelayCommand(CanExecute = nameof(CanPreviousPage))]
     private void PreviousPage() { _pageIndex--; RefreshPage(); }
     [RelayCommand(CanExecute = nameof(CanNextPage))]
@@ -170,11 +201,21 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
             OnPropertyChanged(nameof(SearchText));
         }
         if (sectionsChanged) OnPropertyChanged(nameof(Sections));
+        RefreshSettingsSections();
         OnPropertyChanged(nameof(SelectedSection));
         OnPropertyChanged(nameof(Progress));
         OnPropertyChanged(nameof(HasWorkspace));
         RefreshPage();
         RefreshDiscovery();
+    }
+
+    private void RefreshSettingsSections()
+    {
+        if (_settingsSections.Length < 4) return;
+        _settingsSections[0].Refresh(_workspace.Strings.Read("SettingsAppearanceTitle"), _workspace.Strings.Read("SettingsAppearanceDescription"));
+        _settingsSections[1].Refresh(_workspace.Strings.Read("SettingsLanguageTitle"), _workspace.Strings.Read("SettingsLanguageDescription"));
+        _settingsSections[2].Refresh(_workspace.Strings.Read("SettingsKeyboardTitle"), _workspace.Strings.Read("SettingsKeyboardDescription"));
+        _settingsSections[3].Refresh(_workspace.Strings.Read("SettingsPrivacyTitle"), _workspace.Strings.Read("SettingsPrivacyDescription"));
     }
 
     private void ApplyDiscovery()
@@ -281,6 +322,8 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
         _sections = [];
         _visibleFields.Clear();
         _selectedSection = null;
+        _settingsSections = [];
+        _selectedSettingsSection = null;
         _discoveryResults = [];
         _selectedDiscoveryResult = null;
     }

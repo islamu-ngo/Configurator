@@ -3,11 +3,15 @@
 > **Audience:** Contributors | Integrators | AI agents
 > **Status:** Definition and deployment adapters; published-package and manual qualification remain separate
 > **Owner:** Desktop
-> **Last Verified:** 2026-11-04
+> **Last Verified:** 2026-11-11
 > **Source Anchors:** `src/Configurator.Desktop/`, `src/Configurator.Presentation/`
 
-Desktop remains on the centrally pinned Avalonia 12.1.3 packages. It references
+Desktop remains on the centrally pinned Avalonia 12.1.6 packages. It references
 Presentation and Artifacts, with Core types available through those references.
+`BuildAvaloniaApp` enables `.UseManagedSystemDialogs()` so Linux X11 and Wayland
+hosts avoid native GTK/DBus portal `libEGL` crashes; Avalonia 12.1.6 ships
+managed dialogs inside the existing `Avalonia` package without adding another
+NuGet dependency.
 It has no target-specific DTO, catalogue, manifest, or identity workflow.
 
 ## Guided workspace composition
@@ -28,11 +32,20 @@ recorded in the [workspace ADR](adr/ADR-desktop-workspace-composition.md).
 Section projections retain their identity across view and input refreshes;
 localized titles, progress and borrowed editor references update in place.
 This preserves native selector selection instead of replacing its item source
-for every keystroke. Responsive container queries switch between the compact
-section picker and an optional 224-unit rail, while the same editor surface
-retains its controls. Its reading width is capped at 800 logical units.
-The workspace has one primary scroll owner, including secondary chrome in
-short windows; native inputs/actions have minimum rather than fixed heights.
+for every keystroke. Responsive container queries in `MainWindow` switch between
+the compact section picker and the optional 224-unit `SectionRail` /
+`SettingsSectionRail` sidebars, while `DefinitionLoaderView`,
+`ConfigurationWorkspaceView`, `ArtifactPublicationView`, `SettingsWorkspaceView`,
+and `WorkspaceActionBar` retain their controls inside a `WorkspaceScroll` body
+capped at 800 logical units. A compact fixed header keeps stage navigation
+(`Open`, `Configure`, `Review outputs`, `Settings`) alongside direct session
+selectors (`Appearance`, `DefinitionLocale`, `DirectionMode` backed by
+`FormWorkspaceViewModel.DirectionModeIndex`) without a display-settings expander;
+`WorkspaceScroll` scrolls the active body independently of the left sidebar's
+own vertical scrollbar. `DesktopSettingsSection` exposes four localized
+settings categories (Appearance with `DesktopTheme.IsHighContrast`, Language &
+layout, Keyboard & dialogs, and Privacy & host output). Native inputs/actions
+retain minimum rather than fixed heights.
 
 `DesktopTheme` remains the native contrast subscription owner. Session-only
 System/Light/Dark preferences select default, Latte and Macchiato resources;
@@ -45,7 +58,9 @@ accessibility or package qualification.
 
 `App.OnFrameworkInitializationCompleted` resolves `DesktopShellViewModel` and
 `MainWindow` from an application-owned dependency injection container. The
-container supplies an isolated `IMessenger`, the native protected writer and
+container supplies an isolated `IMessenger`, `IDefinitionStoreProvider`
+(`EmbeddedDefinitionStoreProvider`), `IDefinitionRemoteFetcher`
+(`DefinitionRemoteFetcher`), the native protected writer, and
 `IStorageDialogService`; its disposal closes the workspace and releases child
 subscriptions. Storage provider lookup is deferred until a picker is requested,
 avoiding a dependency cycle between the window and its viewmodel. The desktop lifetime accepts zero,
@@ -56,6 +71,20 @@ The root coordinates generations, busy state, cancellation and value-free
 status. It exposes four focused child viewmodels rather than forwarding their
 operations:
 
+- `Loader.StoreCatalog` (`StoreCatalogViewModel`), `Loader.StoreSearchQuery`,
+  `Loader.LoadStoreAsync(CancellationToken)`, and
+  `Loader.ConfigureStoreProjectAsync(StoreProjectCardViewModel?, CancellationToken)`:
+  load the embedded offline store index (`Configurator.Store.*` compiled into
+  `Configurator.Presentation`), marshal `ObservableCollection<StoreProjectCardViewModel>`
+  updates back onto the captured UI `SynchronizationContext`, filter safely by
+  query tokens without mutating active answers, and open pinned revisions.
+- `Loader.RemoteUrl` and `Loader.FetchDefinitionAsync(CancellationToken)`:
+  explicitly fetch a remote definition from a credential-free public `https://`
+  URL when requested by the operator. `DefinitionRemoteFetcher` validates syntax
+  and private/reserved IP ranges through `PublicRemoteEndpointPolicy`, pins
+  non-private DNS resolution inside `SocketsHttpHandler.ConnectCallback` against
+  DNS rebinding, disables redirects/auto-decompression abuse and cookies, and
+  streams at most 4 MiB before admitting the definition through `DefinitionCodec`.
 - `Loader.LoadDefinitionAsync(CancellationToken)`: read the explicit local path within
   the 4 MiB source ceiling, admit JSON or YAML, and clear obsolete state. The read
   accepts at most one extra byte to detect a file growing past the ceiling.

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-  <data name="Settings" xml:space="preserve"><value>إعدادات العرض</value></data>
+  <data name="Settings" xml:space="preserve"><value>الإعدادات</value></data>
   <data name="OutputNotEvaluated" xml:space="preserve"><value>لم يُقيّم الاكتمال بعد</value></data>
   <data name="OutputPreparedComplete" xml:space="preserve"><value>مجهّز؛ المخرج مكتمل</value></data>
   <data name="OutputPreparedIncomplete" xml:space="preserve"><value>مسودة مجهّزة؛ ما زالت قيم مؤجلة</value></data>
@@ -207,4 +207,27 @@
 بيانات الناشر ليست إثباتًا للثقة. التحضير المحلي لا يطبّق الإعداد.</value></data>
   <data name="ConfigurationContext" xml:space="preserve"><value>طريقة النشر ونطاق المكوّنات</value></data>
   <data name="ConfigurationContextHelp" xml:space="preserve"><value>اختر طريقة ونطاقاً متوافقين قبل التحرير. تتبع الجاهزية ووجهات الملفات هذه المكوّنات، ويؤدي تغيير النطاق إلى إبطال المخرجات المُحضّرة.</value></data>
+  <data name="DirectionLabel" xml:space="preserve"><value>الاتجاه</value></data>
+  <data name="DirectionAuto" xml:space="preserve"><value>اتجاه تلقائي</value></data>
+  <data name="DirectionLtr" xml:space="preserve"><value>من اليسار إلى اليمين</value></data>
+  <data name="DirectionRtl" xml:space="preserve"><value>من اليمين إلى اليسار</value></data>
+  <data name="SettingsAppearanceTitle" xml:space="preserve"><value>المظهر</value></data>
+  <data name="SettingsAppearanceDescription" xml:space="preserve"><value>سمة الألوان لهذه الجلسة والتعامل مع التباين العالي للنظام.</value></data>
+  <data name="SettingsAppearanceSessionNote" xml:space="preserve"><value>تُطبّق خيارات المظهر فورًا في مساحة العمل هذه الجلسة وتعود إلى النظام عند إعادة التشغيل.</value></data>
+  <data name="SettingsContrastLabel" xml:space="preserve"><value>التباين العالي للنظام</value></data>
+  <data name="SettingsContrastActive" xml:space="preserve"><value>نشط — يتجاوز سمة الجلسة</value></data>
+  <data name="SettingsContrastInactive" xml:space="preserve"><value>غير نشط — يتبع مظهر الجلسة المختار</value></data>
+  <data name="SettingsLanguageTitle" xml:space="preserve"><value>اللغة والتخطيط</value></data>
+  <data name="SettingsLanguageDescription" xml:space="preserve"><value>لغة مساحة العمل واتجاه القراءة ثنائي الاتجاه دون فقدان الإجابات.</value></data>
+  <data name="SettingsNoWorkspaceLocales" xml:space="preserve"><value>حمّل تعريفًا بلغات متعددة من مرحلة الفتح لتبديل لغة مساحة العمل.</value></data>
+  <data name="SettingsKeyboardTitle" xml:space="preserve"><value>لوحة المفاتيح ومربعات الحوار</value></data>
+  <data name="SettingsKeyboardDescription" xml:space="preserve"><value>اختصارات التنقل في سطح المكتب ومحددات الملفات المُدارة عبر الأنظمة.</value></data>
+  <data name="SettingsShortcutsHelp" xml:space="preserve"><value>Ctrl+O (أو Cmd+O): الانتقال إلى الفتح والتركيز على مسار التعريف المحلي
+Ctrl+Enter (أو Cmd+Enter): الانتقال إلى المراجعة وتجهيز المخرجات المحددة
+Escape: إغلاق النافذة المنبثقة أو إلغاء العملية النشطة
+تستخدم محددات الملفات والمجلدات حوارات Avalonia المُدارة على X11 وWayland وmacOS وWindows.</value></data>
+  <data name="SettingsPrivacyTitle" xml:space="preserve"><value>الخصوصية ومخرجات النظام</value></data>
+  <data name="SettingsPrivacyDescription" xml:space="preserve"><value>ضمانات الحفظ المحلي دون اتصال وقدرة الحفظ المحمي على هذا الجهاز.</value></data>
+  <data name="SettingsPrivacyHelp" xml:space="preserve"><value>تبقى الإجابات في الذاكرة المحلية دون قياس خلفي أو تطبيق مباشر على التطبيق المستهدف. لا تُجلب روابط HTTPS الخارجية إلا بإجراء صريح من المستخدم مع حجب العناوين الخاصة والمحلية ومنع إعادة التوجيه وبحد أقصى 4 ميجابايت.</value></data>
+  <data name="SettingsWorkstationHostLabel" xml:space="preserve"><value>قدرة الحفظ المحمي على هذا الجهاز</value></data>
 </root>
