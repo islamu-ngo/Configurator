@@ -20,6 +20,7 @@ internal static class CliDefinitionHandlers
             cancellationToken.ThrowIfCancellationRequested();
             if (command.Operation == "init") return await InitializeAsync(command, invocation, ledger, cancellationToken).ConfigureAwait(false);
             if (command.Operation == "schema") return Schema(command.SchemaKind);
+            if (command.Operation == "answer-schema") return await AnswerSchemaAsync(command, invocation, ledger, cancellationToken).ConfigureAwait(false);
             ICliAuthoringFiles files = invocation.Io.AuthoringFiles;
             int maximumBytes = invocation.Io.MaximumBytes;
             string source = await files.DiscoverSourceAsync(command.Root ?? ".", command.Source, cancellationToken).ConfigureAwait(false);
@@ -58,7 +59,7 @@ internal static class CliDefinitionHandlers
             if (command.Operation == "check")
                 return Receipt("compiled-definition", false, definition.CanonicalBytes, "none", definition.Digest.Value, "input");
             if (command.Operation == "lint")
-                return Lint(definition, cancellationToken);
+                return Lint(definition, command.Quality, cancellationToken);
             string destination = command.Output ?? anchor;
             RejectSourceDestination(source, destination);
             if (command.IdMap is not null)
@@ -132,7 +133,29 @@ internal static class CliDefinitionHandlers
         };
     }
 
-    private static CliCommandResult Lint(Definition definition, CancellationToken cancellationToken)
+    /// <summary>
+    /// Publishes the definition-bound answer schema as a public template. Only the admitted public definition is
+    /// read, so the output can be shared with editors without exposing answers.
+    /// </summary>
+    private static async Task<CliCommandResult> AnswerSchemaAsync(CliCommand command, CliInvocation invocation,
+        CliOutcomeLedger ledger, CancellationToken cancellationToken)
+    {
+        Definition definition = await CliIoOperations.DefinitionAsync(invocation, command.Definition!, cancellationToken)
+            .ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        byte[] bytes = Encoding.UTF8.GetBytes(DefinitionAnswerSchemaGenerator.Generate(definition));
+        CliCommandResult result = CliResults.Success([CliResults.Artifact("answer-schema", "application/schema+json", bytes,
+            "public", CliResults.PathIntent(command.Output), command.DryRun ? "planned" : "not-attempted")]) with
+        { DefinitionDigest = definition.Digest.Value, Preparation = "ready" };
+        if (command.DryRun) return result;
+        ledger.Plan(invocation, command, result);
+        cancellationToken.ThrowIfCancellationRequested();
+        ledger.BeginPublication();
+        return ledger.Apply(await invocation.Io.Output.WriteArtifactAsync(command.Output!, ArtifactKind.PublicTemplate,
+            bytes, invocation.Io.MaximumBytes, cancellationToken).ConfigureAwait(false), result);
+    }
+
+    private static CliCommandResult Lint(Definition definition, bool quality, CancellationToken cancellationToken)
     {
         var diagnostics = new List<CliMachineDiagnostic>();
         var pending = new Stack<(DefinitionNode Node, string Path)>();
@@ -143,9 +166,7 @@ internal static class CliDefinitionHandlers
             cancellationToken.ThrowIfCancellationRequested();
             JsonElement keywords = current.Node.Keywords;
             if (keywords.TryGetProperty("default", out _)) Warn("default-is-descriptive", current.Path + "/default");
-            if (keywords.TryGetProperty("format", out _) &&
-                !(keywords.TryGetProperty("x-configurator", out var extension) &&
-                    extension.TryGetProperty("assertFormat", out var assertion) && assertion.ValueKind == JsonValueKind.True))
+            if (keywords.TryGetProperty("format", out JsonElement format) && !DefinitionFormatValidator.IsKnown(format.GetString()!))
                 Warn("format-is-advisory", current.Path + "/format");
             foreach ((string name, DefinitionNode child) in current.Node.Properties.Reverse())
                 pending.Push((child, current.Path + "/properties/" + name.Replace("~", "~0", StringComparison.Ordinal)
@@ -155,6 +176,9 @@ internal static class CliDefinitionHandlers
             for (int index = current.Node.Variants.Count - 1; index >= 0; index--)
                 pending.Push((current.Node.Variants[index], current.Path + "/oneOf/" + index.ToString(CultureInfo.InvariantCulture)));
         }
+        if (quality)
+            foreach (DefinitionQualityAdvisory advisory in DefinitionQualityLinter.Lint(definition, cancellationToken))
+                Warn(advisory.Code, advisory.SchemaPath);
         for (int index = 0; index < definition.Artifacts.Count && !limited; index++)
         {
             ArtifactDefinition artifact = definition.Artifacts[index];

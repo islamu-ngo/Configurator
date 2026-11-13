@@ -37,7 +37,7 @@ public sealed class CliContractTests
                 "--revision-field", "--input-revision", "--answers", "--source", "--root", "--against",
                 "--id-map", "--project-id", "--name", "--application-version", "--fork-from", "--from-env-example",
                 "--from-schema", "--accept-bounded-semantics", "--kind", "--detail", "--offset", "--limit", "--expected-detail-digest",
-                "--pointer", "--generated-password-output", "--secret-input-file", "--secret-input-stdin"]);
+                "--pointer", "--generated-password-output", "--secret-input-file", "--secret-input-stdin", "--quality"]);
         await Assert.That(schema["_metadata"]!["repeatableOptions"]!.AsArray().Select(node => node!.GetValue<string>()))
             .IsEquivalentTo(["--artifact"]);
         await Assert.That(schema["properties"]!["exitCode"]!["enum"]!.AsArray().Select(node => node!.GetValue<int>()))
@@ -47,7 +47,7 @@ public sealed class CliContractTests
         JsonArray check = definition.Single(operation => operation!["name"]!.GetValue<string>() == "check")!["options"]!.AsArray();
         JsonArray lint = definition.Single(operation => operation!["name"]!.GetValue<string>() == "lint")!["options"]!.AsArray();
         await Assert.That(lint.Select(option => option!.GetValue<string>()))
-            .IsEquivalentTo(check.Select(option => option!.GetValue<string>()));
+            .IsEquivalentTo(check.Select(option => option!.GetValue<string>()).Append("--quality"));
         JsonArray discovery = definition.Single(operation => operation!["name"]!.GetValue<string>() == "schema")!["options"]!.AsArray();
         await Assert.That(discovery.Select(option => option!.GetValue<string>()))
             .IsEquivalentTo(["--help", "--kind", "--machine", "--text"]);

@@ -711,7 +711,7 @@ internal static partial class CliMachineContractVerifier
             if (id.Length is < 1 or > 128 || !KeyPattern().IsMatch(id) || !ids.Add(id)
                 || artifact.ContainsKey("digest") && !DigestPattern().IsMatch(artifact["digest"]?.GetValue<string>() ?? string.Empty)
                 || artifact["sensitivity"]?.GetValue<string>() is not ("public" or "restricted")
-                || artifact["kind"]?.GetValue<string>() is not ("catalogue" or "definition-artifact" or "answer-snapshot" or "generated-password" or "doctor-report" or "authoring-source" or "compiled-definition" or "logical-id-map")
+                || artifact["kind"]?.GetValue<string>() is not ("catalogue" or "definition-artifact" or "answer-snapshot" or "generated-password" or "doctor-report" or "authoring-source" or "compiled-definition" or "logical-id-map" or "answer-schema")
                 || mediaType.Length is < 1 or > 128 || !MediaTypePattern().IsMatch(mediaType)
                 || artifact["pathIntent"]?.GetValue<string>() is not ("none" or "input" or "output" or "stdout")
                 || writeStatus is not ("none" or "planned" or "written" or "not-attempted" or "conflict" or "blocked" or "failed" or "unknown")

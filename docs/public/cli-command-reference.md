@@ -75,6 +75,7 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | --output | false |
 | --pointer | false |
 | --project-id | false |
+| --quality | false |
 | --revision-field | false |
 | --root | false |
 | --secret-input-file | false |
@@ -105,11 +106,12 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | catalogue | describe | --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --help&#44; --key&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
 | catalogue | list | --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
 | catalogue | show | --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --help&#44; --key&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
-| definition | &#40;union&#41; | --accept-bounded-semantics&#44; --against&#44; --application-version&#44; --detail&#44; --expected-detail-digest&#44; --fork-from&#44; --format&#44; --from-env-example&#44; --from-schema&#44; --help&#44; --id-map&#44; --kind&#44; --limit&#44; --machine&#44; --name&#44; --offset&#44; --output&#44; --project-id&#44; --root&#44; --source&#44; --text |
+| definition | &#40;union&#41; | --accept-bounded-semantics&#44; --against&#44; --application-version&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --fork-from&#44; --format&#44; --from-env-example&#44; --from-schema&#44; --help&#44; --id-map&#44; --kind&#44; --limit&#44; --machine&#44; --name&#44; --offset&#44; --output&#44; --project-id&#44; --quality&#44; --root&#44; --source&#44; --text |
+| definition | answer-schema | --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
 | definition | build | --against&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --id-map&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --root&#44; --source&#44; --text |
 | definition | check | --against&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --root&#44; --source&#44; --text |
 | definition | init | --accept-bounded-semantics&#44; --application-version&#44; --fork-from&#44; --format&#44; --from-env-example&#44; --from-schema&#44; --help&#44; --machine&#44; --name&#44; --output&#44; --project-id&#44; --root&#44; --text |
-| definition | lint | --against&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --root&#44; --source&#44; --text |
+| definition | lint | --against&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --quality&#44; --root&#44; --source&#44; --text |
 | definition | revise | --against&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --root&#44; --source&#44; --text |
 | definition | schema | --help&#44; --kind&#44; --machine&#44; --text |
 | doctor | &#40;union&#41; | --help&#44; --machine&#44; --text |

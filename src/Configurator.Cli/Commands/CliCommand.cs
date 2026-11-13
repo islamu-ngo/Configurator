@@ -27,6 +27,7 @@ internal sealed record CliCommand(
     internal string? FromEnvExample { get; init; }
     internal string? FromSchema { get; init; }
     internal bool AcceptBoundedSemantics { get; init; }
+    internal bool Quality { get; init; }
     internal string SchemaKind { get; init; } = "authoring";
     internal string? Pointer { get; init; }
     internal string? SecretInput { get; init; }

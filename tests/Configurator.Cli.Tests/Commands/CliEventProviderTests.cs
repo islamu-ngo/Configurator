@@ -40,7 +40,9 @@ public sealed class CliEventProviderTests
     {
         using Stream input = typeof(CliEventProviderTests).Assembly.GetManifestResourceStream("EventStandaloneAnswers")!;
         JsonObject answers = JsonNode.Parse(input)!.AsObject();
-        answers["values"]!["env.AUTHENTICATION_PROVIDER"] = provider;
+        JsonObject values = answers["values"]!.AsObject();
+        if (values["platform"] is not JsonObject platform) values["platform"] = platform = new JsonObject();
+        platform["authenticationProvider"] = provider;
         return Encoding.UTF8.GetBytes(answers.ToJsonString());
     }
 }

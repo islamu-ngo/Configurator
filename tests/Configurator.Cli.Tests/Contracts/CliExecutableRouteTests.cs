@@ -36,7 +36,8 @@ public sealed class CliExecutableRouteTests
         new("definition build", "--source {source}", "", "compiled-definition", "output", "written"),
         new("definition revise", "--source {source} --output {candidate}", "", "authoring-source", "output", "written"),
         new("secret generate", "--definition definition.json --pointer /password --input answers.json --output result.json", "definition pointer input output", "answer-snapshot", "output", "written"),
-        new("secret derive", "--definition definition.json --pointer /password --input answers.json --output result.json --secret-input-file secret.txt", "definition pointer input output", "answer-snapshot", "output", "written")
+        new("secret derive", "--definition definition.json --pointer /password --input answers.json --output result.json --secret-input-file secret.txt", "definition pointer input output", "answer-snapshot", "output", "written"),
+        new("definition answer-schema", "--definition definition.json --output result.json", "definition output", "answer-schema", "output", "written")
     ];
 
     [Test]
@@ -76,6 +77,7 @@ public sealed class CliExecutableRouteTests
     [Arguments(25)]
     [Arguments(26)]
     [Arguments(27)]
+    [Arguments(28)]
     public async Task ExecutableRouteHonorsIndependentInputEffectAndReceiptContract(int index)
     {
         Route route = Routes[index];
@@ -147,7 +149,8 @@ public sealed class CliExecutableRouteTests
             string[] added = fixture.Files.Keys.Except(before.Keys).Order(StringComparer.Ordinal).ToArray();
             await Assert.That(added).IsEquivalentTo(route.Path == "artifact bundle-create"
                 ? new[] { Path.Combine("bundle", "service.json"), Path.Combine("bundle", "service.yaml") }
-                : route.Status == "written" && !route.Path.StartsWith("definition ", StringComparison.Ordinal) ? ["result.json"] : []);
+                : route.Status == "written" && (!route.Path.StartsWith("definition ", StringComparison.Ordinal)
+                    || route.Path == "definition answer-schema") ? ["result.json"] : []);
             if (route.Path is "artifact create" or "artifact export" or "artifact preview" or "artifact format")
                 await Assert.That(Encoding.UTF8.GetString(fixture.Files["result.json"])).IsEqualTo("""{"enabled":true,"name":"private-answer-marker"}""");
             if (route.Path == "artifact import")

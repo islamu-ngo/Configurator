@@ -18,7 +18,7 @@ internal static class CliContractSpecification
                 ["env"] = new HashSet<string>(["render", "validate"], StringComparer.Ordinal),
                 ["doctor"] = new HashSet<string>(["doctor"], StringComparer.Ordinal),
                 ["secret"] = new HashSet<string>(["generate", "derive"], StringComparer.Ordinal),
-                ["definition"] = new HashSet<string>(["init", "check", "build", "revise", "lint", "schema"], StringComparer.Ordinal)
+                ["definition"] = new HashSet<string>(["init", "check", "build", "revise", "lint", "schema", "answer-schema"], StringComparer.Ordinal)
             });
 
     internal static readonly IReadOnlyDictionary<string, string> SchemaIds =
@@ -35,7 +35,7 @@ internal static class CliContractSpecification
             "projection.omit", "projection.repeat", "relationship.presence", "schema.array", "schema.boolean", "schema.bounds", "schema.const",
             "schema.enum", "schema.integer", "schema.notBlank", "schema.nullable", "schema.number", "schema.object",
             "schema.string", "schema.uniqueBy", "schema.map", "schema.variant", "schema.localRef",
-            "schema.multipleOf", "schema.uniqueItems", "schema.assertFormat", "schema.secret", "values.initial", "values.suggested",
+            "schema.multipleOf", "schema.uniqueItems", "schema.secret", "values.initial", "values.suggested",
             "deployment.scope", "environment.docker-run", "environment.compose"], StringComparer.Ordinal);
 
     internal static readonly IReadOnlySet<string> FindingClassifications = new HashSet<string>(

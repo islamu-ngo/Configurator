@@ -38,6 +38,7 @@
       "--output",
       "--pointer",
       "--project-id",
+      "--quality",
       "--revision-field",
       "--root",
       "--secret-input-file",
@@ -505,6 +506,7 @@
               "--limit",
               "--machine",
               "--offset",
+              "--quality",
               "--root",
               "--source",
               "--text"
@@ -516,6 +518,21 @@
               "--help",
               "--kind",
               "--machine",
+              "--text"
+            ]
+          },
+          {
+            "name": "answer-schema",
+            "options": [
+              "--definition",
+              "--detail",
+              "--dry-run",
+              "--expected-detail-digest",
+              "--help",
+              "--limit",
+              "--machine",
+              "--offset",
+              "--output",
               "--text"
             ]
           },
@@ -557,7 +574,9 @@
           "--accept-bounded-semantics",
           "--against",
           "--application-version",
+          "--definition",
           "--detail",
+          "--dry-run",
           "--expected-detail-digest",
           "--fork-from",
           "--format",
@@ -572,6 +591,7 @@
           "--offset",
           "--output",
           "--project-id",
+          "--quality",
           "--root",
           "--source",
           "--text"
@@ -820,6 +840,7 @@
         },
         "operation": {
           "enum": [
+            "answer-schema",
             "build",
             "bundle-check",
             "bundle-create",
@@ -1204,7 +1225,6 @@
               "schema.localRef",
               "schema.multipleOf",
               "schema.uniqueItems",
-              "schema.assertFormat",
               "values.initial",
               "values.suggested"
             ]
@@ -1287,7 +1307,8 @@
             "doctor-report",
             "authoring-source",
             "compiled-definition",
-            "logical-id-map"
+            "logical-id-map",
+            "answer-schema"
           ]
         },
         "mediaType": {

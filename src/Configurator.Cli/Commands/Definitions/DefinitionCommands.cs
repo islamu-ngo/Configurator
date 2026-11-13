@@ -9,8 +9,9 @@ internal static class DefinitionCommands
         "definition",
         CliCommandRegistry.Operation<DefinitionInitSettings>("init"),
         CliCommandRegistry.Operation<DefinitionSourceSettings>("check"),
-        CliCommandRegistry.Operation<DefinitionSourceSettings>("lint"),
+        CliCommandRegistry.Operation<DefinitionLintSettings>("lint"),
         CliCommandRegistry.Operation<DefinitionSchemaSettings>("schema"),
+        CliCommandRegistry.Operation<DefinitionAnswerSchemaSettings>("answer-schema"),
         CliCommandRegistry.Operation<DefinitionBuildSettings>("build"),
         CliCommandRegistry.Operation<DefinitionCandidateSettings>("revise"));
 }
