@@ -384,8 +384,8 @@ public sealed class BuildCaptureLogger : ILogger
                 if (name == "MapSourceRoots")
                 {
                     CaptureSession.Require(task.TaskName == "Microsoft.CodeAnalysis.BuildTasks.MapSourceRoots"
-                        && _session.Logical(task.TaskAssemblyLocation) == "sdk/sdk/10.0.403/Roslyn/Microsoft.Build.Tasks.CodeAnalysis.dll"
-                        && _session.Logical(task.TaskFile) == "sdk/sdk/10.0.403/Roslyn/Microsoft.Managed.Core.targets",
+                        && _session.Logical(task.TaskAssemblyLocation) == "sdk/sdk/10.0.404/Roslyn/Microsoft.Build.Tasks.CodeAnalysis.dll"
+                        && _session.Logical(task.TaskFile) == "sdk/sdk/10.0.404/Roslyn/Microsoft.Managed.Core.targets",
                         "CAPTURE_MAP_IDENTITY_UNSUPPORTED");
                     _metadataProjects[Key(task.BuildEventContext)] = task.ProjectFile;
                     _session.Setting(task.ProjectFile, "MapSourceRoots.contract", JsonSerializer.SerializeToElement(new

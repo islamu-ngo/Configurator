@@ -30,7 +30,7 @@ public sealed class TrustedVerifierPackagingTests
             foreach (string session in fixture.Sessions)
             {
                 foreach (string relative in new[] { "private/tool/Configurator.BuildCapture.dll", "frozen/sdk/dotnet",
-                    "frozen/sdk/sdk/10.0.403/Microsoft.Build.Framework.dll" })
+                    "frozen/sdk/sdk/10.0.404/Microsoft.Build.Framework.dll" })
                 {
                     string poison = Path.Combine(session, relative);
                     Directory.CreateDirectory(Path.GetDirectoryName(poison)!);
@@ -248,7 +248,7 @@ internal sealed class PackageEvidenceFixture : IDisposable
             .OrderBy(item => item.Path, StringComparer.Ordinal).ToArray();
         var settings = new[] { new { project = "repo/synthetic.proj", name = "RuntimeIdentifier", value = "linux-x64" } };
         Source = HashJson(inputs.Where(item => item.Kind != "recipe").ToArray());
-        Build = HashJson(new { sdkVersion = "10.0.403", workloadVersion = "10.0.301.1",
+        Build = HashJson(new { sdkVersion = "10.0.404", workloadVersion = "10.0.301.1",
             inputs = inputs.Where(item => item.Kind == "recipe").ToArray(), settings,
             invocations = Array.Empty<object>(), targets = Array.Empty<object>(),
             movedInputs = Array.Empty<object>(), retiredInputs = Array.Empty<object>() });
@@ -354,7 +354,7 @@ internal sealed class PackageEvidenceFixture : IDisposable
             }));
             byte[] bytes = Canonical(new
             {
-                schemaVersion = "0.0.1", sdkVersion = "10.0.403", workloadVersion = "10.0.301.1",
+                schemaVersion = "0.0.1", sdkVersion = "10.0.404", workloadVersion = "10.0.301.1",
                 project = "repo/" + project, target = "Build", inputs = capturedInputs, settings,
                 outputs = outputs.OrderBy(item => item.Path, StringComparer.Ordinal).ToArray(),
                 productSourceProjection = inputs,

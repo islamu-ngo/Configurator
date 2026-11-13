@@ -227,7 +227,7 @@ mismatch, correct the appropriate owner, and preserve historical evidence. See
 
 ## 8. Verification Baseline
 
-Use SDK 10.0.403, MTP, central versions, generated locks, deterministic builds
+Use SDK 10.0.404, MTP, central versions, generated locks, deterministic builds
 and actual compiler/analyzer diagnostics. On this workstation set
 `TMPDIR="$HOME/.cache/agent-tmp"`.
 

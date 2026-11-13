@@ -324,7 +324,7 @@ public sealed class BuildInputCaptureTests
             {
                 Environment.SetEnvironmentVariable("MSBUILDLOGTASKINPUTS", "1");
                 Environment.SetEnvironmentVariable("MSBUILDDISABLENODEREUSE", "1");
-                string sdk = Path.Combine(args[0], "frozen/sdk/sdk/10.0.403");
+                string sdk = Path.Combine(args[0], "frozen/sdk/sdk/10.0.404");
                 Environment.SetEnvironmentVariable("MSBUILD_EXE_PATH", Path.Combine(sdk, "MSBuild.dll"));
                 Environment.SetEnvironmentVariable("MSBuildSDKsPath", Path.Combine(sdk, "Sdks"));
                 Environment.SetEnvironmentVariable("MSBuildExtensionsPath", sdk);
@@ -418,7 +418,7 @@ public sealed class BuildInputCaptureTests
                 var factory = (ITaskFactory)Activator.CreateInstance(
                     assembly.GetType("Configurator.BuildCapture.ReadWasmPropsCaptureFactory", true)!)!;
                 if (!factory.Initialize("ReadWasmProps", new Dictionary<string, TaskPropertyInfo>(),
-                    "pinned-json-reader-10.0.403", BuildEngine)) throw new InvalidOperationException();
+                    "pinned-json-reader-10.0.404", BuildEngine)) throw new InvalidOperationException();
                 var task = factory.CreateTask(BuildEngine);
                 task.BuildEngine = BuildEngine;
                 task.HostObject = HostObject;
@@ -1282,7 +1282,7 @@ public sealed class BuildInputCaptureTests
 
     [Test]
     [Arguments("GenerateBlazorBootExtensionJson",
-        "sdk/sdk/10.0.403/Sdks/Microsoft.NET.Sdk.BlazorWebAssembly/tools/net10.0/Microsoft.NET.Sdk.BlazorWebAssembly.Tasks.dll", true)]
+        "sdk/sdk/10.0.404/Sdks/Microsoft.NET.Sdk.BlazorWebAssembly/tools/net10.0/Microsoft.NET.Sdk.BlazorWebAssembly.Tasks.dll", true)]
     [Arguments("MonoAOTCompiler",
         "sdk/packs/Microsoft.NET.Runtime.MonoAOTCompiler.Task/10.0.9/tasks/net10.0/MonoAOTCompiler.dll", false)]
     [Arguments("ComputeManagedAssemblies",

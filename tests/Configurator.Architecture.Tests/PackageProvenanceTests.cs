@@ -193,11 +193,11 @@ public sealed class PackageProvenanceTests
             Source = HashJson(inputs.Where(item => item.kind != "recipe").ToArray());
             var settings = new[] { new { project = "repo/synthetic.proj", name = "RuntimeIdentifier", value = "linux-x64" } };
             string[] repositoryNamespace = ["repo/build.props", "repo/source.cs"];
-            Build = HashJson(new { sdkVersion = "10.0.403", workloadVersion = "10.0.301.1",
+            Build = HashJson(new { sdkVersion = "10.0.404", workloadVersion = "10.0.301.1",
                 inputs = inputs.Where(item => item.kind == "recipe").ToArray(), settings,
                 invocations = Array.Empty<object>(), targets = Array.Empty<object>(),
                 movedInputs = Array.Empty<object>(), retiredInputs = Array.Empty<object>() });
-            var capture = new { schemaVersion = "0.0.1", sdkVersion = "10.0.403", workloadVersion = "10.0.301.1",
+            var capture = new { schemaVersion = "0.0.1", sdkVersion = "10.0.404", workloadVersion = "10.0.301.1",
                 project = "repo/synthetic.proj", target = "Build", inputs, settings,
                 outputs = new[] { new { path = "generated/repo/artifacts/payload/linux-x64/app.txt", length = 7L,
                     sha256 = HashText("payload"), kind = "output" } }, productSourceProjection = inputs,
