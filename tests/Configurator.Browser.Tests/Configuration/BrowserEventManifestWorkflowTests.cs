@@ -15,26 +15,26 @@ public sealed class BrowserEventManifestWorkflowTests
     [Arguments(3)]
     public async Task CompleteEventManifestContainsExactlyTypedTenantRowsAndNoInactiveArtifacts(int count)
     {
-        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
+        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("f79259e8-af23-49b0-8d8d-6e371cc96080"));
         await using var context = BrowserFixture.Context();
         var module = context.JSInterop.SetupModule("./js/browser-artifacts.js");
         module.Setup<bool>("copy", _ => true).SetResult(true);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await BrowserFixture.NotifyChoiceAsync(component, "operation", "configuration-manifest");
         await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "guided" });
-        await component.Find("[data-field='configuration-manifest.metadata.name'] input").InputAsync(new ChangeEventArgs { Value = "qa-config" });
-        await component.Find("[data-field='configuration-manifest.spec.instance.settings'] > fieldset > button").ClickAsync(new MouseEventArgs());
-        await Assert.That(component.Find("[data-field='configuration-manifest.spec.instance.settings.modules.tech_enabled'] input").GetAttribute("type")).IsEqualTo("password");
-        await component.Find("[data-field='configuration-manifest.spec.instance.settings.modules.tech_enabled'] input").InputAsync(new ChangeEventArgs { Value = "true" });
+        await component.Find("[data-field='configurationManifest.metadata.name'] input").InputAsync(new ChangeEventArgs { Value = "qa-config" });
+        await component.Find("[data-field='configurationManifest.spec.instance.settings'] > fieldset > button").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-field='configurationManifest.spec.instance.settings.modules.tech_enabled'] input").GetAttribute("type")).IsEqualTo("password");
+        await component.Find("[data-field='configurationManifest.spec.instance.settings.modules.tech_enabled'] input").InputAsync(new ChangeEventArgs { Value = "true" });
         var tenants = new JsonArray();
-        if (count == 0) await component.Find("[data-field='configuration-manifest.tenants'] > fieldset > button[data-action='supply-list']").ClickAsync(new MouseEventArgs());
+        if (count == 0) await component.Find("[data-field='configurationManifest.tenants'] > fieldset > button[data-action='supply-list']").ClickAsync(new MouseEventArgs());
         for (int index = 0; index < count; index++)
         {
-            await component.Find("[data-field='configuration-manifest.tenants'] > fieldset > button[data-action='add-item']").ClickAsync(new MouseEventArgs());
-            await component.Find($"[data-field='configuration-manifest.tenants.{index}.metadata.name'] input").InputAsync(new ChangeEventArgs { Value = "tenant-" + index });
-            await component.Find($"[data-field='configuration-manifest.tenants.{index}.spec.displayName'] input").InputAsync(new ChangeEventArgs { Value = "Tenant " + index });
+            await component.Find("[data-field='configurationManifest.tenants'] > fieldset > button[data-action='add-item']").ClickAsync(new MouseEventArgs());
+            await component.Find($"[data-field='configurationManifest.tenants.{index}.metadata.name'] input").InputAsync(new ChangeEventArgs { Value = "tenant-" + index });
+            await component.Find($"[data-field='configurationManifest.tenants.{index}.spec.displayName'] input").InputAsync(new ChangeEventArgs { Value = "Tenant " + index });
             foreach (string name in new[] { "settings", "documents", "legalDocuments" })
-                await component.Find($"[data-field='configuration-manifest.tenants.{index}.spec.{name}'] > fieldset > button[data-action='supply-object']").ClickAsync(new MouseEventArgs());
+                await component.Find($"[data-field='configurationManifest.tenants.{index}.spec.{name}'] > fieldset > button[data-action='supply-object']").ClickAsync(new MouseEventArgs());
             tenants.Add(new JsonObject
             {
                 ["metadata"] = new JsonObject { ["name"] = "tenant-" + index },

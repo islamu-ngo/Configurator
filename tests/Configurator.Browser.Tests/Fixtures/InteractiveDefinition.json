@@ -15,7 +15,6 @@
     "predicate.root",
     "projection.copy",
     "projection.object",
-    "schema.assertFormat",
     "schema.boolean",
     "schema.enum",
     "schema.object",
@@ -48,7 +47,7 @@
         "title": "Service hostname",
         "description": "Provide this value only in a native client.",
         "format": "hostname",
-        "x-configurator": {"sensitivity": "public", "detail": "standard", "assertFormat": true}
+        "x-configurator": {"sensitivity": "public", "detail": "standard"}
       },
       "credential": {
         "type": "string",

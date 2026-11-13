@@ -51,42 +51,46 @@ public sealed class BrowserProviderJourneyTests
     [Test]
     public async Task ProviderDropdownPreservesWireIdentitySwitchBackAndSecretRevocation()
     {
-        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
+        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("f79259e8-af23-49b0-8d8d-6e371cc96080"));
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.SetDisclosureOverride(FieldDisclosure.Advanced);
-        form.EditValue(["select.feature.platform-config"], "true");
-        form.EditValue(["env.SECRET_PROVIDER"], "Environment");
-        form.EditValue(["env.BFF_SESSION_REDIS_ENDPOINT"], "redis://session.example.test:6379");
-        form.EditValue(["env.BFF_SESSION_NAMESPACE"], "synthetic-event");
-        form.EditValue(["env.BFF_SESSION_REDIS_PASSWORD"], "synthetic-bff-session-password");
-        form.EditValue(["env.EVENT_DP_COMBINED_RING"], "synthetic-combined-authority-ring");
-        form.EditValue(["env.EVENT_DP_COMBINED_ADMISSION"], "synthetic-combined-authority-admission");
-        form.EditValue(["env.EVENT_DP_COMBINED_ADMISSION_SHA256"], new string('a', 64));
-        form.EditValue(["env.EVENT_DP_COMBINED_MINIMUM_GENERATION"], "1");
+        form.EditValue(["secrets", "provider"], "Environment");
+        form.EditValue(["recipientAuthorities", "bffSession", "redisEndpoint"], "redis://session.example.test:6379");
+        form.EditValue(["recipientAuthorities", "bffSession", "namespace"], "synthetic-event");
+        form.EditValue(["recipientAuthorities", "bffSession", "redisPassword"], "synthetic-bff-session-password");
+        form.EditValue(["recipientAuthorities", "dataProtection", "combined", "ring"], "synthetic-combined-authority-ring");
+        form.EditValue(["recipientAuthorities", "dataProtection", "combined", "admission"], "synthetic-combined-authority-admission");
+        form.EditValue(["recipientAuthorities", "dataProtection", "combined", "admissionSha256"], new string('a', 64));
+        form.EditValue(["recipientAuthorities", "dataProtection", "combined", "minimumGeneration"], "1");
         var component = context.Render<ConfigurationSectionFields>(parameters => parameters
             .Add(item => item.Form, form)
-            .Add(item => item.Fields, form.Validate().Fields.Where(field => field.Id == "env.AUTHENTICATION_PROVIDER").ToArray()));
-        await Assert.That(component.FindComponents<MudSelect<string>>().Count).IsEqualTo(1);
+            .Add(item => item.Fields, form.Validate().Fields.Where(field => field.Id == "platform").ToArray()));
+        await Assert.That(Provider().FindComponents<MudSelect<string>>().Count).IsEqualTo(1);
         await Choose("1");
-        await Assert.That(form.Snapshot().Values["env.AUTHENTICATION_PROVIDER"].GetString()).IsEqualTo("keycloak");
-        var retired = component.FindComponent<MudSelect<string>>().Instance.ValueChanged;
+        await Assert.That(form.Snapshot().Values["platform"].GetProperty("authenticationProvider").GetString()).IsEqualTo("keycloak");
+        var retired = Provider().FindComponent<MudSelect<string>>().Instance.ValueChanged;
         await component.InvokeAsync(() =>
         {
-            form.EditValue(["env.KEYCLOAK_ENDPOINT"], "https://identity.example.test");
-            form.EditValue(["env.KEYCLOAK_REALM"], "synthetic-realm");
-            form.EditValue(["env.KEYCLOAK_CLIENT_ID"], "synthetic-client");
-            form.EditValue(["env.KEYCLOAK_BLAZOR_CLIENT_SECRET"], "synthetic-switch-back-secret");
+            form.EditValue(["keycloak", "endpoint"], "https://identity.example.test");
+            form.EditValue(["keycloak", "realm"], "synthetic-realm");
+            form.EditValue(["keycloak", "clientId"], "synthetic-client");
+            form.EditValue(["keycloak", "blazorClientSecret"], "synthetic-switch-back-secret");
             form.SelectLocale("ar");
         });
         component.Render();
-        await Assert.That(component.FindComponent<MudSelect<string>>().Instance.Value).IsEqualTo("1");
+        // Public choices inside a group that also contains protected settings stay unmasked, while the group container
+        // and any declared sensitive or secret members remain masked and bound to exact wire tokens.
+        await Assert.That(form.GetFieldValidation(AuthenticationProviderPath).RequiresMasking).IsFalse();
+        await Assert.That(form.GetFieldValidation(["platform"]).RequiresMasking).IsTrue();
+        await Assert.That(form.GetFieldValidation(["keycloak", "blazorClientSecret"]).RequiresMasking).IsTrue();
+        await Assert.That(form.Snapshot().Values["platform"].GetProperty("authenticationProvider").GetString()).IsEqualTo("keycloak");
         await Choose("0");
         long revision = form.InputRevision;
         await component.InvokeAsync(() => retired.InvokeAsync("2"));
         await Assert.That(form.InputRevision).IsEqualTo(revision);
-        await Assert.That(form.Snapshot().Values["env.AUTHENTICATION_PROVIDER"].GetString()).IsEqualTo("local");
-        await Assert.That(form.Snapshot().Values["env.KEYCLOAK_BLAZOR_CLIENT_SECRET"].GetString()).IsEqualTo("synthetic-switch-back-secret");
+        await Assert.That(form.Snapshot().Values["platform"].GetProperty("authenticationProvider").GetString()).IsEqualTo("local");
+        await Assert.That(form.Snapshot().Values["keycloak"].GetProperty("blazorClientSecret").GetString()).IsEqualTo("synthetic-switch-back-secret");
         DefinitionArtifactResult complete = DefinitionArtifactComposer.Compose(definition, "environment-standalone", form.Snapshot());
         using DefinitionArtifact? completeArtifact = complete.Artifact;
         await Assert.That(complete.Succeeded).IsTrue();
@@ -96,17 +100,23 @@ public sealed class BrowserProviderJourneyTests
         await Assert.That(Encoding.UTF8.GetString(draft.Artifact!.Bytes.Span)).DoesNotContain("KEYCLOAK_");
         await Assert.That(draft.Completions.Any(item => item.FieldPath.Contains("KEYCLOAK", StringComparison.Ordinal))).IsFalse();
         await Choose("1");
-        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/env.KEYCLOAK_BLAZOR_CLIENT_SECRET"), out JsonElement restored)).IsTrue();
+        await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/keycloak/blazorClientSecret"), out JsonElement restored)).IsTrue();
         await Assert.That(restored.GetString()).IsEqualTo("synthetic-switch-back-secret");
         await Choose("0");
         await component.InvokeAsync(() => form.SetSecretEntryEnabled(false));
-        await Assert.That(form.Snapshot().Values.ContainsKey("env.KEYCLOAK_BLAZOR_CLIENT_SECRET")).IsFalse();
-        await Assert.That(form.Snapshot().Values["env.AUTHENTICATION_PROVIDER"].GetString()).IsEqualTo("local");
+        await Assert.That(form.Snapshot().Values.TryGetValue("keycloak", out JsonElement keycloak) && keycloak.TryGetProperty("blazorClientSecret", out _)).IsFalse();
+        await Assert.That(form.Snapshot().Values["platform"].GetProperty("authenticationProvider").GetString()).IsEqualTo("local");
 
         async Task Choose(string ordinal)
         {
-            await component.InvokeAsync(() => component.FindComponent<MudSelect<string>>().Instance.ValueChanged.InvokeAsync(ordinal));
+            await component.InvokeAsync(() => Provider().FindComponent<MudSelect<string>>().Instance.ValueChanged.InvokeAsync(ordinal));
             component.Render();
         }
+
+        // The provider is one member of the platform group, which renders several other choices.
+        IRenderedComponent<ConfigurationField> Provider() => component.FindComponents<ConfigurationField>()
+            .Single(field => field.Instance.Path.SequenceEqual(AuthenticationProviderPath));
     }
+
+    private static readonly string[] AuthenticationProviderPath = ["platform", "authenticationProvider"];
 }

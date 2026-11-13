@@ -131,6 +131,25 @@ public sealed class DefinitionFieldInput : ObservableObject
         if (!SetProperty(ref State.Text, Display(value), nameof(Text))) OnPropertyChanged(nameof(Text));
     }
 
+    internal IEnumerable<string[]> PrivateStatePaths()
+    {
+        if (State.InputDiagnosticCode is not null) yield return [Definition.Id];
+        foreach ((string[] path, _) in State.DraftTexts) yield return path;
+        foreach (string[] path in State.InvalidPaths) yield return path;
+        foreach ((string[] path, _) in State.Origins) yield return path;
+    }
+
+    internal void RetainPublic(JsonElement? value, Func<string[], bool> clearDraft, Func<string[], bool> forgetOrigin)
+    {
+        State.Value = value?.Clone();
+        State.DraftTexts.RemoveAll(draft => clearDraft(draft.Path));
+        State.InvalidPaths.RemoveAll(path => clearDraft(path));
+        State.Origins.RemoveAll(origin => forgetOrigin(origin.Path));
+        string text = value is { } retained ? Display(retained) : string.Empty;
+        if (!SetProperty(ref State.Text, text, nameof(Text))) OnPropertyChanged(nameof(Text));
+        if (clearDraft([Definition.Id])) SetInputDiagnostic(null);
+    }
+
     internal void NotifyDocumentChanged()
     {
         OnPropertyChanged(nameof(Text));

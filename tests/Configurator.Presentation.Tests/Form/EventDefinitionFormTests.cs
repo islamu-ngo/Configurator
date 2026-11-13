@@ -6,67 +6,70 @@ using Configurator.Core.Definitions;
 
 public sealed class EventDefinitionFormTests
 {
+    private static readonly string[] ManifestName = ["metadata", "name"];
+
     [Test]
     public async Task FreshEnvironmentInitializesOnlyBenignSelectionAndPreservesDeliberateChoices()
     {
         using var form = new DefinitionFormModel(await Definition(), DefinitionSessionPrivacy.BrowserNoSecrets);
         DefinitionPath output = DefinitionPath.Parse("/operation");
-        DefinitionPath inclusion = DefinitionPath.Parse("/select.feature.platform-config");
+        DefinitionPath platform = DefinitionPath.Parse("/platform");
         await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
         await Assert.That(form.Validate().TryGetEffectiveValue(output, out JsonElement initialOutput)).IsTrue();
         await Assert.That(initialOutput.GetString()).IsEqualTo("environment");
-        await Assert.That(form.Validate().TryGetEffectiveValue(inclusion, out JsonElement initialInclusion)).IsTrue();
-        await Assert.That(initialInclusion.GetBoolean()).IsTrue();
+        // The platform area is included by default as an empty group; it supplies no target setting itself.
+        await Assert.That(form.Validate().TryGetEffectiveValue(platform, out JsonElement initialPlatform)).IsTrue();
+        await Assert.That(initialPlatform.ValueKind).IsEqualTo(JsonValueKind.Object);
         await Assert.That(string.Join(',', form.Definition.Artifacts.Select(artifact => artifact.Id).Order(StringComparer.Ordinal)))
             .IsEqualTo("configuration-manifest,environment-api,environment-blazor,environment-compose,environment-compose-api,environment-compose-blazor,environment-standalone,legal-drafts,operator-identity,tenant-package");
         await Assert.That(form.ConfigurationContext!.RecipeId).IsEqualTo("standalone");
         await Assert.That(form.ConfigurationContext.ScopeId).IsEqualTo("all");
         await Assert.That(form.SetValue(["operation"], JsonSerializer.SerializeToElement("configuration-manifest"))).IsTrue();
-        await Assert.That(form.SetValue(["select.feature.platform-config"], JsonSerializer.SerializeToElement(false))).IsTrue();
+        await Assert.That(form.SetValue(["platform"], null)).IsTrue();
         await Assert.That(form.Validate().TryGetEffectiveValue(output, out JsonElement deliberateOutput)).IsTrue();
         await Assert.That(deliberateOutput.GetString()).IsEqualTo("configuration-manifest");
-        await Assert.That(form.Snapshot().Values["select.feature.platform-config"].GetBoolean()).IsFalse();
+        await Assert.That(form.Snapshot().Omitted.Contains(platform)).IsTrue();
         await Assert.That(form.SetValue(["operation"], null)).IsTrue();
         await Assert.That(form.Validate().TryGetEffectiveValue(output, out _)).IsFalse();
         await Assert.That(form.Snapshot().Omitted.Contains(output)).IsTrue();
         await Assert.That(form.ResetValue(["operation"])).IsTrue();
         await Assert.That(form.Validate().TryGetEffectiveValue(output, out JsonElement resetOutput)).IsTrue();
         await Assert.That(resetOutput.GetString()).IsEqualTo("environment");
-        await Assert.That(form.Snapshot().Values["select.feature.platform-config"].GetBoolean()).IsFalse();
+        await Assert.That(form.Snapshot().Omitted.Contains(platform)).IsTrue();
     }
 
     [Test]
     public async Task PlatformInclusionDoesNotSupplyTargetSettingsAndOmissionSurvivesOutputChanges()
     {
         using var form = new DefinitionFormModel(await Definition(), DefinitionSessionPrivacy.BrowserNoSecrets);
-        DefinitionPath inclusion = DefinitionPath.Parse("/select.feature.platform-config");
+        DefinitionPath platform = DefinitionPath.Parse("/platform");
         DefinitionValidationResult initial = form.Validate();
-        await Assert.That(form.Snapshot().Values.Keys.Any(name => name.StartsWith("env.", StringComparison.Ordinal))).IsFalse();
-        string[] basics = ["env.API_ENDPOINT", "env.AUTHENTICATION_PROVIDER", "env.PUBLIC_BASE_URL"];
-        foreach (string fieldName in basics)
-            await Assert.That(initial.TryGetEffectiveValue(DefinitionPath.FromSegments([fieldName]), out _)).IsFalse();
+        await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
+        string[] basics = ["/apiEndpoint", "/platform/authenticationProvider", "/platform/publicBaseUrl"];
+        foreach (string location in basics)
+            await Assert.That(initial.TryGetEffectiveValue(DefinitionPath.Parse(location), out _)).IsFalse();
         string[] targetSwitches =
         [
-            "env.AGENT_BROWSER_SEED_ENABLED", "env.AI_TOOL_PROPOSALS_ENABLED",
-            "env.EMAIL_DISPATCH_RABBITMQ_ENABLED", "env.LISTMONK_ENABLED", "env.MCP_ENABLED",
-            "env.REPORTING_ENABLED", "env.STORAGE_RECONCILIATION_ENABLED",
-            "env.WEBHOOKS_ENABLED", "env.WEB_PUSH_ENABLED"
+            "/hosting/agentBrowserSeedEnabled", "/integrations/ai/toolProposalsEnabled",
+            "/messaging/emailDispatch/enabled", "/integrations/listmonk/enabled", "/platform/mcp/enabled",
+            "/observability/reporting/enabled", "/storageReconciliation/enabled",
+            "/integrations/webhooks/enabled", "/messaging/webPushEnabled"
         ];
-        foreach (string fieldName in targetSwitches)
-            if (initial.TryGetEffectiveValue(DefinitionPath.FromSegments([fieldName]), out JsonElement enabled))
+        foreach (string location in targetSwitches)
+            if (initial.TryGetEffectiveValue(DefinitionPath.Parse(location), out JsonElement enabled))
                 await Assert.That(enabled.GetBoolean()).IsFalse();
 
-        await Assert.That(form.SetValue(["select.feature.platform-config"], null)).IsTrue();
+        await Assert.That(form.SetValue(["platform"], null)).IsTrue();
         await Assert.That(form.SetValue(["operation"], JsonSerializer.SerializeToElement("tenant-package"))).IsTrue();
         await Assert.That(form.SetValue(["operation"], JsonSerializer.SerializeToElement("environment"))).IsTrue();
         await Assert.That(form.SelectLocale("ar")).IsTrue();
         await Assert.That(form.SelectLocale("en")).IsTrue();
-        await Assert.That(form.Validate().TryGetEffectiveValue(inclusion, out _)).IsFalse();
-        await Assert.That(form.Snapshot().Omitted.Contains(inclusion)).IsTrue();
-        await Assert.That(form.Snapshot().Values.ContainsKey("select.feature.platform-config")).IsFalse();
-        await Assert.That(form.ResetValue(["select.feature.platform-config"])).IsTrue();
-        await Assert.That(form.Validate().TryGetEffectiveValue(inclusion, out JsonElement reset)).IsTrue();
-        await Assert.That(reset.GetBoolean()).IsTrue();
+        await Assert.That(form.Validate().TryGetEffectiveValue(platform, out _)).IsFalse();
+        await Assert.That(form.Snapshot().Omitted.Contains(platform)).IsTrue();
+        await Assert.That(form.Snapshot().Values.ContainsKey("platform")).IsFalse();
+        await Assert.That(form.ResetValue(["platform"])).IsTrue();
+        await Assert.That(form.Validate().TryGetEffectiveValue(platform, out JsonElement reset)).IsTrue();
+        await Assert.That(reset.ValueKind).IsEqualTo(JsonValueKind.Object);
     }
 
     [Test]
@@ -119,7 +122,7 @@ public sealed class EventDefinitionFormTests
         if (succeeds)
         {
             await Assert.That(form.Snapshot().Values["operation"].GetString()).IsEqualTo("configuration-manifest");
-            await Assert.That(form.Snapshot().Values["configuration-manifest.metadata.name"].GetString()).IsEqualTo("example-deployment");
+            await Assert.That(form.Snapshot().Values["configurationManifest"].GetProperty("metadata").GetProperty("name").GetString()).IsEqualTo("example-deployment");
             return;
         }
         await Assert.That(form.Snapshot().InputRevision).IsEqualTo(before.InputRevision);
@@ -134,14 +137,14 @@ public sealed class EventDefinitionFormTests
     {
         using var form = new DefinitionFormModel(await Definition(), DefinitionSessionPrivacy.BrowserNoSecrets);
         form.SetValue(["operation"], JsonSerializer.SerializeToElement("configuration-manifest"));
-        form.SetValue(["configuration-manifest.metadata.name"], JsonSerializer.SerializeToElement("qa-config"));
-        form.SetValue(["configuration-manifest.spec.instance.settings", "modules.tech_enabled"], JsonSerializer.SerializeToElement(true));
-        await Assert.That(form.AddListItem(["configuration-manifest.tenants"])).IsTrue();
-        form.SetValue(["configuration-manifest.tenants", "0", "metadata", "name"], JsonSerializer.SerializeToElement("tenant-one"));
-        form.SetValue(["configuration-manifest.tenants", "0", "spec", "displayName"], JsonSerializer.SerializeToElement("Tenant One"));
-        form.SupplyObject(["configuration-manifest.tenants", "0", "spec", "settings"]);
-        form.SupplyObject(["configuration-manifest.tenants", "0", "spec", "documents"]);
-        form.SupplyObject(["configuration-manifest.tenants", "0", "spec", "legalDocuments"]);
+        form.SetValue(["configurationManifest", "metadata", "name"], JsonSerializer.SerializeToElement("qa-config"));
+        form.SetValue(["configurationManifest", "spec", "instance", "settings", "modules.tech_enabled"], JsonSerializer.SerializeToElement(true));
+        await Assert.That(form.AddListItem(["configurationManifest", "tenants"])).IsTrue();
+        form.SetValue(["configurationManifest", "tenants", "0", "metadata", "name"], JsonSerializer.SerializeToElement("tenant-one"));
+        form.SetValue(["configurationManifest", "tenants", "0", "spec", "displayName"], JsonSerializer.SerializeToElement("Tenant One"));
+        form.SupplyObject(["configurationManifest", "tenants", "0", "spec", "settings"]);
+        form.SupplyObject(["configurationManifest", "tenants", "0", "spec", "documents"]);
+        form.SupplyObject(["configurationManifest", "tenants", "0", "spec", "legalDocuments"]);
         using DefinitionDraftArtifactResult result = DefinitionDraftArtifactComposer.Compose(form.Definition, "configuration-manifest", form.Snapshot());
         await Assert.That(string.Join(',', result.Diagnostics.Select(diagnostic => diagnostic.ToString()))).IsEqualTo(string.Empty);
         await Assert.That(result.Succeeded).IsTrue();
@@ -177,8 +180,8 @@ public sealed class EventDefinitionFormTests
             await Assert.That(form.Snapshot().Values.Keys).IsEquivalentTo(original.Values.Keys);
             return;
         }
-        await Assert.That(form.Snapshot().Values["configuration-manifest.metadata.name"].GetString()).IsEqualTo("example-deployment");
-        await Assert.That(form.Snapshot().Values["configuration-manifest.tenants"][0]
+        await Assert.That(form.Snapshot().Values["configurationManifest"].GetProperty("metadata").GetProperty("name").GetString()).IsEqualTo("example-deployment");
+        await Assert.That(form.Snapshot().Values["configurationManifest"].GetProperty("tenants")[0]
             .GetProperty("metadata").GetProperty("name").GetString()).IsEqualTo("community");
     }
 
@@ -187,13 +190,13 @@ public sealed class EventDefinitionFormTests
     {
         using var form = new DefinitionFormModel(await Definition(), DefinitionSessionPrivacy.BrowserNoSecrets);
         form.SetValue(["operation"], JsonSerializer.SerializeToElement("configuration-manifest"));
-        await Assert.That(form.SupplyObject(["configuration-manifest.spec.instance.settings"])).IsTrue();
-        await Assert.That(form.Snapshot().Values["configuration-manifest.spec.instance.settings"].EnumerateObject().Count()).IsEqualTo(0);
+        await Assert.That(form.SupplyObject(["configurationManifest", "spec", "instance", "settings"])).IsTrue();
+        await Assert.That(form.Snapshot().Values["configurationManifest"].GetProperty("spec").GetProperty("instance").GetProperty("settings").EnumerateObject().Count()).IsEqualTo(0);
         await Assert.That(form.Validate().IsReady).IsFalse();
-        await Assert.That(form.Validate().Diagnostics.Any(diagnostic => diagnostic.FieldId == "configuration-manifest.metadata.name" && diagnostic.Code == "value-required")).IsTrue();
-        form.SetValue(["configuration-manifest.spec.instance.settings", "modules.tech_enabled"], JsonSerializer.SerializeToElement(true));
-        await Assert.That(form.SupplyObject(["configuration-manifest.spec.instance.settings"])).IsTrue();
-        await Assert.That(form.Snapshot().Values["configuration-manifest.spec.instance.settings"].GetProperty("modules.tech_enabled").GetBoolean()).IsTrue();
+        await Assert.That(form.Validate().Diagnostics.Any(diagnostic => diagnostic.FieldId == "configurationManifest" && diagnostic.RelativePath.SequenceEqual(ManifestName) && diagnostic.Code == "value-required")).IsTrue();
+        form.SetValue(["configurationManifest", "spec", "instance", "settings", "modules.tech_enabled"], JsonSerializer.SerializeToElement(true));
+        await Assert.That(form.SupplyObject(["configurationManifest", "spec", "instance", "settings"])).IsTrue();
+        await Assert.That(form.Snapshot().Values["configurationManifest"].GetProperty("spec").GetProperty("instance").GetProperty("settings").GetProperty("modules.tech_enabled").GetBoolean()).IsTrue();
     }
 
     private static async Task<Definition> Definition() => DefinitionCodec.ParseJson(

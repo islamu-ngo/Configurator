@@ -245,14 +245,23 @@ public sealed partial class DefinitionFormModel
     }
 
     internal bool TryRootMetadata(IReadOnlyList<string> path, out DefinitionFormIndex.Node node,
-        out bool inheritedSecret, DefinitionValidationResult? validation = null)
+        out bool inheritedSecret, DefinitionValidationResult? validation = null) =>
+        TryRootMetadata(path, out node, out inheritedSecret, out _, validation);
+
+    /// <summary>
+    /// Also reports whether an ancestor or selected branch above the resolved node declares a non-public sensitivity.
+    /// </summary>
+    internal bool TryRootMetadata(IReadOnlyList<string> path, out DefinitionFormIndex.Node node,
+        out bool inheritedSecret, out bool inheritedProtected, DefinitionValidationResult? validation = null)
     {
         node = _index!.Root;
         inheritedSecret = DefinitionSecretPolicy.IsSecret(node.Schema);
+        inheritedProtected = false;
         var prefix = new List<string>();
         foreach (string segment in path)
         {
             inheritedSecret |= DefinitionSecretPolicy.IsSecret(node.Schema);
+            inheritedProtected |= DefinitionSecretPolicy.DeclaresProtected(node.Schema);
             if (node.Variants.Count > 0)
             {
                 JsonElement? value = prefix.Count == 0 ? JsonSerializer.SerializeToElement(_editing.Root)
@@ -261,6 +270,7 @@ public sealed partial class DefinitionFormModel
                     return false;
                 node = node.Variants.Single(candidate => ReferenceEquals(candidate.Schema, branch));
                 inheritedSecret |= DefinitionSecretPolicy.IsSecret(node.Schema);
+                inheritedProtected |= DefinitionSecretPolicy.DeclaresProtected(node.Schema);
             }
             if (node.Item is { } item)
             {

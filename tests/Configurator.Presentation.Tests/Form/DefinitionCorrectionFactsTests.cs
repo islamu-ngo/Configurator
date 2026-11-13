@@ -21,19 +21,35 @@ public sealed class DefinitionCorrectionFactsTests
     [Arguments("protectedRows", """[{"mode":"public"}]""", "0")]
     [Arguments("protectedMap", """{"synthetic":{"mode":"public"}}""", "synthetic")]
     [Arguments("choice", """{"kind":"public","mode":"public"}""", "")]
-    public async Task StaticProtectionIncludesItemsMapValuesAndUnselectedBranches(
+    public async Task StaticProtectionMasksContainersWhileUnmaskingPublicLeaves(
         string field, string value, string entry)
     {
         using var form = Form();
         using JsonDocument supplied = JsonDocument.Parse(value);
         await Assert.That(form.SetValue(new[] { field }, supplied.RootElement)).IsTrue();
-        DefinitionPath path = DefinitionPath.FromSegments(entry.Length == 0
+
+        DefinitionFieldValidation rootFacts = form.GetFieldValidation([field]);
+        await Assert.That(rootFacts.RequiresMasking).IsTrue();
+        await Assert.That(rootFacts.HasProtectedDescendants).IsTrue();
+        await Assert.That(rootFacts.CanApplySuggestion).IsFalse();
+        await Assert.That(rootFacts.AllowedValues.Count).IsEqualTo(0);
+
+        if (entry.Length > 0)
+        {
+            DefinitionFieldValidation entryFacts = form.GetFieldValidation([field, entry]);
+            await Assert.That(entryFacts.RequiresMasking).IsTrue();
+            await Assert.That(entryFacts.HasProtectedDescendants).IsTrue();
+            await Assert.That(entryFacts.CanApplySuggestion).IsFalse();
+            await Assert.That(entryFacts.AllowedValues.Count).IsEqualTo(0);
+        }
+
+        DefinitionPath leafPath = DefinitionPath.FromSegments(entry.Length == 0
             ? [field, "mode"] : [field, entry, "mode"]);
-        DefinitionFieldValidation facts = form.GetFieldValidation(path);
-        await Assert.That(facts.RequiresMasking).IsTrue();
-        await Assert.That(facts.HasProtectedDescendants).IsTrue();
-        await Assert.That(facts.CanApplySuggestion).IsFalse();
-        await Assert.That(facts.AllowedValues.Count).IsEqualTo(0);
+        DefinitionFieldValidation leafFacts = form.GetFieldValidation(leafPath);
+        await Assert.That(leafFacts.RequiresMasking).IsFalse();
+        await Assert.That(leafFacts.HasProtectedDescendants).IsFalse();
+        await Assert.That(leafFacts.CanApplySuggestion).IsTrue();
+        await Assert.That(leafFacts.AllowedValues.Count).IsEqualTo(2);
     }
 
     [Test]
@@ -192,17 +208,101 @@ public sealed class DefinitionCorrectionFactsTests
     }
 
     [Test]
-    public async Task ProtectedContainerHidesSiblingSuggestionAndAllowedValues()
+    public async Task ProtectedContainerMasksItselfWhileUnmaskingPublicSiblingRecommendations()
     {
         using var form = Form();
-        var facts = form.GetFieldValidation(["owner", "mode"]);
-        await Assert.That(facts.RequiresMasking).IsTrue();
-        await Assert.That(facts.HasProtectedDescendants).IsTrue();
-        await Assert.That(facts.CanApplySuggestion).IsFalse();
-        await Assert.That(facts.AllowedValues.Count).IsEqualTo(0);
-        await Assert.That(JsonSerializer.Serialize(facts)).DoesNotContain("synthetic-suggestion");
+        var containerFacts = form.GetFieldValidation(["owner"]);
+        await Assert.That(containerFacts.RequiresMasking).IsTrue();
+        await Assert.That(containerFacts.HasProtectedDescendants).IsTrue();
+        await Assert.That(containerFacts.CanApplySuggestion).IsFalse();
+        await Assert.That(containerFacts.AllowedValues.Count).IsEqualTo(0);
+
+        var siblingFacts = form.GetFieldValidation(["owner", "mode"]);
+        await Assert.That(siblingFacts.RequiresMasking).IsFalse();
+        await Assert.That(siblingFacts.HasProtectedDescendants).IsFalse();
+        await Assert.That(siblingFacts.CanApplySuggestion).IsTrue();
+        await Assert.That(siblingFacts.AllowedValues.Count).IsEqualTo(2);
+        await Assert.That(JsonSerializer.Serialize(siblingFacts)).Contains("synthetic-suggestion");
         await Assert.That(form.GetFieldValidation(["count"]).CanApplySuggestion).IsTrue();
         await Assert.That(form.GetFieldValidation(DefinitionPath.Parse("/count")).CanApplySuggestion).IsTrue();
+    }
+
+    [Test]
+    public async Task DeclaredNonPublicAncestorCannotBeDemotedByPublicChildAndUnresolvedPathsFailClosed()
+    {
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151617","revision":1},
+             "project":{"id":"declared-masking","name":"DeclaredMasking"},"applicationVersions":["1"],
+             "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+               "declaredSensitive":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"sensitive"},"properties":{
+                 "publicChild":{"type":"string","enum":["synthetic-alpha","synthetic-beta"],
+                   "x-configurator":{"sensitivity":"public"}}}},
+               "defaultedSensitive":{"type":"object","additionalProperties":false,"properties":{
+                 "publicChild":{"type":"string","enum":["synthetic-gamma","synthetic-delta"],
+                   "x-configurator":{"sensitivity":"public"}}}},
+               "sensitiveRows":{"type":"array","x-configurator":{"sensitivity":"public"},"items":{
+                 "type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"sensitive"},"properties":{
+                   "publicChild":{"type":"string","enum":["synthetic-row-a","synthetic-row-b"],
+                     "x-configurator":{"sensitivity":"public"}}}}},
+               "branchVariant":{"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
+                 {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
+                   "kind":{"type":"string","const":"priv","x-configurator":{"sensitivity":"public"}},
+                   "locked":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"sensitive"},"properties":{
+                     "mode":{"type":"string","enum":["priv-a","priv-b"],
+                       "x-configurator":{"sensitivity":"public"}}}},
+                   "pubSibling":{"type":"string","enum":["sib-a","sib-b"],
+                     "x-configurator":{"sensitivity":"public","suggestedValue":"sib-a"}}}},
+                 {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
+                   "kind":{"type":"string","const":"pub","x-configurator":{"sensitivity":"public"}},
+                   "pubMode":{"type":"string","enum":["pub-a","pub-b"],
+                     "x-configurator":{"sensitivity":"public","suggestedValue":"pub-a"}}}}]}
+             }},"outputs":{"config.json":{"format":"json"}}}
+            """u8.ToArray()));
+
+        foreach (string[] path in new string[][] { ["declaredSensitive", "publicChild"], ["defaultedSensitive", "publicChild"] })
+        {
+            DefinitionFieldValidation facts = form.GetFieldValidation(path);
+            await Assert.That(facts.RequiresMasking).IsTrue();
+            await Assert.That(facts.HasProtectedDescendants).IsTrue();
+            await Assert.That(facts.CanApplySuggestion).IsFalse();
+            await Assert.That(facts.AllowedValues.Count).IsEqualTo(0);
+            string serialized = JsonSerializer.Serialize(facts);
+            await Assert.That(serialized).DoesNotContain("synthetic-alpha");
+            await Assert.That(serialized).DoesNotContain("synthetic-gamma");
+        }
+
+        using (JsonDocument rowDoc = JsonDocument.Parse("""[{"publicChild":"synthetic-row-a"}]"""))
+            await Assert.That(form.SetValue(["sensitiveRows"], rowDoc.RootElement)).IsTrue();
+        DefinitionFieldValidation rowFacts = form.GetFieldValidation(["sensitiveRows", "0", "publicChild"]);
+        await Assert.That(rowFacts.RequiresMasking).IsTrue();
+        await Assert.That(rowFacts.CanApplySuggestion).IsFalse();
+        await Assert.That(rowFacts.AllowedValues.Count).IsEqualTo(0);
+
+        await Assert.That(form.SelectVariant(["branchVariant"], 0)).IsTrue();
+        DefinitionFieldValidation privBranchFacts = form.GetFieldValidation(["branchVariant", "locked", "mode"]);
+        await Assert.That(privBranchFacts.RequiresMasking).IsTrue();
+        await Assert.That(privBranchFacts.CanApplySuggestion).IsFalse();
+        await Assert.That(privBranchFacts.AllowedValues.Count).IsEqualTo(0);
+        await Assert.That(JsonSerializer.Serialize(privBranchFacts)).DoesNotContain("priv-a");
+
+        DefinitionFieldValidation branchPublicSiblingFacts = form.GetFieldValidation(["branchVariant", "pubSibling"]);
+        await Assert.That(branchPublicSiblingFacts.RequiresMasking).IsFalse();
+        await Assert.That(branchPublicSiblingFacts.CanApplySuggestion).IsTrue();
+        await Assert.That(branchPublicSiblingFacts.AllowedValues.Count).IsEqualTo(2);
+
+        await Assert.That(form.SelectVariant(["branchVariant"], 1)).IsTrue();
+        DefinitionFieldValidation pubBranchFacts = form.GetFieldValidation(["branchVariant", "pubMode"]);
+        await Assert.That(pubBranchFacts.RequiresMasking).IsFalse();
+        await Assert.That(pubBranchFacts.CanApplySuggestion).IsTrue();
+        await Assert.That(pubBranchFacts.AllowedValues.Count).IsEqualTo(2);
+
+        foreach (string[] missing in new string[][] { ["declaredSensitive", "missing"], ["branchVariant", "missing"] })
+        {
+            DefinitionFieldValidation unresolved = form.GetFieldValidation(missing);
+            await Assert.That(unresolved.RequiresMasking).IsTrue();
+            await Assert.That(unresolved.CanApplySuggestion).IsFalse();
+        }
     }
 
     [Test]
@@ -222,10 +322,15 @@ public sealed class DefinitionCorrectionFactsTests
     {
         using var form = Form(DefinitionSessionPrivacy.BrowserNoSecrets);
         await Assert.That(form.SupplyObject(["owner"])).IsTrue();
+        await Assert.That(form.GetFieldValidation(["owner"]).RequiresMasking).IsTrue();
+        await Assert.That(form.GetFieldValidation(["owner"]).CanApplySuggestion).IsFalse();
         await Assert.That(form.GetFieldValidation(["owner", "token"]).CanEdit).IsFalse();
+        await Assert.That(form.GetFieldValidation(["owner", "token"]).CanApplySuggestion).IsFalse();
         form.SetSecretEntryEnabled(true);
         await Assert.That(form.GetFieldValidation(["owner", "token"]).CanEdit).IsTrue();
-        await Assert.That(form.GetFieldValidation(["owner", "mode"]).CanApplySuggestion).IsFalse();
+        await Assert.That(form.GetFieldValidation(["owner", "token"]).CanApplySuggestion).IsFalse();
+        await Assert.That(form.GetFieldValidation(["owner", "mode"]).RequiresMasking).IsFalse();
+        await Assert.That(form.GetFieldValidation(["owner", "mode"]).CanApplySuggestion).IsTrue();
     }
 
     [Test]

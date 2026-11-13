@@ -41,33 +41,33 @@ public sealed partial class DefinitionFormModel
     private DefinitionFieldValidation FieldValidation(IReadOnlyList<string> path, bool literal)
     {
         bool found = literal
-            ? TryRootMetadata(path, out DefinitionFormIndex.Node node, out bool inheritedSecret)
-            : TryMetadataNode(path, out node, out inheritedSecret);
+            ? TryRootMetadata(path, out DefinitionFormIndex.Node node, out bool inheritedSecret, out bool inheritedProtected)
+            : TryMetadataNode(path, out node, out inheritedSecret, out inheritedProtected);
         if (!found) return new(false, false, false, false, false, true, true, [], [], []);
         DefinitionNode schema = node.Schema;
         DefinitionPath dataPath = literal ? DefinitionPath.FromSegments(path) : DataPath(path);
         DefinitionNodeState? state = Facts.EditorState(dataPath);
-        bool masking = state?.Sensitivity is { } sensitivity && sensitivity != FieldSensitivity.Public;
+        // Masking follows declared sensitivity: a non-public declaration on the value or anything above it, or a
+        // protected descendant inside the value's own whole representation. Public siblings stay readable.
+        bool masking = inheritedProtected || node.IsProtected ||
+            state?.Sensitivity is { } sensitivity && sensitivity != FieldSensitivity.Public;
         // Ordinary property validation has no synthetic root node; the configuration root itself is always present.
         bool configurationRoot = literal && path.Count == 0;
         bool editable = configurationRoot || IsEditorActive(dataPath);
         bool writable = (configurationRoot || state is not null || editable) &&
             (!Definition.Configuration.Keywords.TryGetProperty("readOnly", out JsonElement rootReadOnly) ||
                 !rootReadOnly.GetBoolean());
-        // A protected container masks its ordinary children too, including public siblings.
         for (int length = literal ? 0 : 1; length <= path.Count; length++)
         {
             string[] prefix = path.Take(length).ToArray();
             bool hasOwner = literal ? TryRootMetadata(prefix, out var owner, out _)
                 : TryMetadataNode(prefix, out owner, out _);
             if (!hasOwner) { editable = false; continue; }
-            masking |= owner.IsProtected;
             writable &= !owner.Metadata.TryGetProperty("readOnly", out JsonElement readOnly) || !readOnly.GetBoolean();
         }
         writable &= SessionPrivacy != DefinitionSessionPrivacy.BrowserNoSecrets ||
             !DefinitionSecretPolicy.IsSecret(schema, inheritedSecret);
         editable &= writable;
-        bool protectedDescendants = masking || node.IsProtected;
         var reasons = new List<DefinitionFieldCorrectionReason>();
         if (state is { IsActive: true, IsRequired: true, IsMissing: true }) reasons.Add(DefinitionFieldCorrectionReason.Required);
         if ((literal ? _editing.RootInput.InvalidPaths.Any(invalid => invalid.SequenceEqual(path))
@@ -82,15 +82,15 @@ public sealed partial class DefinitionFormModel
             if (schema.Keywords.TryGetProperty(name, out JsonElement value) && value.TryGetDecimal(out decimal bound))
                 bounds.Add(new(kind, bound));
         }
-        IReadOnlyList<JsonElement> allowed = !protectedDescendants && schema.Keywords.TryGetProperty("enum", out var values)
+        IReadOnlyList<JsonElement> allowed = !masking && schema.Keywords.TryGetProperty("enum", out var values)
             ? Array.AsReadOnly(values.EnumerateArray().Select(value => value.Clone()).ToArray()) : [];
-        bool suggestion = editable && !protectedDescendants &&
+        bool suggestion = editable && !masking &&
             schema.Keywords.TryGetProperty("x-configurator", out var extension) && extension.TryGetProperty("suggestedValue", out _);
         // Reset removes an override/omission; it never supplies an inactive value or seeds an absent container.
         bool arrayItem = node.Parent?.Schema.Type == DefinitionNodeType.Sequence;
         return new(editable, suggestion, editable && schema.IsNullable, writable && !arrayItem,
             editable && dataPath.Segments.Count > 0 && !arrayItem,
-            masking, protectedDescendants, Array.AsReadOnly(reasons.Distinct().ToArray()), bounds.AsReadOnly(), allowed);
+            masking, masking, Array.AsReadOnly(reasons.Distinct().ToArray()), bounds.AsReadOnly(), allowed);
     }
 
 }

@@ -84,7 +84,7 @@ public sealed class LaunchRouteTests
     public async Task ExternalBundledDefinitionKeepsNativeDigestAndOffersFullLocalControls()
     {
         var registry = BrowserDefinitionRegistry.LoadBundled();
-        var definition = registry.Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
+        var definition = registry.Current.Resolve(Guid.Parse("f79259e8-af23-49b0-8d8d-6e371cc96080"));
         await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>()
             .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}&entry=environment");
@@ -97,14 +97,15 @@ public sealed class LaunchRouteTests
         await Assert.That(component.FindAll("[data-field]").Count).IsGreaterThan(1);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         string securitySection = form.Sections.Single(section =>
-            section.Fields.Contains("select.feature.security-config")).Id;
+            section.Fields.Contains("security")).Id;
         await BrowserFixture.SectionNavigation(context, component).Find($"[data-section='{securitySection}']").ClickAsync(new MouseEventArgs());
-        await BrowserFixture.NotifyChoiceAsync(component, "select.feature.security-config", "true");
+        // Including the optional security group replaces the former inclusion toggle.
+        await component.Find("[data-field='security'] > fieldset > button[data-action='supply-object']").ClickAsync(new MouseEventArgs());
         string targetSection = form.Sections.Single(section =>
-            section.Fields.Contains("env.ADMISSIONS__CREDENTIALLOOKUP__ACTIVEKEYVERSION")).Id;
+            section.Fields.Contains("security")).Id;
         if (component.Find("[data-section-panel]").GetAttribute("data-section-panel") != targetSection)
             BrowserFixture.SectionNavigation(context, component).Find($"[data-section='{targetSection}']").Click();
-        await Assert.That(component.Find("[data-field='env.ADMISSIONS__CREDENTIALLOOKUP__ACTIVEKEYVERSION'] input").HasAttribute("disabled")).IsFalse();
+        await Assert.That(component.Find("[data-field='security.admissions.credentialLookup.activeKeyVersion'] input").HasAttribute("disabled")).IsFalse();
         await Assert.That(component.FindAll("input[type=text]")).IsNotEmpty();
         await Assert.That(component.FindAll("a[download]")).IsEmpty();
     }

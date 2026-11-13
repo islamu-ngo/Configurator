@@ -74,7 +74,7 @@ public sealed class BrowserOutputSelectionTests
     public async Task EventStartsAtEnvironmentAndBasicsWithoutSelectingAnOutput()
     {
         BrowserDefinitionRegistry registry = BrowserDefinitionRegistry.LoadBundled();
-        Definition definition = registry.Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
+        Definition definition = registry.Current.Resolve(Guid.Parse("f79259e8-af23-49b0-8d8d-6e371cc96080"));
         await using var context = BrowserFixture.Context(registry);
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{definition.FamilyId:D}");
         var component = context.Render<App>();
@@ -87,7 +87,7 @@ public sealed class BrowserOutputSelectionTests
         await Assert.That(component.Find("#configuration-recipe").GetAttribute("value")).IsEqualTo("standalone");
         await Assert.That(component.Find("#configuration-scope").GetAttribute("value")).IsEqualTo("all");
         await Assert.That(form.ConfigurationContext!.EligibleArtifactIds).IsEquivalentTo(["environment-standalone"]);
-        await Assert.That(component.FindAll("[data-field='env.API_ENDPOINT']")).IsEmpty();
+        await Assert.That(component.FindAll("[data-field='apiEndpoint']")).IsEmpty();
         await Assert.That(component.FindAll("[data-field='deployment.recipe'], [data-field='deployment.scope']")).IsEmpty();
     }
 

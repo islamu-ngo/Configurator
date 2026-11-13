@@ -336,31 +336,149 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Clears protected roots and returns whether one invalidating revision was published, even if already empty.</summary>
+    /// <summary>
+    /// Removes every declared non-public value, plus drafts at masked locations, while public siblings remain.
+    /// Returns whether one invalidating revision was published, even if nothing protected was supplied.
+    /// </summary>
     public bool ClearPrivateState()
     {
         using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             RetireImportComparison();
-            bool hasProtectedRoots = false;
             RetireDocument();
-            foreach (DefinitionFieldInput field in Fields.Where(field => field.RequiresMasking))
+            Dictionary<string, JsonElement>? originalBranches = _index!.Root.HasVariants ? _editing.Root.ToDictionary() : null;
+            bool hasProtectedRoots = DefinitionSecretPolicy.IsProtected(Definition.Configuration);
+            bool configurationProtected = DefinitionSecretPolicy.DeclaresProtected(Definition.Configuration);
+            var retiredOmissions = new HashSet<string[]>(SegmentPathComparer.Instance);
+            foreach (DefinitionFieldInput field in Fields)
             {
-                hasProtectedRoots = true;
-                field.Clear();
-            }
-            foreach (string name in _editing.Root.Keys.Where(name => !Fields.Any(field => field.Definition.Name == name)).ToArray())
-                if (DefinitionSensitivityPolicy.SensitivityOf(Definition.Configuration) != FieldSensitivity.Public ||
-                    TryRootMetadata([name], out DefinitionFormIndex.Node node, out _) && DefinitionSecretPolicy.IsProtected(node.Schema))
+                FieldDefinition definition = field.Definition;
+                if (!configurationProtected && !DefinitionSecretPolicy.IsProtected(definition.Node)) continue;
+                if (configurationProtected || DefinitionSecretPolicy.DeclaresProtected(definition.Node))
                 {
-                    hasProtectedRoots = true;
-                    _editing.Root.Remove(name);
+                    ClearRowIdentities([definition.Id]);
+                    field.Clear();
+                    continue;
                 }
-            _editing.RootInput.DraftTexts.Clear();
-            _editing.RootInput.InvalidPaths.Clear();
+                JsonNode? original = field.Value is { } supplied ? JsonNode.Parse(supplied.GetRawText()) : null;
+                JsonNode? retained = original?.DeepClone();
+                if (original is not null && DefinitionSecretPolicy.RemoveProtected(definition.Node, retained))
+                {
+                    ClearRowIdentities([definition.Id]);
+                    field.Clear();
+                    continue;
+                }
+                // Location and omission checks resolve rows and branches against the current value, so they run before pruning.
+                (HashSet<string[]> drafts, HashSet<string[]> origins) = DiscardedPaths(field.PrivateStatePaths(),
+                    path => RequiresMaskingAt(path, literal: false), original, retained, skip: 1);
+                foreach (DefinitionPath omitted in Omitted.Where(path =>
+                             path.Segments.Count > 1 && string.Equals(path.Segments[0], definition.Id, StringComparison.Ordinal)))
+                {
+                    string[] segments = omitted.Segments.ToArray();
+                    if (Vanished(original, retained, segments, skip: 1) || RequiresMaskingAt(segments, literal: false))
+                        retiredOmissions.Add(segments);
+                }
+                JsonElement? retainedElement = field.Value is { ValueKind: JsonValueKind.Null } nullable ? nullable :
+                    retained is null ? null : JsonSerializer.SerializeToElement(retained);
+                field.RetainPublic(retainedElement, drafts.Contains, origins.Contains);
+            }
+            DefinitionFieldState rootInput = _editing.RootInput;
+            JsonObject rootOriginal = JsonSerializer.SerializeToNode(_editing.Root)!.AsObject();
+            JsonObject rootRetained = rootOriginal.DeepClone().AsObject();
+            foreach (string name in _editing.Root.Keys.Where(name => !Fields.Any(field => field.Definition.Name == name)).ToArray())
+            {
+                bool resolved = TryRootMetadata([name], out DefinitionFormIndex.Node node, out _, out bool inheritedProtected);
+                if (!resolved || inheritedProtected || DefinitionSecretPolicy.RemoveProtected(node.Schema, rootRetained[name]))
+                    rootRetained.Remove(name);
+            }
+            (HashSet<string[]> rootDrafts, HashSet<string[]> rootOrigins) = DiscardedPaths(
+                rootInput.DraftTexts.Select(draft => draft.Path).Concat(rootInput.InvalidPaths)
+                    .Concat(rootInput.Origins.Select(origin => origin.Path)),
+                path => RequiresMaskingAt(path, literal: true), rootOriginal, rootRetained, skip: 0);
+            foreach (DefinitionPath omitted in Omitted.Where(path =>
+                         path.Segments.Count > 0 && !Fields.Any(field => field.Definition.Id == path.Segments[0])))
+            {
+                string[] segments = omitted.Segments.ToArray();
+                if (RequiresMaskingAt(segments, literal: true) ||
+                    segments.Length > 1 && Vanished(rootOriginal, rootRetained, segments, skip: 0) ||
+                    !TryRootMetadata([segments[0]], out _, out _, out _))
+                    retiredOmissions.Add(segments);
+            }
+            Omitted.RemoveWhere(path => retiredOmissions.Contains(path.Segments.ToArray()));
+            rootInput.DraftTexts.RemoveAll(draft => rootDrafts.Contains(draft.Path));
+            rootInput.InvalidPaths.RemoveAll(rootDrafts.Contains);
+            rootInput.Origins.RemoveAll(origin => rootOrigins.Contains(origin.Path));
+            _editing.Root.Clear();
+            foreach ((string name, JsonNode? value) in rootRetained)
+                _editing.Root.Add(name, JsonSerializer.SerializeToElement(value));
+            if (originalBranches is not null)
+                foreach (string identity in ChangedBranchIdentities(_editing.Root, originalBranches))
+                    _editing.RetireBranch(identity);
             if (hasProtectedRoots) OnInputChanged();
             return hasProtectedRoots;
+        }
+    }
+
+    /// <summary>
+    /// Drafts and invalid markers are discarded where masked or where pruning removed their value; origins only where
+    /// pruning removed their value, so public descendants keep the origin recorded on a container.
+    /// </summary>
+    private static (HashSet<string[]> Drafts, HashSet<string[]> Origins) DiscardedPaths(IEnumerable<string[]> paths,
+        Func<IReadOnlyList<string>, bool> masked, JsonNode? original, JsonNode? retained, int skip)
+    {
+        var drafts = new HashSet<string[]>(SegmentPathComparer.Instance);
+        var origins = new HashSet<string[]>(SegmentPathComparer.Instance);
+        foreach (string[] path in paths)
+        {
+            bool vanished = Vanished(original, retained, path, skip);
+            if (vanished) origins.Add(path);
+            if (vanished || masked(path)) drafts.Add(path);
+        }
+        return (drafts, origins);
+    }
+
+    private sealed class SegmentPathComparer : IEqualityComparer<string[]>
+    {
+        public static readonly SegmentPathComparer Instance = new();
+
+        public bool Equals(string[]? x, string[]? y) =>
+            ReferenceEquals(x, y) || x is not null && y is not null && x.AsSpan().SequenceEqual(y, StringComparer.Ordinal);
+
+        public int GetHashCode(string[] obj)
+        {
+            var hash = new HashCode();
+            foreach (string segment in obj) hash.Add(segment, StringComparer.Ordinal);
+            return hash.ToHashCode();
+        }
+    }
+
+    /// <summary>Unresolved locations fail closed; a public value is masked when its whole value can hold a protected one.</summary>
+    private bool RequiresMaskingAt(IReadOnlyList<string> path, bool literal)
+    {
+        bool found = literal
+            ? TryRootMetadata(path, out DefinitionFormIndex.Node node, out _, out bool inheritedProtected)
+            : TryMetadataNode(path, out node, out _, out inheritedProtected);
+        return !found || inheritedProtected || node.IsProtected;
+    }
+
+    /// <summary>Whether a location, or a container above it, held a value before pruning and holds none afterwards.</summary>
+    private static bool Vanished(JsonNode? original, JsonNode? retained, string[] path, int skip)
+    {
+        for (int length = skip + 1; length <= path.Length; length++)
+            if (TryLocate(original, path, skip, length) && !TryLocate(retained, path, skip, length)) return true;
+        return false;
+
+        static bool TryLocate(JsonNode? node, string[] path, int skip, int length)
+        {
+            for (int index = skip; index < length; index++)
+            {
+                if (node is JsonObject mapping && mapping.TryGetPropertyValue(path[index], out JsonNode? child)) node = child;
+                else if (node is JsonArray rows && int.TryParse(path[index], System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture, out int row) && row < rows.Count) node = rows[row];
+                else return false;
+            }
+            return true;
         }
     }
 
@@ -473,30 +591,21 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (!TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _)) return null;
             JsonElement metadata = node.Metadata;
             JsonElement extension = metadata.TryGetProperty("x-configurator", out JsonElement configured) ? configured : default;
+            // Core resolves every member's display label (declared, or humanized when only partly annotated);
+            // localization overrides apply only to text the definition actually declares.
             var choices = new List<DefinitionChoicePresentation>();
-            if (metadata.TryGetProperty("enum", out JsonElement values))
-                foreach (JsonElement value in values.EnumerateArray())
+            foreach (DefinitionChoice choice in node.Schema.OptionMetadata)
+            {
+                string label = choice.DisplayLabel;
+                string? explanation = choice.Explanation;
+                if (choice.MetadataIndex is { } index)
                 {
-                    string label = value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
-                    string? explanation = null;
-                    if (extension.ValueKind == JsonValueKind.Object && extension.TryGetProperty("choices", out JsonElement labels))
-                    {
-                        int index = 0;
-                        foreach (JsonElement declared in labels.EnumerateArray())
-                        {
-                            if (JsonElement.DeepEquals(declared.GetProperty("value"), value))
-                            {
-                                string prefix = "x-configurator/choices/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                                label = Text(prefix + "/label", declared.GetProperty("label").GetString())!;
-                                explanation = Text(prefix + "/explanation",
-                                    declared.TryGetProperty("explanation", out JsonElement detail) ? detail.GetString() : null);
-                                break;
-                            }
-                            index++;
-                        }
-                    }
-                    choices.Add(new(value, label, explanation));
+                    string prefix = "x-configurator/choices/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (choice.HasExplicitLabel) label = Text(prefix + "/label", label) ?? label;
+                    explanation = Text(prefix + "/explanation", explanation);
                 }
+                choices.Add(new(choice.Value, label, explanation));
+            }
             string? units = extension.ValueKind == JsonValueKind.Object &&
                 extension.TryGetProperty("units", out JsonElement unit) ? unit.GetString() : null;
             IReadOnlyList<DefinitionGuidanceLink> links = extension.ValueKind == JsonValueKind.Object &&
@@ -722,11 +831,20 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     }
 
     internal bool TryMetadataNode(IReadOnlyList<string> path, out DefinitionFormIndex.Node node,
-        out bool inheritedSecret, DefinitionValidationResult? validation = null)
+        out bool inheritedSecret, DefinitionValidationResult? validation = null) =>
+        TryMetadataNode(path, out node, out inheritedSecret, out _, validation);
+
+    /// <summary>
+    /// Also reports whether the configuration, an ancestor or a selected branch above the resolved node declares a
+    /// non-public sensitivity. The node's own declaration and descendants are read from the node itself.
+    /// </summary>
+    internal bool TryMetadataNode(IReadOnlyList<string> path, out DefinitionFormIndex.Node node,
+        out bool inheritedSecret, out bool inheritedProtected, DefinitionValidationResult? validation = null)
     {
         node = null!;
         inheritedSecret = DefinitionSecretPolicy.IsSecret(Definition.Configuration);
-        if (IsRootLocation(path)) return TryRootMetadata(path, out node, out inheritedSecret, validation);
+        inheritedProtected = DefinitionSecretPolicy.DeclaresProtected(Definition.Configuration);
+        if (IsRootLocation(path)) return TryRootMetadata(path, out node, out inheritedSecret, out inheritedProtected, validation);
         if (path.Count == 0 || !_index!.Roots.TryGetValue(path[0], out var root)) return false;
         node = root;
         if (path.Count == 1) return true;
@@ -734,12 +852,14 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         foreach (string segment in path.Skip(1))
         {
             inheritedSecret |= DefinitionSecretPolicy.IsSecret(node.Schema);
+            inheritedProtected |= DefinitionSecretPolicy.DeclaresProtected(node.Schema);
             if (node.Variants.Count > 0)
             {
                 if (ReadValue(prefix, validation) is not { } supplied ||
                     DefinitionValidator.SelectVariant(node.Schema, supplied) is not { } branch) return false;
                 node = node.Variants.Single(variant => ReferenceEquals(variant.Schema, branch));
                 inheritedSecret |= DefinitionSecretPolicy.IsSecret(node.Schema);
+                inheritedProtected |= DefinitionSecretPolicy.DeclaresProtected(node.Schema);
             }
             if (node.Item is { } item)
             {

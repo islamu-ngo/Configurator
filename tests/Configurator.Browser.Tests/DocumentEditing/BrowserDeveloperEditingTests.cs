@@ -131,7 +131,7 @@ public sealed class BrowserDeveloperEditingTests
     [Test]
     public async Task EventProviderPreviewRejectsUnknownChoiceAndAppliesCorrectedWireValue()
     {
-        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("ea55cccf-dce5-4f88-8ea1-6dd211714edc"));
+        var definition = BrowserDefinitionRegistry.LoadBundled().Current.Resolve(Guid.Parse("f79259e8-af23-49b0-8d8d-6e371cc96080"));
         await using var context = BrowserFixture.Context();
         using var form = new DefinitionFormModel(definition, DefinitionSessionPrivacy.BrowserSecretsEnabled);
         await using var engine = Boundary(context);
@@ -139,7 +139,7 @@ public sealed class BrowserDeveloperEditingTests
         await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         const string source = """
             {"answerContractVersion":"0.0.1","values":{"operation":"environment",
-             "select.feature.platform-config":true,"env.AUTHENTICATION_PROVIDER":"unsupported-synthetic-provider"},"omitted":[]}
+             "platform":{"authenticationProvider":"unsupported-synthetic-provider"}},"omitted":[]}
             """;
         long revision = form.InputRevision;
         await component.InvokeAsync(() => engine.ChangeAsync(source));
@@ -152,7 +152,7 @@ public sealed class BrowserDeveloperEditingTests
         await component.InvokeAsync(() => engine.ChangeAsync(source.Replace("unsupported-synthetic-provider", "local", StringComparison.Ordinal)));
         await Click(component, "developer-preview");
         await Click(component, "developer-apply");
-        await Assert.That(form.Snapshot().Values["env.AUTHENTICATION_PROVIDER"].GetString()).IsEqualTo("local");
+        await Assert.That(form.Snapshot().Values["platform"].GetProperty("authenticationProvider").GetString()).IsEqualTo("local");
         await Assert.That(form.InputRevision).IsEqualTo(revision + 1);
     }
 

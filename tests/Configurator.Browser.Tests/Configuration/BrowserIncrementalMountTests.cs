@@ -651,6 +651,8 @@ public sealed class BrowserIncrementalMountTests
                 ["settings"] = StringGroup(36)
             };
             shape["required"] = new JsonArray("mode", "settings");
+            // The compiled member order names the replaced properties; the rewritten branch keeps authored order.
+            (shape["x-configurator"] as JsonObject)?.Remove("propertyOrder");
         }
         var component = context.Render<ConfigurationEditor>(parameters => parameters
             .Add(item => item.Definition, WithConfiguration(source["configuration"]!.DeepClone().AsObject())));

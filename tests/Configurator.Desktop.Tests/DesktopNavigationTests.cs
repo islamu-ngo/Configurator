@@ -88,11 +88,11 @@ public sealed class DesktopNavigationTests
         await Assert.That(navigation.VisibleFields[0]).IsSameReferenceAs(first);
         await Assert.That(first.Text).IsEqualTo("draft kept");
         await Assert.That(shell.Workspace.Form.InputRevision).IsEqualTo(revision);
-        // Canonical property ordering places setting99 after setting100.
-        var correction = shell.Workspace.Form.Validate().Diagnostics.Single(item => item.FieldId == "setting99");
+        // Authored property order keeps setting100 last, on the third page.
+        var correction = shell.Workspace.Form.Validate().Diagnostics.Single(item => item.FieldId == "setting100");
         await Assert.That(navigation.FocusCorrection(correction.FieldId, correction.Location!)).IsTrue();
         await Assert.That(navigation.PageNumber).IsEqualTo(3);
-        await Assert.That(navigation.VisibleFields.Single().Id).IsEqualTo("setting99");
+        await Assert.That(navigation.VisibleFields.Single().Id).IsEqualTo("setting100");
         first.Text = "revised";
         await Assert.That(navigation.FocusCorrection(correction.FieldId, correction.Location!)).IsFalse();
         await Assert.That(navigation.PageNumber).IsEqualTo(3);

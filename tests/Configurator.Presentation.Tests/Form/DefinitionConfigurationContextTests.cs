@@ -229,6 +229,8 @@ public sealed class DefinitionConfigurationContextTests
         }
         properties.Remove("workerNote");
         properties.Remove("dashboardNote");
+        // The compiled root records authored member order; this fixture restructures members after compilation.
+        runtime["configuration"]!["x-configurator"]!.AsObject().Remove("propertyOrder");
         foreach (JsonNode? artifact in runtime["artifacts"]!.AsArray())
             foreach ((string name, JsonNode? member) in artifact!["projection"]!["members"]!.AsObject())
                 if (name is "workerNote" or "dashboardNote") member!["reference"]!["path"] = "/shared/" + name;

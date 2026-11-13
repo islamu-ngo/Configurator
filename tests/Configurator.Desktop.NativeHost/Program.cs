@@ -1503,15 +1503,15 @@ internal static class Program
         Select(window, shell, "configuration-manifest");
         await FlushAsync();
         _currentStep = "event-name";
-        var name = RevealField(window, "configuration-manifest.metadata.name");
+        var name = RevealField(window, "/configurationManifest/metadata/name");
         name.GetLogicalDescendants().OfType<TextBox>().Single(control => control.IsEffectivelyVisible).Text = "qa-config";
         _currentStep = "event-settings";
-        var settings = RevealField(window, "configuration-manifest.spec.instance.settings");
+        var settings = RevealField(window, "/configurationManifest/spec/instance/settings");
         _currentStep = "event-settings-value";
-        SetBoolean(settings, "modules.tech_enabled", true);
+        SetBoolean(settings, "Modules / Tech Enabled", true);
         _currentStep = "event-tenants";
-        var tenants = RevealField(window, "configuration-manifest.tenants");
-        var rows = (ListFieldViewModel)shell.Workspace.Fields.Single(field => field.Id == "configuration-manifest.tenants");
+        var tenants = RevealField(window, "/configurationManifest/tenants");
+        var rows = (ListFieldViewModel)Editors(shell).Single(field => field.EditorPath.ToPointer() == "/configurationManifest/tenants");
         for (int index = 0; index < count; index++)
         {
             _currentStep = "event-tenants-" + index.ToString(CultureInfo.InvariantCulture) + "-add";
@@ -2062,14 +2062,29 @@ internal static class Program
     private static bool IsEditorVisible(MainWindow window, string title) =>
         window.GetLogicalDescendants().OfType<StackPanel>().Any(item =>
             item.DataContext is FieldViewModel model && model.Title == title && item.IsEffectivelyVisible);
-    private static StackPanel RevealField(MainWindow window, string id)
+    /// <summary>Reveals the editor at an exact configuration pointer, including members of nested groups.</summary>
+    private static StackPanel RevealField(MainWindow window, string pointer)
     {
         var shell = (DesktopShellViewModel)window.DataContext!;
-        shell.Workspace.Fields.Single(field => field.Id == id).RequestFocus();
+        FieldViewModel field = Editors(shell).Single(item => item.EditorPath.ToPointer() == pointer);
+        field.RequestFocus();
         window.UpdateLayout();
         Dispatcher.UIThread.RunJobs();
         return window.GetLogicalDescendants().OfType<StackPanel>()
-            .First(item => item.DataContext is FieldViewModel model && model.Id == id);
+            .First(item => ReferenceEquals(item.DataContext, field));
+    }
+
+    /// <summary>Every workspace-owned field editor, nested members included; the workspace keeps ownership.</summary>
+    private static List<FieldViewModel> Editors(DesktopShellViewModel shell)
+    {
+        var editors = new List<FieldViewModel>();
+        var pending = new Stack<FieldViewModel>(shell.Workspace.Fields);
+        while (pending.TryPop(out FieldViewModel? field))
+        {
+            if (field is not RootFieldViewModel) editors.Add(field);
+            foreach (FieldViewModel child in field.Descendants) pending.Push(child);
+        }
+        return editors;
     }
     private static T Input<T>(MainWindow window, string title) where T : Control
     {
