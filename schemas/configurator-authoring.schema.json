@@ -39,7 +39,8 @@
       "required": [
         "id",
         "name"
-      ]
+      ],
+      "description": "Display identity of the configured application. Labels are not authentication."
     },
     "applicationVersions": {
       "type": "array",
@@ -50,7 +51,8 @@
         "type": "string",
         "minLength": 1,
         "maxLength": 128
-      }
+      },
+      "description": "Target application versions this definition was reviewed against."
     },
     "entryPoints": {
       "type": "array",
@@ -61,10 +63,12 @@
         "type": "string",
         "minLength": 1,
         "maxLength": 128
-      }
+      },
+      "description": "Named launch entry points; defaults to \u0060setup\u0060 in authoring sources."
     },
     "configuration": {
-      "$ref": "#/$defs/node"
+      "$ref": "#/$defs/node",
+      "description": "Root object schema of every answer the definition collects."
     },
     "presentation": {
       "type": "object",
@@ -87,7 +91,7 @@
             "pointer": {
               "type": "string",
               "maxLength": 65536,
-              "pattern": "^/(?:[^/~]|~[01])*$"
+              "pattern": "^(?:/(?:[^/~]|~[01])*)\u002B$"
             },
             "options": {
               "type": "array",
@@ -130,7 +134,8 @@
           "required": [
             "pointer",
             "options"
-          ]
+          ],
+          "description": "Public required enum whose value picks the prepared output set."
         },
         "sections": {
           "type": "array",
@@ -156,10 +161,83 @@
               },
               "pointers": {
                 "type": "array",
+                "maxItems": 1024,
                 "uniqueItems": true,
                 "items": {
-                  "type": "string"
-                }
+                  "type": "string",
+                  "maxLength": 65536,
+                  "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+                },
+                "description": "Settings shown by this section; nested pointers such as \u0060/server/domain\u0060 are allowed."
+              },
+              "detail": {
+                "type": "string",
+                "enum": [
+                  "basic",
+                  "standard",
+                  "advanced"
+                ]
+              },
+              "applicableWhen": {
+                "$ref": "#/$defs/predicate"
+              },
+              "groups": {
+                "type": "array",
+                "maxItems": 32,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2048
+                    },
+                    "pointers": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 1024,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "maxLength": 65536,
+                        "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+                      },
+                      "description": "Settings in this group; each lies within one of the section\u0027s pointers."
+                    },
+                    "detail": {
+                      "type": "string",
+                      "enum": [
+                        "basic",
+                        "standard",
+                        "advanced"
+                      ]
+                    },
+                    "applicableWhen": {
+                      "$ref": "#/$defs/predicate"
+                    },
+                    "collapsed": {
+                      "type": "boolean",
+                      "description": "Starts collapsed."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "title",
+                    "pointers"
+                  ]
+                },
+                "description": "Collapsible groups organizing the section\u0027s settings."
               }
             },
             "additionalProperties": false,
@@ -202,6 +280,17 @@
                   "minLength": 1,
                   "maxLength": 64
                 }
+              },
+              "detail": {
+                "type": "string",
+                "enum": [
+                  "basic",
+                  "standard",
+                  "advanced"
+                ]
+              },
+              "applicableWhen": {
+                "$ref": "#/$defs/predicate"
               }
             },
             "additionalProperties": false,
@@ -218,7 +307,8 @@
         "sections",
         "journeys",
         "defaultJourney"
-      ]
+      ],
+      "description": "Sections, collapsible groups and journeys. Layout never changes validation."
     },
     "deployment": {
       "type": "object",
@@ -374,7 +464,8 @@
         "scopePointer",
         "components",
         "recipes"
-      ]
+      ],
+      "description": "Recipe and scope selectors choosing which components and outputs apply."
     },
     "localization": {
       "type": "object",
@@ -415,10 +506,12 @@
       "required": [
         "defaultLocale",
         "translations"
-      ]
+      ],
+      "description": "Translations of display text addressed by JSON Pointer."
     },
     "annotations": {
-      "type": "object"
+      "type": "object",
+      "description": "Free-form publisher notes; never interpreted."
     },
     "$schema": {
       "const": "urn:islamu:configurator:authoring:v0.0.1"
@@ -526,8 +619,102 @@
             "minProperties": 1,
             "maxProperties": 1024,
             "additionalProperties": {
-              "$ref": "#/$defs/reference"
-            }
+              "oneOf": [
+                {
+                  "type": "string",
+                  "maxLength": 65536,
+                  "pattern": "^(?:/(?:[^~]|~[01])*)*$",
+                  "description": "Shorthand for a root-scoped copy of this configuration path."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "literal": {}
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "literal"
+                  ],
+                  "description": "A constant output value."
+                },
+                {
+                  "$ref": "#/$defs/reference"
+                }
+              ]
+            },
+            "description": "Output targets (dotenv keys or JSON Pointers) mapped to configuration paths or literals."
+          },
+          "includeBindings": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "Output file names whose bindings are reused first; explicit bindings override them."
+          },
+          "bindObject": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "maxLength": 65536,
+                  "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "type": "string",
+                      "maxLength": 65536,
+                      "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+                    },
+                    "target": {
+                      "type": "string",
+                      "maxLength": 65536,
+                      "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+                    },
+                    "only": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 1024,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4096
+                      }
+                    },
+                    "except": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 1024,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4096
+                      }
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "source"
+                  ]
+                }
+              ]
+            },
+            "description": "Binds every member of a configuration object by its key, optionally filtered and nested under a target."
+          },
+          "when": {
+            "$ref": "#/$defs/predicate",
+            "description": "The output is prepared only while this predicate holds."
           }
         },
         "additionalProperties": false,
@@ -536,11 +723,40 @@
         ],
         "not": {
           "required": [
-            "bindings",
             "projection"
+          ],
+          "anyOf": [
+            {
+              "required": [
+                "bindings"
+              ]
+            },
+            {
+              "required": [
+                "includeBindings"
+              ]
+            },
+            {
+              "required": [
+                "bindObject"
+              ]
+            }
           ]
         }
-      }
+      },
+      "description": "Prepared files keyed by file name."
+    },
+    "predicates": {
+      "type": "object",
+      "maxProperties": 256,
+      "propertyNames": {
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/predicate"
+      },
+      "description": "Reusable named conditions, referenced as {\u0022op\u0022:\u0022predicate\u0022,\u0022name\u0022:...} and inlined at compile time."
     }
   },
   "additionalProperties": false,
@@ -598,17 +814,43 @@
         "title": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 256
+          "maxLength": 256,
+          "description": "Display title. When omitted, the key is humanized (\u0060PUBLIC_BASE_URL\u0060 shows as \u0060Public Base URL\u0060)."
         },
         "description": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 4096
+          "maxLength": 4096,
+          "description": "Help text shown with the field."
         },
         "format": {
           "type": "string",
-          "minLength": 1,
-          "maxLength": 256
+          "enum": [
+            "bcp47-language-tag",
+            "byte-size",
+            "cidr",
+            "cron-5",
+            "duration",
+            "email-address",
+            "env-key",
+            "hostname",
+            "http-url",
+            "https-url",
+            "ip-address",
+            "ipv4",
+            "ipv6",
+            "iso3166-alpha2",
+            "oci-image",
+            "origin",
+            "relative-path",
+            "semver",
+            "sha256-hex",
+            "slug",
+            "unix-path",
+            "uri",
+            "uuid"
+          ],
+          "description": "Asserted lexical format. Every listed format is validated automatically in linear time."
         },
         "properties": {
           "type": "object",
@@ -816,12 +1058,18 @@
                 "public",
                 "sensitive",
                 "secret"
-              ]
+              ],
+              "description": "Custody floor. Omitted means \u0060sensitive\u0060; \u0060secret\u0060 values never appear in public metadata."
             },
-            "initialValue": {},
-            "suggestedValue": {},
+            "initialValue": {
+              "description": "Public value prepared when the answer is absent. It never supplies a protected member; an object may open with absent required members, which become operator obligations."
+            },
+            "suggestedValue": {
+              "description": "Public value offered to the operator but never applied automatically."
+            },
             "notBlank": {
-              "type": "boolean"
+              "type": "boolean",
+              "description": "Rejects whitespace-only text."
             },
             "detail": {
               "type": "string",
@@ -829,23 +1077,137 @@
                 "basic",
                 "standard",
                 "advanced"
-              ]
+              ],
+              "description": "Progressive disclosure level."
             },
             "units": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 128
+              "maxLength": 128,
+              "description": "Unit label shown beside the value, for example \u0060seconds\u0060."
             },
             "uniqueBy": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 65536
+              "oneOf": [
+                {
+                  "type": "string",
+                  "maxLength": 65536,
+                  "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 65536,
+                    "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+                  }
+                }
+              ],
+              "description": "Item-relative pointer, or pointers forming a composite key, that must be unique across list rows."
             },
             "applicableWhen": {
-              "$ref": "#/$defs/predicate"
+              "$ref": "#/$defs/predicate",
+              "description": "The field is collected only while this predicate holds."
             },
-            "assertFormat": {
-              "type": "boolean"
+            "requiredWhen": {
+              "$ref": "#/$defs/predicate",
+              "description": "A collected object member must be supplied while this predicate holds. It may read any answer, and the member must not also be listed in \u0060required\u0060."
+            },
+            "propertyOrder": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1025,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 65536
+              },
+              "description": "Display order of object members; \u0060*\u0060 places every unlisted member. Never changes canonical identity."
+            },
+            "order": {
+              "type": "integer",
+              "minimum": -1000000,
+              "maximum": 1000000,
+              "description": "Display rank among sibling members without an explicit \u0060propertyOrder\u0060."
+            },
+            "placeholder": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "description": "Example input shown in an empty editor. Never a value; public fields only."
+            },
+            "defaultText": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024,
+              "description": "Explains what the target does when the field is omitted. Never a value."
+            },
+            "deprecationMessage": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "description": "Guidance for a field marked \u0060deprecated: true\u0060."
+            },
+            "widget": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "singleline",
+                "multiline",
+                "markdown",
+                "code",
+                "select",
+                "radio",
+                "switch",
+                "slider"
+              ],
+              "description": "Preferred editor; clients may fall back to \u0060auto\u0060."
+            },
+            "rows": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64,
+              "description": "Visible lines for \u0060multiline\u0060, \u0060markdown\u0060 and \u0060code\u0060 widgets."
+            },
+            "syntax": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32,
+              "description": "Highlighting language for the \u0060code\u0060 widget, for example \u0060json\u0060."
+            },
+            "booleanLabels": {
+              "type": "object",
+              "properties": {
+                "true": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "false": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "true",
+                "false"
+              ],
+              "description": "Display labels for the two boolean states."
+            },
+            "itemTitlePointer": {
+              "type": "string",
+              "maxLength": 65536,
+              "pattern": "^(?:/(?:[^~]|~[01])*)*$",
+              "description": "Item-relative pointer of a public scalar that titles each list row."
+            },
+            "displayRawKey": {
+              "type": "boolean",
+              "description": "Shows the exact key instead of the humanized title."
             },
             "secret": {
               "oneOf": [
@@ -3467,7 +3829,8 @@
                     }
                   }
                 }
-              ]
+              ],
+              "description": "Secret kind, acquisition, encoding, constraints and local generation."
             },
             "guidance": {
               "type": "object",
@@ -3514,7 +3877,8 @@
                 }
               },
               "additionalProperties": false,
-              "required": []
+              "required": [],
+              "description": "Operator instructions, public HTTPS links and search terms."
             },
             "choices": {
               "type": "array",
@@ -3533,18 +3897,27 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 2048
+                  },
+                  "deprecated": {
+                    "type": "boolean"
+                  },
+                  "deprecationMessage": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2048
                   }
                 },
                 "additionalProperties": false,
                 "required": [
-                  "value",
-                  "label"
+                  "value"
                 ]
-              }
+              },
+              "description": "Enum member metadata. Without \u0060enum\u0060, the choices define it in order; unlabeled values are humanized."
             }
           },
           "additionalProperties": false,
-          "required": []
+          "required": [],
+          "description": "Configurator semantics: sensitivity, guidance, choices, ordering, widgets and applicability."
         },
         "minimum": {
           "type": "number"
@@ -4004,6 +4377,25 @@
             "op",
             "operands"
           ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "predicate"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "op",
+            "name"
+          ],
+          "description": "Reference to a named root predicate, inlined at compile time."
         }
       ]
     }

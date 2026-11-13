@@ -53,12 +53,13 @@ public static class AnswerSnapshotCodec
                 || root.GetProperty("answerContractVersion").GetString() != ContractVersion)
                 throw new DefinitionException("answer-contract");
             JsonElement values = root.GetProperty("values");
-            JsonElement omitted = root.GetProperty("omitted");
-            if (values.ValueKind != JsonValueKind.Object || omitted.ValueKind != JsonValueKind.Array)
+            // "omitted" is optional: an absent list means no deliberate omissions.
+            bool hasOmissions = root.TryGetProperty("omitted", out JsonElement omitted);
+            if (values.ValueKind != JsonValueKind.Object || hasOmissions && omitted.ValueKind != JsonValueKind.Array)
                 throw new DefinitionException("answer-invalid");
             return new AnswerSnapshot(inputRevision, values.EnumerateObject().ToDictionary(
                 member => member.Name, member => member.Value, StringComparer.Ordinal),
-                omitted.EnumerateArray().Select(item => DefinitionPath.Parse(item.GetString()!)));
+                hasOmissions ? omitted.EnumerateArray().Select(item => DefinitionPath.Parse(item.GetString()!)) : []);
         }
         catch (DefinitionException) { throw; }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException

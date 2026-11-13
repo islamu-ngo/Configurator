@@ -22,7 +22,7 @@ public static class DefinitionProfile
         "projection.omit", "projection.repeat", "relationship.presence", "schema.array", "schema.boolean", "schema.bounds", "schema.const",
         "schema.enum", "schema.integer", "schema.notBlank", "schema.nullable", "schema.number", "schema.object", "schema.secret",
         "schema.string", "schema.uniqueBy", "schema.map", "schema.variant", "schema.localRef",
-        "schema.multipleOf", "schema.uniqueItems", "schema.assertFormat", "values.initial", "values.suggested"
+        "schema.multipleOf", "schema.uniqueItems", "values.initial", "values.suggested"
     });
 
     public static byte[] CanonicalizeJson(ReadOnlyMemory<byte> bytes) => CanonicalizeJson(bytes, out _);

@@ -70,7 +70,7 @@ public static class DefinitionArtifactComposer
         {
             var budget = new CompositionBudget(CompositionLimits.Default);
             int operations = 0;
-            var unknown = validation.DeferredFields.Concat(validation.UnresolvedFields).ToHashSet(StringComparer.Ordinal);
+            IReadOnlySet<string> unknown = validation.UndecidedRoots;
             var activeRoots = validation.Fields.Where(field => field.IsActive).Select(field => field.Definition.Name)
                 .Concat(validation.Values.Keys).ToHashSet(StringComparer.Ordinal);
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
@@ -136,6 +136,7 @@ public static class DefinitionArtifactComposer
                 {
                     bool? matches = DefinitionValidator.EvaluateCondition(condition, validation.Values, draft ? unknown : null, item,
                         deferredLocations: draft ? validation.DeferredLocations : null,
+                        unresolvedLocations: draft ? validation.UndecidedLocations : null,
                         itemLocation: item is null ? null : DefinitionPath.Parse(itemPath));
                     if (matches is null)
                     {
@@ -246,6 +247,10 @@ public static class DefinitionArtifactComposer
                 DefinitionPath path = DefinitionPath.Parse(sourcePath);
                 string? unresolved = path.Segments.Count == 0 ? validation.UnresolvedFields.FirstOrDefault()
                     : validation.UnresolvedFields.Contains(path.Segments[0]) ? path.Segments[0] : null;
+                // A nested undecided value blocks only copies that read it or contain it.
+                unresolved ??= validation.UnresolvedLocations.FirstOrDefault(location =>
+                    DefinitionImportProjection.IsPrefix(location, path) || DefinitionImportProjection.IsPrefix(path, location))
+                    ?.Segments[0];
                 if (unresolved is null) return;
                 unresolvedField = validation.Fields.FirstOrDefault(field => field.Definition.Name == unresolved)?.Id ?? "";
                 throw new DefinitionException("draft-dependency-unresolved");

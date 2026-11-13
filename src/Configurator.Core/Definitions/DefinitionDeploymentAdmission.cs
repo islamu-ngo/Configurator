@@ -147,11 +147,7 @@ internal static partial class DefinitionAdmission
 
     private static DefinitionNode DeploymentSelector(string pointer, DefinitionNode root)
     {
-        DefinitionPath path = DefinitionPath.Parse(pointer);
-        if (path.Segments.Count != 1 || !DeploymentPublic(root)
-            || !root.Properties.TryGetValue(path.Segments[0], out DefinitionNode? field)
-            || !DeploymentPublic(field) || field.Type != DefinitionNodeType.Text || field.IsNullable
-            || field.Keywords.GetProperty("x-configurator").TryGetProperty("applicableWhen", out _)
+        if (!TryStableSelector(root, DefinitionPath.Parse(pointer), out DefinitionNode? field) || !DeploymentPublic(field)
             || !field.Keywords.TryGetProperty("enum", out var enumeration) || enumeration.GetArrayLength() is < 1 or > 256
             || !field.Keywords.GetProperty("x-configurator").TryGetProperty("initialValue", out var initial)
             || initial.ValueKind != JsonValueKind.String)

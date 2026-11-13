@@ -39,6 +39,7 @@ public static class DefinitionScopeResolver
         private readonly HashSet<DefinitionPath> _uncertain = [];
         private readonly Dictionary<string, JsonElement> _rootValues = new(StringComparer.Ordinal);
         private readonly HashSet<string> _unknownRoots = new(StringComparer.Ordinal);
+        private readonly HashSet<DefinitionPath> _unknownLocations = [];
         private bool _unresolvedDependencies;
 
         internal DefinitionConfigurationContext? Resolve(DefinitionDeployment deployment)
@@ -51,7 +52,7 @@ public static class DefinitionScopeResolver
             {
                 IncludeReferences(when, null);
                 Observe();
-                applicable = DefinitionValidator.EvaluateCondition(when, _rootValues, _unknownRoots);
+                applicable = DefinitionValidator.EvaluateCondition(when, _rootValues, _unknownRoots, unresolvedLocations: _unknownLocations);
                 if (applicable == false) return null;
             }
             else Observe();
@@ -76,8 +77,7 @@ public static class DefinitionScopeResolver
                 {
                     Charge(path);
                     if (!_schemas.TryGetValue(path, out DefinitionNode? schema)) continue;
-                    if (schema.Keywords.TryGetProperty("x-configurator", out var metadata)
-                        && metadata.TryGetProperty("applicableWhen", out var condition))
+                    foreach (JsonElement condition in DefinitionValidator.NodeConditions(schema))
                         IncludeReferences(condition, ItemLocation(path));
                     if (schema.Discriminator is { } discriminator)
                         Add(DefinitionPath.FromSegments(path.Segments.Append(discriminator)), true);
@@ -263,8 +263,9 @@ public static class DefinitionScopeResolver
                 _rootValues.Add(name, value);
                 IndexValues(DefinitionPath.FromSegments([name]), value);
             }
-            _unknownRoots.UnionWith(result.DeferredFields);
-            _unknownRoots.UnionWith(result.UnresolvedFields);
+            _unknownRoots.UnionWith(result.UndecidedRoots);
+            _unknownLocations.Clear();
+            _unknownLocations.UnionWith(result.UndecidedLocations);
             _unknownRoots.UnionWith(result.Fields.Where(field => field.HasError).Select(field => field.Definition.Name));
         }
 

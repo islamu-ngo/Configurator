@@ -256,7 +256,7 @@ internal sealed class DefinitionImportProjection
             }
             DefinitionValidationResult resolved = contextValidation!;
             return await DefinitionValidator.EvaluateConditionAsync(condition, resolved.Values, unknown,
-                deferredLocations: resolved.DeferredLocations, work: work);
+                deferredLocations: resolved.DeferredLocations, work: work, unresolvedLocations: resolved.UndecidedLocations);
         }
 
         async ValueTask<bool> ResolveContext()
@@ -265,7 +265,7 @@ internal sealed class DefinitionImportProjection
             if (contextValidation is null)
             {
                 contextValidation = await DefinitionValidator.ValidateImportAsync(definition, context, work, work.CancellationToken);
-                unknown = contextValidation.UnresolvedFields.Concat(contextValidation.DeferredFields)
+                unknown = contextValidation.UndecidedRoots
                     .Concat(contextValidation.Fields.Where(field => field.HasError).Select(field => field.Definition.Name))
                     .ToHashSet(StringComparer.Ordinal);
             }

@@ -199,11 +199,11 @@ public sealed class DefinitionEditableProjectionTests
         using var buffer = new MemoryStream();
         source.CopyTo(buffer);
         Definition definition = DefinitionCodec.ParseJson(buffer.ToArray());
-        AnswerSnapshot context = DefinitionFixture.Answers("""{"operation":"environment","deployment.recipe":"standalone","deployment.scope":"all","select.feature.deployment-config":true,"env.AUTHENTICATION_PROVIDER":"local","env.SECRET_PROVIDER":"Environment"}""");
+        AnswerSnapshot context = DefinitionFixture.Answers("""{"operation":"environment","deployment":{"recipe":"standalone","scope":"all"},"hosting":{},"platform":{"authenticationProvider":"local"},"secrets":{"provider":"Environment"}}""");
         var scope = DefinitionImport.CaptureEditableScope(definition, "environment-standalone", context);
         await Assert.That(scope.IsSupported).IsTrue();
         await Assert.That(scope.Mappings.Single(item => item.Key == "ASPNETCORE_ENVIRONMENT").Path.ToPointer())
-            .IsEqualTo("/env.ASPNETCORE_ENVIRONMENT");
+            .IsEqualTo("/hosting/aspnetcoreEnvironment");
         await Assert.That(scope.Coverage.Any(item => item.Kind == DefinitionEditableCoverageKind.Protected)).IsTrue();
         await Assert.That(scope.Mappings.Any(item => item.Path.ToPointer() == "/operation")).IsFalse();
         DefinitionImportCapability capability = DefinitionImport.GetCapability(definition, "environment-standalone", context);

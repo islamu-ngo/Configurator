@@ -2,26 +2,29 @@
   "type": "object",
   "properties": {
     "answerContractVersion": {
-      "const": "0.0.1"
+      "const": "0.0.1",
+      "description": "Private answer envelope contract version."
     },
     "values": {
-      "type": "object"
+      "type": "object",
+      "description": "Answers keyed by root configuration field. Use \u0060definition answer-schema\u0060 for a definition-specific schema."
     },
     "omitted": {
       "type": "array",
       "uniqueItems": true,
+      "default": [],
       "items": {
         "type": "string",
         "maxLength": 65536,
         "pattern": "^(?:/(?:[^~]|~[01])*)*$"
-      }
+      },
+      "description": "JSON Pointers deliberately left unset even when an initial value exists. Optional; defaults to none."
     }
   },
   "additionalProperties": false,
   "required": [
     "answerContractVersion",
-    "values",
-    "omitted"
+    "values"
   ],
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:islamu:configurator:answers:v0.0.1",

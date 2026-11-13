@@ -57,6 +57,9 @@ public sealed record DefinitionNode
                 || additionalProperties is not null || variantSnapshot.Count != 0))
             throw new DefinitionException("schema-shape");
         Properties = new ReadOnlyDictionary<string, DefinitionNode>(propertySnapshot);
+        OrderedPropertyNames = DefinitionPropertyOrder.Resolve(Keywords, propertySnapshot);
+        OptionMetadata = DefinitionChoice.From(Keywords);
+        PresentationMetadata = new DefinitionFieldPresentationMetadata(Keywords);
         Required = Array.AsReadOnly(requiredSnapshot.ToArray());
         Items = items;
         AdditionalProperties = additionalProperties;
@@ -119,7 +122,14 @@ public sealed record DefinitionNode
     /// <summary>Local public keywords only; child schemas belong to the typed recursive properties.</summary>
     public JsonElement Keywords { get; }
     public DefinitionSecretSpecification? Secret { get; }
+    /// <summary>Ordinal-keyed property snapshot used for canonical identity; use <see cref="OrderedPropertyNames"/> for display order.</summary>
     public IReadOnlyDictionary<string, DefinitionNode> Properties { get; }
+    /// <summary>Authored display order from <c>x-configurator.propertyOrder</c> and per-property <c>order</c>.</summary>
+    public IReadOnlyList<string> OrderedPropertyNames { get; }
+    /// <summary>Admitted enum members with explicit or humanized display metadata, in enum order.</summary>
+    public IReadOnlyList<DefinitionChoice> OptionMetadata { get; }
+    /// <summary>Admitted non-value display metadata such as placeholders, widgets and deprecation guidance.</summary>
+    public DefinitionFieldPresentationMetadata PresentationMetadata { get; }
     public IReadOnlyList<string> Required { get; }
     public DefinitionNode? Items { get; }
     public DefinitionNode? AdditionalProperties { get; }

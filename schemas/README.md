@@ -143,9 +143,12 @@ runtime capabilities or copying full raw configurations into documentation.
 Objects explicitly declare closure or a typed `additionalProperties` schema;
 arrays declare recursive `items`. Closed discriminator branches and bounded
 configuration-root local references are supported, not general unions or remote
-schema fetch. `format` remains descriptive unless the admitted
-`x-configurator.assertFormat: true` opts into hostname, email-address, uri or
-http-url lexical checks. Editor acceptance does not prove contextual reference,
+schema fetch. Every registered `format` (23 lexical formats such as `hostname`,
+`https-url`, `semver` and `cron-5`) is asserted automatically; `assertFormat` is
+retired. Generated schemas carry hover `description`s, and the answer envelope
+treats `omitted` as optional (`default: []`). For a definition-specific answer
+schema with typed `values`, run `definition answer-schema`. Editor acceptance
+does not prove contextual reference,
 privacy, capability or resource admission. Consumers must refuse unsupported
 mandatory semantics before answer collection.
 

@@ -8,13 +8,12 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class ExternalDefinitionConformanceTests
 {
     [Test]
-    [Arguments("tenant-package.spec.legalDocuments.TenantPrivacyNotice")]
-    [Arguments("legal-drafts.spec.instance.legalDocuments.TermsOfService")]
-    public async Task LegalDocumentsHaveBoundedRowsWithItemLocalRequirements(string documentKey)
+    [Arguments("/tenantPackage/spec/legalDocuments/TenantPrivacyNotice")]
+    [Arguments("/legalDrafts/spec/instance/legalDocuments/TermsOfService")]
+    public async Task LegalDocumentsHaveBoundedRowsWithItemLocalRequirements(string documentPointer)
     {
         Definition definition = DefinitionCodec.ParseJson(Resource("EventDefinition"));
-        await Assert.That(definition.Configuration.Properties.ContainsKey(documentKey)).IsTrue();
-        DefinitionNode document = definition.Configuration.Properties[documentKey];
+        DefinitionNode document = definition.Field(documentPointer).Node;
         await Assert.That(document.Type).IsEqualTo(DefinitionNodeType.Mapping);
         DefinitionNode jurisdictions = document.Properties["jurisdictionAssumptions"];
         await Assert.That(jurisdictions.Type).IsEqualTo(DefinitionNodeType.Sequence);
@@ -32,7 +31,7 @@ public sealed class ExternalDefinitionConformanceTests
     {
         Definition definition = DefinitionCodec.ParseJson(Resource("EventDefinition"));
         JsonNode answers = JsonNode.Parse(Resource("EventAnswers.legal-drafts.json"))!;
-        JsonArray languages = answers["values"]!["legal-drafts.spec.instance.legalDocuments.TermsOfService"]!["localizations"]!.AsArray();
+        JsonArray languages = answers["values"]!["legalDrafts"]!["spec"]!["instance"]!["legalDocuments"]!["TermsOfService"]!["localizations"]!.AsArray();
         languages[1]!.AsObject().Remove("title");
         DefinitionArtifactResult incomplete = DefinitionArtifactComposer.Compose(definition, "legal-drafts",
             AnswerSnapshotCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(answers.ToJsonString()), 8));

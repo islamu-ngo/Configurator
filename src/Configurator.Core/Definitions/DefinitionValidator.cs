@@ -97,27 +97,34 @@ public static class DefinitionValidator
     }
 
     /// <summary>Checks a supplied value against an already admitted node, including local constraints and secret policy.</summary>
-    public static bool ValueValid(DefinitionNode schema, JsonElement value)
+    public static bool ValueValid(DefinitionNode schema, JsonElement value) => ValueValid(schema, value, requireMembers: true);
+
+    /// <summary>
+    /// Checks a value against an admitted node. With <paramref name="requireMembers"/> false, an object may omit its
+    /// required members: an initial value that opens a container leaves those members as operator obligations.
+    /// </summary>
+    internal static bool ValueValid(DefinitionNode schema, JsonElement value, bool requireMembers)
     {
         if (!DefinitionImportWork.CompleteSynchronously(LocalValueValidAsync(schema, value))) return false;
         if (value.ValueKind == JsonValueKind.Null) return true;
         if (schema.Variants.Count > 0)
-            return SelectVariant(schema, value) is { } branch && ValueValid(branch, value);
+            return SelectVariant(schema, value) is { } branch && ValueValid(branch, value, requireMembers);
         if (schema.Type == DefinitionNodeType.Mapping)
         {
             if (schema.AdditionalProperties is null && value.EnumerateObject().Any(member => !schema.Properties.ContainsKey(member.Name))) return false;
             foreach ((string name, DefinitionNode child) in schema.Properties)
             {
                 bool present = value.TryGetProperty(name, out JsonElement supplied);
-                if (!present && schema.Required.Contains(name, StringComparer.Ordinal) || present && !ValueValid(child, supplied)) return false;
+                if (!present && requireMembers && schema.Required.Contains(name, StringComparer.Ordinal)
+                    || present && !ValueValid(child, supplied, requireMembers)) return false;
             }
             if (schema.AdditionalProperties is { } map)
                 foreach (JsonProperty entry in value.EnumerateObject())
-                    if (!schema.Properties.ContainsKey(entry.Name) && !ValueValid(map, entry.Value)) return false;
+                    if (!schema.Properties.ContainsKey(entry.Name) && !ValueValid(map, entry.Value, requireMembers)) return false;
         }
         if (schema.Type == DefinitionNodeType.Sequence)
             foreach (JsonElement item in value.EnumerateArray())
-                if (!ValueValid(schema.Items!, item)) return false;
+                if (!ValueValid(schema.Items!, item, requireMembers)) return false;
         return true;
     }
 
@@ -172,9 +179,7 @@ public static class DefinitionValidator
                 || keywords.TryGetProperty("maxLength", out JsonElement maximum) && length > maximum.GetInt32()
                 || keywords.TryGetProperty("x-configurator", out JsonElement extension)
                     && extension.TryGetProperty("notBlank", out JsonElement notBlank) && notBlank.GetBoolean() && string.IsNullOrWhiteSpace(text)) return false;
-            if (keywords.TryGetProperty("x-configurator", out JsonElement formatMetadata) &&
-                formatMetadata.TryGetProperty("assertFormat", out JsonElement asserted) && asserted.GetBoolean() &&
-                !FormatMatches(keywords.GetProperty("format").GetString()!, text)) return false;
+            if (FormatInvalid(schema, value)) return false;
         }
         if (value.ValueKind == JsonValueKind.Number)
         {
@@ -213,70 +218,62 @@ public static class DefinitionValidator
         (!complete || !schema.Keywords.TryGetProperty("minProperties", out JsonElement minimum) || count >= minimum.GetInt32()) &&
         (!schema.Keywords.TryGetProperty("maxProperties", out JsonElement maximum) || count <= maximum.GetInt32());
 
-    private static bool FormatMatches(string format, string text)
-    {
-        if (format == "hostname") return Hostname(text);
-        if (format == "email-address")
-        {
-            int separator = text.IndexOf('@');
-            if (separator is < 1 or > 64 || separator != text.LastIndexOf('@') || text.Length > 254) return false;
-            string local = text[..separator];
-            return local[0] != '.' && local[^1] != '.' && !local.Contains("..", StringComparison.Ordinal) &&
-                local.All(character => char.IsAsciiLetterOrDigit(character) ||
-                    ".!#$%&'*+-/=?^_`{|}~".Contains(character)) && Hostname(text[(separator + 1)..]);
-        }
-        if (text.Any(character => character <= ' ' || character >= 127) ||
-            !Uri.TryCreate(text, UriKind.Absolute, out Uri? uri) || !uri.IsWellFormedOriginalString()) return false;
-        return format == "uri" || format == "http-url" && (uri.Scheme is "http" or "https") &&
-            uri.Host.Length != 0 && uri.UserInfo.Length == 0;
-
-        static bool Hostname(string host)
-        {
-            if (host.EndsWith('.')) host = host[..^1];
-            return host.Length is > 0 and <= 253 && host.Split('.').All(label =>
-                label.Length is > 0 and <= 63 && char.IsAsciiLetterOrDigit(label[0]) &&
-                char.IsAsciiLetterOrDigit(label[^1]) &&
-                label.All(character => char.IsAsciiLetterOrDigit(character) || character == '-'));
-        }
-    }
-
     internal static async ValueTask<int> DuplicateIndexAsync(DefinitionNode schema, JsonElement value, DefinitionImportWork? work = null)
     {
-        if (value.ValueKind != JsonValueKind.Array || !schema.Keywords.TryGetProperty("x-configurator", out var metadata)
-            || !metadata.TryGetProperty("uniqueBy", out var uniqueBy)) return -1;
-        DefinitionPath path = DefinitionPath.Parse(uniqueBy.GetString()!);
+        if (value.ValueKind != JsonValueKind.Array) return -1;
+        IReadOnlyList<DefinitionPath> paths = DefinitionUniqueKey.Of(schema);
+        if (paths.Count == 0) return -1;
         var keys = new HashSet<string>(StringComparer.Ordinal);
+        var components = new string[paths.Count];
         int index = 0;
         foreach (JsonElement item in value.EnumerateArray())
         {
             if (work is not null) await work.VisitAsync();
-            JsonElement key = item;
-            foreach (string name in path.Segments)
+            for (int component = 0; component < paths.Count; component++)
             {
-                if (work is not null) await work.VisitAsync();
-                if (key.ValueKind != JsonValueKind.Object || !key.TryGetProperty(name, out key)) return -1;
+                JsonElement key = item;
+                foreach (string name in paths[component].Segments)
+                {
+                    if (work is not null) await work.VisitAsync();
+                    if (key.ValueKind != JsonValueKind.Object || !key.TryGetProperty(name, out key)) return -1;
+                }
+                if (key.ValueKind != JsonValueKind.String) return -1;
+                components[component] = key.GetString()!;
             }
-            if (key.ValueKind != JsonValueKind.String) return -1;
-            if (!keys.Add(key.GetString()!)) return index;
+            // JSON-encode each component so composite keys cannot collide through separator injection.
+            if (!keys.Add(JsonSerializer.Serialize(components))) return index;
             index++;
         }
         return -1;
     }
+
+    /// <summary>True when a supplied string violates its asserted format; unknown formats are annotations only.</summary>
+    internal static bool FormatInvalid(DefinitionNode schema, JsonElement value) =>
+        value.ValueKind == JsonValueKind.String && schema.Keywords.TryGetProperty("format", out JsonElement format)
+        && format.ValueKind == JsonValueKind.String && !DefinitionFormatValidator.IsValid(format.GetString()!, value.GetString()!);
 
     internal static bool ConditionMatches(JsonElement condition, IReadOnlyDictionary<string, JsonElement> values) =>
         EvaluateCondition(condition, values, null) == true;
 
     internal static bool? EvaluateCondition(JsonElement condition, IReadOnlyDictionary<string, JsonElement> values,
         IReadOnlySet<string>? unresolved, JsonElement? item = null, IReadOnlySet<string>? itemUnknown = null,
-        IReadOnlySet<DefinitionPath>? deferredLocations = null, DefinitionPath? itemLocation = null) =>
+        IReadOnlySet<DefinitionPath>? deferredLocations = null, DefinitionPath? itemLocation = null,
+        IReadOnlySet<DefinitionPath>? unresolvedLocations = null) =>
         DefinitionImportWork.CompleteSynchronously(
-            EvaluateConditionAsync(condition, values, unresolved, item, itemUnknown, deferredLocations, itemLocation));
+            EvaluateConditionAsync(condition, values, unresolved, item, itemUnknown, deferredLocations, itemLocation,
+                unresolvedLocations: unresolvedLocations));
 
+    /// <param name="unresolved">Top-level members whose whole value is undecided.</param>
+    /// <param name="unresolvedLocations">
+    /// Nested values that are undecided; a root reference is undecided only when it overlaps one of them, so a missing
+    /// member never hides an answered sibling.
+    /// </param>
     internal static async ValueTask<bool?> EvaluateConditionAsync(JsonElement condition, IReadOnlyDictionary<string, JsonElement> values,
         IReadOnlySet<string>? unresolved, JsonElement? item = null, IReadOnlySet<string>? itemUnknown = null,
         IReadOnlySet<DefinitionPath>? deferredLocations = null, DefinitionPath? itemLocation = null,
         DefinitionImportEvidence? observations = null, DefinitionImportWork? work = null,
-        DefinitionPath? observationBase = null, IReadOnlySet<DefinitionPath>? invalidLocations = null)
+        DefinitionPath? observationBase = null, IReadOnlySet<DefinitionPath>? invalidLocations = null,
+        IReadOnlySet<DefinitionPath>? unresolvedLocations = null)
     {
         if (work is not null) await work.VisitAsync();
         string operation = condition.GetProperty("op").GetString()!;
@@ -285,7 +282,7 @@ public static class DefinitionValidator
             var results = new List<bool?>();
             foreach (JsonElement operand in condition.GetProperty("operands").EnumerateArray())
                 results.Add(await EvaluateConditionAsync(operand, values, unresolved, item, itemUnknown,
-                    deferredLocations, itemLocation, observations, work, observationBase, invalidLocations));
+                    deferredLocations, itemLocation, observations, work, observationBase, invalidLocations, unresolvedLocations));
             if (operation == "not") return !results[0];
             return operation == "all" ? results.Contains(false) ? false : results.Contains(null) ? null : true
                 : results.Contains(true) ? true : results.Contains(null) ? null : false;
@@ -303,6 +300,9 @@ public static class DefinitionValidator
         }
         if (reference.GetProperty("scope").GetString() == "root" && unresolved is not null
             && (path.Segments.Count == 0 ? unresolved.Count != 0 : unresolved.Contains(path.Segments[0]))) return null;
+        if (reference.GetProperty("scope").GetString() == "root" && unresolvedLocations is { Count: > 0 }
+            && unresolvedLocations.Any(location => DefinitionImportProjection.IsPrefix(location, path)
+                || DefinitionImportProjection.IsPrefix(path, location))) return null;
         if (reference.GetProperty("scope").GetString() == "item" && itemUnknown is not null
             && (path.Segments.Count == 0 ? itemUnknown.Count != 0 : itemUnknown.Contains(path.Segments[0]))) return null;
         if (reference.GetProperty("scope").GetString() == "item" && deferredLocations is not null && itemLocation is not null)
@@ -367,16 +367,78 @@ public static class DefinitionValidator
         DefinitionImportWork? work = null)
     {
         if (work is not null) await work.VisitAsync();
-        IEnumerable<string> own = schema.Keywords.TryGetProperty("x-configurator", out var extension)
-            && extension.TryGetProperty("applicableWhen", out var condition) ? await ScopedReferencesAsync(condition, scope, work) : [];
+        var references = new List<string>();
+        foreach (JsonElement condition in NodeConditions(schema))
+            references.AddRange(await ScopedReferencesAsync(condition, scope, work));
         IEnumerable<DefinitionNode> children = schema.Properties.Values.Concat(schema.Variants)
             .Concat(schema.AdditionalProperties is null ? [] : new[] { schema.AdditionalProperties })
             .Concat(scope == "root" && schema.Items is not null ? new[] { schema.Items } : []);
-        var references = new List<string>(own);
         foreach (DefinitionNode child in children)
             references.AddRange(await SchemaReferencesAsync(child, scope, work));
         return references.Distinct(StringComparer.Ordinal).ToArray();
     }
+
+    /// <summary>
+    /// The node's own collection conditions: <c>applicableWhen</c> decides whether it is collected and
+    /// <c>requiredWhen</c> whether it must be supplied. Both read other answers, so both order evaluation.
+    /// </summary>
+    internal static IReadOnlyList<JsonElement> NodeConditions(DefinitionNode node)
+    {
+        if (!node.Keywords.TryGetProperty("x-configurator", out JsonElement extension)) return [];
+        var conditions = new List<JsonElement>(2);
+        if (extension.TryGetProperty("applicableWhen", out JsonElement applicable)) conditions.Add(applicable);
+        if (extension.TryGetProperty("requiredWhen", out JsonElement requirement)) conditions.Add(requirement);
+        return conditions;
+    }
+
+    /// <summary>Full scoped reference paths of one condition tree, for ordering nested siblings.</summary>
+    internal static IReadOnlyList<DefinitionPath> ConditionReferencePaths(JsonElement condition, string scope)
+    {
+        var paths = new List<DefinitionPath>();
+        Collect(condition);
+        return paths;
+
+        void Collect(JsonElement node)
+        {
+            if (node.TryGetProperty("reference", out JsonElement reference))
+            {
+                if (reference.GetProperty("scope").GetString() == scope)
+                    paths.Add(DefinitionPath.Parse(reference.GetProperty("path").GetString()!));
+                return;
+            }
+            foreach (JsonElement operand in node.GetProperty("operands").EnumerateArray()) Collect(operand);
+        }
+    }
+
+    /// <summary>
+    /// Full root-scoped reference paths declared anywhere in a schema subtree, including list items, so a
+    /// mapping can resolve the siblings its descendants depend on before evaluating them.
+    /// </summary>
+    internal static async ValueTask<IReadOnlyList<DefinitionPath>> SchemaReferencePathsAsync(DefinitionNode schema,
+        DefinitionImportWork? work = null)
+    {
+        var paths = new List<DefinitionPath>();
+        var pending = new Stack<DefinitionNode>();
+        pending.Push(schema);
+        while (pending.TryPop(out DefinitionNode? node))
+        {
+            if (work is not null) await work.VisitAsync();
+            foreach (JsonElement condition in NodeConditions(node))
+                paths.AddRange(ConditionReferencePaths(condition, "root"));
+            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Variants)) pending.Push(child);
+            if (node.Items is not null) pending.Push(node.Items);
+            if (node.AdditionalProperties is not null) pending.Push(node.AdditionalProperties);
+        }
+        return paths;
+    }
+
+    /// <summary>Names of mapping members at <paramref name="location"/> that a member's subtree depends on.</summary>
+    internal static IEnumerable<string> SiblingDependencies(IEnumerable<DefinitionPath> references,
+        IReadOnlyList<string> location, string member, DefinitionNode scope) =>
+        references.Where(path => path.Segments.Count > location.Count
+                && path.Segments.Take(location.Count).SequenceEqual(location, StringComparer.Ordinal)
+                && path.Segments[location.Count] != member && scope.Properties.ContainsKey(path.Segments[location.Count]))
+            .Select(path => path.Segments[location.Count]).Distinct(StringComparer.Ordinal);
 
     internal static IEnumerable<string> ScopedReferences(JsonElement condition, string scope) =>
         DefinitionImportWork.CompleteSynchronously(ScopedReferencesAsync(condition, scope));

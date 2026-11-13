@@ -231,13 +231,8 @@ public sealed class DefinitionProfileConformanceTests
     }
 
     [Test]
-    public async Task AssertedFormatsAreOptInAndNeverGrantNetworkOrCredentialAuthority()
+    public async Task KnownFormatsAreAssertedByDefaultAndRetiredOptInRejects()
     {
-        Definition descriptive = WithValueSchema("""
-            {"type":"string","format":"hostname","x-configurator":{"sensitivity":"public"}}
-            """);
-        await Assert.That(DefinitionValidator.Validate(descriptive,
-            DefinitionFixture.Answers("""{"value":"not a hostname"}""")).IsReady).IsTrue();
         foreach ((string format, string valid, string invalid) in new[]
         {
             ("hostname", "service.example", "-service.example"),
@@ -247,12 +242,15 @@ public sealed class DefinitionProfileConformanceTests
         })
         {
             Definition asserted = WithValueSchema("{\"type\":\"string\",\"format\":\"" + format +
-                "\",\"x-configurator\":{\"sensitivity\":\"public\",\"assertFormat\":true}}");
+                "\",\"x-configurator\":{\"sensitivity\":\"public\"}}");
             await Assert.That(DefinitionValidator.Validate(asserted,
                 DefinitionFixture.Answers("{\"value\":" + JsonSerializer.Serialize(valid) + "}")).IsReady).IsTrue();
             await Assert.That(DefinitionValidator.Validate(asserted,
                 DefinitionFixture.Answers("{\"value\":" + JsonSerializer.Serialize(invalid) + "}")).IsReady).IsFalse();
         }
+        await Assert.That(() => WithValueSchema("""
+            {"type":"string","format":"hostname","x-configurator":{"sensitivity":"public","assertFormat":true}}
+            """)).Throws<DefinitionException>();
     }
 
     private static Definition WithValueSchema(string schema)

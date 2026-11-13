@@ -17,7 +17,8 @@ public sealed class DefinitionSourceMap
     private static readonly FrozenSet<string> MetadataMembers = new[]
     {
         "sensitivity", "initialValue", "suggestedValue", "notBlank", "detail", "guidance", "secret",
-        "choices", "units", "uniqueBy", "applicableWhen", "assertFormat"
+        "choices", "units", "uniqueBy", "applicableWhen", "requiredWhen", "propertyOrder", "order", "placeholder", "defaultText",
+        "deprecationMessage", "widget", "rows", "syntax", "booleanLabels", "itemTitlePointer", "displayRawKey"
     }.ToFrozenSet(StringComparer.Ordinal);
     private readonly FrozenDictionary<string, DefinitionSourceSpan> _spans;
 

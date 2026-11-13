@@ -88,7 +88,7 @@ public sealed class DefinitionEditableProjection
             controllers.Add(DefinitionPath.Parse(deployment.ScopePointer));
             if (deployment.When is { } condition) CollectReferences(condition);
         }
-        var unknown = validation.UnresolvedFields.Concat(validation.DeferredFields)
+        var unknown = validation.UndecidedRoots
             .Concat(validation.Fields.Where(field => field.HasError).Select(field => field.Definition.Name))
             .ToHashSet(StringComparer.Ordinal);
         var candidates = new List<(string Key, DefinitionPath? Path, DefinitionNode? Schema,
@@ -176,12 +176,11 @@ public sealed class DefinitionEditableProjection
 
         bool? Active(JsonElement operation) => operation.TryGetProperty("when", out JsonElement condition)
             ? DefinitionValidator.EvaluateCondition(condition, validation.Values, unknown,
-                deferredLocations: validation.DeferredLocations) : true;
+                deferredLocations: validation.DeferredLocations, unresolvedLocations: validation.UndecidedLocations) : true;
 
         void CollectSchemaCondition(DefinitionNode node)
         {
-            if (node.Keywords.TryGetProperty("x-configurator", out JsonElement metadata)
-                && metadata.TryGetProperty("applicableWhen", out JsonElement condition)) CollectReferences(condition);
+            foreach (JsonElement condition in DefinitionValidator.NodeConditions(node)) CollectReferences(condition);
         }
 
         void CollectProjectionConditions(JsonElement operation)

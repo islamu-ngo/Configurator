@@ -1,12 +1,14 @@
 namespace Configurator.Core.Definitions.Authoring;
 
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Configurator.Core.Composition;
 
-/// <summary>Lowers source output mappings and delegates recursive semantics to the sole runtime admission owner.</summary>
+/// <summary>
+/// Lowers authoring conveniences (named predicates, single-source choices, authored order, value-keyed
+/// localization and concise outputs) into the runtime contract, then delegates every semantic check to the sole
+/// runtime admission owner.
+/// </summary>
 public static class DefinitionAuthoringCompiler
 {
     public static Definition Compile(DefinitionAuthoringDocument document)
@@ -16,9 +18,10 @@ public static class DefinitionAuthoringCompiler
         {
             JsonObject root = JsonNode.Parse(document.CanonicalBytes.Span)!.AsObject();
             Only(root, "$schema", "identity", "project", "applicationVersions", "entryPoints", "configuration",
-                "outputs", "presentation", "localization", "annotations", "deployment");
+                "outputs", "presentation", "localization", "annotations", "deployment", "predicates");
             if (root["$schema"]!.GetValue<string>() != DefinitionAuthoringCodec.SchemaId)
                 throw new DefinitionException("authoring-schema");
+            DefinitionPredicateLowering.Lower(root);
             JsonObject identity = root["identity"]!.AsObject();
             Only(identity, "familyId", "revision");
             JsonObject project = root["project"]!.DeepClone().AsObject();
@@ -39,11 +42,12 @@ public static class DefinitionAuthoringCompiler
                 ["applicationVersions"] = root["applicationVersions"]!.DeepClone(),
                 ["entryPoints"] = root.ContainsKey("entryPoints") ? root["entryPoints"]!.DeepClone() : new JsonArray("setup"),
                 ["locales"] = new JsonArray(locales.Select(locale => (JsonNode?)JsonValue.Create(locale)).ToArray()),
-                ["configuration"] = root["configuration"]!.DeepClone()
+                ["configuration"] = LowerConfiguration(root["configuration"]!, document.SourceMap)
             };
             foreach (string name in new[] { "presentation", "localization", "annotations", "deployment" })
                 if (root.ContainsKey(name)) runtime[name] = root[name]!.DeepClone();
-            runtime["artifacts"] = ExpandOutputs(root["outputs"]!.AsObject());
+            DefinitionLocalizationLowering.Lower(runtime);
+            runtime["artifacts"] = DefinitionOutputLowering.Lower(root["outputs"]!.AsObject(), runtime["configuration"]!.AsObject());
             Definition admitted = DefinitionCodec.AdmitCompiled(runtime);
             return new Definition(admitted.Document, admitted.CanonicalBytes.ToArray(),
                 admitted.Configuration, document.SourceMap);
@@ -63,108 +67,15 @@ public static class DefinitionAuthoringCompiler
         }
     }
 
-    private static JsonArray ExpandOutputs(JsonObject outputs)
+    private static JsonObject LowerConfiguration(JsonNode source, DefinitionSourceMap sourceMap)
     {
-        if (outputs.Count is < 1 or > 64) throw new DefinitionException("artifact-limit");
-        var artifacts = new JsonArray();
-        var budget = new CompositionBudget(CompositionLimits.Default);
-        foreach ((string fileName, JsonNode? value) in outputs.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-        {
-            JsonObject output = value!.AsObject();
-            Only(output, "id", "format", "targetUpdateMode", "restartRequirement", "bindings", "projection",
-                "title", "description", "consumerIds", "surface", "environmentDialect");
-            string format = output["format"]!.GetValue<string>();
-            JsonNode projection;
-            if (output.ContainsKey("projection"))
-            {
-                if (output.ContainsKey("bindings")) throw new DefinitionException("authoring-mapping");
-                projection = output["projection"]!.DeepClone();
-            }
-            else if (output.ContainsKey("bindings"))
-            {
-                JsonObject bindings = output["bindings"]!.AsObject();
-                if (bindings.Count is < 1 or > 1024 || format == "markdown") throw new DefinitionException("authoring-mapping");
-                var paths = new List<IReadOnlyList<string>>();
-                JsonObject members = new();
-                JsonObject objectProjection = new() { ["op"] = "object", ["members"] = members };
-                JsonNode? rootProjection = null;
-                foreach ((string target, JsonNode? reference) in bindings.OrderBy(pair => pair.Key, StringComparer.Ordinal))
-                {
-                    JsonObject copy = new() { ["op"] = "copy", ["reference"] = reference!.DeepClone() };
-                    if (format == "dotenv")
-                    {
-                        if (!IsDotenvKey(target)) throw new DefinitionException("authoring-mapping");
-                        members.Add(target, copy);
-                        continue;
-                    }
-                    if (format is not ("json" or "yaml")) throw new DefinitionException("authoring-mapping");
-                    IReadOnlyList<string> segments = DefinitionPath.Parse(target).Segments;
-                    foreach (IReadOnlyList<string> previous in paths)
-                        if (previous.Take(Math.Min(previous.Count, segments.Count))
-                            .SequenceEqual(segments.Take(Math.Min(previous.Count, segments.Count)), StringComparer.Ordinal))
-                            throw new DefinitionException("authoring-target-overlap");
-                    paths.Add(segments);
-                    if (segments.Count == 0) rootProjection = copy;
-                    else
-                    {
-                        JsonObject current = members;
-                        for (int index = 0; index < segments.Count - 1; index++)
-                        {
-                            if (!current.ContainsKey(segments[index]))
-                                current[segments[index]] = new JsonObject { ["op"] = "object", ["members"] = new JsonObject() };
-                            current = current[segments[index]]!["members"]!.AsObject();
-                        }
-                        current.Add(segments[^1], copy);
-                    }
-                }
-                projection = rootProjection ?? objectProjection;
-            }
-            else
-            {
-                if (format is not ("json" or "yaml")) throw new DefinitionException("authoring-mapping");
-                projection = new JsonObject
-                {
-                    ["op"] = "copy",
-                    ["reference"] = new JsonObject { ["scope"] = "root", ["path"] = "" }
-                };
-            }
-            var artifact = new JsonObject
-            {
-                ["id"] = output.ContainsKey("id") ? output["id"]!.DeepClone() : JsonValue.Create(OutputId(fileName)),
-                ["fileName"] = fileName,
-                ["format"] = format,
-                ["targetUpdateMode"] = output.ContainsKey("targetUpdateMode") ? output["targetUpdateMode"]!.DeepClone() : JsonValue.Create("unspecified"),
-                ["restartRequirement"] = output.ContainsKey("restartRequirement") ? output["restartRequirement"]!.DeepClone() : JsonValue.Create("unspecified"),
-                ["projection"] = projection
-            };
-            foreach (string name in new[] { "title", "description", "consumerIds", "surface", "environmentDialect" })
-                if (output.ContainsKey(name)) artifact[name] = output[name]!.DeepClone();
-            Charge(artifact, budget, 3);
-            artifacts.Add(artifact);
-        }
-        return artifacts;
+        JsonObject configuration = source.DeepClone().AsObject();
+        DefinitionSchemaLowering.Lower(configuration, "/configuration", sourceMap);
+        return configuration;
     }
 
-    private static void Charge(JsonNode? node, CompositionBudget budget, int depth)
-    {
-        budget.Node(depth);
-        if (node is JsonObject map)
-            foreach ((string key, JsonNode? value) in map)
-            {
-                budget.Scalar(key);
-                Charge(value, budget, checked(depth + 1));
-            }
-        else if (node is JsonArray array)
-            foreach (JsonNode? child in array) Charge(child, budget, checked(depth + 1));
-        else if (node is JsonValue value && value.TryGetValue<string>(out string? text)) budget.Scalar(text);
-    }
-
-    public static string OutputId(string fileName) => ValidIdentifier("out-" + fileName) ? "out-" + fileName : "o-" + Hash("output:" + fileName);
-    private static string Hash(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
-    private static bool ValidIdentifier(string value) => value.Length is > 0 and <= 128 && char.IsAsciiLetter(value[0])
-        && value.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_');
-    private static bool IsDotenvKey(string key) => key.Length > 0 && (char.IsAsciiLetter(key[0]) || key[0] == '_')
-        && key.All(character => char.IsAsciiLetterOrDigit(character) || character == '_');
+    /// <summary>The deterministic artifact identifier assigned to an output that declares no explicit id.</summary>
+    public static string OutputId(string fileName) => DefinitionOutputLowering.OutputId(fileName);
     private static void Only(JsonObject node, params string[] allowed)
     {
         if (node.Any(pair => !allowed.Contains(pair.Key, StringComparer.Ordinal)))

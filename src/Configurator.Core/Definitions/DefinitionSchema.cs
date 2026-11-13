@@ -14,15 +14,18 @@ public static class DefinitionSchema
     {
         JsonObject schema = Closed(new JsonObject
         {
-            ["answerContractVersion"] = new JsonObject { ["const"] = AnswerSnapshotCodec.ContractVersion },
-            ["values"] = new JsonObject { ["type"] = "object" },
-            ["omitted"] = new JsonObject
+            ["answerContractVersion"] = Describe(new JsonObject { ["const"] = AnswerSnapshotCodec.ContractVersion },
+                "Private answer envelope contract version."),
+            ["values"] = Describe(new JsonObject { ["type"] = "object" },
+                "Answers keyed by root configuration field. Use `definition answer-schema` for a definition-specific schema."),
+            ["omitted"] = Describe(new JsonObject
             {
                 ["type"] = "array",
                 ["uniqueItems"] = true,
+                ["default"] = new JsonArray(),
                 ["items"] = new JsonObject { ["type"] = "string", ["maxLength"] = 65536, ["pattern"] = "^(?:/(?:[^~]|~[01])*)*$" }
-            }
-        }, "answerContractVersion", "values", "omitted");
+            }, "JSON Pointers deliberately left unset even when an initial value exists. Optional; defaults to none.")
+        }, "answerContractVersion", "values");
         Header(schema, "urn:islamu:configurator:answers:v" + ConfiguratorVersion.Current,
             "Configurator private answers " + ConfiguratorVersion.Current);
         return Render(schema);
@@ -55,14 +58,14 @@ public static class DefinitionSchema
         }, "id", "fileName", "format", "targetUpdateMode", "restartRequirement", "projection");
         JsonObject properties = new()
         {
-            ["project"] = project,
-            ["applicationVersions"] = Strings(128, 128),
-            ["entryPoints"] = Strings(128, 128),
-            ["configuration"] = Ref("node"),
-            ["presentation"] = Presentation(),
-            ["deployment"] = Deployment(),
-            ["localization"] = Localization(),
-            ["annotations"] = new JsonObject { ["type"] = "object" }
+            ["project"] = Describe(project, "Display identity of the configured application. Labels are not authentication."),
+            ["applicationVersions"] = Describe(Strings(128, 128), "Target application versions this definition was reviewed against."),
+            ["entryPoints"] = Describe(Strings(128, 128), "Named launch entry points; defaults to `setup` in authoring sources."),
+            ["configuration"] = Describe(Ref("node"), "Root object schema of every answer the definition collects."),
+            ["presentation"] = Describe(Presentation(), "Sections, collapsible groups and journeys. Layout never changes validation."),
+            ["deployment"] = Describe(Deployment(), "Recipe and scope selectors choosing which components and outputs apply."),
+            ["localization"] = Describe(Localization(), "Translations of display text addressed by JSON Pointer."),
+            ["annotations"] = Describe(new JsonObject { ["type"] = "object" }, "Free-form publisher notes; never interpreted.")
         };
         JsonObject schema;
         if (source)
@@ -75,22 +78,56 @@ public static class DefinitionSchema
             }, "familyId", "revision");
             JsonObject output = artifact.DeepClone().AsObject();
             output["properties"]!.AsObject().Remove("fileName");
-            output["properties"]!["bindings"] = new JsonObject
+            output["properties"]!["bindings"] = Describe(new JsonObject
             {
                 ["type"] = "object",
                 ["minProperties"] = 1,
                 ["maxProperties"] = 1024,
-                ["additionalProperties"] = Ref("reference")
-            };
+                ["additionalProperties"] = new JsonObject
+                {
+                    ["oneOf"] = new JsonArray(
+                        Describe(Pointer(), "Shorthand for a root-scoped copy of this configuration path."),
+                        Describe(Closed(new JsonObject { ["literal"] = new JsonObject() }, "literal"), "A constant output value."),
+                        Ref("reference"))
+                }
+            }, "Output targets (dotenv keys or JSON Pointers) mapped to configuration paths or literals.");
+            output["properties"]!["includeBindings"] = Describe(Strings(64, 128),
+                "Output file names whose bindings are reused first; explicit bindings override them.");
+            output["properties"]!["bindObject"] = Describe(new JsonObject
+            {
+                ["type"] = "array",
+                ["minItems"] = 1,
+                ["maxItems"] = 64,
+                ["items"] = new JsonObject
+                {
+                    ["oneOf"] = new JsonArray(Pointer(), Closed(new JsonObject
+                    {
+                        ["source"] = Pointer(),
+                        ["target"] = Pointer(),
+                        ["only"] = Strings(1024, 4096),
+                        ["except"] = Strings(1024, 4096)
+                    }, "source"))
+                }
+            }, "Binds every member of a configuration object by its key, optionally filtered and nested under a target.");
+            output["properties"]!["when"] = Describe(Ref("predicate"), "The output is prepared only while this predicate holds.");
             output["required"] = new JsonArray("format");
-            output["not"] = new JsonObject { ["required"] = new JsonArray("bindings", "projection") };
-            properties["outputs"] = new JsonObject
+            output["not"] = JsonNode.Parse("""
+                {"required":["projection"],"anyOf":[{"required":["bindings"]},{"required":["includeBindings"]},{"required":["bindObject"]}]}
+                """);
+            properties["outputs"] = Describe(new JsonObject
             {
                 ["type"] = "object",
                 ["minProperties"] = 1,
                 ["maxProperties"] = 64,
                 ["additionalProperties"] = output
-            };
+            }, "Prepared files keyed by file name.");
+            properties["predicates"] = Describe(new JsonObject
+            {
+                ["type"] = "object",
+                ["maxProperties"] = 256,
+                ["propertyNames"] = new JsonObject { ["minLength"] = 1, ["maxLength"] = 64 },
+                ["additionalProperties"] = Ref("predicate")
+            }, "Reusable named conditions, referenced as {\"op\":\"predicate\",\"name\":...} and inlined at compile time.");
             schema = Closed(properties, "$schema", "identity", "project", "applicationVersions", "configuration", "outputs");
             Header(schema, DefinitionAuthoringCodec.SchemaId, "Configurator authoring " + ConfiguratorVersion.Current);
         }
@@ -115,7 +152,7 @@ public static class DefinitionSchema
         }
         schema["$defs"] = new JsonObject
         {
-            ["node"] = Node(),
+            ["node"] = Node(source),
             ["reference"] = Closed(new JsonObject
             {
                 ["scope"] = Choice("root", "item"),
@@ -127,7 +164,7 @@ public static class DefinitionSchema
                 }
             }, "scope", "path"),
             ["projection"] = Projection(),
-            ["predicate"] = Predicate()
+            ["predicate"] = Predicate(source)
         };
         schema["allOf"] = JsonNode.Parse("""
             [{"properties":{"configuration":{"properties":{"type":{"const":"object"}},
@@ -172,7 +209,7 @@ public static class DefinitionSchema
         }, "recipePointer", "scopePointer", "components", "recipes");
     }
 
-    private static JsonObject Node()
+    private static JsonObject Node(bool source)
     {
         JsonObject properties = new()
         {
@@ -188,9 +225,11 @@ public static class DefinitionSchema
                     ["contains"] = new JsonObject { ["const"] = "null" }
                 })
             },
-            ["title"] = Text(256),
-            ["description"] = Text(4096),
-            ["format"] = Text(256),
+            ["title"] = Describe(Text(256), "Display title. When omitted, the key is humanized (`PUBLIC_BASE_URL` shows as `Public Base URL`)."),
+            ["description"] = Describe(Text(4096), "Help text shown with the field."),
+            ["format"] = source
+                ? Describe(Choice(DefinitionFormatValidator.Formats.ToArray()), "Asserted lexical format. Every listed format is validated automatically in linear time.")
+                : Describe(Text(256), "Lexical format. Asserted formats are validated automatically; other tokens are annotations."),
             ["properties"] = new JsonObject { ["type"] = "object", ["additionalProperties"] = Ref("node") },
             ["$defs"] = new JsonObject { ["type"] = "object", ["maxProperties"] = 1024, ["additionalProperties"] = Ref("node") },
             ["$ref"] = new JsonObject { ["type"] = "string", ["maxLength"] = 65536, ["pattern"] = "^#/" },
@@ -256,7 +295,7 @@ public static class DefinitionSchema
             ["readOnly"] = new JsonObject { ["type"] = "boolean" },
             ["writeOnly"] = new JsonObject { ["type"] = "boolean" },
             ["deprecated"] = new JsonObject { ["type"] = "boolean" },
-            ["x-configurator"] = Extension()
+            ["x-configurator"] = Describe(Extension(source), "Configurator semantics: sensitivity, guidance, choices, ordering, widgets and applicability.")
         };
         foreach (string name in new[] { "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum" })
             properties[name] = new JsonObject { ["type"] = "number" };
@@ -289,19 +328,50 @@ public static class DefinitionSchema
         ["required"] = Strings(1024, 65536)
     }, "required");
 
-    private static JsonObject Extension() => Closed(new JsonObject
+    private static JsonObject Extension(bool source) => Closed(new JsonObject
     {
-        ["sensitivity"] = Choice(DefinitionVocabulary.Sensitivities),
-        ["initialValue"] = new JsonObject(),
-        ["suggestedValue"] = new JsonObject(),
-        ["notBlank"] = new JsonObject { ["type"] = "boolean" },
-        ["detail"] = Choice("basic", "standard", "advanced"),
-        ["units"] = Text(128),
-        ["uniqueBy"] = new JsonObject { ["type"] = "string", ["minLength"] = 1, ["maxLength"] = 65536 },
-        ["applicableWhen"] = Ref("predicate"),
-        ["assertFormat"] = new JsonObject { ["type"] = "boolean" },
-        ["secret"] = DefinitionSecretSchema.Create(),
-        ["guidance"] = Closed(new JsonObject
+        ["sensitivity"] = Describe(Choice(DefinitionVocabulary.Sensitivities),
+            "Custody floor. Omitted means `sensitive`; `secret` values never appear in public metadata."),
+        ["initialValue"] = Describe(new JsonObject(),
+            "Public value prepared when the answer is absent. It never supplies a protected member; an object may "
+            + "open with absent required members, which become operator obligations."),
+        ["suggestedValue"] = Describe(new JsonObject(), "Public value offered to the operator but never applied automatically."),
+        ["notBlank"] = Describe(new JsonObject { ["type"] = "boolean" }, "Rejects whitespace-only text."),
+        ["detail"] = Describe(Choice("basic", "standard", "advanced"), "Progressive disclosure level."),
+        ["units"] = Describe(Text(128), "Unit label shown beside the value, for example `seconds`."),
+        ["uniqueBy"] = Describe(new JsonObject
+        {
+            ["oneOf"] = new JsonArray(Pointer(), new JsonObject
+            {
+                ["type"] = "array",
+                ["minItems"] = 1,
+                ["maxItems"] = 8,
+                ["uniqueItems"] = true,
+                ["items"] = Pointer()
+            })
+        }, "Item-relative pointer, or pointers forming a composite key, that must be unique across list rows."),
+        ["applicableWhen"] = Describe(Ref("predicate"), "The field is collected only while this predicate holds."),
+        ["requiredWhen"] = Describe(Ref("predicate"),
+            "A collected object member must be supplied while this predicate holds. It may read any answer, "
+            + "and the member must not also be listed in `required`."),
+        ["propertyOrder"] = Describe(Strings(1025, 65536),
+            "Display order of object members; `*` places every unlisted member. Never changes canonical identity."),
+        ["order"] = Describe(new JsonObject { ["type"] = "integer", ["minimum"] = -1000000, ["maximum"] = 1000000 },
+            "Display rank among sibling members without an explicit `propertyOrder`."),
+        ["placeholder"] = Describe(Text(256), "Example input shown in an empty editor. Never a value; public fields only."),
+        ["defaultText"] = Describe(Text(1024), "Explains what the target does when the field is omitted. Never a value."),
+        ["deprecationMessage"] = Describe(Text(2048), "Guidance for a field marked `deprecated: true`."),
+        ["widget"] = Describe(Choice(DefinitionFieldPresentationMetadata.WidgetTokens), "Preferred editor; clients may fall back to `auto`."),
+        ["rows"] = Describe(new JsonObject { ["type"] = "integer", ["minimum"] = 1, ["maximum"] = 64 },
+            "Visible lines for `multiline`, `markdown` and `code` widgets."),
+        ["syntax"] = Describe(new JsonObject { ["type"] = "string", ["minLength"] = 1, ["maxLength"] = 32 },
+            "Highlighting language for the `code` widget, for example `json`."),
+        ["booleanLabels"] = Describe(Closed(new JsonObject { ["true"] = Text(128), ["false"] = Text(128) }, "true", "false"),
+            "Display labels for the two boolean states."),
+        ["itemTitlePointer"] = Describe(Pointer(), "Item-relative pointer of a public scalar that titles each list row."),
+        ["displayRawKey"] = Describe(new JsonObject { ["type"] = "boolean" }, "Shows the exact key instead of the humanized title."),
+        ["secret"] = Describe(DefinitionSecretSchema.Create(), "Secret kind, acquisition, encoding, constraints and local generation."),
+        ["guidance"] = Describe(Closed(new JsonObject
         {
             ["instructions"] = Text(4096),
             ["links"] = new JsonObject
@@ -315,14 +385,23 @@ public static class DefinitionSchema
                 }, "title", "url")
             },
             ["searchTerms"] = Strings(16, 64, minimum: 0)
-        }),
-        ["choices"] = new JsonObject
+        }), "Operator instructions, public HTTPS links and search terms."),
+        ["choices"] = Describe(new JsonObject
         {
             ["type"] = "array",
             ["minItems"] = 1,
             ["maxItems"] = 256,
-            ["items"] = Closed(new JsonObject { ["value"] = new JsonObject(), ["label"] = Text(256), ["explanation"] = Text(2048) }, "value", "label")
-        }
+            ["items"] = Closed(new JsonObject
+            {
+                ["value"] = new JsonObject(),
+                ["label"] = Text(256),
+                ["explanation"] = Text(2048),
+                ["deprecated"] = new JsonObject { ["type"] = "boolean" },
+                ["deprecationMessage"] = Text(2048)
+            }, "value")
+        }, source
+            ? "Enum member metadata. Without `enum`, the choices define it in order; unlabeled values are humanized."
+            : "Metadata for a subset of `enum` members; unlabeled values are humanized.")
     });
 
     private static JsonObject Projection()
@@ -351,7 +430,7 @@ public static class DefinitionSchema
         return new JsonObject { ["oneOf"] = alternatives };
     }
 
-    private static JsonObject Predicate()
+    private static JsonObject Predicate(bool source)
     {
         var alternatives = new JsonArray();
         foreach (string operation in new[] { "exists", "equals", "notEquals", "in", "all", "any", "not" })
@@ -386,61 +465,99 @@ public static class DefinitionSchema
             }
             alternatives.Add(Closed(properties, required.ToArray()));
         }
+        if (source)
+            alternatives.Add(Describe(Closed(new JsonObject
+            {
+                ["op"] = new JsonObject { ["const"] = "predicate" },
+                ["name"] = Text(64)
+            }, "op", "name"), "Reference to a named root predicate, inlined at compile time."));
         return new JsonObject { ["oneOf"] = alternatives };
     }
 
-    private static JsonObject Presentation() => Closed(new JsonObject
+    private static JsonObject Presentation()
     {
-        ["defaultJourney"] = Text(64),
-        ["navigation"] = Choice("wizard", "sections"),
-        ["outputSelector"] = Closed(new JsonObject
+        JsonObject group = Closed(new JsonObject
         {
-            ["pointer"] = new JsonObject
+            ["id"] = Text(64),
+            ["title"] = Text(128),
+            ["description"] = Text(2048),
+            ["pointers"] = Describe(new JsonObject
             {
-                ["type"] = "string",
-                ["maxLength"] = 65536,
-                ["pattern"] = "^/(?:[^/~]|~[01])*$"
-            },
-            ["options"] = new JsonObject
+                ["type"] = "array",
+                ["minItems"] = 1,
+                ["maxItems"] = 1024,
+                ["uniqueItems"] = true,
+                ["items"] = Pointer()
+            }, "Settings in this group; each lies within one of the section's pointers."),
+            ["detail"] = Choice("basic", "standard", "advanced"),
+            ["applicableWhen"] = Ref("predicate"),
+            ["collapsed"] = Describe(new JsonObject { ["type"] = "boolean" }, "Starts collapsed.")
+        }, "id", "title", "pointers");
+        return Closed(new JsonObject
+        {
+            ["defaultJourney"] = Text(64),
+            ["navigation"] = Choice("wizard", "sections"),
+            ["outputSelector"] = Describe(Closed(new JsonObject
+            {
+                ["pointer"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["maxLength"] = 65536,
+                    ["pattern"] = "^(?:/(?:[^/~]|~[01])*)+$"
+                },
+                ["options"] = new JsonObject
+                {
+                    ["type"] = "array",
+                    ["minItems"] = 1,
+                    ["maxItems"] = 64,
+                    ["items"] = Closed(new JsonObject
+                    {
+                        ["value"] = new JsonObject { ["type"] = "string", ["maxLength"] = 65536 },
+                        ["title"] = Text(128),
+                        ["artifactIds"] = Strings(64, 128)
+                    }, "value", "title", "artifactIds")
+                }
+            }, "pointer", "options"), "Public required enum whose value picks the prepared output set."),
+            ["sections"] = new JsonObject
             {
                 ["type"] = "array",
                 ["minItems"] = 1,
                 ["maxItems"] = 64,
                 ["items"] = Closed(new JsonObject
                 {
-                    ["value"] = new JsonObject { ["type"] = "string", ["maxLength"] = 65536 },
+                    ["id"] = Text(64),
                     ["title"] = Text(128),
-                    ["artifactIds"] = Strings(64, 128)
-                }, "value", "title", "artifactIds")
+                    ["description"] = Text(2048),
+                    ["pointers"] = Describe(new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["maxItems"] = 1024,
+                        ["uniqueItems"] = true,
+                        ["items"] = Pointer()
+                    }, "Settings shown by this section; nested pointers such as `/server/domain` are allowed."),
+                    ["detail"] = Choice("basic", "standard", "advanced"),
+                    ["applicableWhen"] = Ref("predicate"),
+                    ["groups"] = Describe(new JsonObject { ["type"] = "array", ["maxItems"] = 32, ["items"] = group },
+                        "Collapsible groups organizing the section's settings.")
+                }, "id", "title", "pointers")
+            },
+            ["journeys"] = new JsonObject
+            {
+                ["type"] = "array",
+                ["minItems"] = 1,
+                ["maxItems"] = 16,
+                ["items"] = Closed(new JsonObject
+                {
+                    ["id"] = Text(64),
+                    ["title"] = Text(128),
+                    ["description"] = Text(2048),
+                    ["sections"] = Strings(64, 64),
+                    ["detail"] = Choice("basic", "standard", "advanced"),
+                    ["applicableWhen"] = Ref("predicate")
+                }, "id", "title", "sections")
             }
-        }, "pointer", "options"),
-        ["sections"] = new JsonObject
-        {
-            ["type"] = "array",
-            ["minItems"] = 1,
-            ["maxItems"] = 64,
-            ["items"] = Closed(new JsonObject
-            {
-                ["id"] = Text(64),
-                ["title"] = Text(128),
-                ["description"] = Text(2048),
-                ["pointers"] = new JsonObject { ["type"] = "array", ["uniqueItems"] = true, ["items"] = new JsonObject { ["type"] = "string" } }
-            }, "id", "title", "pointers")
-        },
-        ["journeys"] = new JsonObject
-        {
-            ["type"] = "array",
-            ["minItems"] = 1,
-            ["maxItems"] = 16,
-            ["items"] = Closed(new JsonObject
-            {
-                ["id"] = Text(64),
-                ["title"] = Text(128),
-                ["description"] = Text(2048),
-                ["sections"] = Strings(64, 64)
-            }, "id", "title", "sections")
-        }
-    }, "sections", "journeys", "defaultJourney");
+        }, "sections", "journeys", "defaultJourney");
+    }
 
     private static JsonObject Localization() => Closed(new JsonObject
     {
@@ -464,6 +581,12 @@ public static class DefinitionSchema
         schema["title"] = title;
     }
     private static JsonObject Ref(string name) => new() { ["$ref"] = "#/$defs/" + name };
+    private static JsonObject Pointer() => new() { ["type"] = "string", ["maxLength"] = 65536, ["pattern"] = "^(?:/(?:[^~]|~[01])*)*$" };
+    private static JsonObject Describe(JsonObject schema, string description)
+    {
+        schema["description"] = description;
+        return schema;
+    }
     private static JsonObject Text(int maximum) => new() { ["type"] = "string", ["minLength"] = 1, ["maxLength"] = maximum };
     internal static JsonObject Choice(params string[] values) => new()
     {

@@ -137,7 +137,8 @@ internal static class DefinitionNodeReader
         if (hasExtension)
         {
             Only(extension, "sensitivity", "initialValue", "suggestedValue", "notBlank", "detail", "guidance", "secret", "choices", "units",
-                "uniqueBy", "applicableWhen", "assertFormat");
+                "uniqueBy", "applicableWhen", "requiredWhen", "propertyOrder", "order", "placeholder", "defaultText", "deprecationMessage",
+                "widget", "rows", "syntax", "booleanLabels", "itemTitlePointer", "displayRawKey");
             if (extension.TryGetProperty("sensitivity", out var declared))
             {
                 sensitivity = declared.GetString()!;
@@ -198,6 +199,11 @@ internal static class DefinitionNodeReader
                     required.Add(key);
                 }
             }
+            // A member is either unconditionally required or required while its condition holds, never both.
+            if (properties.Any(pair => required.Contains(pair.Key, StringComparer.Ordinal)
+                    && pair.Value.Keywords.TryGetProperty("x-configurator", out JsonElement member)
+                    && member.TryGetProperty("requiredWhen", out _)))
+                throw new DefinitionException("relationship-invalid");
         }
         else if (schema.TryGetProperty("properties", out _) || schema.TryGetProperty("required", out _)
             || schema.TryGetProperty("additionalProperties", out _)) throw new DefinitionException("constraint-context");
@@ -374,28 +380,21 @@ internal static class DefinitionNodeReader
         }
         if (hasExtension)
         {
-            if (extension.TryGetProperty("assertFormat", out JsonElement asserted))
-            {
-                bool enabled = asserted.GetBoolean();
-                if (nodeType != DefinitionNodeType.Text || enabled && (!schema.TryGetProperty("format", out JsonElement format) ||
-                    format.GetString() is not ("hostname" or "email-address" or "uri" or "http-url")))
-                    throw new DefinitionException("format-unsupported");
-                if (enabled) capabilities.Add("schema.assertFormat");
-            }
             if (extension.TryGetProperty("uniqueBy", out var uniqueBy))
             {
                 if (nodeType != DefinitionNodeType.Sequence || items?.Type != DefinitionNodeType.Mapping)
                     throw new DefinitionException("unique-key-invalid");
-                DefinitionPath path = DefinitionPath.Parse(uniqueBy.GetString()!);
-                if (path.Segments.Count == 0) throw new DefinitionException("unique-key-invalid");
-                DefinitionNode current = items;
-                foreach (string name in path.Segments)
-                    if (current.Type != DefinitionNodeType.Mapping
-                        || !current.Required.Contains(name, StringComparer.Ordinal)
-                        || !current.Properties.TryGetValue(name, out current!))
+                foreach (DefinitionPath path in DefinitionUniqueKey.Paths(uniqueBy))
+                {
+                    DefinitionNode current = items;
+                    foreach (string name in path.Segments)
+                        if (current.Type != DefinitionNodeType.Mapping
+                            || !current.Required.Contains(name, StringComparer.Ordinal)
+                            || !current.Properties.TryGetValue(name, out current!))
+                            throw new DefinitionException("unique-key-invalid");
+                    if (current.Type != DefinitionNodeType.Text || current.IsNullable)
                         throw new DefinitionException("unique-key-invalid");
-                if (current.Type != DefinitionNodeType.Text || current.IsNullable)
-                    throw new DefinitionException("unique-key-invalid");
+                }
                 capabilities.Add("schema.uniqueBy");
             }
             if (extension.TryGetProperty("notBlank", out var notBlank))
@@ -406,24 +405,20 @@ internal static class DefinitionNodeReader
             if (extension.TryGetProperty("detail", out _)) Choice(extension, "detail", "basic", "standard", "advanced");
             if (extension.TryGetProperty("units", out var units)) Text(units, 128);
             if (extension.TryGetProperty("guidance", out var guidance)) ValidateGuidance(guidance);
-            if (extension.TryGetProperty("choices", out var labels))
-            {
-                if (!schema.TryGetProperty("enum", out var enumValues) || labels.GetArrayLength() != enumValues.GetArrayLength())
-                    throw new DefinitionException("choices-invalid");
-                var seen = new HashSet<string>(StringComparer.Ordinal);
-                foreach (JsonElement label in labels.EnumerateArray())
-                {
-                    Only(label, "value", "label", "explanation");
-                    string value = label.GetProperty("value").GetRawText();
-                    if (!seen.Add(value) || !enumValues.EnumerateArray().Any(item => item.GetRawText() == value))
-                        throw new DefinitionException("choices-invalid");
-                    Text(label.GetProperty("label"), 256);
-                    if (label.TryGetProperty("explanation", out var explanation)) Text(explanation, 2048);
-                }
-            }
+            if (extension.TryGetProperty("choices", out var labels)) ValidateChoices(schema, labels);
+            if (extension.TryGetProperty("propertyOrder", out _) && nodeType != DefinitionNodeType.Mapping)
+                throw new DefinitionException("property-order-invalid");
+            if (extension.TryGetProperty("order", out var rank)
+                && (rank.ValueKind != JsonValueKind.Number || !rank.TryGetInt32(out int position)
+                    || position is < -1_000_000 or > 1_000_000))
+                throw new DefinitionException("property-order-invalid");
+            ValidatePresentationMetadata(schema, extension, nodeType, items);
         }
         bool protectedTree = !publicContext || properties.Values.Concat(variants).Any(Protected) ||
             items is not null && Protected(items) || map is not null && Protected(map);
+        // A placeholder is an input exemplar, so it follows the same public-only floor as examples.
+        if (hasExtension && extension.TryGetProperty("placeholder", out _) && protectedTree)
+            throw new DefinitionException("public-value-protected");
         foreach (string name in new[] { "default", "const", "examples" })
             if (schema.TryGetProperty(name, out var value))
             {
@@ -438,11 +433,129 @@ internal static class DefinitionNodeReader
         foreach (string name in new[] { "initialValue", "suggestedValue" })
             if (hasExtension && extension.TryGetProperty(name, out var value))
             {
-                if (protectedTree || !DefinitionValidator.ValueValid(node, value)) throw new DefinitionException("public-value-invalid");
+                // A public container may open with an initial value that holds protected members, provided the value
+                // itself supplies none of them; absent required members then become operator obligations.
+                bool opensContainer = name == "initialValue" && publicContext && !SuppliesProtected(node, value);
+                if (protectedTree && !opensContainer
+                    || !DefinitionValidator.ValueValid(node, value, requireMembers: name != "initialValue"))
+                    throw new DefinitionException("public-value-invalid");
                 capabilities.Add(name == "initialValue" ? "values.initial" : "values.suggested");
             }
         return node;
     }
+
+    /// <summary>
+    /// Admits partial choice metadata: each entry annotates one distinct <c>enum</c> member, labels are optional
+    /// (omitted labels humanize), and a deprecation message requires the member to be deprecated.
+    /// </summary>
+    private static void ValidateChoices(JsonElement schema, JsonElement entries)
+    {
+        if (!schema.TryGetProperty("enum", out JsonElement enumValues) || entries.ValueKind != JsonValueKind.Array
+            || entries.GetArrayLength() is < 1 || entries.GetArrayLength() > enumValues.GetArrayLength())
+            throw new DefinitionException("choices-invalid");
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonElement entry in entries.EnumerateArray())
+        {
+            Only(entry, "value", "label", "explanation", "deprecated", "deprecationMessage");
+            string value = entry.GetProperty("value").GetRawText();
+            if (!seen.Add(value) || !enumValues.EnumerateArray().Any(item => JsonElement.DeepEquals(item, entry.GetProperty("value"))))
+                throw new DefinitionException("choices-invalid");
+            if (entry.TryGetProperty("label", out var label)) Text(label, 256);
+            if (entry.TryGetProperty("explanation", out var explanation)) Text(explanation, 2048);
+            bool deprecated = entry.TryGetProperty("deprecated", out var flag) && flag.GetBoolean();
+            if (entry.TryGetProperty("deprecationMessage", out var message))
+            {
+                if (!deprecated) throw new DefinitionException("deprecation-invalid");
+                Text(message, 2048);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Admits non-value display metadata. Text uses the shared markup-free floor; widget-specific options require
+    /// a compatible widget and node type so clients never receive contradictory hints.
+    /// </summary>
+    private static void ValidatePresentationMetadata(JsonElement schema, JsonElement extension, DefinitionNodeType nodeType,
+        DefinitionNode? items)
+    {
+        bool scalar = nodeType is DefinitionNodeType.Text or DefinitionNodeType.Number or DefinitionNodeType.WholeNumber;
+        if (extension.TryGetProperty("placeholder", out var placeholder))
+        {
+            Text(placeholder, 256);
+            if (!scalar) throw new DefinitionException("constraint-context");
+        }
+        if (extension.TryGetProperty("defaultText", out var defaultText)) Text(defaultText, 1024);
+        if (extension.TryGetProperty("deprecationMessage", out var deprecation))
+        {
+            Text(deprecation, 2048);
+            if (!schema.TryGetProperty("deprecated", out var deprecated) || !deprecated.GetBoolean())
+                throw new DefinitionException("deprecation-invalid");
+        }
+        if (extension.TryGetProperty("displayRawKey", out var raw)) _ = raw.GetBoolean();
+        DefinitionFieldWidget widget = DefinitionFieldWidget.Auto;
+        if (extension.TryGetProperty("widget", out var declared))
+        {
+            widget = DefinitionFieldPresentationMetadata.ParseWidget(declared.GetString());
+            bool compatible = widget switch
+            {
+                DefinitionFieldWidget.Auto => true,
+                DefinitionFieldWidget.SingleLine or DefinitionFieldWidget.MultiLine or DefinitionFieldWidget.Markdown
+                    or DefinitionFieldWidget.Code => nodeType == DefinitionNodeType.Text,
+                DefinitionFieldWidget.Select or DefinitionFieldWidget.Radio => schema.TryGetProperty("enum", out _),
+                DefinitionFieldWidget.Switch => nodeType == DefinitionNodeType.Boolean,
+                DefinitionFieldWidget.Slider => nodeType is DefinitionNodeType.Number or DefinitionNodeType.WholeNumber
+                    && (schema.TryGetProperty("minimum", out _) || schema.TryGetProperty("exclusiveMinimum", out _))
+                    && (schema.TryGetProperty("maximum", out _) || schema.TryGetProperty("exclusiveMaximum", out _)),
+                _ => false
+            };
+            if (!compatible) throw new DefinitionException("widget-invalid");
+        }
+        if (extension.TryGetProperty("rows", out var rows) && (widget is not (DefinitionFieldWidget.MultiLine
+            or DefinitionFieldWidget.Markdown or DefinitionFieldWidget.Code) || !rows.TryGetInt32(out int count) || count is < 1 or > 64))
+            throw new DefinitionException("widget-invalid");
+        if (extension.TryGetProperty("syntax", out var syntax) && (widget != DefinitionFieldWidget.Code
+            || syntax.GetString() is not { Length: > 0 and <= 32 } language
+            || !language.All(character => char.IsAsciiLetterLower(character) || char.IsAsciiDigit(character) || character is '-' or '+' or '#')))
+            throw new DefinitionException("widget-invalid");
+        if (extension.TryGetProperty("booleanLabels", out var booleanLabels))
+        {
+            if (nodeType != DefinitionNodeType.Boolean) throw new DefinitionException("widget-invalid");
+            Only(booleanLabels, "true", "false");
+            Text(booleanLabels.GetProperty("true"), 128);
+            Text(booleanLabels.GetProperty("false"), 128);
+        }
+        if (extension.TryGetProperty("itemTitlePointer", out var titlePointer))
+        {
+            if (nodeType != DefinitionNodeType.Sequence || items is not { Type: DefinitionNodeType.Mapping })
+                throw new DefinitionException("item-title-invalid");
+            DefinitionPath path = DefinitionPath.Parse(titlePointer.GetString()!);
+            DefinitionNode current = items;
+            foreach (string name in path.Segments)
+                if (current.Type != DefinitionNodeType.Mapping || !current.Properties.TryGetValue(name, out current!))
+                    throw new DefinitionException("item-title-invalid");
+            // Row titles are visible in collapsed summaries, so only public scalars may title a row.
+            if (path.Segments.Count == 0 || current.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence
+                || Protected(current)) throw new DefinitionException("item-title-invalid");
+        }
+    }
+
+    /// <summary>True when <paramref name="value"/> carries data for a node that is itself non-public or write-only.</summary>
+    private static bool SuppliesProtected(DefinitionNode node, JsonElement value)
+    {
+        if (OwnProtected(node) || node.Variants.Count > 0) return true;
+        if (value.ValueKind == JsonValueKind.Object && node.Type == DefinitionNodeType.Mapping)
+            return value.EnumerateObject().Any(member =>
+                (node.Properties.GetValueOrDefault(member.Name) ?? node.AdditionalProperties) is not { } child
+                || SuppliesProtected(child, member.Value));
+        if (value.ValueKind == JsonValueKind.Array && node.Items is { } items)
+            return value.EnumerateArray().Any(item => SuppliesProtected(items, item));
+        return false;
+    }
+
+    private static bool OwnProtected(DefinitionNode node) =>
+        node.Keywords.TryGetProperty("writeOnly", out var write) && write.GetBoolean()
+        || !node.Keywords.TryGetProperty("x-configurator", out var extension)
+        || !extension.TryGetProperty("sensitivity", out var sensitivity) || sensitivity.GetString() != "public";
 
     private static bool Protected(DefinitionNode node) =>
         node.Keywords.TryGetProperty("writeOnly", out var write) && write.GetBoolean()

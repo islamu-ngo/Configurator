@@ -426,7 +426,7 @@ public sealed class DefinitionImportAssessmentTests
         using var bytes = new MemoryStream();
         await source.CopyToAsync(bytes);
         Definition definition = DefinitionCodec.ParseJson(bytes.ToArray());
-        AnswerSnapshot context = DefinitionFixture.Answers("""{"operation":"environment","deployment.recipe":"separate-images","deployment.scope":"blazor","env.AUTHENTICATION_PROVIDER":"local","env.SECRET_PROVIDER":"Environment"}""");
+        AnswerSnapshot context = DefinitionFixture.Answers("""{"operation":"environment","deployment":{"recipe":"separate-images","scope":"blazor"},"platform":{"authenticationProvider":"local"},"secrets":{"provider":"Environment"}}""");
         DefinitionImportCapability capability = DefinitionImport.GetCapability(definition, "environment-blazor", context);
         Console.WriteLine($"COMPARISON_PROJECTION family={definition.FamilyId:D} digest={definition.Digest.Value} code={capability.Code}");
         await Assert.That(capability.StrictAutofillSupported).IsTrue().Because(capability.Code);
@@ -462,7 +462,7 @@ public sealed class DefinitionImportAssessmentTests
         DefinitionImportResult result = assessment.AssessAutofill(Empty());
         await Assert.That(result.Succeeded).IsTrue();
         await Assert.That(result.Answers!.Values["operation"].GetString()).IsEqualTo("configuration-manifest");
-        await Assert.That(result.Answers.Values["configuration-manifest.tenants"][0]
+        await Assert.That(result.Answers.Values["configurationManifest"].GetProperty("tenants")[0]
             .GetProperty("metadata").GetProperty("name").GetString()).IsEqualTo("community");
         await Assert.That(assessment.Report.WorkUnits).IsLessThanOrEqualTo(131_072);
     }

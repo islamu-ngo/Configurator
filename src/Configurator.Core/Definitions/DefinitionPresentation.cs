@@ -29,6 +29,9 @@ public sealed record DefinitionPresentation
         data.TryGetProperty(name, out var values)
             ? values.EnumerateArray().Select(value => value.GetString()!).ToArray() : []);
 
+    internal static JsonElement? Condition(JsonElement data) =>
+        data.TryGetProperty("applicableWhen", out var condition) ? condition.Clone() : null;
+
     internal static FieldDisclosure DisclosureValue(string? value) => value switch
     {
         "basic" => FieldDisclosure.Essential,

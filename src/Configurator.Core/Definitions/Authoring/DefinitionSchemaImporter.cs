@@ -203,8 +203,16 @@ public static class DefinitionSchemaImporter
                     foreach (JsonProperty property in properties.EnumerateObject().OrderBy(item => item.Name, StringComparer.Ordinal))
                     {
                         Charge(JsonSerializer.SerializeToUtf8Bytes(property.Name).Length + 1);
-                        fields[property.Name] = Field(property.Value, document, depth + 1, stack,
+                        JsonObject field = Field(property.Value, document, depth + 1, stack,
                             At(At(location, "properties"), property.Name), secret);
+                        // A title that only repeats the key adds noise; the compiler humanizes untitled keys.
+                        if (field["title"] is JsonValue title && title.GetValue<string>() == property.Name)
+                        {
+                            field.Remove("title");
+                            Report("converted", "schema-redundant-title-removed", document,
+                                At(At(At(location, "properties"), property.Name), "title"));
+                        }
+                        fields[property.Name] = field;
                     }
                     result["properties"] = fields;
                 }

@@ -18,8 +18,8 @@ public sealed class Definition
         Configuration = configuration;
         SourceMap = sourceMap ?? DefinitionSourceMap.Empty;
         FieldSensitivity inherited = FieldDefinition.SensitivityOf(configuration);
-        Fields = Array.AsReadOnly(configuration.Properties.Select(item => new FieldDefinition(
-            item.Key, item.Value, configuration.Required.Contains(item.Key, StringComparer.Ordinal), inherited)).ToArray());
+        Fields = Array.AsReadOnly(configuration.OrderedPropertyNames.Select(name => new FieldDefinition(
+            name, configuration.Properties[name], configuration.Required.Contains(name, StringComparer.Ordinal), inherited)).ToArray());
         Artifacts = Array.AsReadOnly(document.GetProperty("artifacts").EnumerateArray()
             .Select(item => new ArtifactDefinition(item)).ToArray());
         ScopeIndex = new DefinitionScopeIndex(Artifacts);

@@ -71,41 +71,64 @@ internal static partial class DefinitionAdmission
         if (document.TryGetProperty("deployment", out var deployment))
             ValidateDeployment(deployment, configuration, artifacts, capabilities);
         if (document.TryGetProperty("presentation", out var presentation))
-            ValidatePresentation(presentation, configuration, artifacts);
+            ValidatePresentation(presentation, configuration, artifacts, capabilities);
         return configuration;
 
     }
 
+    /// <summary>
+    /// Admits field applicability as an acyclic graph. Root-scoped references are tracked by full path, so a nested
+    /// member may depend on a sibling inside the same root object, while a condition may never depend on its own
+    /// node, an ancestor or a descendant. Members of one mapping are ordered by the siblings their subtrees read.
+    /// </summary>
     private static void ValidateApplicability(DefinitionNode root, SortedSet<string> capabilities)
     {
         if (root.Keywords.TryGetProperty("x-configurator", out var rootMetadata)
-            && rootMetadata.TryGetProperty("applicableWhen", out _)) throw new DefinitionException("condition-context");
+            && (rootMetadata.TryGetProperty("applicableWhen", out _) || rootMetadata.TryGetProperty("requiredWhen", out _)))
+            throw new DefinitionException("condition-context");
         if (root.Variants.Count > 0)
         {
             foreach (DefinitionNode branch in root.Variants) ValidateApplicability(branch, capabilities);
             return;
         }
-        ValidateScope(root, null);
+        ValidateScope(root, null, [], []);
 
-        void ValidateScope(DefinitionNode scope, DefinitionNode? item)
+        // location is the addressable root path of scope, or null inside list items and map entries;
+        // enclosing is the deepest addressable ancestor, used to reject references into the own collection.
+        void ValidateScope(DefinitionNode scope, DefinitionNode? item, IReadOnlyList<string>? location,
+            IReadOnlyList<string> enclosing)
         {
+            // Requiredness belongs to a named mapping member; list items, map entries and branches have none.
+            if (scope.Variants.Concat(scope.Items is null ? [] : [scope.Items])
+                    .Concat(scope.AdditionalProperties is null ? [] : [scope.AdditionalProperties])
+                    .Any(child => child.Keywords.TryGetProperty("x-configurator", out JsonElement extension)
+                        && extension.TryGetProperty("requiredWhen", out _)))
+                throw new DefinitionException("condition-context");
             foreach (DefinitionNode branch in scope.Variants)
-                ValidateScope(branch, ReferenceEquals(scope, item) ? branch : item);
+                ValidateScope(branch, ReferenceEquals(scope, item) ? branch : item, location, enclosing);
             var dependencies = new Dictionary<string, string[]>(StringComparer.Ordinal);
             foreach ((string name, DefinitionNode node) in scope.Properties)
             {
-                string[] references = [];
-                if (node.Keywords.TryGetProperty("x-configurator", out var metadata)
-                    && metadata.TryGetProperty("applicableWhen", out var condition))
+                IReadOnlyList<string>? childLocation = location is null ? null : [.. location, name];
+                IReadOnlyList<string> childEnclosing = childLocation ?? enclosing;
+                foreach (JsonElement condition in DefinitionValidator.NodeConditions(node))
+                {
                     ValidateCondition(condition, root, capabilities, item);
-                if (ReferenceEquals(scope, root) || ReferenceEquals(scope, item))
-                    references = DefinitionValidator.SchemaReferences(node, item is null ? "root" : "item")
-                        .Where(scope.Properties.ContainsKey).ToArray();
+                    foreach (DefinitionPath reference in DefinitionValidator.ConditionReferencePaths(condition, "root"))
+                        if (Related(reference.Segments, childEnclosing)) throw new DefinitionException("activation-cycle");
+                }
+                string[] references = [];
+                if (ReferenceEquals(scope, item))
+                    references = DefinitionValidator.SchemaReferences(node, "item").Where(scope.Properties.ContainsKey).ToArray();
+                else if (location is not null)
+                    references = DefinitionValidator.SiblingDependencies(
+                        DefinitionImportWork.CompleteSynchronously(DefinitionValidator.SchemaReferencePathsAsync(node)),
+                        location, name, scope).ToArray();
                 dependencies.Add(name, references);
-                ValidateScope(node, item);
+                ValidateScope(node, item, childLocation, childEnclosing);
             }
-            if (scope.Items is { } row) ValidateScope(row, row);
-            if (scope.AdditionalProperties is { } map) ValidateScope(map, item);
+            if (scope.Items is { } row) ValidateScope(row, row, null, location ?? enclosing);
+            if (scope.AdditionalProperties is { } map) ValidateScope(map, item, null, location ?? enclosing);
             var visited = new HashSet<string>(StringComparer.Ordinal);
             var visiting = new HashSet<string>(StringComparer.Ordinal);
             foreach (string name in scope.Properties.Keys) Visit(name);
@@ -118,6 +141,13 @@ internal static partial class DefinitionAdmission
                 visiting.Remove(name);
                 visited.Add(name);
             }
+        }
+
+        // A reference is self-referential when it targets the node itself, an ancestor or a descendant.
+        static bool Related(IReadOnlyList<string> reference, IReadOnlyList<string> location)
+        {
+            int shared = Math.Min(reference.Count, location.Count);
+            return shared > 0 && reference.Take(shared).SequenceEqual(location.Take(shared), StringComparer.Ordinal);
         }
     }
 
@@ -276,32 +306,40 @@ internal static partial class DefinitionAdmission
         };
     }
 
-    private static void ValidatePresentation(JsonElement presentation, DefinitionNode root, JsonElement artifacts)
+    private static void ValidatePresentation(JsonElement presentation, DefinitionNode root, JsonElement artifacts,
+        SortedSet<string> capabilities)
     {
         Only(presentation, "sections", "journeys", "defaultJourney", "navigation", "outputSelector");
         if (presentation.TryGetProperty("navigation", out _)) Choice(presentation, "navigation", "wizard", "sections");
         var sections = new HashSet<string>(StringComparer.Ordinal);
         foreach (JsonElement section in presentation.GetProperty("sections").EnumerateArray())
         {
-            Only(section, "id", "title", "description", "pointers");
+            Only(section, "id", "title", "description", "pointers", "detail", "applicableWhen", "groups");
             if (!sections.Add(Text(section.GetProperty("id"), 64))) throw new DefinitionException("presentation-duplicate");
-            Text(section.GetProperty("title"), 128);
-            if (section.TryGetProperty("description", out var description)) Text(description, 2048);
-            var pointers = new HashSet<string>(StringComparer.Ordinal);
-            foreach (JsonElement pointer in section.GetProperty("pointers").EnumerateArray())
+            PresentationText(section, root, capabilities);
+            List<DefinitionPath> pointers = PresentationPointers(section.GetProperty("pointers"), root, nonempty: false);
+            if (!section.TryGetProperty("groups", out JsonElement groups)) continue;
+            if (groups.ValueKind != JsonValueKind.Array || groups.GetArrayLength() > 32)
+                throw new DefinitionException("presentation-limit");
+            var groupIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (JsonElement group in groups.EnumerateArray())
             {
-                if (!pointers.Add(pointer.GetString()!)) throw new DefinitionException("presentation-duplicate");
-                _ = Reference(JsonSerializer.SerializeToElement(new { scope = "root", path = pointer.GetString() }), root, null);
+                Only(group, "id", "title", "description", "pointers", "detail", "applicableWhen", "collapsed");
+                if (!groupIds.Add(Text(group.GetProperty("id"), 64))) throw new DefinitionException("presentation-duplicate");
+                PresentationText(group, root, capabilities);
+                if (group.TryGetProperty("collapsed", out JsonElement collapsed)) _ = collapsed.GetBoolean();
+                foreach (DefinitionPath pointer in PresentationPointers(group.GetProperty("pointers"), root, nonempty: true))
+                    if (!pointers.Any(owner => DefinitionImportProjection.IsPrefix(owner, pointer)))
+                        throw new DefinitionException("presentation-reference");
             }
         }
         if (sections.Count is < 1 or > 64) throw new DefinitionException("presentation-limit");
         var journeys = new HashSet<string>(StringComparer.Ordinal);
         foreach (JsonElement journey in presentation.GetProperty("journeys").EnumerateArray())
         {
-            Only(journey, "id", "title", "description", "sections");
+            Only(journey, "id", "title", "description", "sections", "detail", "applicableWhen");
             if (!journeys.Add(Text(journey.GetProperty("id"), 64))) throw new DefinitionException("presentation-duplicate");
-            Text(journey.GetProperty("title"), 128);
-            if (journey.TryGetProperty("description", out var description)) Text(description, 2048);
+            PresentationText(journey, root, capabilities);
             Strings(journey.GetProperty("sections"), 64, 64, true);
             foreach (JsonElement section in journey.GetProperty("sections").EnumerateArray())
                 if (!sections.Contains(section.GetString()!)) throw new DefinitionException("presentation-reference");
@@ -312,14 +350,36 @@ internal static partial class DefinitionAdmission
             ValidateOutputSelector(selector, root, artifacts);
     }
 
+    /// <summary>Validates shared title, description, disclosure and applicability of sections, groups and journeys.</summary>
+    private static void PresentationText(JsonElement item, DefinitionNode root, SortedSet<string> capabilities)
+    {
+        Text(item.GetProperty("title"), 128);
+        if (item.TryGetProperty("description", out var description)) Text(description, 2048);
+        if (item.TryGetProperty("detail", out _)) Choice(item, "detail", "basic", "standard", "advanced");
+        if (item.TryGetProperty("applicableWhen", out var condition)) ValidateCondition(condition, root, capabilities);
+    }
+
+    /// <summary>Admits unique root pointers that resolve through the schema, including nested object members.</summary>
+    private static List<DefinitionPath> PresentationPointers(JsonElement values, DefinitionNode root, bool nonempty)
+    {
+        if (values.ValueKind != JsonValueKind.Array || values.GetArrayLength() > 1024 || nonempty && values.GetArrayLength() == 0)
+            throw new DefinitionException("presentation-limit");
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var paths = new List<DefinitionPath>();
+        foreach (JsonElement pointer in values.EnumerateArray())
+        {
+            if (!seen.Add(pointer.GetString()!)) throw new DefinitionException("presentation-duplicate");
+            _ = Reference(JsonSerializer.SerializeToElement(new { scope = "root", path = pointer.GetString() }), root, null);
+            paths.Add(DefinitionPath.Parse(pointer.GetString()!));
+        }
+        return paths;
+    }
+
     private static void ValidateOutputSelector(JsonElement selector, DefinitionNode root, JsonElement artifacts)
     {
         Only(selector, "pointer", "options");
         DefinitionPath pointer = DefinitionPath.Parse(selector.GetProperty("pointer").GetString()!);
-        if (pointer.Segments.Count != 1 || !PublicEditable(root)
-            || !root.Properties.TryGetValue(pointer.Segments[0], out DefinitionNode? field)
-            || field.Type != DefinitionNodeType.Text || field.IsNullable || !PublicEditable(field)
-            || field.Keywords.GetProperty("x-configurator").TryGetProperty("applicableWhen", out _)
+        if (!TryStableSelector(root, pointer, out DefinitionNode? field)
             || !field.Keywords.TryGetProperty("enum", out JsonElement enumeration))
             throw new DefinitionException("output-selector-field");
         var remaining = enumeration.EnumerateArray().Select(value => value.GetString()!)
@@ -350,14 +410,40 @@ internal static partial class DefinitionAdmission
             }
         }
         if (remaining.Count != 0) throw new DefinitionException("output-selector-value");
-
-        static bool PublicEditable(DefinitionNode node) =>
-            node.Keywords.TryGetProperty("x-configurator", out JsonElement metadata)
-            && metadata.TryGetProperty("sensitivity", out JsonElement sensitivity)
-            && sensitivity.GetString() == "public"
-            && (!node.Keywords.TryGetProperty("writeOnly", out JsonElement writeOnly) || !writeOnly.GetBoolean())
-            && (!node.Keywords.TryGetProperty("readOnly", out JsonElement readOnly) || !readOnly.GetBoolean());
     }
+
+    /// <summary>
+    /// Resolves a selector through public, editable, unconditional and non-nullable objects. Every ancestor must be
+    /// a required member so the selector value exists whenever the definition is answered.
+    /// </summary>
+    internal static bool TryStableSelector(DefinitionNode root, DefinitionPath pointer,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out DefinitionNode? field)
+    {
+        field = null;
+        if (pointer.Segments.Count == 0 || !PublicEditable(root)) return false;
+        DefinitionNode current = root;
+        for (int index = 0; index < pointer.Segments.Count; index++)
+        {
+            string name = pointer.Segments[index];
+            bool last = index == pointer.Segments.Count - 1;
+            if (current.Type != DefinitionNodeType.Mapping || !current.Properties.TryGetValue(name, out DefinitionNode? child)
+                || !PublicEditable(child) || child.IsNullable
+                || child.Keywords.GetProperty("x-configurator").TryGetProperty("applicableWhen", out _)
+                || !last && (child.Type != DefinitionNodeType.Mapping || !current.Required.Contains(name, StringComparer.Ordinal)))
+                return false;
+            current = child;
+        }
+        if (current.Type != DefinitionNodeType.Text) return false;
+        field = current;
+        return true;
+    }
+
+    private static bool PublicEditable(DefinitionNode node) =>
+        node.Keywords.TryGetProperty("x-configurator", out JsonElement metadata)
+        && metadata.TryGetProperty("sensitivity", out JsonElement sensitivity)
+        && sensitivity.GetString() == "public"
+        && (!node.Keywords.TryGetProperty("writeOnly", out JsonElement writeOnly) || !writeOnly.GetBoolean())
+        && (!node.Keywords.TryGetProperty("readOnly", out JsonElement readOnly) || !readOnly.GetBoolean());
 
     private static void ValidateLocalization(JsonElement document)
     {
@@ -378,7 +464,8 @@ internal static partial class DefinitionAdmission
                     {
                         IReadOnlyList<string> segments = DefinitionPath.Parse(entry.Name).Segments;
                         if (segments.Count == 0 || segments[^1] is not ("title" or "description" or "instructions"
-                            or "label" or "explanation" or "units"))
+                            or "label" or "explanation" or "units" or "placeholder" or "defaultText" or "deprecationMessage")
+                            && !(segments[^1] is "true" or "false" && segments.Count > 1 && segments[^2] == "booleanLabels"))
                             throw new DefinitionException("localization-target");
                         JsonElement target = document;
                         foreach (string segment in segments)
