@@ -56,16 +56,36 @@ deployment context; the other four task mappings retain their target bytes.
 | Legal drafts | `legal-drafts` | `legal-drafts.json` |
 
 A fresh workspace starts at Environment through `initialValue`, without storing
-a supplied answer. Essentials includes platform settings by initializing
-`select.feature.platform-config` to true. This only makes the existing offline
-fields applicable; it does not enable authentication, payments, MCP, telemetry
-or another target integration, supply addresses or credentials, or grant secret
-consent. Public API/site addresses and the authentication provider remain unset
-until supplied. Explicit false, another output choice and explicit omissions
-take precedence; reset makes initialization eligible again.
+a supplied answer.
+
+### Answer shape
+
+Answers are nested objects, not flat dotted keys. Each Environment area is one
+top-level object whose members are the target settings, for example
+`database.host`, `messaging.smtp.port` or `security.ticketingRecovery.enabled`.
+Output bindings still write the target's exact names (`DATABASE_HOST`,
+`MAIL_SMTP_PORT`, …), so prepared files are unchanged.
+
+- **Optional areas** (`hosting`, `supportingServices`, `database`, `postgresql`,
+  `databaseServer`, `identity`, `localBootstrap`, `storageReconciliation`,
+  `s3Storage`, `localStorage`, `messaging`, `svix`, `integrations`, `payments`,
+  `security`, `cerbos`, `observability`, `agentBrowser`) are included by being
+  present. Adding any member includes the area; its required members then
+  apply. An absent area contributes nothing to readiness or output.
+- **`platform`** is included by default through `initialValue: {}`. Omit
+  `/platform` to leave its settings out. Inclusion only makes offline fields
+  applicable; it does not enable authentication, payments, MCP, telemetry or
+  another integration, supply addresses or credentials, or grant secret consent.
+- **Always-present groups** (`deployment`, `bootstrapAdministrator`,
+  `keycloak`, `secrets`, `recipientAuthorities`, `controlPlane` and the four
+  document roots) open through `initialValue: {}` and carry their shared
+  condition once, for example `keycloak` applies only when
+  `/platform/authenticationProvider` is `keycloak`.
+- `/platform/setupSecret` uses `requiredWhen`: it is required when
+  `/hosting/replicaCount` is present and not 1.
 
 Environment starts with `deployment.recipe=standalone` and
-`deployment.scope=all`. Standalone configures both API and Blazor. The
+`deployment.scope=all` (answer paths `/deployment/recipe` and `/deployment/scope`). Standalone configures both API and Blazor. The
 `separate-images` and `docker-compose` recipes allow `all`, `api` or `blazor`.
 These are ordinary public answer keys, so CLI callers use the existing answers
 input. Component scope determines obligations before validation. Choosing a
@@ -139,14 +159,14 @@ dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuratio
   --output .tmp/deployment-aware-configuration/event-example-next.json
 dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuration Release -- \
   definition revise --source store/islamu-event/configurator.json \
-  --against store/islamu-event/releases/3.json \
+  --against store/islamu-event/releases/4.json \
   --output .tmp/deployment-aware-configuration/event-store-next.json
 ```
 
 These destinations are create-only. Review both native receipts and candidates,
 then adopt each candidate as its corresponding handwritten source. Never
 hand-increment identity or change historical snapshots. The store command above
-uses the current revision-3 anchor; use the matching immutable anchor when
+uses the current revision-4 anchor; use the matching immutable anchor when
 revising a later release.
 
 Regenerate the local current runtime and append the store release through their
@@ -185,7 +205,7 @@ dotnet run --project eng/configurator/DefinitionExporter/DefinitionExporter.cspr
   --configuration Release -- --compile-local --compiler "$CONFIGURATOR_COMPILER" --compiler-sha256 "$CONFIGURATOR_COMPILER_SHA256" --check
 ```
 
-`configuration-manifest.tenants` is a bounded object list. Add/remove tenant
+`/configurationManifest/tenants` is a bounded object list. Add/remove tenant
 rows locally without an exporter invocation; each row contains typed metadata,
 display name, portable settings and declared documents. `uniqueBy` binds
 `metadata/name` with ordinal comparison. Event's ceiling is 256 rows and shared

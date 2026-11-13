@@ -21,15 +21,19 @@ presentation:
   sections:
     - id: service
       title: Service identity and deployment
+      description: Name the deployment and choose how much of it to configure.
       pointers: [/service.name, /service.mode]
     - id: access
       title: Local service access
+      description: The password the service uses locally; it is never generated or installed for you.
       pointers: [/service.credential]
     - id: operations
       title: Extended operations
+      description: Optional metrics and worker settings, offered in extended mode.
       pointers: [/service.extended, /metrics.enabled]
     - id: integration
       title: Optional issuer integration
+      description: Connect an external token issuer only when adapting the example.
       pointers: [/service.issuerToken]
   journeys:
     - id: recommended
@@ -49,13 +53,14 @@ configuration:
     service.name:
       type: string
       title: Service name
-      description: Choose a recognizable name for this deployment. Example public name, local-service.
+      description: Choose a recognizable name for this deployment.
       minLength: 1
       maxLength: 128
       x-configurator:
         sensitivity: public
         detail: basic
         initialValue: local-service
+        placeholder: local-service
         guidance:
           instructions: Use a deployment label, not a password or a private customer identifier.
           searchTerms: [name, identity, deployment]
@@ -63,14 +68,18 @@ configuration:
       type: string
       title: Deployment mode
       description: >-
-        Minimal keeps the base configuration; extended makes optional operations
-        settings available. Selecting extended activates metrics and nested
-        operations settings; it does not start services or expose a network port.
-      enum: [minimal, extended]
+        Selecting extended activates metrics and nested operations settings; it
+        does not start services or expose a network port.
       x-configurator:
         sensitivity: public
         detail: basic
         initialValue: minimal
+        widget: radio
+        choices:
+          - value: minimal
+            explanation: Keeps the base configuration.
+          - value: extended
+            explanation: Makes optional operations settings available.
         guidance:
           instructions: Keep minimal unless you intend to review extended operations. Both modes still require the local service password.
           searchTerms: [mode, minimal, extended, deployment]
@@ -81,6 +90,8 @@ configuration:
       x-configurator:
         sensitivity: public
         detail: advanced
+        widget: switch
+        booleanLabels: {"true": Metrics on, "false": Metrics off}
         applicableWhen:
           op: equals
           reference: {scope: root, path: /service.mode}
@@ -113,6 +124,7 @@ configuration:
       x-configurator:
         sensitivity: secret
         detail: advanced
+        defaultText: Without a token the service runs without an external issuer.
         guidance:
           instructions: Obtain a scoped service token through your issuer's documented administrator workflow. Ask that administrator about permissions and expiry; do not substitute the local service password. No provider documentation link is supplied because this neutral example names no provider.
           searchTerms: [issuer, token, integration, permissions]
@@ -135,20 +147,28 @@ configuration:
         workers:
           type: integer
           title: Worker count
-          description: Optional worker count. Example public value, 2; confirm the target supports it.
+          description: Optional worker count; confirm the target supports it.
           minimum: 1
           maximum: 64
           x-configurator:
             sensitivity: public
             detail: standard
+            units: workers
+            placeholder: "2"
+            defaultText: The target chooses its own worker count when omitted.
         logLevel:
           type: string
           title: Log detail
           description: Optional log level for a compatible target. Review target logs for private data before increasing detail.
-          enum: [warning, information, debug]
           x-configurator:
             sensitivity: public
             detail: advanced
+            defaultText: The target keeps its own log level when omitted.
+            choices:
+              - value: warning
+              - value: information
+              - value: debug
+                explanation: May record request details; review logs before sharing them.
 outputs:
   ".env":
     id: environment
@@ -156,32 +176,26 @@ outputs:
     targetUpdateMode: create
     restartRequirement: process
     bindings:
-      SERVICE_NAME: {scope: root, path: /service.name}
-      SERVICE_MODE: {scope: root, path: /service.mode}
-      METRICS_ENABLED: {scope: root, path: /metrics.enabled}
-      SERVICE_CREDENTIAL: {scope: root, path: /service.credential}
-      SERVICE_ISSUER_TOKEN: {scope: root, path: /service.issuerToken}
+      SERVICE_NAME: /service.name
+      SERVICE_MODE: /service.mode
+      METRICS_ENABLED: /metrics.enabled
+      SERVICE_CREDENTIAL: /service.credential
+      SERVICE_ISSUER_TOKEN: /service.issuerToken
   service.json:
     id: configuration
     format: json
     targetUpdateMode: create
     restartRequirement: process
     bindings:
-      /name: {scope: root, path: /service.name}
-      /mode: {scope: root, path: /service.mode}
-      /metrics: {scope: root, path: /metrics.enabled}
-      /credential: {scope: root, path: /service.credential}
-      /issuerToken: {scope: root, path: /service.issuerToken}
-      /extended: {scope: root, path: /service.extended}
+      /name: /service.name
+      /mode: /service.mode
+      /metrics: /metrics.enabled
+      /credential: /service.credential
+      /issuerToken: /service.issuerToken
+      /extended: /service.extended
   service.yaml:
     id: configuration-yaml
     format: yaml
     targetUpdateMode: create
     restartRequirement: process
-    bindings:
-      /name: {scope: root, path: /service.name}
-      /mode: {scope: root, path: /service.mode}
-      /metrics: {scope: root, path: /metrics.enabled}
-      /credential: {scope: root, path: /service.credential}
-      /issuerToken: {scope: root, path: /service.issuerToken}
-      /extended: {scope: root, path: /service.extended}
+    includeBindings: [service.json]

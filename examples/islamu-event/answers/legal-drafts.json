@@ -1,32 +1,41 @@
 {
   "answerContractVersion": "0.0.1",
   "values": {
-    "legal-drafts.metadata.name": "example-legal-drafts",
-    "legal-drafts.spec.instance.settings": {},
-    "legal-drafts.tenants": [],
-    "operation": "legal-drafts",
-    "legal-drafts.spec.instance.legalDocuments.TermsOfService": {
-      "audience": "Public",
-      "lifecycleIntent": "Draft",
-      "requiresFreshAcceptance": false,
-      "jurisdictionAssumptions": [
-        "BE"
-      ],
-      "localizations": [
-        {
-          "languageTag": "en",
-          "markdown": "# Example terms\n\nThis test document has no legal approval or publication status.",
-          "summary": "Fictional source for interoperability testing.",
-          "title": "Example terms draft"
-        },
-        {
-          "languageTag": "fr",
-          "markdown": "# Projet de conditions\n\nDocument de test sans approbation juridique.",
-          "summary": "Exemple fictif pour les tests.",
-          "title": "Projet de conditions"
+    "legalDrafts": {
+      "metadata": {
+        "name": "example-legal-drafts"
+      },
+      "spec": {
+        "instance": {
+          "settings": {},
+          "legalDocuments": {
+            "TermsOfService": {
+              "audience": "Public",
+              "lifecycleIntent": "Draft",
+              "requiresFreshAcceptance": false,
+              "jurisdictionAssumptions": [
+                "BE"
+              ],
+              "localizations": [
+                {
+                  "languageTag": "en",
+                  "markdown": "# Example terms\n\nThis test document has no legal approval or publication status.",
+                  "summary": "Fictional source for interoperability testing.",
+                  "title": "Example terms draft"
+                },
+                {
+                  "languageTag": "fr",
+                  "markdown": "# Projet de conditions\n\nDocument de test sans approbation juridique.",
+                  "summary": "Exemple fictif pour les tests.",
+                  "title": "Projet de conditions"
+                }
+              ]
+            }
+          }
         }
-      ]
-    }
-  },
-  "omitted": []
+      },
+      "tenants": []
+    },
+    "operation": "legal-drafts"
+  }
 }

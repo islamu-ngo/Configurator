@@ -29,7 +29,7 @@ public synthetic values.
 
 ## Generate from the source, not the runtime
 
-From the repository root, the native generator owns all three pairs:
+From the repository root, the native generator owns all four source/runtime pairs:
 
 ```bash
 dotnet run --project eng/configurator/Configurator.DefinitionSchemaGenerator -- --write-examples
@@ -43,7 +43,7 @@ the native byte-freshness check on 2026-10-28; that historical result does not
 qualify the 0.0.1 migration. Current verification is recorded with the workstream.
 
 Do not hand-edit runtime JSON or advance example identity to repair freshness.
-`--renew-example-families` deliberately forks all three through the native
+`--renew-example-families` deliberately forks all four through the native
 identity editor and writes new source/runtime identities; it is not an ordinary
 check. In your own project, use native `definition init`, `init --fork-from`,
 check/build and revise as described in the adoption guide. Retain prior canonical
@@ -58,8 +58,8 @@ in prose. The cookbook links these sources by mechanism:
 
 | Pattern | Maintained source anchor |
 |---|---|
-| Typed null, omission, reset, suggestions and localized choice identity | [DefinitionTypedEditingTests.cs](../tests/Configurator.Presentation.Tests/DefinitionTypedEditingTests.cs) |
-| Row-local applicability and conditional presence, typed maps, discriminator branches, local references, opt-in formats | [DefinitionProfileConformanceTests.cs](../tests/Configurator.Core.Tests/Definitions/DefinitionProfileConformanceTests.cs) |
+| Typed null, omission, reset, suggestions and localized choice identity | [DefinitionTypedEditingTests.cs](../tests/Configurator.Presentation.Tests/Form/DefinitionTypedEditingTests.cs) |
+| Row-local applicability and conditional presence, typed maps, discriminator branches, local references, asserted formats | [DefinitionProfileConformanceTests.cs](../tests/Configurator.Core.Tests/Definitions/DefinitionProfileConformanceTests.cs) |
 | Ordered object rows and uniqueness | [DefinitionObjectListTests.cs](../tests/Configurator.Core.Tests/Definitions/DefinitionObjectListTests.cs) |
 | Complete versus secret-deferred composition | [DefinitionDraftArtifactTests.cs](../tests/Configurator.Core.Tests/Definitions/DefinitionDraftArtifactTests.cs) |
 | Narrow direct-copy inverse import and atomic refusal | [DefinitionImportTests.cs](../tests/Configurator.Core.Tests/Definitions/DefinitionImportTests.cs) |

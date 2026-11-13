@@ -17,56 +17,76 @@ entryPoints: [setup]
 configuration:
   type: object
   additionalProperties: false
-  required: [server.domain, source.name, source.url]
+  required: [server, datasource]
   x-configurator:
     sensitivity: public
-  # Preserve the prior field names as exact keys; dots do not imply nesting.
   properties:
-    server.domain:
-      type: string
-      title: Dashboard domain
-      description: >-
-        Supply the dashboard hostname. The hostname format records the previous
-        validator's intention but is descriptive only in Phase 3; it does not
-        assert hostname validity or perform a network check.
-      format: hostname
+    server:
+      type: object
+      title: Dashboard access
+      additionalProperties: false
+      required: [domain]
       x-configurator:
         sensitivity: public
-        detail: basic
-    signup.enabled:
-      type: boolean
-      title: Allow sign-up
+      properties:
+        domain:
+          type: string
+          title: Dashboard domain
+          description: >-
+            Public hostname operators use to reach Grafana. Configurator checks
+            the hostname shape only; Grafana and DNS decide whether it works.
+          format: hostname
+          x-configurator:
+            sensitivity: public
+            detail: basic
+            placeholder: dashboard.example.org
+        allowSignUp:
+          type: boolean
+          title: Allow sign-up
+          x-configurator:
+            sensitivity: public
+            detail: standard
+            initialValue: false
+            widget: switch
+            booleanLabels: {"true": Anyone can create an account, "false": Administrators invite users}
+    datasource:
+      type: object
+      title: Graphite data source
+      additionalProperties: false
+      required: [name, url]
       x-configurator:
         sensitivity: public
-        detail: standard
-        initialValue: false
-    source.name:
-      type: string
-      title: Data source label
-      x-configurator:
-        sensitivity: public
-        detail: standard
-    source.url:
-      type: string
-      title: Graphite endpoint
-      description: >-
-        Supply an absolute URI for the Graphite endpoint. The URI format records
-        the previous absolute-uri validator's intention but is descriptive only
-        in Phase 3; it does not assert URI validity or prove connectivity.
-      format: uri
-      x-configurator:
-        sensitivity: public
-        detail: standard
+      properties:
+        name:
+          type: string
+          title: Data source label
+          x-configurator:
+            sensitivity: public
+            detail: standard
+            placeholder: Example metrics
+        url:
+          type: string
+          title: Graphite endpoint
+          description: >-
+            HTTP or HTTPS address of the Graphite endpoint. Configurator checks
+            the URL shape only; it does not prove connectivity.
+          format: http-url
+          x-configurator:
+            sensitivity: public
+            detail: standard
+            placeholder: https://graphite.example.org
 presentation:
   defaultJourney: setup
   navigation: wizard
   sections:
     - id: server
       title: Dashboard access
-      pointers: [/server.domain, /signup.enabled]
+      description: How operators reach the dashboard and who may register.
+      pointers: [/server/domain, /server/allowSignUp]
     - id: datasource
       title: Graphite data source
-      pointers: [/source.name, /source.url]
+      description: The provisioned Graphite connection.
+      pointers: [/datasource/name, /datasource/url]
   journeys:
     - id: setup
       title: Setup
@@ -78,8 +98,8 @@ outputs:
     targetUpdateMode: create
     restartRequirement: process
     bindings:
-      GF_SERVER_DOMAIN: {scope: root, path: /server.domain}
-      GF_USERS_ALLOW_SIGN_UP: {scope: root, path: /signup.enabled}
+      GF_SERVER_DOMAIN: /server/domain
+      GF_USERS_ALLOW_SIGN_UP: /server/allowSignUp
   datasource.yaml:
     id: datasource
     format: yaml
@@ -96,9 +116,9 @@ outputs:
               members:
                 name:
                   op: copy
-                  reference: {scope: root, path: /source.name}
+                  reference: {scope: root, path: /datasource/name}
                 type: {op: literal, value: graphite}
                 access: {op: literal, value: proxy}
                 url:
                   op: copy
-                  reference: {scope: root, path: /source.url}
+                  reference: {scope: root, path: /datasource/url}

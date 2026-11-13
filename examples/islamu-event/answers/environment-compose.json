@@ -2,22 +2,37 @@
   "answerContractVersion": "0.0.1",
   "values": {
     "operation": "environment",
-    "deployment.recipe": "docker-compose",
-    "deployment.scope": "all",
-    "env.AUTHENTICATION_PROVIDER": "local",
-    "env.API_ENDPOINT": "https://api.example.test/",
-    "env.SECRET_PROVIDER": "Environment",
-    "env.BFF_SESSION_REDIS_ENDPOINT": "redis://session.example.test:6379",
-    "env.BFF_SESSION_NAMESPACE": "synthetic-event",
-    "env.BFF_SESSION_REDIS_PASSWORD": "synthetic-bff-session-password",
-    "env.EVENT_DP_API_RING": "synthetic-api-authority-ring",
-    "env.EVENT_DP_API_ADMISSION": "synthetic-api-authority-admission",
-    "env.EVENT_DP_API_ADMISSION_SHA256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "env.EVENT_DP_API_MINIMUM_GENERATION": "1",
-    "env.EVENT_DP_BFF_RING": "synthetic-bff-authority-ring",
-    "env.EVENT_DP_BFF_ADMISSION": "synthetic-bff-authority-admission",
-    "env.EVENT_DP_BFF_ADMISSION_SHA256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "env.EVENT_DP_BFF_MINIMUM_GENERATION": "1"
-  },
-  "omitted": []
+    "deployment": {
+      "recipe": "docker-compose",
+      "scope": "all"
+    },
+    "platform": {
+      "authenticationProvider": "local"
+    },
+    "apiEndpoint": "https://api.example.test/",
+    "secrets": {
+      "provider": "Environment"
+    },
+    "recipientAuthorities": {
+      "bffSession": {
+        "redisEndpoint": "redis://session.example.test:6379",
+        "namespace": "synthetic-event",
+        "redisPassword": "synthetic-bff-session-password"
+      },
+      "dataProtection": {
+        "api": {
+          "ring": "synthetic-api-authority-ring",
+          "admission": "synthetic-api-authority-admission",
+          "admissionSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "minimumGeneration": "1"
+        },
+        "bff": {
+          "ring": "synthetic-bff-authority-ring",
+          "admission": "synthetic-bff-authority-admission",
+          "admissionSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "minimumGeneration": "1"
+        }
+      }
+    }
+  }
 }

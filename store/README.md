@@ -26,7 +26,7 @@ builder cannot establish ownership or recognize every private value in prose.
 No hooks, install commands, plugins, scripts, images or answer workspaces belong
 in the store. Paths and links are bounded and symbolic links are rejected.
 
-Validate from the repository root with SDK 10.0.403:
+Validate from the repository root with SDK 10.0.404:
 
 ```bash
 dotnet run eng/configurator/BuildDefinitionStore.cs -- --self-test

@@ -2,17 +2,30 @@
   "answerContractVersion": "0.0.1",
   "values": {
     "operation": "environment",
-    "deployment.recipe": "standalone",
-    "deployment.scope": "all",
-    "env.AUTHENTICATION_PROVIDER": "local",
-    "env.SECRET_PROVIDER": "Environment",
-    "env.BFF_SESSION_REDIS_ENDPOINT": "redis://session.example.test:6379",
-    "env.BFF_SESSION_NAMESPACE": "synthetic-event",
-    "env.BFF_SESSION_REDIS_PASSWORD": "synthetic-bff-session-password",
-    "env.EVENT_DP_COMBINED_RING": "synthetic-combined-authority-ring",
-    "env.EVENT_DP_COMBINED_ADMISSION": "synthetic-combined-authority-admission",
-    "env.EVENT_DP_COMBINED_ADMISSION_SHA256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "env.EVENT_DP_COMBINED_MINIMUM_GENERATION": "1"
-  },
-  "omitted": []
+    "deployment": {
+      "recipe": "standalone",
+      "scope": "all"
+    },
+    "platform": {
+      "authenticationProvider": "local"
+    },
+    "secrets": {
+      "provider": "Environment"
+    },
+    "recipientAuthorities": {
+      "bffSession": {
+        "redisEndpoint": "redis://session.example.test:6379",
+        "namespace": "synthetic-event",
+        "redisPassword": "synthetic-bff-session-password"
+      },
+      "dataProtection": {
+        "combined": {
+          "ring": "synthetic-combined-authority-ring",
+          "admission": "synthetic-combined-authority-admission",
+          "admissionSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "minimumGeneration": "1"
+        }
+      }
+    }
+  }
 }

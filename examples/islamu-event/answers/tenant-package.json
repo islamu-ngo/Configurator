@@ -2,29 +2,46 @@
   "answerContractVersion": "0.0.1",
   "values": {
     "operation": "tenant-package",
-    "tenant-package.metadata.name": "example-community",
-    "tenant-package.metadata.source.tenantName": "community",
-    "tenant-package.spec.displayName": "Community",
-    "tenant-package.spec.documents.tenant.branding.payload.displayName": "Community",
-    "tenant-package.spec.settings": {
-      "events.require_approval": true
-    },
-    "tenant-package.spec.legalDocuments.TenantPrivacyNotice": {
-      "audience": "Public",
-      "lifecycleIntent": "Draft",
-      "requiresFreshAcceptance": false,
-      "jurisdictionAssumptions": [
-        "BE"
-      ],
-      "localizations": [
-        {
-          "languageTag": "en",
-          "markdown": "# Example draft\n\nThis test document is not a published policy.",
-          "summary": "Fictional source for interoperability testing.",
-          "title": "Example privacy draft"
+    "tenantPackage": {
+      "metadata": {
+        "name": "example-community",
+        "source": {
+          "tenantName": "community"
         }
-      ]
+      },
+      "spec": {
+        "displayName": "Community",
+        "documents": {
+          "tenant": {
+            "branding": {
+              "payload": {
+                "displayName": "Community"
+              }
+            }
+          }
+        },
+        "settings": {
+          "events.require_approval": true
+        },
+        "legalDocuments": {
+          "TenantPrivacyNotice": {
+            "audience": "Public",
+            "lifecycleIntent": "Draft",
+            "requiresFreshAcceptance": false,
+            "jurisdictionAssumptions": [
+              "BE"
+            ],
+            "localizations": [
+              {
+                "languageTag": "en",
+                "markdown": "# Example draft\n\nThis test document is not a published policy.",
+                "summary": "Fictional source for interoperability testing.",
+                "title": "Example privacy draft"
+              }
+            ]
+          }
+        }
+      }
     }
-  },
-  "omitted": []
+  }
 }

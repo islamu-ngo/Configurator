@@ -2,18 +2,31 @@
   "answerContractVersion": "0.0.1",
   "values": {
     "operation": "environment",
-    "deployment.recipe": "separate-images",
-    "deployment.scope": "blazor",
-    "env.AUTHENTICATION_PROVIDER": "local",
-    "env.API_ENDPOINT": "https://api.example.test/",
-    "env.SECRET_PROVIDER": "Environment",
-    "env.BFF_SESSION_REDIS_ENDPOINT": "redis://session.example.test:6379",
-    "env.BFF_SESSION_NAMESPACE": "synthetic-event",
-    "env.BFF_SESSION_REDIS_PASSWORD": "synthetic-bff-session-password",
-    "env.EVENT_DP_BFF_RING": "synthetic-bff-authority-ring",
-    "env.EVENT_DP_BFF_ADMISSION": "synthetic-bff-authority-admission",
-    "env.EVENT_DP_BFF_ADMISSION_SHA256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "env.EVENT_DP_BFF_MINIMUM_GENERATION": "1"
-  },
-  "omitted": []
+    "deployment": {
+      "recipe": "separate-images",
+      "scope": "blazor"
+    },
+    "platform": {
+      "authenticationProvider": "local"
+    },
+    "apiEndpoint": "https://api.example.test/",
+    "secrets": {
+      "provider": "Environment"
+    },
+    "recipientAuthorities": {
+      "bffSession": {
+        "redisEndpoint": "redis://session.example.test:6379",
+        "namespace": "synthetic-event",
+        "redisPassword": "synthetic-bff-session-password"
+      },
+      "dataProtection": {
+        "bff": {
+          "ring": "synthetic-bff-authority-ring",
+          "admission": "synthetic-bff-authority-admission",
+          "admissionSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "minimumGeneration": "1"
+        }
+      }
+    }
+  }
 }

@@ -11,9 +11,10 @@ and have Grafana validate the result before using it.
 `configurator.yaml` owns the current runtime `setup-definition.json`. Native identity
 allocation created family `c9091324-8fc2-42ed-a659-95b708d4c0a4`, revision 1;
 canonical runtime digest:
-`77ce8b06c89dfc01de902d30e61dd9510183c169276a7c983dba9616c0c1eee6`.
-`answers.json` is a synthetic 0.0.1 private answer envelope. Hostname and URI
-formats are descriptive annotations in the base profile, not target validation.
+`0e02061e331f58eb008eb6bd482d86331633ec1a8d86ba722c5cfb01b0efd47d`.
+`answers.json` is a synthetic 0.0.1 private answer envelope with nested `server`
+and `datasource` objects. The `hostname` and `http-url` formats are checked
+automatically for lexical shape only; Grafana remains the target validator.
 
 The environment output contains `GF_SERVER_DOMAIN` and
 `GF_USERS_ALLOW_SIGN_UP`. A Grafana container can receive these as environment

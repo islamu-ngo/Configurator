@@ -16,6 +16,7 @@ configuration:
     password:
       type: string
       title: Local password
+      description: A strong local password; generate one or enter your own that meets the policy.
       minLength: 24
       maxLength: 64
       x-configurator:
@@ -34,14 +35,12 @@ configuration:
     token:
       type: string
       title: Local opaque token
+      description: A 32-byte random token; size limits are inferred from the generation recipe.
       x-configurator:
         secret:
           kind: opaque-token
           acquisition: local
           encoding: base64url
-          constraints:
-            minBytes: 32
-            maxBytes: 32
           generation:
             bytes: 32
     digest:
@@ -60,3 +59,5 @@ outputs:
   config.json:
     id: config
     format: json
+    targetUpdateMode: create
+    restartRequirement: process

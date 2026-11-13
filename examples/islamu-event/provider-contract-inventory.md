@@ -41,7 +41,7 @@ determine which inputs Configurator actually supports.
 
 ### Current authoring contract
 
-Deployment recipes use public `deployment.recipe` and `deployment.scope` answers.
+Deployment recipes use public `/deployment/recipe` and `/deployment/scope` answers.
 Standalone admits the combined API/Blazor scope. Separate images admit API,
 Blazor or both. Compose additionally declares its separate migration recipient
 in the all-component scope; component-only output excludes that role's identity.
