@@ -14,6 +14,7 @@ using Configurator.Presentation;
 /// </summary>
 public abstract class FieldViewModel : ObservableObject, IDisposable
 {
+    private readonly bool _declaresProtectedChain;
     private readonly bool _requiresMasking;
     private string _text = string.Empty;
     private bool _provided;
@@ -42,7 +43,9 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         _id = name;
         Parent = parent;
         IsListItem = listItem;
-        _requiresMasking = inheritedMasking || parent?.RequiresMasking == true || HasNonPublicSchema(schema);
+        _declaresProtectedChain = inheritedMasking || parent?._declaresProtectedChain == true ||
+            DefinitionSensitivityPolicy.SensitivityOf(schema) != FieldSensitivity.Public;
+        _requiresMasking = _declaresProtectedChain || HasNonPublicSchema(schema);
         _isRequired = required;
         ClearCommand = new RelayCommand(Clear, () => !IsDisposed && CanClear);
         BlurCommand = new RelayCommand(() =>
@@ -347,6 +350,9 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ResetLabel));
         OnPropertyChanged(nameof(ResetHelp));
         OnPropertyChanged(nameof(NullLabel));
+        OnPropertyChanged(nameof(RequiresMasking));
+        OnPropertyChanged(nameof(PasswordChar));
+        OnPropertyChanged(nameof(IsPublic));
         OnPropertyChanged(nameof(HasProtectedDescendants));
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(Name));

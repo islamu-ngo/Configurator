@@ -207,7 +207,9 @@ public sealed class TerminalGuiAdapterTests
             .InvokeCommand(Command.Accept);
         ChooseBranch();
         harness.Window.FocusNextCorrection();
-        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("spool")).IsTrue();
+        await Assert.That(harness.Window.PublicInput.Visible).IsTrue();
+        await Assert.That(harness.Window.MaskedInput.Visible).IsFalse();
+        harness.Window.PublicInput.Text = "spool";
         await Assert.That(harness.Window.CommitField()).IsTrue();
         await Assert.That(form.Snapshot().Values["directory"].GetString()).IsEqualTo("spool");
         bool AtBranch() => harness.Window.SubViews.OfType<Button>().Any(button =>
@@ -227,7 +229,9 @@ public sealed class TerminalGuiAdapterTests
             return false;
         }
         await Assert.That(FocusCorrection("Endpoint")).IsTrue();
-        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("queue.example.invalid")).IsTrue();
+        await Assert.That(harness.Window.PublicInput.Visible).IsTrue();
+        await Assert.That(harness.Window.MaskedInput.Visible).IsFalse();
+        harness.Window.PublicInput.Text = "queue.example.invalid";
         await Assert.That(harness.Window.CommitField()).IsTrue();
         await Assert.That(FocusCorrection("Token")).IsTrue();
         await Assert.That(harness.Window.MaskedInput.Visible).IsTrue();

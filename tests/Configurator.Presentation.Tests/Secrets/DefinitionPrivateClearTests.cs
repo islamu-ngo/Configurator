@@ -113,7 +113,8 @@ public sealed class DefinitionPrivateClearTests
         form.Fields.Single(field => field.Definition.Id == "title").Text = "public-title";
         form.Fields.Single(field => field.Definition.Id == "token").Text = "synthetic-token";
         form.Fields.Single(field => field.Definition.Id == "password").Text = "synthetic-password";
-        form.Fields.Single(field => field.Definition.Id == "settings").Text = """{"name":"public-sibling","password":"nested-secret"}""";
+        DefinitionFieldInput settings = form.Fields.Single(field => field.Definition.Id == "settings");
+        settings.Text = """{"name":"public-sibling","password":"nested-secret"}""";
         form.Fields.Single(field => field.Definition.Id == "password").Text = new string('x', 65_537);
         long before = form.InputRevision;
         int revisions = 0;
@@ -123,8 +124,12 @@ public sealed class DefinitionPrivateClearTests
         await Assert.That(changed).IsTrue();
         await Assert.That(snapshot.InputRevision).IsEqualTo(before + 1);
         await Assert.That(revisions).IsEqualTo(1);
-        await Assert.That(snapshot.Values.Count).IsEqualTo(1);
+        await Assert.That(snapshot.Values.Count).IsEqualTo(2);
         await Assert.That(snapshot.Values["title"].GetString()).IsEqualTo("public-title");
+        await Assert.That(snapshot.Values["settings"].GetProperty("name").GetString()).IsEqualTo("public-sibling");
+        await Assert.That(snapshot.Values["settings"].TryGetProperty("password", out _)).IsFalse();
+        await Assert.That(settings.Text).DoesNotContain("nested-secret");
+        await Assert.That(settings.Text).Contains("public-sibling");
         await Assert.That(form.Fields.All(field => field.InputDiagnosticCode is null)).IsTrue();
     }
 
@@ -171,8 +176,11 @@ public sealed class DefinitionPrivateClearTests
         byte[] source = """{"title":"public-title","token":"synthetic-token","password":"synthetic-password","settings":{"password":"nested-secret"}}"""u8.ToArray();
         await form.ImportAsync("config", _ => Task.FromResult<ReadOnlyMemory<byte>>(source));
         await Assert.That(cleared).IsTrue();
-        await Assert.That(form.Snapshot().Values.Count).IsEqualTo(1);
+        await Assert.That(form.Snapshot().Values.Count).IsEqualTo(2);
         await Assert.That(form.Snapshot().Values.ContainsKey("title")).IsTrue();
+        await Assert.That(form.Snapshot().Values["settings"].ValueKind).IsEqualTo(JsonValueKind.Object);
+        await Assert.That(form.Snapshot().Values["settings"].EnumerateObject().Any()).IsFalse();
+        await Assert.That(form.Fields.Single(field => field.Definition.Id == "settings").Text).DoesNotContain("nested-secret");
         await Assert.That(source.All(value => value == 0)).IsTrue();
     }
 
@@ -219,6 +227,150 @@ public sealed class DefinitionPrivateClearTests
         await Assert.That(invalidations).IsEqualTo(1);
         await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
     }
+
+    [Test]
+    public async Task ClearPrunesNestedProtectedDraftsDiagnosticsAndOriginsWhileKeepingPublicDrafts()
+    {
+        using var form = new DefinitionFormModel(MixedSourceDefinition());
+        DefinitionFieldInput owner = form.Fields.Single(field => field.Definition.Id == "owner");
+        form.EditValue(["owner", "count"], "not-an-integer");
+        form.EditValue(["owner", "secretCount"], "not-a-secret-integer");
+        form.SetValue(["owner", "name"], JsonSerializer.SerializeToElement("public-sibling"));
+        form.SetValue(["owner", "token"], JsonSerializer.SerializeToElement("nested-secret"));
+        owner.Text = new string('z', 65_537);
+        await Assert.That(owner.InputDiagnosticCode).IsEqualTo("answer-budget-exceeded");
+
+        form.ClearPrivateState();
+
+        AnswerSnapshot snapshot = form.Snapshot();
+        await Assert.That(snapshot.Values["owner"].GetProperty("name").GetString()).IsEqualTo("public-sibling");
+        await Assert.That(snapshot.Values["owner"].TryGetProperty("token", out _)).IsFalse();
+        await Assert.That(owner.HasAnswerBudgetError).IsFalse();
+        await Assert.That(owner.InputDiagnosticCode).IsEqualTo("input-type-invalid");
+        await Assert.That(owner.HasInputError(["owner"])).IsFalse();
+        await Assert.That(owner.HasInputError(["owner", "count"])).IsTrue();
+        await Assert.That(owner.HasInputError(["owner", "secretCount"])).IsFalse();
+        await Assert.That(owner.Text).DoesNotContain("nested-secret");
+        await Assert.That(owner.Text).DoesNotContain("zzz");
+        await Assert.That(form.ReadDraftText(["owner", "count"])).IsEqualTo("not-an-integer");
+        await Assert.That(form.ReadDraftText(["owner", "secretCount"])).IsNull();
+        await Assert.That(form.ReadDraftText(["owner"])).IsNull();
+        await Assert.That(form.AnswerOrigin(["owner", "name"])).IsEqualTo(DefinitionAnswerOrigin.Explicit);
+        await Assert.That(form.AnswerOrigin(["owner", "token"])).IsEqualTo(DefinitionAnswerOrigin.Omitted);
+    }
+
+    [Test]
+    public async Task ClearPreservesNullableJsonNullAndPrunesMapsArraysVariantsAndLiteralRoots()
+    {
+        using var form = new DefinitionFormModel(MixedSourceDefinition());
+        await Assert.That(form.SetNull(["nullableOwner"])).IsTrue();
+        DefinitionFieldInput nullableOwner = form.Fields.Single(field => field.Definition.Id == "nullableOwner");
+        nullableOwner.Text = "not-json-{";
+        await Assert.That(nullableOwner.InputDiagnosticCode).IsNotNull();
+
+        using (JsonDocument mapDoc = JsonDocument.Parse("""{"entry-a":{"publicTag":"keep-a","token":"secret-a"}}"""))
+            await Assert.That(form.SetValue(["mixedMap"], mapDoc.RootElement)).IsTrue();
+        await Assert.That(form.SupplyObject(["secretMap", "synthetic-dyn-key"])).IsTrue();
+        await Assert.That(form.SetValue(["secretMap", "synthetic-dyn-key", "publicChild"], null)).IsTrue();
+
+        using (JsonDocument rowsDoc = JsonDocument.Parse("""[{"label":"row-0","token":"secret-row"}]"""))
+            await Assert.That(form.SetValue(["mixedRows"], rowsDoc.RootElement)).IsTrue();
+        using (JsonDocument privRows = JsonDocument.Parse("""[{"publicChild":"row-priv"}]"""))
+            await Assert.That(form.SetValue(["sensitiveRows"], privRows.RootElement)).IsTrue();
+
+        await Assert.That(form.SelectVariant(["mixedVariant"], 0)).IsTrue();
+        await Assert.That(form.SetValue(["mixedVariant", "mode"], JsonSerializer.SerializeToElement("keep-variant"))).IsTrue();
+        await Assert.That(form.SetValue(["mixedVariant", "token"], JsonSerializer.SerializeToElement("secret-variant"))).IsTrue();
+        await Assert.That(form.SetValue(["owner", "name"], JsonSerializer.SerializeToElement("keep-owner-name"))).IsTrue();
+        await Assert.That(form.SetValue(["owner", "lockedGroup"], JsonSerializer.SerializeToElement(
+            new Dictionary<string, string> { ["publicChild"] = "inside-sensitive-group" }))).IsTrue();
+        form.Fields.Single(field => field.Definition.Id == "unmatchedVariant").Text = """{"extra":"unmatched-raw"}""";
+
+        form.ClearPrivateState();
+
+        AnswerSnapshot snapshot = form.Snapshot();
+        await Assert.That(snapshot.Values["nullableOwner"].ValueKind).IsEqualTo(JsonValueKind.Null);
+        await Assert.That(nullableOwner.Text).IsEqualTo("null");
+        await Assert.That(nullableOwner.InputDiagnosticCode).IsNull();
+        await Assert.That(snapshot.Values["owner"].GetProperty("name").GetString()).IsEqualTo("keep-owner-name");
+        await Assert.That(snapshot.Values["owner"].TryGetProperty("lockedGroup", out _)).IsFalse();
+
+        await Assert.That(snapshot.Values["mixedMap"].GetProperty("entry-a").GetProperty("publicTag").GetString()).IsEqualTo("keep-a");
+        await Assert.That(snapshot.Values["mixedMap"].GetProperty("entry-a").TryGetProperty("token", out _)).IsFalse();
+        await Assert.That(snapshot.Values["secretMap"].EnumerateObject().Any()).IsFalse();
+        await Assert.That(snapshot.Omitted.Any(path =>
+            path.Segments.Any(segment => string.Equals(segment, "synthetic-dyn-key", StringComparison.Ordinal)))).IsFalse();
+
+        await Assert.That(snapshot.Values["mixedRows"].GetArrayLength()).IsEqualTo(1);
+        await Assert.That(snapshot.Values["mixedRows"][0].GetProperty("label").GetString()).IsEqualTo("row-0");
+        await Assert.That(snapshot.Values["mixedRows"][0].TryGetProperty("token", out _)).IsFalse();
+        await Assert.That(snapshot.Values.ContainsKey("sensitiveRows")).IsFalse();
+
+        await Assert.That(snapshot.Values["mixedVariant"].GetProperty("mode").GetString()).IsEqualTo("keep-variant");
+        await Assert.That(snapshot.Values["mixedVariant"].TryGetProperty("token", out _)).IsFalse();
+        await Assert.That(snapshot.Values.ContainsKey("unmatchedVariant")).IsFalse();
+
+        using var rootMapForm = new DefinitionFormModel(DefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"eba722b7-f132-444b-8c44-21cece008ca9","revision":1},
+             "project":{"id":"root-map-clear","name":"RootMapClear"},"applicationVersions":["1"],
+             "configuration":{"type":"object","x-configurator":{"sensitivity":"public"},"additionalProperties":{
+               "type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+                 "name":{"type":"string","x-configurator":{"sensitivity":"public"}},
+                 "token":{"type":"string","writeOnly":true}}}},
+             "outputs":{"config.json":{"format":"json"}}}
+            """u8.ToArray()));
+        await Assert.That(rootMapForm.SetValue(["pub-entry"], JsonSerializer.SerializeToElement(
+            new Dictionary<string, string> { ["name"] = "public-root-entry", ["token"] = "root-secret" }))).IsTrue();
+        rootMapForm.ClearPrivateState();
+        AnswerSnapshot rootSnapshot = rootMapForm.Snapshot();
+        await Assert.That(rootSnapshot.Values["pub-entry"].GetProperty("name").GetString()).IsEqualTo("public-root-entry");
+        await Assert.That(rootSnapshot.Values["pub-entry"].TryGetProperty("token", out _)).IsFalse();
+    }
+
+    private static Definition MixedSourceDefinition() => DefinitionSourceCodec.ParseJson("""
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+         "identity":{"familyId":"eba722b7-f132-444b-8c44-21cece008ca8","revision":1},
+         "project":{"id":"mixed-clear","name":"MixedClear"},"applicationVersions":["1"],
+         "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+           "owner":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+             "name":{"type":"string","x-configurator":{"sensitivity":"public"}},
+             "count":{"type":"integer","x-configurator":{"sensitivity":"public"}},
+             "secretCount":{"type":"integer","x-configurator":{"sensitivity":"sensitive"}},
+             "token":{"type":"string","writeOnly":true},
+             "lockedGroup":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"sensitive"},"properties":{
+               "publicChild":{"type":"string","x-configurator":{"sensitivity":"public"}}}}}},
+           "nullableOwner":{"type":["object","null"],"additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+             "token":{"type":"string","writeOnly":true}}},
+           "mixedMap":{"type":"object","x-configurator":{"sensitivity":"public"},"additionalProperties":{
+             "type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+               "publicTag":{"type":"string","x-configurator":{"sensitivity":"public"}},
+               "token":{"type":"string","writeOnly":true}}}},
+           "secretMap":{"type":"object","x-configurator":{"sensitivity":"public"},"additionalProperties":{
+             "type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"sensitive"},"properties":{
+               "publicChild":{"type":"string","x-configurator":{"sensitivity":"public"}}}}},
+           "mixedRows":{"type":"array","x-configurator":{"sensitivity":"public"},"items":{
+             "type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+               "label":{"type":"string","x-configurator":{"sensitivity":"public"}},
+               "token":{"type":"string","writeOnly":true}}}},
+           "sensitiveRows":{"type":"array","x-configurator":{"sensitivity":"public"},"items":{
+             "type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"sensitive"},"properties":{
+               "publicChild":{"type":"string","x-configurator":{"sensitivity":"public"}}}}},
+           "mixedVariant":{"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
+             {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
+               "kind":{"type":"string","const":"mixed","x-configurator":{"sensitivity":"public"}},
+               "mode":{"type":"string","x-configurator":{"sensitivity":"public"}},
+               "token":{"type":"string","writeOnly":true}}},
+             {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
+               "kind":{"type":"string","const":"plain","x-configurator":{"sensitivity":"public"}}}}]},
+           "unmatchedVariant":{"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
+             {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
+               "kind":{"type":"string","const":"pub","x-configurator":{"sensitivity":"public"}}}},
+             {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
+               "kind":{"type":"string","const":"priv","x-configurator":{"sensitivity":"public"}},
+               "token":{"type":"string","writeOnly":true}}}]}
+         }},"outputs":{"config.json":{"format":"json"}}}
+        """u8.ToArray());
 
     private static Definition Definition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {

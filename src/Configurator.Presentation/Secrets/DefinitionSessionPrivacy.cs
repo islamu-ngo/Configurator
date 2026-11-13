@@ -14,12 +14,49 @@ public enum DefinitionSessionPrivacy
 
 internal static class DefinitionSecretPolicy
 {
+    /// <summary>Whether the schema or any static descendant, including every variant branch, is non-public.</summary>
     internal static bool IsProtected(DefinitionNode schema) =>
         DefinitionSensitivityPolicy.SensitivityOf(schema) != FieldSensitivity.Public ||
         schema.Properties.Values.Concat(schema.Variants)
             .Concat(schema.Items is null ? [] : new[] { schema.Items })
             .Concat(schema.AdditionalProperties is null ? [] : new[] { schema.AdditionalProperties })
             .Any(IsProtected);
+
+    /// <summary>Whether the node itself declares a non-public sensitivity; undeclared nodes default to sensitive.</summary>
+    internal static bool DeclaresProtected(DefinitionNode schema) =>
+        DefinitionSensitivityPolicy.SensitivityOf(schema) != FieldSensitivity.Public;
+
+    /// <summary>
+    /// Prunes every declared non-public subtree of a public value in place and keeps public members.
+    /// Returns <see langword="true"/> when the whole value must be removed instead: the node is declared non-public,
+    /// its shape does not match a protected schema, a selected branch or list row is protected as a whole, or no
+    /// branch matches while any branch is protected. Whole-list removal keeps row positions from shifting.
+    /// </summary>
+    internal static bool RemoveProtected(DefinitionNode schema, JsonNode? node)
+    {
+        if (DeclaresProtected(schema)) return true;
+        if (node is null) return false;
+        if (schema.Variants.Count > 0)
+            return DefinitionValidator.SelectVariant(schema, JsonSerializer.SerializeToElement(node)) is { } branch
+                ? RemoveProtected(branch, node) : IsProtected(schema);
+        switch (node)
+        {
+            case JsonArray rows when schema.Items is { } items:
+                foreach (JsonNode? row in rows)
+                    if (RemoveProtected(items, row)) return true;
+                return false;
+            case JsonObject mapping when schema.Type == DefinitionNodeType.Mapping:
+                foreach (string name in mapping.Select(property => property.Key).ToArray())
+                    if ((schema.Properties.GetValueOrDefault(name) ?? schema.AdditionalProperties) is not { } declared ||
+                        RemoveProtected(declared, mapping[name]))
+                        mapping.Remove(name);
+                return false;
+            case JsonArray or JsonObject:
+                return IsProtected(schema);
+            default:
+                return schema.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence && IsProtected(schema);
+        }
+    }
 
     internal static bool IsSecret(DefinitionNode schema, bool inherited = false) => inherited ||
         DefinitionSensitivityPolicy.SensitivityOf(schema) == FieldSensitivity.Secret;

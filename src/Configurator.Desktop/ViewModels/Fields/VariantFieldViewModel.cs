@@ -81,7 +81,9 @@ public sealed class VariantFieldViewModel : FieldViewModel
     }
     private FieldViewModel CreateChild(string name, DefinitionNode schema, bool required)
     {
-        var child = FormFieldFactory.Project(schema, name, required, this, false);
+        bool branchProtected = _branch is not null &&
+            DefinitionSensitivityPolicy.SensitivityOf(_branch) != FieldSensitivity.Public;
+        var child = FormFieldFactory.Project(schema, name, required, this, false, branchProtected);
         child.AdoptRoot(Root);
         return child;
     }

@@ -503,16 +503,19 @@ invalid drafts; raw text input/change and received choice notifications use the
 same form/path/revision/mounted-control generation fence. A callback captured
 before an editor unmount cannot edit its remounted successor. Focus, input modes
 and credential autocomplete remain explicit; no copied answer buffer is added.
-Masked scalar controls inherit sensitive or secret ancestors; secret consent
-still uses the form's edit permission, allowing public siblings to remain
-editable. Authored titles are preserved. Mechanical identifier formatting is
-used only when title equals key, with the exact key available separately.
-Long labels and metadata paths wrap within the field, including collapsed
-compound children in narrow RTL layouts; they must not widen the viewport.
-List rows obtain their immutable item metadata from the shared admitted index,
-not a new JSON serialization on each render. The renderer supplies the row title,
-required state and inherited masking separately. Unchanged parameter updates may
-skip a field tree only while the form, input revision, projection and all
+Masked scalar controls inherit declared sensitive or secret ancestors and active
+branches (public containers mask their own aggregate value without masking their
+public siblings); secret consent still uses the form's edit permission, allowing
+public siblings to remain editable. Authored titles are preserved. Mechanical
+identifier formatting is used only when title equals key, with the exact key
+available separately. Long labels and metadata paths wrap within the field,
+including collapsed compound children in narrow RTL layouts; they must not widen
+the viewport. List rows obtain their immutable item metadata from the shared
+admitted index, not a new JSON serialization on each render. The renderer
+supplies the row title, required state and inherited secret scope separately
+while obtaining masking from shared `GetFieldValidation` facts. Unchanged
+parameter updates may skip a field tree only while the form, input revision,
+projection and all
 rendering/focus parameters remain current. Parameter delivery still runs; a new
 input revision always refreshes the revision-fenced callbacks.
 Field correction queries read the reason index in the shared current-revision

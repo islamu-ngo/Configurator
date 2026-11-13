@@ -248,10 +248,10 @@ public sealed class TerminalOfflineWorkflowTests
          "identity":{"familyId":"69cdb122-41d2-4fab-9b82-7929a889c726","revision":2},
          "project":{"id":"typed-terminal","name":"Typed Terminal"},"applicationVersions":["1"],
          "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
-           "map":{"type":"object","maxProperties":2,"x-configurator":{"sensitivity":"public"},
-             "additionalProperties":{"type":"integer","x-configurator":{"sensitivity":"public"}}},
            "choice":{"type":"integer","enum":[1,2],"x-configurator":{"sensitivity":"public","detail":"basic",
              "choices":[{"value":1,"label":"Equal"},{"value":2,"label":"Equal"}]}},
+           "map":{"type":"object","maxProperties":2,"x-configurator":{"sensitivity":"public"},
+             "additionalProperties":{"type":"integer","x-configurator":{"sensitivity":"public"}}},
            "nullable":{"type":["integer","null"],"x-configurator":{"sensitivity":"public","detail":"basic","initialValue":4}},
            "provider":{"type":"object","x-configurator":{"sensitivity":"public"},"oneOf":[
              {"type":"object","additionalProperties":false,"required":["kind"],"x-configurator":{"sensitivity":"public"},"properties":{
@@ -367,7 +367,7 @@ public sealed class TerminalOfflineWorkflowTests
         var display = slots.Single(item => item.Title == "Display");
         var password = slots.Single(item => item.Title == "Password");
         var tags = slots.Single(item => item.Title == "Tags");
-        await Assert.That(display.RequiresMasking).IsTrue();
+        await Assert.That(display.RequiresMasking).IsFalse();
         await Assert.That(password.RequiresMasking).IsTrue();
         await Assert.That(TerminalFieldEditor.Write(display, "Operator")).IsTrue();
         await Assert.That(TerminalFieldEditor.Write(password, "opaque")).IsTrue();

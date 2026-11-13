@@ -34,7 +34,7 @@
     bool canEdit = correctionFacts.CanEdit;
     bool required = Required;
     bool isSecret = IsSecret;
-    bool isMasked = InheritedSensitive || correctionFacts.RequiresMasking;
+    bool isMasked = correctionFacts.RequiresMasking;
     bool useRadios = !isMasked && !HasChoices && type == "boolean";
     @if (type is "object" or "array")
     {
@@ -95,14 +95,14 @@
                     {
                     <ConfigurationField @key="childMount.Identity" Form="Form" Schema="childSchema" Path="childPath" LiteralPath="LiteralPath" MountNode="childMount" MountRevision="MountRevision" Validation="Validation" ValidationChanged="ValidationChanged"
                                         RequiredOverride="@requiredProperties.Contains(childId)"
-                                        InheritedSecret="isSecret" InheritedSensitive="isMasked" FocusFirstControl="focusChild" FocusGeneration="FocusGeneration" FocusPath="@(_focusObjectChildren ? PendingFocusPath : FocusPath)" />
+                                        InheritedSecret="isSecret" FocusFirstControl="focusChild" FocusGeneration="FocusGeneration" FocusPath="@(_focusObjectChildren ? PendingFocusPath : FocusPath)" />
                     }
                     else if (childMount.Admitted)
                     {
                     <div class="configuration-field__row" @key="childMount.Identity">
                         <ConfigurationField Form="Form" Schema="childSchema" Path="childPath" LiteralPath="LiteralPath" MountNode="childMount" MountRevision="MountRevision"
                                             Validation="Validation" ValidationChanged="ValidationChanged" TitleOverride="@childId"
-                                            InheritedSecret="isSecret" InheritedSensitive="isMasked"
+                                            InheritedSecret="isSecret"
                                             FocusFirstControl="@(_focusMapEntry == childId || FocusFirstControl && FocusPath.Count > Path.Count && FocusPath[Path.Count] == childId)"
                                             FocusGeneration="@(_focusMapEntry == childId ? _mapFocusGeneration : FocusGeneration)"
                                             FocusPath="@(_focusMapEntry == childId ? PendingFocusPath : FocusPath)" />
@@ -136,7 +136,7 @@
                     <div class="configuration-field__row" @key="childMount.Identity">
                         <ConfigurationField Form="Form" Schema="ItemSchema" Path="@Path.Append(row.ToString(CultureInfo.InvariantCulture)).ToArray()" LiteralPath="LiteralPath" MountNode="childMount" MountRevision="MountRevision" Validation="Validation" ValidationChanged="ValidationChanged"
                                             TitleOverride="@UiFormat("FieldListItem", Title)" RequiredOverride="true"
-                                            InheritedSecret="isSecret" InheritedSensitive="isMasked" FocusFirstControl="@(row == _focusNewRow || FocusFirstControl && (FocusPath.Count > Path.Count ? FocusPath[Path.Count] == row.ToString(CultureInfo.InvariantCulture) : row == (FocusRow >= 0 ? FocusRow : 0)))" FocusGeneration="FocusGeneration" FocusPath="@(row == _focusNewRow ? PendingFocusPath : FocusPath)" />
+                                            InheritedSecret="isSecret" FocusFirstControl="@(row == _focusNewRow || FocusFirstControl && (FocusPath.Count > Path.Count ? FocusPath[Path.Count] == row.ToString(CultureInfo.InvariantCulture) : row == (FocusRow >= 0 ? FocusRow : 0)))" FocusGeneration="FocusGeneration" FocusPath="@(row == _focusNewRow ? PendingFocusPath : FocusPath)" />
                         <button type="button" class="button button--secondary" data-action="remove-item" aria-label="@UiFormat("RemoveFieldItem", Title, row + 1)"
                                 @onclick="@(() => { if (IsCurrentAction(actionForm, actionPath, actionRevision, actionGeneration)) Remove(row); })">@Ui("RemoveItem") @(row + 1)</button>
                     </div>

@@ -168,7 +168,8 @@ public sealed class BrowserRootEditingTests
         var root = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition("Conformance.RootVariant")));
         var form = Field(root).Instance.Form;
         await Choose(root, [], "0");
-        await Assert.That(form.GetFieldValidation(DefinitionPath.Parse("/batch")).CanApplySuggestion).IsFalse();
+        await Assert.That(form.GetFieldValidation(DefinitionPath.Parse("/directory")).RequiresMasking).IsFalse();
+        await Assert.That(form.GetFieldValidation(DefinitionPath.Parse("/batch")).CanApplySuggestion).IsTrue();
         await Type(root, ["directory"], "spool");
         var retired = Field(root, "batch").FindComponent<MudSelect<string>>().Instance.ValueChanged;
         await Choose(root, [], "1");
@@ -180,6 +181,7 @@ public sealed class BrowserRootEditingTests
         await root.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await Type(root, ["endpoint"], "queue.example.invalid");
         await Type(root, ["token"], "synthetic-token");
+        await Assert.That(Field(root, "endpoint").Find("input").GetAttribute("type")).IsNotEqualTo("password");
         await Assert.That(Field(root, "token").Find("input").GetAttribute("type")).IsEqualTo("password");
         await root.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
         await Assert.That(form.Snapshot().Values.ContainsKey("token")).IsFalse();
@@ -215,6 +217,51 @@ public sealed class BrowserRootEditingTests
         await Assert.That(form.Snapshot().Values["note"].ValueKind).IsEqualTo(System.Text.Json.JsonValueKind.Null);
         await Action(root, ["note"], actions => actions.OnOmit);
         await Assert.That(form.Snapshot().Values.ContainsKey("note")).IsFalse();
+    }
+
+    [Test]
+    public async Task PublicSiblingsRenderUnmaskedWhileDeclaredSensitiveAncestorMasksBrowserControls()
+    {
+        await using var context = BrowserFixture.Context();
+        Definition definition = DefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"198d708d-caba-4e48-a00d-b06242151620","revision":1},
+             "project":{"id":"browser-masking","name":"BrowserMasking"},"applicationVersions":["1"],
+             "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+               "mixed":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public","detail":"basic"},"properties":{
+                 "host":{"type":"string","x-configurator":{"sensitivity":"public","detail":"basic","suggestedValue":"public.example.invalid"}},
+                 "flag":{"type":"boolean","x-configurator":{"sensitivity":"public","detail":"basic"}},
+                 "token":{"type":"string","writeOnly":true,"x-configurator":{"detail":"basic"}}}},
+               "sensitiveGroup":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"sensitive","detail":"basic"},"properties":{
+                 "host":{"type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}},
+                 "flag":{"type":"boolean","x-configurator":{"sensitivity":"public","detail":"basic"}}}}
+             }},"outputs":{"config.json":{"format":"json"}}}
+            """u8.ToArray());
+        var root = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        var form = root.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await root.InvokeAsync(() =>
+        {
+            form.SetAllSectionsExpanded(true);
+            form.SupplyObject(["mixed"]);
+            form.SupplyObject(["sensitiveGroup"]);
+            form.SetValue(["mixed", "host"], JsonSerializer.SerializeToElement("public.example.invalid"));
+            form.SetValue(["sensitiveGroup", "host"], JsonSerializer.SerializeToElement("masked-host"));
+        });
+        root.Render();
+
+        IRenderedComponent<ConfigurationField> mixedHost = root.FindComponents<ConfigurationField>()
+            .Single(field => field.Instance.Path.SequenceEqual(["mixed", "host"]));
+        IRenderedComponent<ConfigurationField> mixedFlag = root.FindComponents<ConfigurationField>()
+            .Single(field => field.Instance.Path.SequenceEqual(["mixed", "flag"]));
+        IRenderedComponent<ConfigurationField> lockedHost = root.FindComponents<ConfigurationField>()
+            .Single(field => field.Instance.Path.SequenceEqual(["sensitiveGroup", "host"]));
+        IRenderedComponent<ConfigurationField> lockedFlag = root.FindComponents<ConfigurationField>()
+            .Single(field => field.Instance.Path.SequenceEqual(["sensitiveGroup", "flag"]));
+
+        await Assert.That(mixedHost.Find("input").GetAttribute("type")).IsNotEqualTo("password");
+        await Assert.That(mixedFlag.FindAll("[role='radiogroup']").Count).IsEqualTo(1);
+        await Assert.That(lockedHost.Find("input").GetAttribute("type")).IsEqualTo("password");
+        await Assert.That(lockedFlag.FindAll("[role='radiogroup']").Count).IsEqualTo(0);
     }
 
     [Test]

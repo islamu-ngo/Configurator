@@ -23,7 +23,6 @@ public partial class ConfigurationField
     [Parameter] public DefinitionValidationResult? Validation { get; set; }
     [Parameter] public EventCallback<(string Id, string FieldId, bool Invalid)> ValidationChanged { get; set; }
     [Parameter] public bool InheritedSecret { get; set; }
-    [Parameter] public bool InheritedSensitive { get; set; }
     [Parameter] public bool? RequiredOverride { get; set; }
     [Parameter] public string? TitleOverride { get; set; }
     [Parameter] public bool FocusFirstControl { get; set; }
@@ -91,7 +90,6 @@ public partial class ConfigurationField
             && !Changed(nameof(ValidationChanged), ValidationChanged)
             && !Changed(nameof(RequestSecretConsent), RequestSecretConsent)
             && !Changed(nameof(InheritedSecret), InheritedSecret)
-            && !Changed(nameof(InheritedSensitive), InheritedSensitive)
             && !Changed(nameof(RequiredOverride), RequiredOverride)
             && !Changed(nameof(TitleOverride), TitleOverride)
             && !Changed(nameof(FocusFirstControl), FocusFirstControl)
@@ -218,7 +216,7 @@ public partial class ConfigurationField
         || Path.Count == 1 && DeclaresSecret(Form.Definition.Configuration);
     private bool IsMultilineSecret => Schema.Secret is { Kind: DefinitionSecretKind.PrivateKey, Encoding: DefinitionSecretEncoding.Pkcs8Pem };
     private bool SecretsEnabled => Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
-    private bool IsMasked => InheritedSensitive || CorrectionFacts.RequiresMasking;
+    private bool IsMasked => CorrectionFacts.RequiresMasking;
     private int MaximumItems => Schema.Keywords.TryGetProperty("maxItems", out var value) ? value.GetInt32() : CompositionLimits.DefaultSequenceEntries;
     private int Count => Value is { ValueKind: JsonValueKind.Array } value ? value.GetArrayLength() : 0;
     private string Text => TextFor(CanEdit);
@@ -260,6 +258,8 @@ public partial class ConfigurationField
     }
     protected override void OnParametersSet()
     {
+        // A field first mounted by a stale plan still renders once; bind its root input before deferring the rest.
+        if (!LiteralPath && _rootInput is null) _rootInput = Form.GetFieldEditor(Path[0]).Input;
         if (_suppressParameterRender || MountRevision != Form.InputRevision) return;
         if (_pendingFocusIdentity is not null && (_pendingFocusRevision != Form.InputRevision ||
             !ReferenceEquals(_rootForm, Form) || _lastPrivacy != Form.SessionPrivacy ||
@@ -288,7 +288,7 @@ public partial class ConfigurationField
         }
         _lastPrivacy = Form.SessionPrivacy;
         bool controlMounted = visible && canEdit && Type is not ("object" or "array");
-        bool radiosMounted = controlMounted && !InheritedSensitive && !correctionFacts.RequiresMasking
+        bool radiosMounted = controlMounted && !correctionFacts.RequiresMasking
             && !HasChoices && Type == "boolean";
         if (_controlMounted != controlMounted || _radiosMounted != radiosMounted)
         {

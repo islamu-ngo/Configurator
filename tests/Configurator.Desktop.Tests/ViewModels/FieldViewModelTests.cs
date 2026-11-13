@@ -475,7 +475,7 @@ public sealed class FieldViewModelTests
     }
 
     [Test]
-    public async Task EffectiveContainerSensitivityMasksPublicSiblingsAndSuppressesRecommendations()
+    public async Task PublicSiblingsInsideMixedContainerRemainUnmaskedWhileDeclaredSensitiveAncestorMasksDescendants()
     {
         using var form = Form("""
             {"owner":{"title":"Owner","type":"object","additionalProperties":false,
@@ -483,18 +483,81 @@ public sealed class FieldViewModelTests
                "name":{"title":"Name","type":"string","x-configurator":{"sensitivity":"sensitive","detail":"standard"}},
                "age":{"title":"Age","type":"integer","x-configurator":{"suggestedValue":7,"sensitivity":"public","detail":"standard"}},
                "mode":{"title":"Mode","type":"string","enum":["first","second"],
-                 "x-configurator":{"sensitivity":"public","detail":"standard"}}}}}
-            """, ["projection.literal", "schema.enum", "schema.integer", "schema.object", "schema.string", "values.suggested"]);
+                 "x-configurator":{"sensitivity":"public","detail":"standard"}},
+               "enabled":{"title":"Enabled","type":"boolean","x-configurator":{"sensitivity":"public","detail":"standard"}},
+               "lockedGroup":{"title":"Locked","type":"object","additionalProperties":false,
+                 "x-configurator":{"sensitivity":"sensitive","detail":"standard"},"properties":{
+                   "publicMode":{"title":"LockedMode","type":"string","enum":["one","two"],
+                     "x-configurator":{"sensitivity":"public","detail":"standard"}},
+                   "publicFlag":{"title":"LockedFlag","type":"boolean",
+                     "x-configurator":{"sensitivity":"public","detail":"standard"}}}}}},
+             "variantGroup":{"title":"VariantGroup","type":"object",
+               "x-configurator":{"sensitivity":"public","detail":"standard"},"oneOf":[
+                 {"title":"PublicBranch","type":"object","additionalProperties":false,"required":["kind"],
+                  "x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+                    "kind":{"type":"string","const":"pub","x-configurator":{"sensitivity":"public","detail":"standard"}},
+                    "choice":{"title":"Choice","type":"string","enum":["a","b"],
+                      "x-configurator":{"sensitivity":"public","detail":"standard"}}}},
+                 {"title":"MixedBranch","type":"object","additionalProperties":false,"required":["kind"],
+                  "x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
+                    "kind":{"type":"string","const":"priv","x-configurator":{"sensitivity":"public","detail":"standard"}},
+                    "pubNote":{"title":"Note","type":"string","enum":["n1","n2"],
+                      "x-configurator":{"sensitivity":"public","detail":"standard"}},
+                    "lockedBranch":{"title":"LockedBranch","type":"object","additionalProperties":false,
+                      "x-configurator":{"sensitivity":"sensitive","detail":"standard"},"properties":{
+                        "choice":{"title":"Choice","type":"string","enum":["x","y"],
+                          "x-configurator":{"sensitivity":"public","detail":"standard"}}}}}}]}}
+            """, ["projection.literal", "schema.boolean", "schema.const", "schema.enum", "schema.integer", "schema.object", "schema.string", "schema.variant", "values.suggested"]);
         using var factory = new FormFieldFactory();
         var fields = factory.Create(form);
         try
         {
-            var owner = (ObjectFieldViewModel)fields.Single();
+            var owner = (ObjectFieldViewModel)fields.Single(field => field.Id == "owner");
             await Assert.That(owner.RequiresMasking).IsTrue();
-            await Assert.That(owner.Children.All(field => field.PasswordChar == '●')).IsTrue();
+            var name = owner.Children.Single(field => field.Id == "name");
+            await Assert.That(name.RequiresMasking).IsTrue();
+            await Assert.That(name.PasswordChar).IsEqualTo('●');
+
             var age = owner.Children.Single(field => field.Id == "age");
-            await Assert.That(age.ApplySuggestionCommand.CanExecute(null)).IsFalse();
-            await Assert.That(((EnumFieldViewModel)owner.Children.Single(field => field.Id == "mode")).Choices.Count).IsEqualTo(0);
+            await Assert.That(age.RequiresMasking).IsFalse();
+            await Assert.That(age.PasswordChar).IsEqualTo('\0');
+            await Assert.That(age.ApplySuggestionCommand.CanExecute(null)).IsTrue();
+
+            var mode = (EnumFieldViewModel)owner.Children.Single(field => field.Id == "mode");
+            await Assert.That(mode.RequiresMasking).IsFalse();
+            await Assert.That(mode.IsPublic).IsTrue();
+            await Assert.That(mode.Choices.Count).IsEqualTo(3);
+            mode.SelectedIndex = 1;
+            await Assert.That(form.Snapshot().Values["owner"].GetProperty("mode").GetString()).IsEqualTo("first");
+
+            var enabled = (BooleanFieldViewModel)owner.Children.Single(field => field.Id == "enabled");
+            await Assert.That(enabled.RequiresMasking).IsFalse();
+            await Assert.That(enabled.Choices.Count).IsEqualTo(3);
+
+            var locked = (ObjectFieldViewModel)owner.Children.Single(field => field.Id == "lockedGroup");
+            await Assert.That(locked.RequiresMasking).IsTrue();
+            var lockedMode = (EnumFieldViewModel)locked.Children.Single(field => field.Id == "publicMode");
+            await Assert.That(lockedMode.RequiresMasking).IsTrue();
+            await Assert.That(lockedMode.IsPublic).IsFalse();
+            await Assert.That(lockedMode.Choices.Count).IsEqualTo(0);
+            var lockedFlag = (BooleanFieldViewModel)locked.Children.Single(field => field.Id == "publicFlag");
+            await Assert.That(lockedFlag.RequiresMasking).IsTrue();
+            await Assert.That(lockedFlag.Choices.Count).IsEqualTo(0);
+
+            var variantGroup = (VariantFieldViewModel)fields.Single(field => field.Id == "variantGroup");
+            await Assert.That(form.SelectVariant(["variantGroup"], 0)).IsTrue();
+            var publicBranchChoice = (EnumFieldViewModel)variantGroup.Children.Single(field => field.Id == "choice");
+            await Assert.That(publicBranchChoice.RequiresMasking).IsFalse();
+            await Assert.That(publicBranchChoice.Choices.Count).IsEqualTo(3);
+
+            await Assert.That(form.SelectVariant(["variantGroup"], 1)).IsTrue();
+            var branchPubNote = (EnumFieldViewModel)variantGroup.Children.Single(field => field.Id == "pubNote");
+            await Assert.That(branchPubNote.RequiresMasking).IsFalse();
+            await Assert.That(branchPubNote.Choices.Count).IsEqualTo(3);
+            var lockedBranch = (ObjectFieldViewModel)variantGroup.Children.Single(field => field.Id == "lockedBranch");
+            var sensitiveBranchChoice = (EnumFieldViewModel)lockedBranch.Children.Single(field => field.Id == "choice");
+            await Assert.That(sensitiveBranchChoice.RequiresMasking).IsTrue();
+            await Assert.That(sensitiveBranchChoice.Choices.Count).IsEqualTo(0);
         }
         finally { Dispose(fields); }
     }

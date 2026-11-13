@@ -88,8 +88,10 @@ Core activation and authored readonly state determine edit affordances;
 workspace consent still independently governs mutation custody. The result
 contains typed correction reasons, authored bounds and public allowed values,
 plus masking and suggestion/null/reset/omission eligibility. It contains no supplied
-answer, suggestion value or private coordinate. Protected ancestors and
-descendants suppress suggestion and allowed-value disclosure. Desktop and
+answer, suggestion value or private coordinate. Declared non-public ancestors
+mask all descendants and suppress suggestion and allowed-value disclosure; a
+public container holding protected descendants masks its own aggregate
+representation while its public siblings remain unmasked. Desktop and
 Terminal render these facts through `PresentationStrings.FieldCorrection` in
 English or Arabic instead of reinterpreting ordinary field policy locally.
 Reset can remove an existing override beneath an absent container without
@@ -569,15 +571,18 @@ answers. A failing subscriber does not stop the remaining notification batch
 or skip private-state cleanup; notification failures remain observable to the
 calling boundary.
 
-`ClearPrivateState()` clears every root requiring masking and its input
-diagnostics in one revision, preserving public roots. Public siblings inside
-a protected root follow the conservative whole-root clear policy. The method
-returns `true` when it publishes that revision, including when protected roots
-are already empty: the revision fences a pending import that could otherwise
-restore private values. It returns `false` only for definitions without any
-protected roots. A client with separate prepared state must still invalidate
-that state in the `false` case. Browser consent revocation remains a distinct
-secret-leaf clear that preserves nonsecret siblings.
+`ClearPrivateState()` clears every root declared non-public and recursively
+prunes declared non-public subtrees, masked drafts, invalid markers, vanished
+nested omissions and root/field input diagnostics in one revision, preserving
+public roots and public siblings inside public containers (keeping `{}` or JSON
+`null` when already supplied on a public container, while clearing whole lists,
+unmatched variant values or unrecognized containers when protection cannot be
+isolated). The method returns `true` when it publishes that revision, including
+when protected roots are already empty: the revision fences a pending import
+that could otherwise restore private values. It returns `false` only for
+definitions without any protected roots. A client with separate prepared state
+must still invalidate that state in the `false` case. Browser consent revocation
+remains a distinct secret-leaf clear that preserves nonsecret siblings.
 The shared projection keeps active missing obligations and invalid editors
 reachable. Editing a missing/invalid path promotes its literal ancestors before
 the edit, while new errors and invalid drafts promote at mutation settlement.

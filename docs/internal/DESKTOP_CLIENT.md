@@ -180,17 +180,20 @@ private unknown key, raw exception or native input path belongs in feedback.
 
 ## Protocol Handshake, Profile Store & Secret Manager Sync
 
+> [!NOTE]
+> **Planned:** The protocol handshake, managed encrypted local profile store, and PaaS/secret-manager delta sync below are deferred future capabilities ([proposed design ADR](adr/ADR-encrypted-local-profiles-and-target-apply.md)). They are not implemented in current `Configurator.Desktop` builds.
+
 1. **Protocol Handshake (`configurator://`):**
    * Registered as a native URI scheme on Linux (`.desktop` MIME/scheme entry), macOS (`CFBundleURLTypes`), and Windows (`HKCU\Software\Classes\configurator`).
    * Passes the inbound definition URL or diff request parameters directly to `DesktopShellViewModel` upon activation.
-2. **Managed Local Profile Store:**
-   * Filesystem location: `~/.config/islamu-configurator/profiles/<app-id>/`
-   * Catalogs separate profile directories per application and deployment environment (`development`, `staging`, `production`), storing `answers.json` alongside compiled output artifacts.
-   * Auto-matching detects and loads matching local configuration profiles when a definition or release notes diff URL is opened.
-3. **Secret Manager Provisioning Bridge:**
-   * Bridges native Desktop preparation to target enterprise vaults (Infisical, Azure Key Vault).
-   * Relies on local provider CLIs for machine credential delegation and `ISLAMU SecretKit` runtime models for disposable in-memory verification.
-   * By default, zero network requests occur; pushing secrets is strictly operator-confirmed.
+2. **Managed Encrypted Local Profile Store:**
+   * Filesystem location: `~/.config/islamu-configurator/profiles/<app-id>/<env>/` across deployment environments (`development`, `staging`, `production`).
+   * Stores **immutable per-revision `.cfgvault` snapshots** written via [`IProtectedArtifactWriter`](PROTECTED_ARTIFACTS.md) create-only semantics (preserving rollback history rather than overwriting in place), supporting `compare-only` (zero stored secrets; commitments only), `import-upgrade-only` (AEAD-encrypted carry-forward with blind-forwarding UI), and `inspectable-encrypted` (unlocked in-app convenience) alongside existing explicit unencrypted export.
+   * Wraps each snapshot DEK in the **OS Keyring** (DPAPI, macOS Keychain, `libsecret`) for convenient zero-touch `/diff` auto-matching, with an **Argon2id passphrase fallback slot** for cross-machine portability.
+3. **Secret Manager & PaaS Provisioning Bridge:**
+   * Bridges native Desktop preparation to **Coolify** (`PATCH /api/v1/applications/{uuid}/envs/bulk`, `read` + `write` scopes, `is_shown_once: true` secrets) and enterprise vaults (**Infisical**, **Azure Key Vault**).
+   * Relies on local provider CLIs/REST tokens for machine credential delegation and `ISLAMU SecretKit` runtime models for disposable in-memory verification.
+   * By default, zero network requests occur; pushing deltas or secrets is strictly operator-confirmed.
 
 For full strategic and architectural context, see [Product Vision](PRODUCT_VISION.md) and [Marketing & Adoption Strategy](MARKETING_AND_ADOPTION_STRATEGY.md).
 
@@ -335,8 +338,9 @@ answer revision or invalidate a successfully imported status afterward.
 Visibility comes from shared `IsEditorVisible`: authored experience/disclosure
 and optional expansion never change answers. Required/error paths remain
 reachable when optional detail is collapsed. Shared Core validation always sees
-all answers, independent of disclosure. Effective parent sensitivity masks child
-value controls;
+all answers, independent of disclosure. Declared non-public ancestors mask child
+value controls and containers holding protected descendants mask their own
+aggregate value while public siblings inside a public container remain unmasked;
 protected scalar values use masked input rather than exposing choices through
 an unmasked selection popup.
 

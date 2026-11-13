@@ -94,9 +94,10 @@ writeOnly remains secret. Null-only schemas convert to nullable enum `[null]`.
 Numeric-domain and nullable-provider-domain differences require acknowledgment;
 unsupported assertions cannot be acknowledged away.
 
-Formats remain annotation unless assertFormat is true. The lexical registry is
-ASCII hostname, dot-atom email-address, well-formed ASCII absolute uri and
-credential-free http-url. Parsing is local and grants no retrieval authority.
+Registered formats are asserted automatically (`assertFormat` is retired). The
+23-format lexical registry (hostname, IP and CIDR forms, URI and HTTP(S) URL,
+origin, email, identifiers, versions, durations, sizes, paths, OCI references,
+SHA-256 hex and five-field cron) is parsed locally and grants no retrieval authority.
 The public standard states exact syntax limits; no full RFC/target-equivalence
 or unexercised client qualification follows from these Core capabilities.
 
@@ -157,7 +158,9 @@ reject. Initialization recurses only into present containers. Descriptive defaul
 and opt-in suggestion never become implicit answers. One resolver feeds complete
 validation, draft validation and composition.
 
-Sensitivity inherits the conservative ancestor floor and protected descendants.
+Effective sensitivity inherits the declared ancestor floor (`public` cannot demote
+a protected ancestor), while aggregate container inspection stays protected whenever
+descendants can carry protected values; public leaves inside public containers remain public.
 No branch, item or map can carry public metadata disclosing a protected value.
 writeOnly raises secret classification. Credential descriptors do not lower it.
 Budget every reference expansion, schema node, traversal and emitted output before

@@ -23,14 +23,18 @@ public sealed class FormFieldFactory(ISecretClipboardService? clipboard = null) 
             root.Clipboard = clipboard;
             _fields = Array.AsReadOnly<FieldViewModel>([root]);
         }
-        else _fields = Array.AsReadOnly(form.Fields.Select(input =>
+        else
         {
-            var field = Project(input.Definition.Node, input.Definition.Name, input.Definition.Required,
-                null, false, input.RequiresMasking);
-            field.Attach(form, input);
-            field.Clipboard = clipboard;
-            return field;
-        }).ToArray());
+            bool configurationProtected = DefinitionSensitivityPolicy.SensitivityOf(form.Definition.Configuration) != FieldSensitivity.Public;
+            _fields = Array.AsReadOnly(form.Fields.Select(input =>
+            {
+                var field = Project(input.Definition.Node, input.Definition.Name, input.Definition.Required,
+                    null, false, configurationProtected);
+                field.Attach(form, input);
+                field.Clipboard = clipboard;
+                return field;
+            }).ToArray());
+        }
         form.InputChanged += FormChanged;
         form.ViewChanged += FormChanged;
         Refresh();

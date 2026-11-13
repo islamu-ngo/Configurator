@@ -70,10 +70,9 @@ public sealed class DefinitionSecretOperationTests
     {
         JsonObject source = JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject();
         JsonNode field = source["configuration"]!["properties"]!["password"]!;
+        // Registered formats are asserted automatically.
         field["format"] = "email-address";
-        field["x-configurator"]!["assertFormat"] = true;
         field["x-configurator"]!["secret"]!["constraints"]!["allowedSymbols"] = "";
-        source["requiredCapabilities"]!.AsArray().Insert(2, "schema.assertFormat");
         using var form = new DefinitionFormModel(DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString())));
         string[] path = [form.Fields.Single().Definition.Id];
         form.EditValue(path, "synthetic@example.invalid");
