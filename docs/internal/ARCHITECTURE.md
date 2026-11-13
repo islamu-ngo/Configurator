@@ -133,14 +133,17 @@ Contributors and automated agents must adhere to strict architectural dependency
 
 ## Strategic Integration Boundaries
 
-1. **Secret Management Boundary (`ISLAMU SecretKit`):**
+> [!NOTE]
+> **Planned:** The integrations below describe deferred future plans ([proposed encrypted profiles and target-apply ADR](adr/ADR-encrypted-local-profiles-and-target-apply.md)); current `src/` implements offline definition evaluation, read-only import comparison, and create-only Linux artifact output.
+
+1. **Secret Management & PaaS Delta-Apply Boundary (`ISLAMU SecretKit` & Coolify):**
    * `ISLAMU SecretKit` operates on the **runtime secret consumption plane** inside target applications (such as ISLAMU Event), using scoped stack/span memory (`SecretMaterial.Use(...)`) with immediate zeroing.
-   * `Configurator` operates on the **setup and provisioning plane**. On native Desktop and Terminal surfaces, it provides optional export sinks to push validated secrets directly into Infisical or Azure Key Vault via official provider CLIs. The WebAssembly browser client remains strictly air-gapped with zero network calls.
+   * `Configurator` operates on the **setup and provisioning plane**. On native Desktop, Terminal, and CLI surfaces, future optional export sinks will push validated secrets or upgrade deltas directly into **Infisical**, **Azure Key Vault**, or **Coolify** (`PATCH /api/v1/applications/{uuid}/envs/bulk` with `is_shown_once: true`) via explicit operator confirmation. The WebAssembly browser client remains strictly air-gapped with zero network calls and zero persistent answer storage.
 2. **Desktop Profile Store & Protocol Handshake:**
-   * The `configurator://` protocol handler enables seamless handoffs from web release notes and deep links to local native desktop sessions.
-   * Desktop catalogs active configuration files under `~/.config/islamu-configurator/profiles/<app-id>/` across environments (`development`, `staging`, `production`).
+   * The `configurator://` protocol handler will enable handoffs from web release notes and deep links to local native desktop sessions.
+   * Desktop will catalog **immutable per-revision encrypted `.cfgvault` snapshots** under `~/.config/islamu-configurator/profiles/<app-id>/<env>/` across environments (`development`, `staging`, `production`), supporting `compare-only`, `import-upgrade-only`, and `inspectable-encrypted` modes unlocked via OS keyring convenience + Argon2id passphrase fallback.
 3. **Day-2 Semantic Diff Engine:**
-   * AST-based version diffing compares active configurations against new schema releases, isolating newly required variables, auto-migrating renamed keys, and safely retiring deprecated settings.
+   * AST-based version diffing will extend current [`DefinitionImport`](IMPORT_COMPARISON.md) checks to compare active snapshots against new schema releases, isolating newly required variables, assisting renamed keys, and safely retiring deprecated settings.
 
 For full strategic details, see [Product Vision](PRODUCT_VISION.md) and [Marketing & Adoption Strategy](MARKETING_AND_ADOPTION_STRATEGY.md).
 

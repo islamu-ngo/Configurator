@@ -49,7 +49,7 @@ resource overflow reject; they must not be ignored or approximated as no-ops.
 The supported model includes recursive closed objects, typed maps, arrays,
 typed scalar enums, nullable values, discriminated object variants, local
 requiredness, scoped applicability, exact numeric assertions, bounded local
-references and opt-in lexical format assertions. General combinators, arbitrary
+references and automatically asserted lexical formats. General combinators, arbitrary
 regular expressions, remote or cyclic references and executable validators are
 outside the profile.
 
@@ -64,11 +64,15 @@ Configuration names are exact data keys, not display labels or bounded metadata
 IDs. Dots and asterisks are literal. Case-distinct and Unicode-normalization-
 distinct names remain different; exact duplicate decoded names reject.
 References use scoped RFC 6901 pointers, with `~0` and `~1` decoded once.
-Array indices are positions, not stable application identifiers.
+Array indices are positions, not stable application identifiers. Display text is
+separate from identity: an untitled key or enum value is shown humanized, but the
+wire key and value never change.
 
 The profile uses ordinal object-key ordering, preserved array order, validated
 Unicode and exact normalized decimal numbers for canonical identity. It is a
-custom canonical profile, not a claim of JCS conformance. Independent byte and
+custom canonical profile, not a claim of JCS conformance. Authored member order
+is carried as `propertyOrder` data, so display order never alters canonical bytes.
+Independent byte and
 digest vectors are necessary before claiming another implementation preserves
 identity; using the same serializer name is insufficient.
 

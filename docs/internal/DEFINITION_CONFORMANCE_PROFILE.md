@@ -260,25 +260,20 @@ amplification defense.
 ## Assertions versus annotation and effective values
 
 `DefinitionValidator.LocalValueValid` checks base type, const/enum, string
-length/notBlank/opt-in format, exact numeric bounds/multiple, uniqueness and
+length/notBlank/asserted format, exact numeric bounds/multiple, uniqueness and
 container cardinality. Null must satisfy const/enum but bypasses non-null
 constraints. `ValueValid` recursively checks properties/items/maps/selected
 branches and unconditional requiredness; it is used during public-value admission.
 The full snapshot resolver additionally handles activation, initialization,
 omission, relationships, uncertainty and diagnostics.
 
-`format` alone never asserts. `assertFormat: true` admits only:
+Every registered `format` is asserted automatically by `DefinitionFormatValidator`
+(23 formats; see the [Core definition contract](CORE_DEFINITION_CONTRACT.md#asserted-formats)).
+`assertFormat` is retired and rejects as an unsupported member. Each check is a
+linear, regex-free scanner that emits value-free `format-invalid`. Unknown tokens
+are runtime annotations, and the authoring compiler rejects them.
 
-- `hostname`: ASCII alphanumeric/hyphen labels, alphanumeric ends, 1-63 units
-  each, total 1-253 after stripping one trailing dot.
-- `email-address`: exactly one `@`, local part 1-64, total at most 254,
-  a bounded ASCII atom-character set, no leading/trailing/repeated dot,
-  and the hostname check for the domain.
-- `uri`: absolute, `IsWellFormedOriginalString`, no character at or below space
-  or at/above DEL.
-- `http-url`: URI check plus HTTP/HTTPS, nonempty host and empty user information.
-
-These checks are not full RFC implementations, IDN/mailbox guarantees,
+These checks are lexical shape only: not IDN/mailbox guarantees, DNS or
 reachability tests, trust, credential validation, or public help-link policy.
 
 `readOnly` and `deprecated` do not freeze answers or remove projected data.
@@ -347,9 +342,11 @@ literal projections. Definitions must contain only public synthetic data.
 Every `DefinitionArtifact` is restricted regardless of declared answer sensitivity.
 
 The extension vocabulary is sensitivity, initialValue, suggestedValue, notBlank,
-detail, guidance, secret, choices, units, uniqueBy, applicableWhen,
-assertFormat. Detail is basic/standard/advanced. Choice labels match every typed
-enum value exactly once. Typed secret metadata requires a string and establishes
+detail, guidance, secret, choices, units, uniqueBy, applicableWhen, propertyOrder,
+order, placeholder, defaultText, deprecationMessage, widget, rows, syntax,
+booleanLabels, itemTitlePointer and displayRawKey.
+Detail is basic/standard/advanced. Choice metadata annotates distinct typed
+enum values (a subset is allowed). Typed secret metadata requires a string and establishes
 a secret sensitivity floor. Acquisition is local/existing/issuer; only local
 acquisition admits a generation recipe, and connection strings never generate.
 The kind-specific algorithm, encoding, constraints and generation vocabulary is
@@ -501,7 +498,7 @@ registry in `DefinitionProfile.Capabilities` contains:
 - schema.array, schema.boolean, schema.bounds, schema.const, schema.enum,
   schema.integer, schema.notBlank, schema.nullable, schema.number, schema.object,
   schema.string, schema.uniqueBy, schema.map, schema.variant, schema.localRef,
-  schema.multipleOf, schema.uniqueItems, schema.assertFormat;
+  schema.multipleOf, schema.uniqueItems;
 - values.initial, values.suggested.
 
 A declared capability cannot admit unknown semantics. Core admission also does

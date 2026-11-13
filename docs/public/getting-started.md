@@ -26,7 +26,7 @@ flowchart TD
 
 ## Prerequisites
 
-- **Environment:** Linux (x64 recommended) with [.NET SDK 10.0.403](https://dotnet.microsoft.com/) installed.
+- **Environment:** Linux (x64 recommended) with [.NET SDK 10.0.404](https://dotnet.microsoft.com/) installed.
 - **Working Directory:** Open a terminal in the root of your local `Configurator` checkout.
 - **Shell:** Bash on Linux; the backslash continuations below are Bash syntax.
   Complete the source-build prerequisites in [PROJECTS.md](../../PROJECTS.md)

@@ -58,7 +58,7 @@ Task-shape inventories bind the frozen SDK and selected package assemblies
 they inspect as consumed tool inputs, including dependencies resolved during
 that inspection. An inventoried shape still does not admit the task.
 
-One Linux capture adapter has an explicit contract for the SDK 10.0.403
+One Linux capture adapter has an explicit contract for the SDK 10.0.404
 `ReadWasmProps` JSON reader. It binds the exact declaration, reader bytes,
 JSON input and tool/runtime dependencies before delegated SDK activation.
 The controlled binding also applies to child projects; early declaration
@@ -164,7 +164,7 @@ sudo pacman -R islamu-configurator-desktop
 
 ## Building from Source
 
-To compile ISLAMU Configurator yourself, install the [.NET SDK 10.0.403](https://dotnet.microsoft.com/download/dotnet/10.0).
+To compile ISLAMU Configurator yourself, install the [.NET SDK 10.0.404](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 Keep the Desktop, Desktop test and native-host projects' declared exclusion of Avalonia's
 build-statistics assets when restoring dependencies. This policy removes the

@@ -133,6 +133,9 @@ and [shared import contract](../internal/IMPORT_COMPARISON.md).
 
 ## The Release Notes 1-Click Upgrade Diff Workflow
 
+> [!NOTE]
+> **Planned automation:** Manual file comparison against a selected definition is available today across Browser, Desktop, Terminal, and CLI. Automatic `configurator://` profile matching, encrypted snapshot loading, and direct Coolify/vault delta apply are planned future capabilities ([proposed design decision](../internal/adr/ADR-encrypted-local-profiles-and-target-apply.md)).
+
 Application maintainers can embed direct upgrade links in their release notes:
 
 ```markdown
@@ -141,13 +144,13 @@ Application maintainers can embed direct upgrade links in their release notes:
 ```
 
 1. **Protocol Handshake (`configurator://`):** Visitors to the link are greeted with a prompt: *"Open in Configurator Desktop or continue in Web?"* (matching Microsoft Teams, VS Code, and Slack UX patterns).
-2. **Desktop Automation:** The Desktop application checks its managed local store (`~/.config/islamu-configurator/profiles/<app-id>/`), identifies the existing profile for the target environment (`development`, `staging`, `production`), and loads the comparison report instantly.
-3. **Web Drop-Zone:** In the Web client, operators simply drop their existing `.env` or `answers.json` file into the page to view the diff.
+2. **Desktop Automation *(Planned)*:** The Desktop application checks its managed local store (`~/.config/islamu-configurator/profiles/<app-id>/<env>/`), identifies the latest immutable `.cfgvault` snapshot (`compare-only`, `import-upgrade-only`, or `inspectable-encrypted`) for the target environment (`development`, `staging`, `production`), unlocks it via the OS keyring, and loads the comparison report instantly.
+3. **Web Drop-Zone:** In the Web client, operators simply drop their existing `.env` or `answers.json` file (or, once supported, a passphrase-encrypted `.cfgvault` snapshot) into the page to view the diff.
 4. **Actionable Delta:** The report immediately flags:
    - 🔴 **Newly Required Variables** that must be answered to avoid container boot crashes.
    - 🟡 **Renamed Variables** with automatic mapping suggested.
    - 🟢 **Deprecated / Obsolete Variables** safely removed.
-5. **Direct Vault Sync:** When configured with secret managers (Infisical or Azure Key Vault via `ISLAMU SecretKit`), operators can click **"Apply Upgrade Diff to Staging"** or **"Production"** directly from Desktop without manual copy-pasting.
+5. **Direct PaaS & Secret Vault Delta Sync *(Planned)*:** When configured with **Coolify** or secret managers (**Infisical** / **Azure Key Vault** via `ISLAMU SecretKit`), operators will be able to apply only reviewed upgrade deltas to **"Staging"** or **"Production"** directly from Desktop without reading back existing write-only secrets or manual copy-pasting.
 
 For the detailed engineering architecture and distribution strategy, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
 

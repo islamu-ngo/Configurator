@@ -151,3 +151,49 @@ Last Updated: 2026-10-10 Europe/Brussels
 
 **Promotion Consideration**:
 - [x] Stays in journal only (Terminal rendering/update regression rationale); the v2 ADR retains inert, output-invariant localization and separate qualification boundaries.
+
+[2026-11-12 Europe/Brussels] — Authored order, nested activation and value-keyed choice keys
+
+**Context**: While implementing the definition schema redesign (`definition-engine`), nested objects needed authored display order, sibling-dependent applicability and translations that survive choice insertion.
+
+**Symptom / Observation**: Canonical JSON sorts object keys ordinally, so `host, port, database` reached clients as `database, host, port`. Admission computed activation dependencies per root property, so `/ai/provider` depending on `/ai/enabled` rejected as `activation-cycle`, and the session evaluated such a condition against values that did not yet contain the in-progress root object. Index-addressed choice translations shifted when a choice was inserted at index 0.
+
+**Root Cause**: Identity (canonical bytes) and display order were the same structure; activation tracked only first path segments; localization addressed array positions rather than wire values.
+
+**Resolution**: Order is data (`x-configurator.propertyOrder`/`order`, synthesized by `DefinitionSchemaLowering` from source-map positions only when absent and non-ordinal) and is read through `DefinitionNode.OrderedPropertyNames`, leaving digests canonical. `DefinitionAdmission.ValidateApplicability` builds per-mapping sibling graphs from full reference paths and rejects self/ancestor/descendant references; `DefinitionValidationSession` orders siblings the same way and overlays the partially resolved root object while evaluating its own conditions. `DefinitionLocalizationLowering` resolves `choices[value=…]` keys to positions at compile time. Verified by `DefinitionChoicesAndOrderingTests` and `DefinitionRichMetadataAndAuthoringTests` in `Configurator.Core.Tests` (738 passed).
+
+**Why This Matters for Future Work**: Compiled runtime roots now usually carry `propertyOrder`; fixtures that delete or rename members after compilation must update or drop it (`property-order-invalid` otherwise). Immutable store releases are re-admitted by the current runtime, so runtime vocabulary must stay a superset: asserted formats add no capability and unknown format tokens stay annotations, while only the authoring compiler rejects them.
+
+**References**:
+- `src/Configurator.Core/Definitions/DefinitionPropertyOrder.cs`
+- `src/Configurator.Core/Definitions/Authoring/DefinitionSchemaLowering.cs`
+- `src/Configurator.Core/Definitions/DefinitionAdmission.cs`
+- `src/Configurator.Core/Definitions/DefinitionValidationSession.cs`
+- `src/Configurator.Core/Definitions/Authoring/DefinitionLocalizationLowering.cs`
+- `docs/internal/CORE_DEFINITION_CONTRACT.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; the contract is recorded in `docs/internal/CORE_DEFINITION_CONTRACT.md`.
+
+[2026-11-12 Europe/Brussels] — Nesting exposes per-top-level-member assumptions
+
+**Context**: Replacing the islamu-event flat `env.*` keys and `select.feature.*` toggles with nested objects (`definition-engine`, Presentation, Browser).
+
+**Symptom / Observation**: After nesting, `/bootstrapAdministrator` stayed inactive although `/identity/bootstrapMode` was answered; a Blazor draft refused to compose; an answered public `/platform/authenticationProvider` rendered masked; a journey section holding only deployment selectors appeared as an ordinary group.
+
+**Root Cause**: The validation session recorded undecided values by top-level member name, so one missing nested member (an operator-identity field) made every condition reading any part of `identity` undecided. Presentation masks every member of a container whose effective sensitivity includes a protected descendant (a deliberate conservative policy). Selector hiding is keyed to the top-level member that owns the selector, and a journey listing that section shows it whenever no deployment context applies.
+
+**Resolution**: Nested causes (missing member, deferred secret, undecided condition) now record paths (`UnresolvedLocations`, nested `DeferredLocations`); condition evaluation, draft copies, editable/import projections and scope resolution read `UndecidedRoots` plus `UndecidedLocations`. Regression: `AnsweredMemberStaysDecidedBesideAMissingSibling` (fails when the nested witness is recorded as a root name). The masking policy is unchanged pending a decision. The selector-only section left the journey and the quality linter no longer reports it as unreferenced.
+
+**Why This Matters for Future Work**: Any rule written against top-level members (uncertainty, masking, section membership, private-state clearing) becomes coarse once settings are grouped. Check new consumers of validation results for `UnresolvedFields`-only logic; prefer the root-plus-location pair. Mixed public/secret groups mask public members until Presentation adopts recursive sensitivity.
+
+**References**:
+- `src/Configurator.Core/Definitions/DefinitionValidationSession.cs`
+- `src/Configurator.Core/Definitions/DefinitionValidationResult.cs`
+- `src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs`
+- `src/Configurator.Presentation/Form/DefinitionFieldValidation.cs`
+- `docs/internal/reports/TERMINAL_CTO_REVIEW.md` (finding 15)
+- `docs/internal/CORE_DEFINITION_CONTRACT.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal only; the contract is recorded in `docs/internal/CORE_DEFINITION_CONTRACT.md`.

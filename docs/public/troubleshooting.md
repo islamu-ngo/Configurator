@@ -300,7 +300,7 @@ islamu-configurator artifact create --definition setup.json \
 **Step-by-Step Recovery:**
 1. Retain value-free receipt codes and process exit; text mode does not promise
    a raw exception trace.
-2. Source builds require SDK 10.0.403; standalone packages carry their runtime.
+2. Source builds require SDK 10.0.404; standalone packages carry their runtime.
    SDK and runtime version numbers are not interchangeable.
 3. If reproducible with sanitized sample data, file an issue in the upstream repository including your definition and non-sensitive inputs.
 

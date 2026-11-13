@@ -343,21 +343,21 @@ again using fresh destinations.
 
 ## Managed Local Profile Store & Protocol Handshake
 
-Configurator Desktop serves as an operator's local command center for managing applications across multiple deployment environments:
+> [!NOTE]
+> **Planned feature:** Managed encrypted local profile storage, `configurator://` deep-link matching, and direct PaaS/secret-manager delta sync are on the future roadmap ([proposed design decision](../internal/adr/ADR-encrypted-local-profiles-and-target-apply.md)). Current Desktop builds support stateless configuration editing, comparing ordinary files, and create-only Linux protected output.
+
+Configurator Desktop is designed to serve as an operator's local command center for managing applications across multiple deployment environments:
 
 1. **Protocol Handshake (`configurator://`):**
    * Registered as a native desktop URI scheme on Linux, macOS, and Windows.
    * When operators click "Configure Visually" or release notes upgrade links, the desktop application can open directly, bypassing browser download steps.
-2. **Local Profile Store (`~/.config/islamu-configurator/profiles/<app-id>/`):**
-   * Automatically catalogs and manages configuration snapshots per application and environment:
-     * `development.env` / `answers.json`
-     * `staging.env` / `answers.json`
-     * `production.env` / `answers.json`
-   * Automatically recognizes and pre-selects active profiles based on definition ID and metadata fingerprints.
-3. **Native Secret Manager Vault Sync (Infisical & Azure Key Vault):**
-   * During the **Review outputs** stage, Desktop provides optional authenticated export sinks to push configured secrets directly into target vaults.
-   * Leverages official provider CLIs (`infisical-cli`, `az`) for local keyring authentication and `ISLAMU SecretKit` runtime models for disposable in-memory verification.
-   * By default, zero network requests occur; vault synchronization happens solely on explicit operator confirmation.
+2. **Encrypted Local Profile Store (`~/.config/islamu-configurator/profiles/<app-id>/<env>/`):**
+   * Stores **immutable per-revision encrypted snapshots** per application and deployment environment (`development`, `staging`, `production`) so previous working revisions remain intact for Day-2 rollback.
+   * Planned persistence tiers match your security preference: **Compare-only** (stores no secret values at all—only non-secret settings and policy metadata for schema-upgrade diffing), **Import for upgrade only** (encrypts secrets on disk and carries them forward silently into new versions without revealing plaintext), **Inspectable encrypted** (encrypted on disk, viewable inside the unlocked Desktop app), alongside existing **Unencrypted export**.
+   * Convenience-first unlocking uses your OS keyring automatically on your machine, paired with an optional passphrase backup slot for portability.
+3. **Native Secret Manager & PaaS Sync (Coolify, Infisical & Azure Key Vault):**
+   * During the **Review outputs** stage, Desktop will provide optional authenticated export and upgrade-delta sinks to push configured settings directly into self-hosted **Coolify** instances or target vaults (**Infisical**, **Azure Key Vault**).
+   * By default, zero network requests occur; vault or PaaS synchronization happens solely on explicit operator confirmation.
 
 For the underlying architecture and sovereign infrastructure vision, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
 

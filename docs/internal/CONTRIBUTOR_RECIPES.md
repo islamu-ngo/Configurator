@@ -20,7 +20,7 @@ synthetic data. They are not requests to change working product behavior.
 Commands in the original worked recipes are **runnable current command forms,
 source-inspected but not executed for these guides**. The separately dated
 maintenance evidence below identifies actual executions. Run commands only as part of an authorized
-contribution, from the repository root in a POSIX shell. Use SDK 10.0.403 from
+contribution, from the repository root in a POSIX shell. Use SDK 10.0.404 from
 [`global.json`](../../global.json), restored project dependencies and an existing
 writable `"$HOME/.cache/agent-tmp"`. Product test projects are executable TUnit/MTP
 owners. Their selectors below name inspected existing classes or methods, not

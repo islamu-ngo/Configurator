@@ -333,20 +333,65 @@ repeated uses; small textual reuse is not unlimited runtime expansion.
 
 ### Asserted formats
 
-`format` alone is descriptive, even when its name is familiar. Enable
-`x-configurator.assertFormat: true` only with these string formats:
+Every registered `format` is checked automatically while answers are validated;
+there is nothing to switch on. Authoring sources reject any other format token.
+An invalid value produces the value-free diagnostic `format-invalid`.
 
-| Format | Exact bounded check |
+| Format | Accepted shape |
 |---|---|
-| `hostname` | ASCII alphanumeric/hyphen labels, 1-63 characters each, alphanumeric ends, total up to 253 after removing one trailing dot |
-| `email-address` | One `@`, local part 1-64 and total up to 254; ASCII letters/digits and `.!#$%&'*+-/=?^_` plus backtick, braces, vertical bar, and tilde; no leading/trailing/consecutive dot; hostname rule for the domain |
-| `uri` | Well-formed absolute URI; no spaces, controls, or non-ASCII characters |
-| `http-url` | The URI check plus HTTP/HTTPS, nonempty host, and no user information |
+| `hostname` | ASCII letter, digit and hyphen labels of 1-63 characters with alphanumeric ends; total up to 253 after one optional trailing dot |
+| `ipv4`, `ipv6`, `ip-address` | Dotted-quad IPv4 without leading zeros; RFC 4291 IPv6 text with at most one `::` and an optional IPv4 tail; either form |
+| `cidr` | An IPv4 or IPv6 address, `/`, and a prefix of at most 32 or 128 bits |
+| `uri` | An absolute RFC 3986 URI: scheme, colon and only unreserved, reserved or percent-encoded characters |
+| `http-url`, `https-url` | `http://` or `https://` (or HTTPS only), a host or bracketed IPv6 address, optional port 1-65535, no user information |
+| `origin` | Scheme, host and optional port with nothing after the authority, for example `https://app.example.org` |
+| `email-address` | One `@`; local part up to 64 ASCII atom characters without leading, trailing or repeated dots; hostname domain; total up to 254 |
+| `slug` | Lowercase letters and digits separated by single hyphens |
+| `env-key` | A letter or underscore followed by letters, digits or underscores |
+| `bcp47-language-tag` | A well-formed RFC 5646 tag such as `en`, `ar-EG` or `zh-Hant-TW` |
+| `iso3166-alpha2` | Two uppercase ASCII letters |
+| `uuid` | Hyphenated 8-4-4-4-12 hexadecimal form |
+| `semver` | Semantic Versioning 2.0.0, without a leading `v` |
+| `duration` | RFC 3339 Appendix A duration such as `PT30S`, `P1D` or `P2W` |
+| `byte-size` | A decimal number with an optional unit `B`, `kB`, `KB`, `MB`, `GB`, `TB`, `PB`, `KiB`, `MiB`, `GiB`, `TiB` or `PiB` |
+| `unix-path` | An absolute POSIX path without empty, `.` or `..` segments |
+| `relative-path` | A relative path without empty or `..` segments, backslashes or drive letters; a leading `./` is allowed |
+| `oci-image` | An OCI reference: optional registry and port, lowercase repository path, optional tag and `@algorithm:hex` digest |
+| `sha256-hex` | Exactly 64 lowercase hexadecimal characters |
+| `cron-5` | Five cron fields with lists, ranges, steps and English month or weekday abbreviations; no `@` macros |
 
-These are deliberately bounded checks, not full standards validation. They do
-not perform DNS, reachability, mailbox, certificate, credential, filesystem, or
-target checks. Unlike public help links, asserted answer URLs are not generally
-required to omit query strings or fragments.
+Each check runs in time proportional to the value length, with no regular
+expressions. These are lexical checks only: they do not perform DNS, reachability,
+mailbox, certificate, credential, filesystem or target checks. Unlike public help
+links, URL answers may carry query strings and fragments.
+
+### Titles, choices and order without repetition
+
+Omit `title` when the key already says what the setting is: Configurator turns
+`PUBLIC_BASE_URL` into `Public Base URL`, `maxConnectionsPerHost` into
+`Max Connections Per Host` and `env.AI_PROVIDER` into `AI Provider`, while versions,
+CIDR ranges, paths and other symbolic text stay as written. Set
+`x-configurator.displayRawKey: true` to show the exact key instead.
+
+`x-configurator.choices` can stand on its own; the compiler builds `enum` from the
+listed values in order. With an explicit `enum`, `choices` may describe only some
+values, and the rest show humanized labels. A choice may carry `explanation`,
+`deprecated` and `deprecationMessage`.
+
+Settings appear in the order you write them. To override that, use
+`x-configurator.propertyOrder` (with `"*"` standing for every unlisted setting)
+or per-setting `x-configurator.order` ranks. Order never changes the definition's
+identity digest.
+
+### Field hints that never become values
+
+`placeholder` shows an example in an empty editor (public settings only),
+`defaultText` explains what the application does when the setting is left out,
+and `deprecationMessage` explains a `deprecated: true` setting. `widget` requests
+an editor (`singleline`, `multiline`, `markdown`, `code`, `select`, `radio`,
+`switch` or `slider`); `rows`, `syntax` and `booleanLabels` refine it, and
+`itemTitlePointer` names the public field that titles each list row. None of
+these hints is ever written into a prepared file.
 
 ## Presence, Defaults, and Requiredness
 
@@ -441,6 +486,37 @@ is part of the condition. `dependentRequired` adds local presence obligations
 when its trigger exists. Mutual presence requirements are allowed; they are not
 activation cycles.
 
+When the controlling answer lives in another part of the configuration, use
+`x-configurator.requiredWhen` on the member instead of a local `if`. It takes the
+same predicates as `applicableWhen` and makes the member required while they
+hold:
+
+```yaml
+setupSecret:
+  type: string
+  x-configurator:
+    sensitivity: secret
+    requiredWhen:
+      op: all
+      operands:
+        - {op: exists, reference: {scope: root, path: /hosting/replicaCount}}
+        - {op: notEquals, reference: {scope: root, path: /hosting/replicaCount}, value: 1}
+```
+
+A member is either listed in `required` or carries `requiredWhen`, not both.
+
+#### Optional groups instead of inclusion toggles
+
+Model an optional area as an object that its parent does not require. Present
+means included: its members' `required` lists apply, and it reaches outputs.
+Absent means excluded. Add `initialValue: {}` to include a group by default; it
+may hold protected members because the empty object supplies none of their
+values, and an operator omits the group to leave it out. Groups that only
+organise settings use the same `initialValue: {}` so they are always present,
+and they carry a condition shared by all their members once rather than on
+every member. A missing member makes only that member undecided, so conditions
+reading an answered sibling in the same group still resolve.
+
 Requirements do not activate otherwise inactive nodes. Missing, invalid, or
 secret-deferred controllers can make a dependent decision **unknown** rather
 than false. Uncertainty is propagated instead of choosing the `else` branch or
@@ -457,7 +533,8 @@ private ancestor.
 
 `default`, `examples`, `const`, `initialValue`, and `suggestedValue` reject in
 protected contexts; a public container with protected descendants cannot carry
-one of those aggregate public values. Secret or sensitive values must be
+one of those aggregate public values, except an `initialValue` that opens the
+container without supplying any protected member (such as `{}`). Secret or sensitive values must be
 collected privately, not embedded in public source, examples, help text,
 translation strings, annotations, or projection literals. Admission's
 classification rules are not a scanner that can recognize every real secret.
@@ -470,7 +547,8 @@ guarantees. See [Browser](browser.md) and [native output](native-output.md).
 ### Guidance and credential classification
 
 `x-configurator` also admits `detail` (`basic`, `standard`, `advanced`), `units`
-(up to 128 characters), `notBlank`, `uniqueBy`, `applicableWhen`, `assertFormat`,
+(up to 128 characters), `notBlank`, `uniqueBy` (one pointer or a composite of up to
+eight), `applicableWhen`, the ordering and hint keywords above,
 and the value/choice metadata above. Detail controls disclosure, not validation.
 
 `guidance.instructions` is inert text up to 4,096 characters; it permits CR, LF,

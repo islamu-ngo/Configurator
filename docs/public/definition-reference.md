@@ -125,7 +125,7 @@ array `items` recursively use the same admitted schema grammar.
 | `minItems`, `maxItems`, `uniqueItems` | Array cardinality and structural value uniqueness |
 | `minProperties`, `maxProperties` | Object cardinality bounds |
 | `default` | Descriptive public metadata only; never inserted |
-| `format` | String annotation unless explicitly enabled by `x-configurator.assertFormat`; never a network check |
+| `format` | One of 23 asserted lexical formats, checked automatically; never a network check |
 | `$defs`, `$ref` | Bounded acyclic local schema references rooted at `configuration`, beginning `#/$defs/`; no remote resolution |
 | `oneOf` | 2-16 closed object branches sharing exactly one eligible required scalar discriminator with distinct const values |
 | `readOnly`, `writeOnly`, `deprecated`, `examples` | Bounded annotations; `writeOnly: true` raises the secret floor |
@@ -134,9 +134,12 @@ array `items` recursively use the same admitted schema grammar.
 
 The extension admits `sensitivity` (`public`, `sensitive`, `secret`), `initialValue`,
 `suggestedValue`, string `notBlank`, `detail` (`basic`, `standard`, `advanced`),
-`guidance`, `secret`, typed enum `choices`, `units`, array-object `uniqueBy`,
-property `applicableWhen`, and string-only `assertFormat`. Missing sensitivity is conservatively
-sensitive; missing detail projects as standard. `choices` pairs each enum value
+`guidance`, `secret`, typed enum `choices` (full or partial), `units`, array-object `uniqueBy`
+(one pointer or a composite key), `propertyOrder`, `order`, `placeholder`, `defaultText`,
+`deprecationMessage`, `widget`, `rows`, `syntax`, `booleanLabels`, `itemTitlePointer`,
+`displayRawKey`,
+and property `applicableWhen` and `requiredWhen`. `assertFormat` is retired and rejects. Missing sensitivity is conservatively
+sensitive; missing detail projects as standard. `choices` annotates enum values
 with a label and optional explanation. `uniqueBy` is a concrete item-relative
 pointer through required object properties to a non-null string.
 
@@ -227,6 +230,16 @@ Comparisons use typed values;
 `in` uses nonempty `values`. Compounds use nonempty `operands`; `not` takes one.
 Unknown references and applicability cycles reject.
 
+`x-configurator.requiredWhen` uses the same predicate grammar on a named object
+member: the member is required while the predicate holds and it is collected. It
+cannot be combined with listing the member in `required`, and it is rejected on
+the configuration root, array items, map values and branches. An object that is
+not required is an optional group: present means included, and its members'
+`required` lists apply only then. `initialValue: {}` opens such a group by
+default even when it holds protected members, because it supplies none of their
+values; explicit omission leaves it out. A missing or deferred nested member
+leaves only that member undecided, never its answered siblings.
+
 Missing controllers make leaf predicates false; valid present null counts as
 existing. Invalid or secret-deferred controllers propagate unknown, never a
 guessed active branch. Boolean composition preserves unknown unless a decisive
@@ -256,14 +269,19 @@ necessary.
 ## Presentation and guidance
 
 Presentation uses `defaultJourney`, optional `navigation` (`wizard`/`sections`),
-`sections` with concrete `pointers`, and `journeys` with ordered section IDs.
+`sections` with concrete (possibly nested, such as `/server/domain`) `pointers`,
+and `journeys` with ordered section IDs. Sections and journeys may set `detail`
+and `applicableWhen`; sections may hold up to 32 collapsible `groups` (`id`,
+`title`, `description`, `pointers` within the section, `detail`, `applicableWhen`,
+`collapsed`).
 IDs are bounded lowercase kebab-case; titles and optional descriptions are inert.
 Layout/detail never changes validity or grants presets. Consumers must keep
 applicable required/error work reachable; a metadata declaration is not proof
 that every client has qualified that experience.
 
 Use optional `presentation.outputSelector` when a public root string enum chooses
-the output task. Set `pointer` to that setting's exact JSON Pointer and list
+the output task. Set `pointer` to that setting's exact JSON Pointer (nested settings
+need required, unconditional public parent objects) and list
 `options` in display order. Each option declares its enum `value`, human `title`
 and nonempty `artifactIds`. Options must cover every enum value exactly once,
 with at most 64 options and 64 artifact references each. Referenced artifacts
@@ -332,6 +350,20 @@ Outputs require `format`: `dotenv`, `json`, `yaml`, or `markdown`. Optional
 `reconcile`, `generationOnly`; `restartRequirement` is `unspecified`, `none`,
 `process`, `deployment`. Both default to `unspecified`. They are advice, not
 target acceptance, apply permission or filesystem authority.
+
+In authoring sources, `bindings` values may be a JSON Pointer string, a
+`{ "literal": value }` constant or an explicit `{ "scope", "path" }` reference.
+`includeBindings` reuses the bindings of other outputs (dotenv with dotenv, JSON
+with YAML) before your own, `bindObject` binds every member of a configuration
+object by key (with `only`, `except` and, for JSON or YAML, a `target` pointer),
+and an output `when` predicate prepares the file only while it holds. Root
+`predicates` name reusable conditions, referenced as
+`{ "op": "predicate", "name": "..." }` anywhere a condition is accepted; they
+must be acyclic and at most 16 references deep. Localization keys may address a
+choice by value, for example
+`/configuration/properties/mode/x-configurator/choices[value=LOCAL]/label`, so
+translations stay attached when choices are reordered. All of these compile to
+the same bounded runtime projections and conditions.
 
 For dotenv outputs, `environmentDialect` selects `docker-run` or `compose`.
 Every dotenv output referenced by a deployment scope must declare both its

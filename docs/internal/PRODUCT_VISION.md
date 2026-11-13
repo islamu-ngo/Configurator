@@ -115,12 +115,18 @@ Configurator rejects the false dichotomy between "dumbing down software for begi
 * **Consent-Safe Compact Property Table (`BrowserNoSecrets`):** A dense, virtualized, single-row property table (`about:config` / VS Code Settings style) capable of smoothly filtering and navigating 600+ settings. Crucially, public settings can be inspected and edited immediately without prematurely granting secret custody; secret rows remain masked and locked until deliberate consent is given.
 * **`DefinitionDocumentSession` Editors:** Full raw text buffer editing (JSON / dotenv) in Desktop and Terminal, protected by `OperationGeneration` stale-concurrency rejection and automatic memory zeroing.
 
-### Desktop Managed Profile Vault & Protocol Handshake
+### Desktop Managed Profile Vault & Protocol Handshake *(Planned)*
+
+> [!NOTE]
+> The managed encrypted profile vault, `configurator://` deep-link matching, and direct PaaS/secret-manager delta sync below describe **planned** future capabilities ([proposed ADR](adr/ADR-encrypted-local-profiles-and-target-apply.md)). Current implemented releases provide stateless offline preparation, read-only import comparison, and create-only Linux protected export.
+
 * **The `configurator://` Protocol Handshake:** Like Microsoft Teams, VS Code, or Zoom, deep links and release note links can trigger a protocol handshake. Web visitors receive a non-intrusive prompt: *"Open in Configurator Desktop or continue in Web?"*
-* **Managed Local Profile Store:** The Desktop application maintains an encrypted, user-owned local directory (`~/.config/islamu-configurator/profiles/<app-id>/`) that automatically catalogs active configurations across environments:
-  * `development.env` / `answers.json`
-  * `staging.env` / `answers.json`
-  * `production.env` / `answers.json`
+* **Managed Encrypted Local Profile Store:** The Desktop application maintains an encrypted, user-owned local directory (`~/.config/islamu-configurator/profiles/<app-id>/<env>/`) storing **immutable per-revision `.cfgvault` snapshots** (written via create-only native protection to preserve rollback history) across environments (`development`, `staging`, `production`):
+  * **`compare-only` (Cryptographically Secret-Free):** Strips secret plaintext entirely and stores only definition identity, public values, policy summaries, and non-reversible rotation commitments—enabling safe Day-2 breaking-change diffing and PaaS/vault delta patching.
+  * **`import-upgrade-only` (Blind-Forwarding Vault):** Encrypts secrets with AEAD and purpose-locked AAD so unchanged secrets carry forward silently during schema upgrades without revealing plaintext in UI or raw exports.
+  * **`inspectable-encrypted` (Unlocked Convenience):** Encrypts profiles at rest on disk while allowing inspection and editing inside an unlocked Desktop/Terminal session.
+  * **Unencrypted Export (Implemented):** Standard explicit `.env`, JSON, and YAML generation remains available.
+* **Convenience-First Unlock & Portability:** Desktop snapshots wrap their Data Encryption Key (DEK) in the **OS Keyring** (DPAPI, macOS Keychain, `libsecret`) for zero-friction profile matching (`configurator://` `/diff`), paired with an **Argon2id passphrase fallback slot** for portable backups, headless SSH sessions, and explicit Browser `.cfgvault` download/upload (preserving zero persistent storage in Browser).
 * **Zero-Touch Profile Matching:** When a definition is opened, Desktop matches existing local profiles by definition identity and metadata fingerprints, enabling single-click environment switching without file dialog hunting.
 
 ---
@@ -158,14 +164,14 @@ The value of Configurator extends far beyond the initial installation (`Day-1`).
      ```markdown
      [⚡ Check Configuration Breaking Changes](https://configurator.islamu.org/diff?id=immich&from=v2.3.0&to=v2.4.0)
      ```
-   * **Desktop Surface:** Automatically loads the operator's saved local profile for that application and displays the exact visual delta with zero manual input.
-   * **Web Surface:** Prompts the operator with a drop zone: *"Drop your current `docker-compose.env` here to see your diff."*
-   * **Direct Secret Vault Update:** If Infisical or Azure Key Vault sync is enabled, the operator can click **"Apply Upgrade Diff to Staging"** or **"Production"** directly, resolving all new obligations in seconds.
+   * **Desktop Surface *(Planned)*:** Automatically matches the operator's saved `.cfgvault` profile (`compare-only`, `import-upgrade-only`, or `inspectable-encrypted`) for that application via the OS keyring and displays the exact visual delta with zero manual input.
+   * **Web Surface:** Prompts the operator with a drop zone: *"Drop your current `docker-compose.env` (or passphrase-encrypted `.cfgvault`) here to see your diff."*
+   * **Direct PaaS & Secret Vault Delta Update *(Planned)*:** If Coolify (`PATCH /envs/bulk` with `is_shown_once: true`), Infisical, or Azure Key Vault sync is enabled, the operator can apply only the reviewed breaking-change deltas to **"Staging"** or **"Production"** without reading back existing write-only secrets.
    * **Eliminating Upgrade Paralysis:** Operators no longer fear running `docker compose pull && docker compose up -d`, because breaking configuration changes are identified, resolved, and verified before the container restarts.
 
 ---
 
-## 7. Secret Management Integration: `ISLAMU SecretKit` and Native Vault Sinks
+## 7. Secret Management & PaaS Integration: `ISLAMU SecretKit`, Coolify, and Vault Sinks *(Planned)*
 
 ### The Role of `ISLAMU SecretKit`
 `ISLAMU SecretKit` is an independent .NET 10 library suite developed under the ISLAMU non-profit umbrella. Its primary purpose is to provide **runtime secret consumption** for applications like ISLAMU Event:
@@ -173,12 +179,13 @@ The value of Configurator extends far beyond the initial installation (`Day-1`).
 * It provides explicit, disposable secret access in memory: secrets are borrowed inside scoped lambda callbacks (`SecretMaterial.Use(...)`) using stack/span memory that is wiped via `CryptographicOperations.ZeroMemory` immediately upon exit.
 * It eliminates plaintext configuration strings from persistent application configuration models.
 
-### Configurator as the Provisioning Bridge
-While SecretKit serves the **runtime consumption plane** inside the application, Configurator serves the **setup and provisioning plane**:
-* When an operator configures an application that uses Infisical or Azure Key Vault, Configurator allows them to choose an **optional export sink** to apply those validated secrets directly into the target vault.
-* **Native Runtime Boundary (Desktop & Terminal):** The vault push functionality is strictly confined to native desktop and terminal environments where local machine credentials and secure keyrings exist. The Browser WebAssembly client remains 100% offline, static, and air-gapped, retaining its strict zero-network promise.
-* **Implementation Strategy:** Configurator utilizes official provider CLIs (`infisical-cli`, `az`) for standard authentication workflows where robust and available, and leverages native `SecretKit.Management` APIs for fine-grained verification and diffing.
-* **Explicit Permission & Local Defaults:** By default, Configurator executes zero network requests. The connection to a secret vault occurs solely when the operator explicitly clicks an action in the export phase, providing full visibility and control.
+### Configurator as the Provisioning & Delta-Apply Bridge *(Planned)*
+While SecretKit serves the **runtime consumption plane** inside the application, Configurator serves the **setup and provisioning plane** ([proposed target-apply design](adr/ADR-encrypted-local-profiles-and-target-apply.md)):
+* When an operator configures an application for **Infisical**, **Azure Key Vault**, or a self-hosted PaaS such as **Coolify**, Configurator will offer an **optional export/delta-apply sink** to push validated settings and secrets directly into the target environment.
+* **Coolify Write-Only Synergy:** Using Coolify's `read` + `write` API scopes (without requiring `read:sensitive`) and `is_shown_once: true` secrets alongside a local `compare-only` snapshot lets Configurator perform 3-way key existence checks and apply only schema-upgrade deltas via `PATCH /api/v1/applications/{uuid}/envs/bulk`.
+* **Native Runtime Boundary (Desktop, Terminal & CLI):** Vault and PaaS push functionality is strictly confined to native environments where local machine credentials and secure keyrings exist. The Browser WebAssembly client remains 100% offline, static, and air-gapped, retaining its strict zero-network promise.
+* **Implementation Strategy:** Configurator utilizes official provider CLIs (`infisical-cli`, `az`) or native REST/management APIs (`SecretKit.Management`, Coolify REST API) for authenticated diffing and writes.
+* **Explicit Permission & Local Defaults:** By default, Configurator executes zero network requests. The connection to a secret vault or PaaS occurs solely when the operator explicitly confirms an action in the export/upgrade phase, providing full visibility and control.
 
 ---
 

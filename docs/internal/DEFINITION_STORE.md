@@ -168,7 +168,7 @@ app installation. Retaining an admitted external definition remains a separate d
 
 ## Validation and contribution lane
 
-Run from the repository root with SDK 10.0.403 and workstation
+Run from the repository root with SDK 10.0.404 and workstation
 `TMPDIR="$HOME/.cache/agent-tmp"`:
 
 ```bash
@@ -192,6 +192,20 @@ counts are the only diagnostics; source content and private filesystem paths
 are never printed.
 
 ## Initial source provenance
+
+`store/islamu-event/releases/1.json` through `3.json` are immutable history and
+stay byte-identical. `releases/4.json` is created by the store builder from the
+revision 4 source and is byte-identical to `examples/islamu-event/definition.json`;
+the example and the store now share one family. Revision 4 humanizes raw titles
+and choice labels, removes exporter diagnostics from descriptions, adds the
+`recipient-authorities` section to the primary journey and expresses plain dotenv
+outputs as bindings. It also replaces the flat `env.*` keys and the nineteen
+`select.feature.*` toggles with nested objects: optional areas are included by
+being present, `platform` opens through `initialValue: {}`, shared conditions sit
+on their group once, and the setup secret uses `requiredWhen`. Answers therefore
+have a new nested shape. Golden comparison against `releases/3.json` (with the
+flat fixtures) shows identical artifacts for every answer fixture, and per-area
+readiness probes match the former toggles.
 
 The retained `store/minimal-self-hosted/releases/2.json` and
 `store/islamu-event/releases/5.json` are byte-identical native copies of

@@ -10,6 +10,9 @@ Use [README.md](README.md), [FINDING_TEMPLATE.md](FINDING_TEMPLATE.md) and [PROM
 
 Append observed target findings chronologically using the template.
 
+- 2026-11-12 - [Authored order, nested activation and value-keyed choice keys](domains/definition-authoring.md).
+- 2026-11-12 - [Nesting exposes per-top-level-member assumptions](domains/definition-authoring.md).
+
 - 2026-10-30 - [Comparison normalization stalls and retention instrumentation](domains/artifact-import-comparison.md).
 
 - 2026-10-10 — [Inherited privacy, expansion budgets, schema reference scope, lineage and published closure](domains/definition-authoring.md).

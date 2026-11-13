@@ -87,7 +87,7 @@ See [Core mechanisms](CORE_DEFINITIONS.md), [CLI contract](CLI_CONTRACT.md),
 ## Prepare only the environment your change needs
 
 Read [global.json](../../global.json) and [project commands](../../PROJECTS.md).
-The inspected checkout pins SDK **10.0.403**, disables SDK roll-forward, and
+The inspected checkout pins SDK **10.0.404**, disables SDK roll-forward, and
 selects Microsoft.Testing.Platform. Native command examples assume a POSIX shell
 at the repository root. Use `TMPDIR="$HOME/.cache/agent-tmp"` with an existing,
 writable cache directory. Do not replace the SDK pin or dependency locks to

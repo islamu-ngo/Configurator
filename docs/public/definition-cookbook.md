@@ -390,28 +390,54 @@ See `LocalReferencesExpandUnderOneConfigurationRootAndCyclesReject` in
 Public application-schema scaffolding is a separate bounded
 [import workflow](integrating.md#scaffold-a-public-schema-deliberately).
 
-## Opt in to format assertions
+## Validate an address format
 
 A property schema for a public documentation address:
 
 ```yaml
 type: string
-format: http-url
+format: https-url
 x-configurator:
   sensitivity: public
-  assertFormat: true
+  placeholder: https://docs.example.org
 ```
 
-Without `assertFormat: true`, `format` is descriptive metadata. The asserted
-registry is exactly `hostname`, `email-address`, `uri` and `http-url`; unsupported
-asserted names reject. Checks are bounded lexical rules, not DNS, email delivery,
+Registered formats are checked automatically; an unregistered token rejects when
+the source compiles. Checks are bounded lexical rules, not DNS, email delivery,
 network reachability, credentials or target-validator equivalence.
-`readOnly`, `deprecated`, examples and ordinary formats are annotations, not
-authorization, initialization or an automatic disabled-control policy.
+`readOnly`, `deprecated` and examples are annotations, not authorization,
+initialization or an automatic disabled-control policy.
 
-See `AssertedFormatsAreOptInAndNeverGrantNetworkOrCredentialAuthority` in
+See `KnownFormatsAreAssertedByDefaultAndRetiredOptInRejects` in
 [`DefinitionProfileConformanceTests`](../../tests/Configurator.Core.Tests/Definitions/DefinitionProfileConformanceTests.cs)
 and the [format registry](definitions.md#asserted-formats).
+
+## Give editors a schema for private answer files
+
+Generate a JSON Schema for one definition's answer file:
+
+```bash
+islamu-configurator definition answer-schema --definition definition.json --output answers.schema.json
+```
+
+Point your editor at `answers.schema.json` (for example through `"$schema"` in the
+answer file or editor schema settings). Values are typed with their bounds,
+choices and deprecation, and hover text shows units, omission behavior and a
+choices table. The command reads only the public definition and accepts no answer
+input; secret settings are marked `writeOnly` and carry no example values. The
+schema helps editing; `answers validate` and preparation remain the authority.
+
+## Review authoring quality before release
+
+```bash
+islamu-configurator definition lint --source configurator.yaml --quality
+```
+
+Quality advisories flag titles that repeat raw keys, choice labels that repeat
+their values, JSONPath fragments or exporter diagnostics in operator text,
+deprecations without guidance, sections without descriptions, required secrets
+without guidance and sections no journey reaches. Advisories are warnings; they
+never change whether the definition is admitted.
 
 ## Localized public choices, help and links
 

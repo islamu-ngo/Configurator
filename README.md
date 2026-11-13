@@ -230,7 +230,7 @@ There are many ways you can contribute to ISLAMU Configurator:
 
 ## Quick Start (For Developers & Contributors)
 
-For local development and code contribution, install .NET SDK **10.0.403**
+For local development and code contribution, install .NET SDK **10.0.404**
 and the pinned workloads described in [PROJECTS.md](PROJECTS.md). The following
 Bash commands create a checkout, restore dependencies (network/cache required),
 build it, and inspect native writer availability. They do not prepare target
@@ -343,7 +343,7 @@ from qualification and future work, and the
 
 | Layer | Technology |
 |---|---|
-| Runtime | .NET 10, SDK 10.0.403 |
+| Runtime | .NET 10, SDK 10.0.404 |
 | Architecture | Independent Core, Artifacts and Presentation with four adapters |
 | Machine CLI | Spectre.Console / Spectre.Console.Cli |
 | Terminal | Official Terminal.Gui, centrally pinned with retained component notices |

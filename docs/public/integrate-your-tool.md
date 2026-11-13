@@ -175,8 +175,8 @@ inspect required presence and declared const/enum properties; consequences are
 local required sets, not arbitrary schema combinators. Recursive maps, bounded
 provider branches, local references and explicit format assertions are
 implemented. Unknown semantic vocabulary rejects rather than silently degrading.
-Standard `format` remains descriptive unless `x-configurator.assertFormat`
-explicitly enables a supported assertion.
+The 23 registered `format` tokens are asserted automatically; authoring sources
+reject other tokens, and `assertFormat` is retired.
 
 ### Step 3: Build Canonical JSON
 

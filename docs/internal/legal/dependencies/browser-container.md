@@ -11,7 +11,7 @@ Registry manifest inspection resolved these identities on the review date:
 
 | Component | Role | Manifest digest |
 | --- | --- | --- |
-| `mcr.microsoft.com/dotnet/sdk:10.0.403-noble` | Build-only SDK matching `global.json`; discarded from the final image | `sha256:32ac63f80a3dfe48cf91ec1de80b0f394e37e353ee367c7fa87991c2111d22f4` |
+| `mcr.microsoft.com/dotnet/sdk:10.0.404-noble` | Build-only SDK matching `global.json`; discarded from the final image | `sha256:fe0fd4e93bd2fbb47c883b7a6369e5c8d3db8bf01cdc5981f6ee35fbdf3ff4fb` |
 | `mcr.microsoft.com/dotnet/aspnet:10.0.10-noble` | Shipped runtime for the first-party public-file host and inherited operating-system closure | `sha256:f1126d438ccc359f51cc6d4701a8deae513856cf10f5fe645d29ea6403dcac6b` |
 
 The Dockerfile pins both version tags and digests. A digest identifies the

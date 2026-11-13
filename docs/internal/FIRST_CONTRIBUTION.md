@@ -80,7 +80,7 @@ to update its public guide and technical anchor in the same increment.
 ## 4. Check the actual changed document
 
 **Runnable current checker command; source-inspected, not executed here.**
-Prerequisites: POSIX shell at the repository root, SDK 10.0.403 from
+Prerequisites: POSIX shell at the repository root, SDK 10.0.404 from
 [`global.json`](../../global.json), an existing writable agent temporary directory,
 and the changed guide present in this checkout.
 

@@ -41,7 +41,7 @@ constraints; missing facts cannot be inferred from a field name.
 - Variants use 2-16 closed object `oneOf` branches with exactly one eligible common required scalar discriminator and distinct `const` values. This is not general composition; nullable variants handle null outside branch selection.
 - Local `$ref` begins `#/$defs/` under the original configuration root. Expansion is bounded and acyclic; no network/filesystem resolution, dynamic scope or executable plugin.
 - Property `x-configurator.applicableWhen` uses typed `exists`, `equals`, `notEquals`, `in`, `all`, `any`, `not` predicates and explicit root/item references. Missing controllers make leaves false; invalid or secret-deferred controllers remain unknown. Applicability cycles reject. Local `dependentRequired` and restricted `if`/`then`/`else` required-name sets validate presence, not visibility. Include guard `required` when absence must select else.
-- `format` is annotation-only unless a string opts into `x-configurator.assertFormat: true`. Asserted names are exactly `hostname`, `email-address`, `uri`, `http-url`; these are lexical checks, not network or credential validation.
+- Every registered `format` (23 lexical formats, for example `hostname`, `https-url`, `semver`, `cron-5`) is asserted automatically; `assertFormat` is retired and unknown tokens reject in authoring sources. These are lexical checks, not network or credential validation.
 
 Keep help inert and public. Static guidance links are credential-free HTTPS without query or answer interpolation, opened deliberately without automatic fetch. Layout, detail, choice labels and localization do not change typed values, validity or authority. Core support is not proof of every adapter's rendered behavior.
 

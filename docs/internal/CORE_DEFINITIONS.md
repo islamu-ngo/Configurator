@@ -66,8 +66,8 @@ activation ordering; mutual presence requirements are valid.
 
 Configuration-root `$defs`/`$ref` expansion is bounded and acyclic, rejects
 remote/dynamic/percent-encoded references, checks unused declarations and
-preserves sensitivity floors. `format` is annotation unless `assertFormat` is
-true for the closed hostname/email-address/uri/http-url registry. Assertions
+preserves sensitivity floors. The 23 registered formats are asserted
+automatically by `DefinitionFormatValidator` (`assertFormat` is retired). Assertions
 are lexical, never a network or target-acceptance check.
 
 These mechanisms have maintained source fixtures in

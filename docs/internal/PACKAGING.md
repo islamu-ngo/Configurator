@@ -257,7 +257,7 @@ the editor's reviewed manifest, license, recipe and approval record. The editor
 verifier checks these existing inputs inside the image; it does not rebuild or
 download editor dependencies during container publication.
 
-The build uses the repository SDK 10.0.403. Its final stage contains the pinned
+The build uses the repository SDK 10.0.404. Its final stage contains the pinned
 ASP.NET Core runtime, the small `Configurator.Browser.Host` executable and the
 complete published `wwwroot/`, not the SDK, native clients or a server-side
 answer workspace. The Browser remains standalone client-side WebAssembly.
@@ -411,7 +411,7 @@ Action, container image, publication credential or dispatch.
 
 ### Actual CLI package contract validation
 
-Run from the repository root with SDK 10.0.403 and the native package for the
+Run from the repository root with SDK 10.0.404 and the native package for the
 current host. This tool does not publish or regenerate shared contracts:
 
 ```bash
@@ -624,7 +624,7 @@ inventory; no reflected type is added to task or task-host admission by that
 observation.
 
 `ReadWasmPropsCaptureFactory` supplies one separate, inert Linux adapter for
-the SDK 10.0.403 JSON reader. `ReadWasmPropsProfile` owns the exact SDK recipe,
+the SDK 10.0.404 JSON reader. `ReadWasmPropsProfile` owns the exact SDK recipe,
 assembly and parameter-group fingerprints, absent original task body, runtime
 type and six-parameter shape: required input `JsonFilePath` and five optional
 item-array outputs. The host requires exactly the pinned original declaration

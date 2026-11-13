@@ -161,21 +161,153 @@ string, boolean, integer and number; container types are object and array.
 Nullable form contains exactly one base type plus `"null"`.
 
 Enums are distinct homogeneous scalar values compatible with the base type;
-nullable types may additionally enumerate null. Optional choice labels preserve
+nullable types may additionally enumerate null. Optional, partial choice metadata preserves
 typed identity. Scalar const is admitted. Bounds include inclusive/exclusive
 minimum/maximum, positive exact multipleOf, minLength/maxLength, minItems/maxItems,
 uniqueItems and minProperties/maxProperties in their type contexts. String
-length counts Unicode scalars. Format is annotation unless assertFormat is true.
+length counts Unicode scalars. The 23 registered formats are asserted automatically;
+unknown format tokens remain runtime annotations so immutable releases stay admissible.
 `readOnly`, `deprecated`, `examples` are annotations subject to privacy/budgets;
 writeOnly true raises secret sensitivity.
 
 Closed `x-configurator` admits sensitivity, initialValue, suggestedValue,
-notBlank, detail, units, guidance, secret, choices, uniqueBy, applicableWhen and assertFormat.
+notBlank, detail, units, guidance, secret, choices, uniqueBy, applicableWhen, requiredWhen, propertyOrder,
+order, placeholder, defaultText, deprecationMessage, widget, rows, syntax, booleanLabels,
+itemTitlePointer and displayRawKey. `assertFormat` is retired and rejects.
 Missing sensitivity is sensitive. `uniqueBy` follows a concrete item-relative
-pointer through required object properties to a non-null string. Effective
+pointer (or up to eight pointers forming a composite key) through required object
+properties to a non-null string. Effective
 container sensitivity includes inherited floors and protected descendants.
 Public literal metadata cannot launder private initial/suggested/default/example/
 const content through ancestor or child labels.
+
+### Display text, ordering and non-value metadata
+
+`DefinitionDisplayText` resolves display text in one order: localized override,
+explicit `title`/`label`, then deterministic humanization. Humanization turns
+`SCREAMING_SNAKE_CASE`, `snake_case`, `kebab-case`, `camelCase` and `PascalCase`
+identifiers into Title Case with a canonical acronym and product dictionary
+(`PUBLIC_BASE_URL` becomes `Public Base URL`, `OPENAI_COMPATIBLE` becomes
+`OpenAI Compatible`). It strips an `env.` prefix, renders `__` and `.` levels with
+` / `, and returns symbolic literals (versions, CIDR ranges, paths, media types and
+text containing spaces) unchanged. `FieldDefinition.Name`/`TechnicalName` and
+`DefinitionChoice.Value`/`WireToken` always keep the exact wire value;
+`displayRawKey: true` keeps the raw key as the display title.
+
+`DefinitionNode.OptionMetadata` lists every enum member as a `DefinitionChoice`
+(display label, explicit-label flag, explanation, deprecation and the index of its
+`choices` entry for localization). `choices` may annotate any subset of `enum`;
+`deprecationMessage` requires `deprecated: true`. `DefinitionNode.OrderedPropertyNames`
+applies `propertyOrder` (with one optional `*` placing unlisted members), then
+per-member `order` ranks, then ordinal names. Order is data: canonical JSON still
+sorts keys, so digests are unaffected. `FieldDefinition.Properties` and
+`Definition.Fields` enumerate in this order.
+
+`DefinitionFieldPresentationMetadata` exposes `placeholder`, `defaultText`,
+`deprecationMessage` (as `DeprecationGuidance`), `units`, `widget`, `rows`,
+`syntax`, `booleanLabels`, `itemTitlePointer` and `displayRawKey`. Text uses the
+markup-free text floor. A placeholder is an input exemplar and is admitted only on
+public subtrees; `defaultText` explains target behavior on omission and never
+becomes a value. Widget options must match the node: `switch` needs a boolean,
+`slider` a bounded number, `select`/`radio` an enum, `rows` a multi-line, Markdown
+or code widget and `syntax` the code widget. `itemTitlePointer` must reach a public
+scalar inside list items. Misuse rejects with `widget-invalid`, `item-title-invalid`,
+`deprecation-invalid` or `public-value-protected`.
+
+### Asserted formats
+
+`DefinitionFormatValidator` owns 23 formats: `hostname`, `ipv4`, `ipv6`,
+`ip-address`, `cidr`, `uri`, `http-url`, `https-url`, `origin`, `email-address`,
+`slug`, `env-key`, `bcp47-language-tag`, `iso3166-alpha2`, `uuid`, `semver`,
+`duration` (RFC 3339 Appendix A), `byte-size`, `unix-path`, `relative-path`,
+`oci-image`, `sha256-hex` and `cron-5`. Each is a hand-written single-pass scanner
+without regular expressions or backtracking; validation emits value-free
+`format-invalid`. Checks are lexical only and grant no reachability, ownership or
+target acceptance. Asserted formats add no capability. The authoring compiler
+rejects unknown format tokens (`format-unsupported`); runtime admission keeps them
+as annotations for historical releases. `pattern` stays unsupported.
+
+### Applicability across nested members
+
+Root-scoped references are tracked by full path. A nested member may depend on a
+sibling inside the same root object (`/ai/provider` on `/ai/enabled`); admission
+orders siblings by the paths their subtrees read and rejects references to the
+node itself, an ancestor or a descendant as `activation-cycle`. The validation
+session resolves siblings in that order and evaluates such conditions against the
+partially resolved root object. Output and deployment selectors may be nested when
+every ancestor is a public, required, unconditional and non-nullable object.
+
+### Optional groups, conditional requirements and undecided values
+
+An object that is not listed in its parent's `required` is an optional group:
+its members are collected and their own `required` lists apply only while the
+object is present. Presence is the inclusion decision, so a synthetic boolean
+toggle is unnecessary. `x-configurator.initialValue` may open a public object
+that holds protected members when the value supplies none of them
+(`DefinitionNodeReader.SuppliesProtected`); an opened object may omit its required
+members, which become obligations (`DefinitionValidator.ValueValid(..., requireMembers: false)`).
+Explicit omission of the object suppresses the initial value.
+
+`x-configurator.requiredWhen` makes a named object member required while a
+predicate holds. It shares `applicableWhen`'s grammar, reference validation,
+dependency ordering and `activation-cycle` rules
+(`DefinitionValidator.NodeConditions`), is decided only for collected members,
+and rejects with `relationship-invalid` when the member is also in `required`
+and with `condition-context` on the configuration root, list items, map values
+or branches. Nested members join `childRequired` in `ResolveProperty`;
+top-level members join relationship settlement beside `if`/`then` and
+`dependentRequired`. An undecided `requiredWhen` is reported like an undecided
+applicability condition. Use local `if`/`then`/`else` for sibling rules and
+`requiredWhen` when the controlling answer lives elsewhere.
+
+Undecided values are tracked by path. A missing nested member, a deferred nested
+secret or an undecided nested condition records its location
+(`DefinitionValidationResult.UnresolvedLocations`, nested `DeferredLocations`);
+only top-level causes record a whole member name. A condition reference is
+undecided when it overlaps an undecided location, so a missing member never hides
+an answered sibling. Draft composition refuses a copy that reads or contains an
+undecided location (`draft-dependency-unresolved`) and evaluates `when` against
+`UndecidedRoots` and `UndecidedLocations`; editable and import projections and
+deployment scope resolution use the same pair.
+
+### Authoring lowering
+
+The authoring compiler lowers conveniences before runtime admission, so runtime
+documents contain only canonical keywords:
+
+- `DefinitionSchemaLowering`: `choices` without `enum` synthesize `enum` in
+  order; authored mapping order becomes `propertyOrder` (from source positions,
+  only when no explicit order exists); generated byte secrets infer
+  `minBytes`/`maxBytes` and encoded length, generated passwords a minimum length.
+- `DefinitionPredicateLowering`: root `predicates` referenced as
+  `{"op":"predicate","name":…}` are inlined; cycles reject `predicate-cycle`,
+  unknown names `predicate-unknown`, chains deeper than 16 `predicate-limit`.
+- `DefinitionLocalizationLowering`: keys such as
+  `…/x-configurator/choices[value=LOCAL]/label` resolve to the choice's index, adding
+  a choice entry and humanized English label when needed.
+- `DefinitionOutputLowering`: bindings accept a pointer string, `{ "literal": … }`
+  or an explicit reference; `includeBindings` reuses another output's bindings
+  (dotenv with dotenv, JSON with YAML); `bindObject` binds each member of an object
+  (`only`/`except`, optional JSON `target`); output `when` guards the artifact.
+
+Section `detail` and `applicableWhen`, collapsible `groups` (whose pointers must
+lie within the section's pointers), journey `detail`/`applicableWhen` and nested
+section pointers are runtime presentation data exposed as `DefinitionSection`,
+`DefinitionSectionGroup` and `DefinitionExperience`; they never change validation.
+
+### Answer schema and quality lint
+
+`DefinitionAnswerSchemaGenerator` turns one admitted definition into a Draft
+2020-12 schema for its private answer file: identity pinned through `$id` and
+`x-configurator` (`familyId`, `revision`, `definitionDigest`), typed `values` in
+authored order, `markdownDescription` hover text (units, omission behavior,
+choices table, deprecation) and optional `omitted` (`default: []`). Secret leaves
+are `writeOnly` with bounds only, never enum, const, default or examples. It
+reads no answers. `DefinitionQualityLinter` reports `raw-identifier-title`,
+`verbatim-choice-label`, `jsonpath-description`, `exporter-diagnostic-description`,
+`missing-deprecation-message`, `missing-section-description`,
+`required-secret-missing-guidance` and `unreferenced-journey-section` without
+changing admission. The schema importer drops titles that only echo their key.
 
 Typed map entries use the same resolver and constraints as declared children.
 Diagnostics/completion metadata use bounded entry ordinals, not private keys.

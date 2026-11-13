@@ -61,10 +61,21 @@ Enums are typed homogeneous scalar values, optionally including null for a
 nullable type. Inclusive/exclusive numeric bounds, exact multipleOf, scalar
 length, item/property cardinality, uniqueItems and scalar const are admitted.
 Closed discriminated provider branches and acyclic configuration-root local
-references are supported. Format is annotation unless assertFormat is true.
+references are supported. The 23 registered formats are asserted automatically;
+authoring sources reject unknown format tokens and `assertFormat` is retired.
 
 `x-configurator` admits sensitivity, initialValue, suggestedValue, notBlank,
-uniqueBy, applicableWhen, assertFormat, detail, guidance, secret, choices and units.
+uniqueBy, applicableWhen, requiredWhen, detail, guidance, secret, choices, units, propertyOrder, order,
+placeholder, defaultText, deprecationMessage, widget, rows, syntax, booleanLabels,
+itemTitlePointer and displayRawKey. Omitted titles and choice labels humanize
+(`PUBLIC_BASE_URL` shows as `Public Base URL`); `choices` may stand alone (the
+compiler synthesizes `enum`) or annotate a subset of `enum`. Authored mapping order
+is preserved. Root `predicates`, value-keyed choice localization, section `groups`,
+nested pointers and concise output bindings (`includeBindings`, `bindObject`,
+string paths, literals, output `when`) are described in the
+[Core definition contract](CORE_DEFINITION_CONTRACT.md#authoring-lowering).
+Run `definition lint --quality` before release and give every required secret a
+description or guidance.
 Public initial/suggested/default/example/const metadata must pass privacy and
 value admission. Private ancestors prevent literal-value leakage through public
 leaves; protected descendants raise effective container sensitivity.
@@ -180,10 +191,11 @@ Keycloak connection selection, local deployment and target acceptance are separa
 decisions. Conditional requiredness and applicability must be reviewed together:
 inactive answers may survive transiently but cannot reappear in artifact output.
 
-Credential descriptors require an effective secret string context. Kinds are
-password, opaque-token, symmetric-key, private-key and connection-string;
-acquisition is existing/create/issuer. Create is only password/symmetric-key;
-issuer excludes symmetric-key. Intent grants no generator or authentication.
+Secret descriptors (`x-configurator.secret`) require an effective secret string
+context. Kinds are password, opaque-token, symmetric-key, private-key,
+password-hash, digest and connection-string; acquisition is local, existing or
+issuer. Only local acquisition admits a generation recipe, connection strings never
+generate, and a descriptor grants no authentication or target installation.
 
 Localization admits `defaultLocale`, locale-keyed translations, optional
 ltr/rtl direction and overrides pointing to existing public text. The compiler
