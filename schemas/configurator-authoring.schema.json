@@ -1112,6 +1112,23 @@
             "suggestedValue": {
               "description": "Public value offered to the operator but never applied automatically."
             },
+            "suggestedFrom": {
+              "type": "object",
+              "properties": {
+                "pointer": {
+                  "type": "string",
+                  "maxLength": 65536,
+                  "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+                },
+                "when": {
+                  "$ref": "#/$defs/predicate"
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "pointer"
+              ]
+            },
             "notBlank": {
               "type": "boolean",
               "description": "Rejects whitespace-only text."
@@ -3962,6 +3979,12 @@
           },
           "additionalProperties": false,
           "required": [],
+          "not": {
+            "required": [
+              "suggestedValue",
+              "suggestedFrom"
+            ]
+          },
           "description": "Configurator semantics: sensitivity, guidance, choices, ordering, widgets and applicability."
         },
         "minimum": {

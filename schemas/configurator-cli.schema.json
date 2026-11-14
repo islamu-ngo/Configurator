@@ -1227,7 +1227,8 @@
               "schema.multipleOf",
               "schema.uniqueItems",
               "values.initial",
-              "values.suggested"
+              "values.suggested",
+              "values.suggested-from"
             ]
           }
         },

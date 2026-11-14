@@ -16,7 +16,7 @@ public sealed class DefinitionSourceMap
     }.ToFrozenSet(StringComparer.Ordinal);
     private static readonly FrozenSet<string> MetadataMembers = new[]
     {
-        "sensitivity", "initialValue", "suggestedValue", "notBlank", "detail", "guidance", "secret",
+        "sensitivity", "initialValue", "suggestedValue", "suggestedFrom", "notBlank", "detail", "guidance", "secret",
         "choices", "units", "uniqueBy", "applicableWhen", "requiredWhen", "propertyOrder", "order", "placeholder", "defaultText",
         "deprecationMessage", "widget", "rows", "syntax", "booleanLabels", "itemTitlePointer", "displayRawKey"
     }.ToFrozenSet(StringComparer.Ordinal);
@@ -132,6 +132,9 @@ public sealed class DefinitionSourceMap
                 else if (name == "x-configurator" && child is CompositionMap metadata)
                 {
                     FixedMembers(memberPath, metadata, MetadataMembers);
+                    if (metadata.Entries.TryGetValue("suggestedFrom", out CompositionNode? suggestedFrom)
+                        && suggestedFrom is CompositionMap suggestion)
+                        FixedMembers(memberPath + "/suggestedFrom", suggestion, ["pointer", "when"]);
                     if (metadata.Entries.TryGetValue("secret", out CompositionNode? secret) && secret is CompositionMap policy)
                     {
                         FixedMembers(memberPath + "/secret", policy, ["kind", "acquisition", "algorithm", "encoding", "constraints", "generation"]);

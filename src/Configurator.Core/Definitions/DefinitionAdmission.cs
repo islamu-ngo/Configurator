@@ -36,6 +36,7 @@ internal static partial class DefinitionAdmission
             throw new DefinitionException("configuration-object-required");
         if (configuration.Properties.Count > 1024) throw new DefinitionException("document-limit");
         ValidateApplicability(configuration, capabilities);
+        ValidateSuggestions(configuration, capabilities);
         if (document.TryGetProperty("annotations", out var annotations) && annotations.ValueKind != JsonValueKind.Object)
             throw new DefinitionException("annotations-invalid");
         ValidateLocalization(document);
@@ -74,6 +75,149 @@ internal static partial class DefinitionAdmission
             ValidatePresentation(presentation, configuration, artifacts, capabilities);
         return configuration;
 
+    }
+
+    /// <summary>Proves static scalar links without reading answers or recursively evaluating suggestions.</summary>
+    private static void ValidateSuggestions(DefinitionNode root, SortedSet<string> capabilities)
+    {
+        var endpoints = new Dictionary<string, (DefinitionNode Node, FieldSensitivity Sensitivity)>(StringComparer.Ordinal);
+        var links = new List<(DefinitionNode Node, string? Location, string SchemaPath)>();
+        var pending = new Stack<(DefinitionNode Node, string? Location, string SchemaPath, FieldSensitivity Inherited)>();
+        pending.Push((root, "", "/configuration", FieldSensitivity.Public));
+        while (pending.TryPop(out var current))
+        {
+            FieldSensitivity sensitivity = (FieldSensitivity)Math.Max((int)current.Inherited,
+                (int)FieldDefinition.SensitivityOf(current.Node));
+            if (current.Location is not null)
+                endpoints.Add(current.Location, (current.Node, sensitivity));
+            if (current.Node.PresentationMetadata.SuggestedSource is not null)
+                links.Add((current.Node, current.Location, current.SchemaPath + "/x-configurator/suggestedFrom"));
+            foreach ((string name, DefinitionNode child) in current.Node.Properties)
+            {
+                string escaped = name.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
+                pending.Push((child, current.Location is null ? null : current.Location + "/" + escaped,
+                    current.SchemaPath + "/properties/" + escaped, sensitivity));
+            }
+            if (current.Node.Items is { } items) pending.Push((items, null, current.SchemaPath + "/items", sensitivity));
+            if (current.Node.AdditionalProperties is { } map)
+                pending.Push((map, null, current.SchemaPath + "/additionalProperties", sensitivity));
+            for (int index = 0; index < current.Node.Variants.Count; index++)
+                pending.Push((current.Node.Variants[index], null,
+                    current.SchemaPath + "/oneOf/" + index.ToString(CultureInfo.InvariantCulture), sensitivity));
+        }
+        var edges = new Dictionary<string, string>(StringComparer.Ordinal);
+        var paths = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var link in links)
+        {
+            try
+            {
+                DefinitionSuggestedSource suggestion = link.Node.PresentationMetadata.SuggestedSource!;
+                string sourceLocation = suggestion.Location.ToPointer();
+                if (link.Location is not { Length: > 0 } destination || sourceLocation.Length == 0
+                    || !endpoints.TryGetValue(sourceLocation, out var source)
+                    || source.Node.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence
+                    || link.Node.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence
+                    || sourceLocation == destination
+                    || sourceLocation.StartsWith(destination + "/", StringComparison.Ordinal)
+                    || destination.StartsWith(sourceLocation + "/", StringComparison.Ordinal))
+                    throw new DefinitionException("suggestion-endpoint");
+                if (source.Node.Secret?.Generation is not null || link.Node.Secret?.Generation is not null
+                    || source.Node.Secret?.Acquisition == DefinitionSecretAcquisition.Local
+                    || link.Node.Secret?.Acquisition == DefinitionSecretAcquisition.Local)
+                    throw new DefinitionException("suggestion-generated");
+                if (source.Sensitivity > endpoints[destination].Sensitivity)
+                    throw new DefinitionException("suggestion-sensitivity");
+                if (suggestion.When is { } condition) ValidateCondition(condition, root, capabilities);
+                if (!SuggestionCompatible(source.Node, link.Node))
+                    throw new DefinitionException("suggestion-incompatible");
+                edges.Add(destination, sourceLocation);
+                paths.Add(destination, link.SchemaPath);
+            }
+            catch (DefinitionException exception) { throw exception.AtSchemaPath(link.SchemaPath); }
+        }
+        // Each destination has at most one edge. Mark each chain once, including disconnected components.
+        var finished = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string start in edges.Keys)
+        {
+            var visiting = new HashSet<string>(StringComparer.Ordinal);
+            string current = start;
+            while (!finished.Contains(current) && edges.TryGetValue(current, out string? next))
+            {
+                if (!visiting.Add(current))
+                    throw new DefinitionException("suggestion-cycle").AtSchemaPath(paths[current]);
+                current = next;
+            }
+            finished.UnionWith(visiting);
+        }
+    }
+
+    private static bool SuggestionCompatible(DefinitionNode source, DefinitionNode destination)
+    {
+        if (source.Type != destination.Type
+            && !(source.Type == DefinitionNodeType.WholeNumber && destination.Type == DefinitionNodeType.Number))
+            return false;
+        if (source.IsNullable && !destination.IsNullable) return false;
+        JsonElement from = source.Keywords;
+        JsonElement to = destination.Keywords;
+        if (from.TryGetProperty("const", out JsonElement constant))
+            return DefinitionValidator.ValueValid(destination, constant);
+        if (from.TryGetProperty("enum", out JsonElement enumeration))
+            return enumeration.EnumerateArray().All(value => DefinitionValidator.ValueValid(destination, value));
+        if (to.TryGetProperty("enum", out _) || to.TryGetProperty("const", out _)) return false;
+        // Typed secret policies carry constraints beyond ordinary scalar keywords. Equality is a bounded proof.
+        if (destination.Secret is not null && source.Secret != destination.Secret) return false;
+        if (source.Type == DefinitionNodeType.Text)
+        {
+            if (to.TryGetProperty("format", out JsonElement format)
+                && DefinitionFormatValidator.IsKnown(format.GetString()!)
+                && (!from.TryGetProperty("format", out JsonElement sourceFormat)
+                    || sourceFormat.GetString() != format.GetString())) return false;
+            if (NotBlank(to) && !NotBlank(from)) return false;
+            return Length(from, "minLength", 0) >= Length(to, "minLength", 0)
+                && Length(from, "maxLength", int.MaxValue) <= Length(to, "maxLength", int.MaxValue);
+        }
+        if (source.Type is DefinitionNodeType.WholeNumber or DefinitionNodeType.Number)
+        {
+            var sourceMinimum = Bound(source, lower: true);
+            var targetMinimum = Bound(destination, lower: true);
+            var sourceMaximum = Bound(source, lower: false);
+            var targetMaximum = Bound(destination, lower: false);
+            if (sourceMinimum.Value < targetMinimum.Value
+                || sourceMinimum.Value == targetMinimum.Value && targetMinimum.Exclusive && !sourceMinimum.Exclusive
+                || sourceMaximum.Value > targetMaximum.Value
+                || sourceMaximum.Value == targetMaximum.Value && targetMaximum.Exclusive && !sourceMaximum.Exclusive)
+                return false;
+            if (to.TryGetProperty("multipleOf", out JsonElement targetMultiple))
+            {
+                decimal? sourceMultiple = from.TryGetProperty("multipleOf", out JsonElement declared)
+                    ? declared.GetDecimal() : source.Type == DefinitionNodeType.WholeNumber ? 1m : null;
+                if (sourceMultiple is null || sourceMultiple.Value % targetMultiple.GetDecimal() != 0) return false;
+            }
+        }
+        return true;
+
+        static int Length(JsonElement keywords, string name, int fallback) =>
+            keywords.TryGetProperty(name, out JsonElement value) ? value.GetInt32() : fallback;
+        static bool NotBlank(JsonElement keywords) =>
+            keywords.TryGetProperty("x-configurator", out JsonElement metadata)
+            && metadata.TryGetProperty("notBlank", out JsonElement flag) && flag.GetBoolean();
+        static (decimal Value, bool Exclusive) Bound(DefinitionNode node, bool lower)
+        {
+            decimal value = node.Type == DefinitionNodeType.WholeNumber
+                ? lower ? long.MinValue : long.MaxValue : lower ? decimal.MinValue : decimal.MaxValue;
+            bool exclusive = false;
+            if (node.Keywords.TryGetProperty(lower ? "minimum" : "maximum", out JsonElement inclusive))
+            {
+                decimal declared = inclusive.GetDecimal();
+                if (lower ? declared >= value : declared <= value) value = declared;
+            }
+            if (node.Keywords.TryGetProperty(lower ? "exclusiveMinimum" : "exclusiveMaximum", out JsonElement strict))
+            {
+                decimal declared = strict.GetDecimal();
+                if (lower ? declared >= value : declared <= value) { value = declared; exclusive = true; }
+            }
+            return (value, exclusive);
+        }
     }
 
     /// <summary>

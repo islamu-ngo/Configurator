@@ -136,9 +136,17 @@ internal static class DefinitionNodeReader
         string sensitivity = "sensitive";
         if (hasExtension)
         {
-            Only(extension, "sensitivity", "initialValue", "suggestedValue", "notBlank", "detail", "guidance", "secret", "choices", "units",
+            Only(extension, "sensitivity", "initialValue", "suggestedValue", "suggestedFrom", "notBlank", "detail", "guidance", "secret", "choices", "units",
                 "uniqueBy", "applicableWhen", "requiredWhen", "propertyOrder", "order", "placeholder", "defaultText", "deprecationMessage",
                 "widget", "rows", "syntax", "booleanLabels", "itemTitlePointer", "displayRawKey");
+            if (extension.TryGetProperty("suggestedFrom", out JsonElement suggestedFrom))
+            {
+                if (extension.TryGetProperty("suggestedValue", out _))
+                    throw new DefinitionException("suggestion-conflict");
+                Only(suggestedFrom, "pointer", "when");
+                _ = DefinitionPath.Parse(suggestedFrom.GetProperty("pointer").GetString()!);
+                capabilities.Add("values.suggested-from");
+            }
             if (extension.TryGetProperty("sensitivity", out var declared))
             {
                 sensitivity = declared.GetString()!;

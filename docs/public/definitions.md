@@ -410,6 +410,22 @@ has an initial value. Supplying `{}` makes its child initialization eligible.
 `suggestedValue` is inert until deliberately accepted as an answer. Both
 initial and suggested values must be schema-valid and wholly public.
 
+For a fact that must stay shared, collect it once and reuse it through output
+`copy` projections. When two forms own independently editable facts, authors may
+declare `x-configurator.suggestedFrom: { pointer: "/source" }` instead. This inert
+link never initializes or copies an answer. It is mutually exclusive with
+`suggestedValue`; optional `when` accepts an inline or named predicate in source.
+Reviewed transfer remains client workflow, separate from Core admission.
+Its source condition can inspect supplied retained answers even when the source
+task is inactive, alongside initialized current settings. Omitted or unresolved dependencies do not grant eligibility;
+this never makes inactive answers part of prepared output.
+
+Links must join statically named scalar leaves with provably compatible
+constraints and no reduction of effective sensitivity through either ancestor
+chain. Cycles, dynamic coordinates, variants, containers and generated-secret
+endpoints reject. Non-generated secret-to-secret links can be admitted, but
+reading or adopting a secret still requires the client's current custody consent.
+
 Private answers have separate `values` and `omitted` members. Omission pointers
 are concrete configuration paths; overlapping omissions or a supplied value at
 an omitted location are ambiguous and reject. To reset, remove the explicit

@@ -24,6 +24,9 @@ public sealed class DefinitionFieldPresentationMetadata
         Rows = extension.ValueKind == JsonValueKind.Object && extension.TryGetProperty("rows", out JsonElement rows)
             && rows.TryGetInt32(out int count) ? count : null;
         Syntax = Text(extension, "syntax");
+        SuggestedSource = extension.ValueKind == JsonValueKind.Object
+            && extension.TryGetProperty("suggestedFrom", out JsonElement suggestedFrom)
+            ? new DefinitionSuggestedSource(suggestedFrom) : null;
         ItemTitlePointer = Text(extension, "itemTitlePointer");
         DisplayRawKey = extension.ValueKind == JsonValueKind.Object && extension.TryGetProperty("displayRawKey", out JsonElement raw)
             && raw.ValueKind == JsonValueKind.True;
@@ -47,6 +50,8 @@ public sealed class DefinitionFieldPresentationMetadata
     public int? Rows { get; }
     /// <summary>Syntax highlighting language for the code widget, for example <c>json</c> or <c>yaml</c>.</summary>
     public string? Syntax { get; }
+    /// <summary>Admitted source metadata; reading it does not read or copy an answer.</summary>
+    public DefinitionSuggestedSource? SuggestedSource { get; }
     public string? TrueLabel { get; }
     public string? FalseLabel { get; }
     /// <summary>Item-relative JSON Pointer of a public scalar whose value titles each list row.</summary>

@@ -64,7 +64,7 @@ Closed discriminated provider branches and acyclic configuration-root local
 references are supported. The 23 registered formats are asserted automatically;
 authoring sources reject unknown format tokens and `assertFormat` is retired.
 
-`x-configurator` admits sensitivity, initialValue, suggestedValue, notBlank,
+`x-configurator` admits sensitivity, initialValue, suggestedValue, suggestedFrom, notBlank,
 uniqueBy, applicableWhen, requiredWhen, detail, guidance, secret, choices, units, propertyOrder, order,
 placeholder, defaultText, deprecationMessage, widget, rows, syntax, booleanLabels,
 itemTitlePointer and displayRawKey. Omitted titles and choice labels humanize
@@ -81,6 +81,15 @@ value admission. Private ancestors prevent literal-value leakage through public
 leaves; protected descendants raise effective container sensitivity.
 Missing sensitivity remains sensitive. Unknown members, invalid constraints,
 reference errors, cycles and resource overflow reject with value-free codes.
+
+Prefer one collected fact and multiple `copy` projections for shared data.
+Independently editable destination scalars may instead declare the closed
+`suggestedFrom` object: required `pointer`, optional `when`, no other members.
+It cannot coexist with `suggestedValue`. Source `when` accepts named or inline
+predicates and lowers to runtime AST. `values.suggested-from` is derived exactly
+when a link is present. Statically resolved endpoints, scalar-domain containment,
+ancestor sensitivity floors and a bounded acyclic link graph are admission
+requirements, not evidence that a source answer is currently usable.
 
 Typed `secret` metadata establishes a secret sensitivity floor. Local `$ref`
 overrides cannot downgrade that floor or replace a conflicting secret policy.

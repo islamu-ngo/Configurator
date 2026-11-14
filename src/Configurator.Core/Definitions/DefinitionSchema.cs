@@ -328,81 +328,91 @@ public static class DefinitionSchema
         ["required"] = Strings(1024, 65536)
     }, "required");
 
-    private static JsonObject Extension(bool source) => Closed(new JsonObject
+    private static JsonObject Extension(bool source)
     {
-        ["sensitivity"] = Describe(Choice(DefinitionVocabulary.Sensitivities),
-            "Custody floor. Omitted means `sensitive`; `secret` values never appear in public metadata."),
-        ["initialValue"] = Describe(new JsonObject(),
-            "Public value prepared when the answer is absent. It never supplies a protected member; an object may "
-            + "open with absent required members, which become operator obligations."),
-        ["suggestedValue"] = Describe(new JsonObject(), "Public value offered to the operator but never applied automatically."),
-        ["notBlank"] = Describe(new JsonObject { ["type"] = "boolean" }, "Rejects whitespace-only text."),
-        ["detail"] = Describe(Choice("basic", "standard", "advanced"), "Progressive disclosure level."),
-        ["units"] = Describe(Text(128), "Unit label shown beside the value, for example `seconds`."),
-        ["uniqueBy"] = Describe(new JsonObject
+        JsonObject extension = Closed(new JsonObject
         {
-            ["oneOf"] = new JsonArray(Pointer(), new JsonObject
+            ["sensitivity"] = Describe(Choice(DefinitionVocabulary.Sensitivities),
+                "Custody floor. Omitted means `sensitive`; `secret` values never appear in public metadata."),
+            ["initialValue"] = Describe(new JsonObject(),
+                "Public value prepared when the answer is absent. It never supplies a protected member; an object may "
+                + "open with absent required members, which become operator obligations."),
+            ["suggestedValue"] = Describe(new JsonObject(), "Public value offered to the operator but never applied automatically."),
+            ["suggestedFrom"] = Closed(new JsonObject
+            {
+                ["pointer"] = Pointer(),
+                ["when"] = Ref("predicate")
+            }, "pointer"),
+            ["notBlank"] = Describe(new JsonObject { ["type"] = "boolean" }, "Rejects whitespace-only text."),
+            ["detail"] = Describe(Choice("basic", "standard", "advanced"), "Progressive disclosure level."),
+            ["units"] = Describe(Text(128), "Unit label shown beside the value, for example `seconds`."),
+            ["uniqueBy"] = Describe(new JsonObject
+            {
+                ["oneOf"] = new JsonArray(Pointer(), new JsonObject
+                {
+                    ["type"] = "array",
+                    ["minItems"] = 1,
+                    ["maxItems"] = 8,
+                    ["uniqueItems"] = true,
+                    ["items"] = Pointer()
+                })
+            }, "Item-relative pointer, or pointers forming a composite key, that must be unique across list rows."),
+            ["applicableWhen"] = Describe(Ref("predicate"), "The field is collected only while this predicate holds."),
+            ["requiredWhen"] = Describe(Ref("predicate"),
+                "A collected object member must be supplied while this predicate holds. It may read any answer, "
+                + "and the member must not also be listed in `required`."),
+            ["propertyOrder"] = Describe(Strings(1025, 65536),
+                "Display order of object members; `*` places every unlisted member. Never changes canonical identity."),
+            ["order"] = Describe(new JsonObject { ["type"] = "integer", ["minimum"] = -1000000, ["maximum"] = 1000000 },
+                "Display rank among sibling members without an explicit `propertyOrder`."),
+            ["placeholder"] = Describe(Text(256), "Example input shown in an empty editor. Never a value; public fields only."),
+            ["defaultText"] = Describe(Text(1024), "Explains what the target does when the field is omitted. Never a value."),
+            ["deprecationMessage"] = Describe(Text(2048), "Guidance for a field marked `deprecated: true`."),
+            ["widget"] = Describe(Choice(DefinitionFieldPresentationMetadata.WidgetTokens), "Preferred editor; clients may fall back to `auto`."),
+            ["rows"] = Describe(new JsonObject { ["type"] = "integer", ["minimum"] = 1, ["maximum"] = 64 },
+                "Visible lines for `multiline`, `markdown` and `code` widgets."),
+            ["syntax"] = Describe(new JsonObject { ["type"] = "string", ["minLength"] = 1, ["maxLength"] = 32 },
+                "Highlighting language for the `code` widget, for example `json`."),
+            ["booleanLabels"] = Describe(Closed(new JsonObject { ["true"] = Text(128), ["false"] = Text(128) }, "true", "false"),
+                "Display labels for the two boolean states."),
+            ["itemTitlePointer"] = Describe(Pointer(), "Item-relative pointer of a public scalar that titles each list row."),
+            ["displayRawKey"] = Describe(new JsonObject { ["type"] = "boolean" }, "Shows the exact key instead of the humanized title."),
+            ["secret"] = Describe(DefinitionSecretSchema.Create(), "Secret kind, acquisition, encoding, constraints and local generation."),
+            ["guidance"] = Describe(Closed(new JsonObject
+            {
+                ["instructions"] = Text(4096),
+                ["links"] = new JsonObject
+                {
+                    ["type"] = "array",
+                    ["maxItems"] = 4,
+                    ["items"] = Closed(new JsonObject
+                    {
+                        ["title"] = Text(128),
+                        ["url"] = Text(2048)
+                    }, "title", "url")
+                },
+                ["searchTerms"] = Strings(16, 64, minimum: 0)
+            }), "Operator instructions, public HTTPS links and search terms."),
+            ["choices"] = Describe(new JsonObject
             {
                 ["type"] = "array",
                 ["minItems"] = 1,
-                ["maxItems"] = 8,
-                ["uniqueItems"] = true,
-                ["items"] = Pointer()
-            })
-        }, "Item-relative pointer, or pointers forming a composite key, that must be unique across list rows."),
-        ["applicableWhen"] = Describe(Ref("predicate"), "The field is collected only while this predicate holds."),
-        ["requiredWhen"] = Describe(Ref("predicate"),
-            "A collected object member must be supplied while this predicate holds. It may read any answer, "
-            + "and the member must not also be listed in `required`."),
-        ["propertyOrder"] = Describe(Strings(1025, 65536),
-            "Display order of object members; `*` places every unlisted member. Never changes canonical identity."),
-        ["order"] = Describe(new JsonObject { ["type"] = "integer", ["minimum"] = -1000000, ["maximum"] = 1000000 },
-            "Display rank among sibling members without an explicit `propertyOrder`."),
-        ["placeholder"] = Describe(Text(256), "Example input shown in an empty editor. Never a value; public fields only."),
-        ["defaultText"] = Describe(Text(1024), "Explains what the target does when the field is omitted. Never a value."),
-        ["deprecationMessage"] = Describe(Text(2048), "Guidance for a field marked `deprecated: true`."),
-        ["widget"] = Describe(Choice(DefinitionFieldPresentationMetadata.WidgetTokens), "Preferred editor; clients may fall back to `auto`."),
-        ["rows"] = Describe(new JsonObject { ["type"] = "integer", ["minimum"] = 1, ["maximum"] = 64 },
-            "Visible lines for `multiline`, `markdown` and `code` widgets."),
-        ["syntax"] = Describe(new JsonObject { ["type"] = "string", ["minLength"] = 1, ["maxLength"] = 32 },
-            "Highlighting language for the `code` widget, for example `json`."),
-        ["booleanLabels"] = Describe(Closed(new JsonObject { ["true"] = Text(128), ["false"] = Text(128) }, "true", "false"),
-            "Display labels for the two boolean states."),
-        ["itemTitlePointer"] = Describe(Pointer(), "Item-relative pointer of a public scalar that titles each list row."),
-        ["displayRawKey"] = Describe(new JsonObject { ["type"] = "boolean" }, "Shows the exact key instead of the humanized title."),
-        ["secret"] = Describe(DefinitionSecretSchema.Create(), "Secret kind, acquisition, encoding, constraints and local generation."),
-        ["guidance"] = Describe(Closed(new JsonObject
-        {
-            ["instructions"] = Text(4096),
-            ["links"] = new JsonObject
-            {
-                ["type"] = "array",
-                ["maxItems"] = 4,
+                ["maxItems"] = 256,
                 ["items"] = Closed(new JsonObject
                 {
-                    ["title"] = Text(128),
-                    ["url"] = Text(2048)
-                }, "title", "url")
-            },
-            ["searchTerms"] = Strings(16, 64, minimum: 0)
-        }), "Operator instructions, public HTTPS links and search terms."),
-        ["choices"] = Describe(new JsonObject
-        {
-            ["type"] = "array",
-            ["minItems"] = 1,
-            ["maxItems"] = 256,
-            ["items"] = Closed(new JsonObject
-            {
-                ["value"] = new JsonObject(),
-                ["label"] = Text(256),
-                ["explanation"] = Text(2048),
-                ["deprecated"] = new JsonObject { ["type"] = "boolean" },
-                ["deprecationMessage"] = Text(2048)
-            }, "value")
-        }, source
-            ? "Enum member metadata. Without `enum`, the choices define it in order; unlabeled values are humanized."
-            : "Metadata for a subset of `enum` members; unlabeled values are humanized.")
-    });
+                    ["value"] = new JsonObject(),
+                    ["label"] = Text(256),
+                    ["explanation"] = Text(2048),
+                    ["deprecated"] = new JsonObject { ["type"] = "boolean" },
+                    ["deprecationMessage"] = Text(2048)
+                }, "value")
+            }, source
+                ? "Enum member metadata. Without `enum`, the choices define it in order; unlabeled values are humanized."
+                : "Metadata for a subset of `enum` members; unlabeled values are humanized.")
+        });
+        extension["not"] = new JsonObject { ["required"] = new JsonArray("suggestedValue", "suggestedFrom") };
+        return extension;
+    }
 
     private static JsonObject Projection()
     {

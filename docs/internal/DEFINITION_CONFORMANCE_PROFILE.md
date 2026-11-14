@@ -106,6 +106,17 @@ Metadata is content too; canonical identity is not just a hash of assertions.
 
 ## Exact paths, numbers, Unicode, and budgets
 
+Scalar suggestion links are admitted through closed `suggestedFrom` metadata
+(`pointer`, optional `when`) and exact `values.suggested-from` capability
+derivation. Static scalar resolution excludes containers, variants and dynamic
+coordinates. Standard scalar validation proves finite-domain compatibility;
+otherwise interval containment, exact multiples, asserted formats, nullability,
+`notBlank` and kind compatibility must be provable. Ancestor sensitivity floors
+include `writeOnly`, and generated-secret endpoints reject. Iterative cycle
+checking covers every disconnected link component without following answers.
+Source compilation lowers named conditions and retains structural source spans.
+These declarations do not initialize, transfer or authorize reading any value.
+
 `DefinitionPath` is an immutable bounded RFC6901-style concrete pointer with
 ordinal equality. The empty pointer selects the scope; `/` is one empty property
 name. Only `~0` and `~1` escape. No dotted path, wildcard, percent decoding,

@@ -177,6 +177,22 @@ members, invalid UTF-8, unpaired surrogates and malformed pointer escapes reject
 
 ### Sensitivity and public metadata
 
+`x-configurator.suggestedFrom` declares an inert scalar link with required
+`pointer` and optional `when`. No other members are accepted, and it cannot
+coexist with `suggestedValue`. Source predicates may be named or inline;
+runtime definitions contain lowered ASTs. Presence derives
+`values.suggested-from` exactly.
+
+The source and destination must be statically named scalar leaves. Source
+nullability and values must fit the destination: finite enum/const domains are
+checked value by value; otherwise lengths, numeric bounds, exclusivity, exact
+multiples, asserted formats and `notBlank` must prove containment. Integer to
+number is permitted. Dynamic coordinates, variants, containers, generated-secret
+endpoints, overlapping paths, cycles and reduced effective sensitivity reject.
+Unknown formats remain runtime annotations; unsupported `pattern` still rejects.
+Use a single collected field with `copy` projections for truly shared facts.
+Suggestion links express independently editable facts and supply no answer.
+
 Definitions, examples, titles and choices are public. Never embed private answers.
 Private ancestors prevent public descendants from admitting private literal
 metadata, and protected descendants raise a container's effective sensitivity.

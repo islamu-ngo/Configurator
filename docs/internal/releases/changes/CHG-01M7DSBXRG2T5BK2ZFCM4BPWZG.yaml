@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7DSBXRG2T5BK2ZFCM4BPWZG
+Title: "Declare compatible scalar value suggestions"
+Type: feat
+Scope: self-hosting
+Summary: "Admit inert links between statically named compatible scalar fields, prove sensitivity and constraint containment, reject cycles, and derive the exact capability without collecting or copying answers."
+Group: definition-suggested-sources
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DEFINITION_CONFORMANCE_PROFILE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Static scalar links cannot weaken effective sensitivity or destination constraints. Reject overlapping paths, cycles, dynamic coordinates, generated-secret endpoints and unproven value containment. Admission reads schemas only; the declaration never collects, copies or reveals answers."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/definition-reference.md
+    Disposition: documented
+    Detail: "suggestedFrom contains a required pointer and optional condition, excludes suggestedValue, and derives values.suggested-from exactly. Existing declarations without this metadata retain their contract; reviewed application of proposals is a separate client capability."
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definitions.md
+    Disposition: not-applicable

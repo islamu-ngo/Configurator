@@ -107,7 +107,11 @@ internal sealed class DefinitionPredicateLowering
 
     private void Schema(JsonObject schema)
     {
-        if (schema["x-configurator"] is JsonObject metadata) Replace(metadata, "applicableWhen");
+        if (schema["x-configurator"] is JsonObject metadata)
+        {
+            Replace(metadata, "applicableWhen");
+            if (metadata["suggestedFrom"] is JsonObject suggestedFrom) Replace(suggestedFrom, "when");
+        }
         foreach (string container in new[] { "properties", "$defs" })
             if (schema[container] is JsonObject children)
                 foreach ((_, JsonNode? child) in children)

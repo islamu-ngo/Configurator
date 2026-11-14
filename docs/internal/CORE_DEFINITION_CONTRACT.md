@@ -226,7 +226,7 @@ unknown format tokens remain runtime annotations so immutable releases stay admi
 `readOnly`, `deprecated`, `examples` are annotations subject to privacy/budgets;
 writeOnly true raises secret sensitivity.
 
-Closed `x-configurator` admits sensitivity, initialValue, suggestedValue,
+Closed `x-configurator` admits sensitivity, initialValue, suggestedValue, suggestedFrom,
 notBlank, detail, units, guidance, secret, choices, uniqueBy, applicableWhen, requiredWhen, propertyOrder,
 order, placeholder, defaultText, deprecationMessage, widget, rows, syntax, booleanLabels,
 itemTitlePointer and displayRawKey. `assertFormat` is retired and rejects.
@@ -234,6 +234,34 @@ Missing sensitivity is sensitive. `uniqueBy` follows a concrete item-relative
 pointer (or up to eight pointers forming a composite key) through required object
 properties to a non-null string. Effective
 container sensitivity includes inherited floors and protected descendants.
+
+`suggestedFrom` is closed to required `pointer` and optional `when`, and conflicts
+with `suggestedValue`. `DefinitionFieldPresentationMetadata.SuggestedSource`
+publishes immutable `DefinitionSuggestedSource.Location` (`DefinitionPath`),
+cloned nullable `When` (`JsonElement`) and three-valued
+`EvaluateEligibility(DefinitionValidationResult, AnswerSnapshot)`. This evaluates
+the condition over supplied retained answers, including inactive branches,
+and fills absent object members from current effective initialization.
+It preserves unresolved/deferred validation guards and treats omitted
+locations as uncertain. The caller checks custody before evaluation.
+It does not adopt any answer. Named source predicates
+lower at `when`; runtime admission validates only the ordinary AST.
+
+Both endpoints resolve through static object properties to scalar leaves.
+Root/container, dynamic/map/sequence/variant endpoints and overlapping paths
+reject. Endpoints with generation policy reject. Effective sensitivity is the
+maximum along each ancestor chain, including `writeOnly`; source must not exceed
+destination. Non-generated secret policies require a provable constraint match.
+Finite source const/enum domains validate each value with the existing scalar
+validator. Other domains require the same scalar kind (or integer to number),
+accepted nullability, enclosing length/numeric intervals, enclosing exclusive
+bounds and compatible exact multiples. An asserted destination format requires
+the same source format; destination `notBlank` requires source `notBlank`.
+Unproven containment rejects rather than invoking a general schema solver.
+All disconnected link components participate in iterative O(V+E) cycle checking.
+The existing document/node/text/predicate budgets bound the graph.
+`values.suggested-from` is recomputed on direct admission. Diagnostics identify
+the destination's structural schema path without carrying answer values.
 Public literal metadata cannot launder private initial/suggested/default/example/
 const content through ancestor or child labels.
 
