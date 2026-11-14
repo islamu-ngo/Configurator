@@ -47,6 +47,11 @@
                     {
                         <AppButton data-action="open-directory" OnClick="() => OpenDirectoryAsync(directory)" Disabled="@_opening">@T(_opening ? "CheckingSnapshot" : "Configure")</AppButton>
                     }
+                    @if ((project.Primary ?? project.Choices.FirstOrDefault()) is { } exploreChoice)
+                    {
+                        <a class="button button--secondary" data-action="explore-definition"
+                           href="@($"explore/{exploreChoice.Family:D}?revision={exploreChoice.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)}&digest={exploreChoice.Digest}")">@T("ExploreDefinitionAction")</a>
+                    }
                 </div>
                 <details class="catalogue__details" open="@(project.Primary is null)">
                     <summary class="catalogue__summary"><span class="catalogue__summary-chevron" aria-hidden="true"></span>@T("SourceDetails")</summary>

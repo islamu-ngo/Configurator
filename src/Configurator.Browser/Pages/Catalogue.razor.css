@@ -110,6 +110,10 @@
 .catalogue__card-actions {
     margin-block-start: auto;
     padding-block-start: var(--isl-space-1);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--isl-space-2);
+    align-items: center;
 }
 
 .catalogue__details {

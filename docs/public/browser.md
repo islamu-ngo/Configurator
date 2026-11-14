@@ -553,3 +553,9 @@ recovery checks. Secret operations require workspace consent. Retained values
 stay outside ordinary fields and preparation readiness until explicitly
 disclosed in an allowed mode or composed inside the worker. Downloads do not
 provide native file protection or establish target acceptance.
+
+## Explore before configuring
+
+Choose Explore schema from the catalogue, local opening result or store page
+to inspect public sections, settings and declared artifacts. The explorer is
+read-only; opening a configuration session remains a separate action.

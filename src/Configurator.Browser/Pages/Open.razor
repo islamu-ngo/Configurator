@@ -44,6 +44,7 @@
         <label><input type="checkbox" @bind="_publicSafeConfirmed" /> @T("ConfirmPublicMetadata")</label>
         <div class="actions">
             <AppButton Variant="Variant.Outlined" Disabled="@(!_publicSafeConfirmed)" OnClick="RetainAsync">@T("RetainDefinition")</AppButton>
+            <a class="button button--secondary" data-action="explore-definition" href="@($"explore/{selection.Definition.FamilyId:D}?digest={selection.Definition.Digest.Value}")">@T("ExploreDefinitionAction")</a>
             <AppButton data-action="open-workspace" OnClick="OpenWorkspace">@T("OpenWorkspace")</AppButton>
         </div>
         @if (_shareLink is { } shareLink)

@@ -615,4 +615,11 @@
   <data name="NamingMode" xml:space="preserve"><value>Naming mode</value></data>
   <data name="Humanized" xml:space="preserve"><value>Humanized</value></data>
   <data name="Technical" xml:space="preserve"><value>Technical</value></data>
+  <data name="FieldDeprecated" xml:space="preserve"><value>Deprecated</value></data>
+  <data name="ExploreDefinitionAction" xml:space="preserve"><value>Explore schema</value></data>
+  <data name="ExploreTitle" xml:space="preserve"><value>Definition explorer</value></data>
+  <data name="ExploreReadOnlyNote" xml:space="preserve"><value>Read-only definition inspection — no workspace answers or secret consent are mounted on this route.</value></data>
+  <data name="ExploreSectionsHeading" xml:space="preserve"><value>Sections and settings</value></data>
+  <data name="ExploreArtifactsHeading" xml:space="preserve"><value>Declared artifacts</value></data>
+  <data name="ExploreOpenConfiguration" xml:space="preserve"><value>Configure this revision</value></data>
 </root>

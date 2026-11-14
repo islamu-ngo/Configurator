@@ -1,0 +1,252 @@
+@page "/explore/{FamilyId}"
+@implements IDisposable
+@using System.Globalization
+@using Configurator.Browser.Resources
+@using Configurator.Core.Definitions
+@using Configurator.Presentation.Store
+@inject BrowserDefinitionRegistry Registry
+@inject IDefinitionStoreProvider StoreProvider
+
+<PageTitle>@(_definition?.Title ?? T("ExploreTitle")) · Configurator</PageTitle>
+<div class="explore-page" lang="@Culture.Locale">
+    <nav class="explore-page__nav">
+        <a href="">@T("BackToCatalogue")</a>
+    </nav>
+
+    @if (_loading)
+    {
+        <p role="status">@T("DirectoryLoading")</p>
+    }
+    else if (_definition is null)
+    {
+        <section class="explore-page__empty" role="status">
+            <h1>@T("ExploreTitle")</h1>
+            <p>@T("ProjectUnavailable")</p>
+            <a href="open">@T("OpenFileOrLink")</a>
+        </section>
+    }
+    else
+    {
+        <article class="explore-page__card" data-explore-definition="@_definition.FamilyId.ToString("D")">
+            <header class="explore-page__header">
+                <p class="eyebrow">@T("ExploreTitle")</p>
+                <h1><bdi>@_definition.Title</bdi></h1>
+                <p class="notice explore-page__readonly" role="note">@T("ExploreReadOnlyNote")</p>
+                <div class="actions">
+                    <a class="button"
+                       href="@($"launch/{_definition.FamilyId:D}?digest={_definition.Digest.Value}")">@T("ExploreOpenConfiguration")</a>
+                    @if (_storeProject is { } storeProject)
+                    {
+                        <a class="button button--secondary"
+                           href="@($"store/{storeProject.ProjectId}?revision={_definition.Revision.ToString(CultureInfo.InvariantCulture)}")">@T("DirectorySource"): <bdi>@storeProject.Name</bdi></a>
+                    }
+                </div>
+            </header>
+
+            <dl class="explore-page__identity">
+                <dt>@T("Publisher")</dt><dd><bdi>@_definition.Publisher</bdi></dd>
+                <dt>@T("ApplicationId")</dt><dd><bdi dir="ltr">@_definition.ApplicationId</bdi></dd>
+                <dt>@T("Family")</dt><dd><bdi dir="ltr">@_definition.FamilyId.ToString("D")</bdi></dd>
+                <dt>@T("Revision")</dt><dd><bdi dir="ltr">@_definition.Revision</bdi></dd>
+                <dt>@T("Digest")</dt><dd><code dir="ltr">@_definition.Digest.Value</code></dd>
+                <dt>@T("ApplicationVersions")</dt><dd><bdi dir="ltr">@string.Join(", ", _definition.ApplicationVersions)</bdi></dd>
+                <dt>@T("Locales")</dt><dd><bdi dir="ltr">@string.Join(", ", _definition.Locales)</bdi></dd>
+                @if (_storeProject is not null)
+                {
+                    <dt>@T("License")</dt><dd><bdi dir="ltr">@_storeProject.License</bdi></dd>
+                    <dt>@T("SourceRepository")</dt><dd><a href="@_storeProject.SourceRepository" target="_blank" rel="noopener noreferrer"><bdi dir="ltr">@_storeProject.SourceRepository</bdi></a></dd>
+                }
+            </dl>
+
+            <section class="explore-page__section-list" aria-labelledby="explore-sections-heading">
+                <h2 id="explore-sections-heading">@T("ExploreSectionsHeading")</h2>
+                @foreach (ExploreSectionGroup sectionGroup in BuildSections(_definition))
+                {
+                    <section class="explore-page__section" data-explore-section="@sectionGroup.Id" @key="sectionGroup.Id">
+                        <h3>@sectionGroup.Title</h3>
+                        @if (!string.IsNullOrWhiteSpace(sectionGroup.Description))
+                        {
+                            <p class="form-help">@sectionGroup.Description</p>
+                        }
+                        <ul class="explore-page__fields">
+                            @foreach (FieldDefinition field in sectionGroup.Fields)
+                            {
+                                <li class="explore-page__field" data-explore-field="@field.Name" @key="field.Id">
+                                    <div class="explore-page__field-top">
+                                        <strong>@field.DisplayTitle</strong>
+                                        <code dir="ltr">@field.Name</code>
+                                        <span class="explore-page__badge">@T(field.Required ? "Required" : "Optional")</span>
+                                        <span class="explore-page__badge">@SensitivityLabel(field.Sensitivity)</span>
+                                        @if (!string.IsNullOrWhiteSpace(field.PresentationMetadata.Units))
+                                        {
+                                            <span class="explore-page__badge">@field.PresentationMetadata.Units</span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(field.PresentationMetadata.DeprecationGuidance))
+                                        {
+                                            <span class="explore-page__badge explore-page__badge--warn">@T("FieldDeprecated")</span>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(field.Help))
+                                    {
+                                        <p class="explore-page__help">@field.Help</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(field.PresentationMetadata.DefaultText))
+                                    {
+                                        <p class="explore-page__meta">@field.PresentationMetadata.DefaultText</p>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(field.PresentationMetadata.DeprecationGuidance))
+                                    {
+                                        <p class="explore-page__meta">@field.PresentationMetadata.DeprecationGuidance</p>
+                                    }
+                                    @if (field.OptionMetadata.Count > 0)
+                                    {
+                                        <ul class="explore-page__choices">
+                                            @foreach (DefinitionChoice choice in field.OptionMetadata)
+                                            {
+                                                <li><code dir="ltr">@choice.WireToken</code> — @choice.DisplayLabel@if (!string.IsNullOrWhiteSpace(choice.Explanation)) { <text>: @choice.Explanation</text> }</li>
+                                            }
+                                        </ul>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    </section>
+                }
+            </section>
+
+            <section class="explore-page__artifacts" aria-labelledby="explore-artifacts-heading">
+                <h2 id="explore-artifacts-heading">@T("ExploreArtifactsHeading")</h2>
+                <ul>
+                    @foreach (ArtifactDefinition artifact in _definition.Artifacts)
+                    {
+                        <li data-explore-artifact="@artifact.Id">
+                            <strong><bdi dir="ltr">@artifact.FileName</bdi></strong> · <bdi dir="ltr">@artifact.Format.ToToken()</bdi> · <bdi dir="ltr">@artifact.ApplySemantics.ToToken()</bdi>
+                            @if (!string.IsNullOrWhiteSpace(artifact.Description))
+                            {
+                                <p class="form-help">@artifact.Description</p>
+                            }
+                        </li>
+                    }
+                </ul>
+            </section>
+        </article>
+    }
+</div>
+
+@code {
+    [Parameter] public string FamilyId { get; set; } = string.Empty;
+    [Parameter, SupplyParameterFromQuery(Name = "revision")] public long? RequestedRevision { get; set; }
+    [Parameter, SupplyParameterFromQuery(Name = "digest")] public string? RequestedDigest { get; set; }
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+
+    private sealed record ExploreSectionGroup(string Id, string Title, string? Description, IReadOnlyList<FieldDefinition> Fields);
+
+    private Definition? _definition;
+    private DefinitionStoreProject? _storeProject;
+    private bool _loading;
+    private bool _disposed;
+    private CancellationTokenSource _lifetime = new();
+    private (string FamilyId, long? Revision, string? Digest)? _loadedKey;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var key = (FamilyId, RequestedRevision, RequestedDigest);
+        if (_loadedKey == key) return;
+        _loadedKey = key;
+
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+        _lifetime = new CancellationTokenSource();
+        CancellationToken ct = _lifetime.Token;
+
+        _definition = null;
+        _storeProject = null;
+        if (!Guid.TryParse(FamilyId, out Guid family)) return;
+
+        _loading = true;
+        try
+        {
+            IReadOnlyList<DefinitionStoreProject> projects = await StoreProvider.LoadAsync(ct);
+            if (_disposed || ct.IsCancellationRequested) return;
+            _storeProject = projects.FirstOrDefault(project => project.FamilyId == family);
+
+            Definition? local = Registry.Current.Definitions
+                .Where(item => item.FamilyId == family
+                    && (string.IsNullOrWhiteSpace(RequestedDigest) || item.Digest.Value == RequestedDigest)
+                    && (RequestedRevision is null || item.Revision == RequestedRevision))
+                .OrderByDescending(item => item.Revision)
+                .FirstOrDefault();
+
+            if (local is not null)
+            {
+                _definition = local;
+                return;
+            }
+
+            if (_storeProject is not null)
+            {
+                DefinitionStoreRevision? targetRevision = RequestedRevision is { } rev
+                    ? _storeProject.Revisions.FirstOrDefault(item => item.Revision == rev)
+                    : _storeProject.Revisions.OrderByDescending(item => item.Revision).FirstOrDefault();
+                if (targetRevision is not null)
+                {
+                    DefinitionStoreResult opened = await StoreProvider.OpenAsync(_storeProject.ProjectId, targetRevision.Revision, ct);
+                    if (_disposed || ct.IsCancellationRequested) return;
+                    if (opened is DefinitionStoreResult.Success success)
+                        _definition = success.Definition;
+                }
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (DefinitionStoreException) { }
+        finally
+        {
+            if (!_disposed) _loading = false;
+        }
+    }
+
+    private static IReadOnlyList<ExploreSectionGroup> BuildSections(Definition definition)
+    {
+        if (definition.Presentation is not { Sections.Count: > 0 } presentation)
+            return [new ExploreSectionGroup("settings", definition.Title, null, definition.Fields)];
+
+        var fieldsByPointer = definition.Fields.ToDictionary(f => "/" + f.Name, StringComparer.Ordinal);
+        var covered = new HashSet<string>(StringComparer.Ordinal);
+        var groups = new List<ExploreSectionGroup>(presentation.Sections.Count);
+
+        foreach (DefinitionSection section in presentation.Sections)
+        {
+            var fields = new List<FieldDefinition>();
+            foreach (string pointer in section.Pointers)
+            {
+                if (fieldsByPointer.TryGetValue(pointer, out FieldDefinition? field) && covered.Add(field.Id))
+                    fields.Add(field);
+            }
+            if (fields.Count > 0)
+                groups.Add(new ExploreSectionGroup(section.Id, section.Title, section.Description, fields));
+        }
+
+        FieldDefinition[] remaining = definition.Fields.Where(f => !covered.Contains(f.Id)).ToArray();
+        if (remaining.Length > 0)
+            groups.Add(new ExploreSectionGroup("other", definition.Title, null, remaining));
+
+        return groups;
+    }
+
+    private string SensitivityLabel(FieldSensitivity sensitivity) => sensitivity switch
+    {
+        FieldSensitivity.Secret => T("DiscoveryOption_secret"),
+        FieldSensitivity.Sensitive => T("DiscoveryOption_sensitive"),
+        _ => T("DiscoveryOption_public")
+    };
+
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

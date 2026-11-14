@@ -638,3 +638,10 @@ cannot certify ordinary preparation readiness. `BrowserDefinitionRegistry`
 shares bounded digest-only revision history with authenticated candidates,
 including identities removed from the visible catalogue. Deliberate download
 remains a Browser custody transfer, separate from native protected saving.
+
+## Read-only definition exploration
+
+`Pages/Explore.razor` resolves public definitions from the local registry or
+admitted store provider and renders schema metadata, section inventory and
+declared artifacts. It does not mount `ConfigurationEditor`, collect answers,
+request secret consent or prepare output.

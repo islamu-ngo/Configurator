@@ -22,6 +22,9 @@
     {
         <p><bdi>@_project.Description</bdi></p>
         <p class="eyebrow">@T("DirectorySource")</p>
+        <div class="actions">
+            <a class="button button--secondary" data-action="explore-definition" href="@($"explore/{_project.FamilyId:D}")">@T("ExploreDefinitionAction")</a>
+        </div>
         <details>
         <summary>@T("SourceDetails")</summary>
         <dl class="store-project__metadata">

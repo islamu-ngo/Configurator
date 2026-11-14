@@ -615,4 +615,11 @@
   <data name="NamingMode" xml:space="preserve"><value>نمط التسمية</value></data>
   <data name="Humanized" xml:space="preserve"><value>مقروء بشريًا</value></data>
   <data name="Technical" xml:space="preserve"><value>تقني</value></data>
+  <data name="FieldDeprecated" xml:space="preserve"><value>مُهمَل</value></data>
+  <data name="ExploreDefinitionAction" xml:space="preserve"><value>استكشاف المخطط</value></data>
+  <data name="ExploreTitle" xml:space="preserve"><value>مستكشف التعريف</value></data>
+  <data name="ExploreReadOnlyNote" xml:space="preserve"><value>معاينة للقراءة فقط للتعريف — لا يتم هنا تحميل أي إجابات أو موافقة على الأسرار.</value></data>
+  <data name="ExploreSectionsHeading" xml:space="preserve"><value>الأقسام والإعدادات</value></data>
+  <data name="ExploreArtifactsHeading" xml:space="preserve"><value>الملفات المصرّح بها</value></data>
+  <data name="ExploreOpenConfiguration" xml:space="preserve"><value>تكوين هذه المراجعة</value></data>
 </root>

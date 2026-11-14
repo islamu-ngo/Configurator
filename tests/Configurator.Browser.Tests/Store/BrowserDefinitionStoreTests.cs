@@ -221,6 +221,25 @@ public sealed class BrowserDefinitionStoreTests
         await Assert.That(registry.Current.Definitions.Any(item => item.Digest == opened.Digest)).IsTrue();
     }
 
+    [Test]
+    public async Task ExploreRouteInspectsDefinitionReadOnlyWithoutAnswerCustodyOrArtifacts()
+    {
+        var emptyRegistry = new BrowserDefinitionRegistry([]);
+        await using var context = BrowserFixture.Context(emptyRegistry);
+        string family = "a2ef550d-e304-46c5-94e4-1705953f6b50";
+
+        var component = context.Render<Pages.Explore>(parameters => parameters.Add(page => page.FamilyId, family));
+
+        await Assert.That(component.FindAll("[data-explore-definition]").Count).IsEqualTo(1);
+        await Assert.That(component.Find("[data-explore-definition]").TextContent).Contains("Minimal self-hosted service");
+        await Assert.That(component.FindAll("[data-explore-section]").Count).IsGreaterThan(0);
+        await Assert.That(component.FindAll("[data-explore-field]").Count).IsGreaterThan(0);
+        await Assert.That(component.Find("a[href^='launch/']").GetAttribute("href")).Contains(family);
+        await Assert.That(component.FindAll("#secret-consent")).IsEmpty();
+        await Assert.That(component.FindComponents<ConfigurationEditor>()).IsEmpty();
+        await Assert.That(emptyRegistry.Current.Definitions).IsEmpty();
+    }
+
     internal static DefinitionStoreProject CreateProject(
         string projectId,
         string name,

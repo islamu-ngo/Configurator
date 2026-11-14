@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7DYRWBX8GXJZ6ZBYMQVQV8X
+Title: "Explore public definitions before opening an answer workspace"
+Type: feat
+Scope: self-hosting
+Summary: "Add a read-only Browser route and catalogue/open/store links for bounded definition metadata, sections and declared artifacts without mounting configuration answers or secret consent."
+Group: browser-definition-explorer
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "The explorer renders admitted public definition metadata without mounting an answer workspace, secret consent or prepared artifacts."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Catalogue, open and store pages link to read-only inspection before deliberately opening a configuration workspace."
