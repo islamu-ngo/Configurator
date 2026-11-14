@@ -12,5 +12,6 @@ internal sealed record CliCommandResult(
     internal string Cleanup { get; init; } = "not-required";
     internal CliMachineSchema? Schema { get; init; }
     internal CliMachineAssessment? Assessment { get; init; }
+    internal CliMachineWorkflow? Workflow { get; init; }
 }
 

@@ -41,6 +41,8 @@ public sealed record CliMachineEnvelope
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public CliMachineAssessment? Assessment { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CliMachineWorkflow? Workflow { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public CliHelpView? Help { get; init; }
     public IReadOnlyList<CliMachineDiagnostic> Diagnostics => Array.AsReadOnly((CliMachineDiagnostic[])_diagnostics.Clone());
     public IReadOnlyList<CliMachineArtifact> Artifacts => Array.AsReadOnly((CliMachineArtifact[])_artifacts.Clone());

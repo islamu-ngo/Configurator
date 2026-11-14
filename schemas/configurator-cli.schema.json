@@ -534,6 +534,19 @@
             ]
           },
           {
+            "name": "inspect",
+            "options": [
+              "--expected-detail-digest",
+              "--help",
+              "--limit",
+              "--machine",
+              "--offset",
+              "--root",
+              "--source",
+              "--text"
+            ]
+          },
+          {
             "name": "schema",
             "options": [
               "--help",
@@ -1012,6 +1025,9 @@
     },
     "assessment": {
       "$ref": "#/$defs/assessment"
+    },
+    "workflow": {
+      "$ref": "#/$defs/workflow"
     },
     "help": {
       "$ref": "#/$defs/help"
@@ -1965,9 +1981,354 @@
           }
         }
       ]
+    },
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offset",
+        "limit",
+        "total",
+        "digest",
+        "optionCount",
+        "nextActionCount",
+        "suggestionCount",
+        "items",
+        "retainedCount",
+        "returnedCount",
+        "terminal",
+        "nextOffset"
+      ],
+      "properties": {
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "optionCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "nextActionCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4032
+        },
+        "suggestionCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "$ref": "#/$defs/workflowItem"
+          }
+        },
+        "retainedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "returnedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "terminal": {
+          "type": "boolean"
+        },
+        "nextOffset": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "terminal": {
+              "const": true
+            },
+            "nextOffset": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "terminal": {
+              "const": false
+            },
+            "nextOffset": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "returnedCount": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32
+            }
+          }
+        }
+      ]
+    },
+    "workflowItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id",
+        "schemaPointer",
+        "conditional"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "option",
+            "next-action",
+            "suggestion"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536,
+          "pattern": "^(?:/(?:[^~/]|~[01])*)\u002B$"
+        },
+        "schemaPointer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536,
+          "pattern": "^(?:/(?:[^~/]|~[01])*)\u002B$"
+        },
+        "conditional": {
+          "type": "boolean"
+        },
+        "optionId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 65536,
+          "pattern": "^[\\s\\S]*$"
+        },
+        "targetOption": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 65536,
+          "pattern": "^[\\s\\S]*$"
+        },
+        "sourcePointer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536,
+          "pattern": "^(?:/(?:[^~/]|~[01])*)\u002B$"
+        },
+        "targetPointer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536,
+          "pattern": "^(?:/(?:[^~/]|~[01])*)\u002B$"
+        },
+        "priority": {
+          "enum": [
+            "recommended",
+            "available",
+            "optional"
+          ]
+        },
+        "artifactCount": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "const": "option"
+            },
+            "conditional": {
+              "const": false
+            }
+          },
+          "required": [
+            "optionId",
+            "sourcePointer",
+            "artifactCount"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "targetOption"
+                ]
+              },
+              {
+                "required": [
+                  "targetPointer"
+                ]
+              },
+              {
+                "required": [
+                  "priority"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "next-action"
+            }
+          },
+          "required": [
+            "optionId",
+            "targetOption",
+            "priority"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "sourcePointer"
+                ]
+              },
+              {
+                "required": [
+                  "targetPointer"
+                ]
+              },
+              {
+                "required": [
+                  "artifactCount"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "suggestion"
+            }
+          },
+          "required": [
+            "sourcePointer",
+            "targetPointer"
+          ],
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "optionId"
+                ]
+              },
+              {
+                "required": [
+                  "targetOption"
+                ]
+              },
+              {
+                "required": [
+                  "priority"
+                ]
+              },
+              {
+                "required": [
+                  "artifactCount"
+                ]
+              }
+            ]
+          }
+        }
+      ]
     }
   },
   "allOf": [
+    {
+      "if": {
+        "required": [
+          "workflow"
+        ]
+      },
+      "then": {
+        "properties": {
+          "invocation": {
+            "properties": {
+              "commandFamily": {
+                "const": "definition"
+              },
+              "operation": {
+                "const": "inspect"
+              }
+            }
+          },
+          "exitCode": {
+            "const": 0
+          }
+        },
+        "not": {
+          "required": [
+            "help"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "invocation": {
+            "properties": {
+              "commandFamily": {
+                "const": "definition"
+              },
+              "operation": {
+                "const": "inspect"
+              }
+            }
+          },
+          "exitCode": {
+            "const": 0
+          }
+        },
+        "not": {
+          "required": [
+            "help"
+          ]
+        }
+      },
+      "then": {
+        "required": [
+          "workflow"
+        ]
+      }
+    },
     {
       "if": {
         "required": [

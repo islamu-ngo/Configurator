@@ -10,6 +10,7 @@ internal static class DefinitionCommands
         CliCommandRegistry.Operation<DefinitionInitSettings>("init"),
         CliCommandRegistry.Operation<DefinitionSourceSettings>("check"),
         CliCommandRegistry.Operation<DefinitionLintSettings>("lint"),
+        CliCommandRegistry.Operation<DefinitionInspectSettings>("inspect"),
         CliCommandRegistry.Operation<DefinitionSchemaSettings>("schema"),
         CliCommandRegistry.Operation<DefinitionAnswerSchemaSettings>("answer-schema"),
         CliCommandRegistry.Operation<DefinitionBuildSettings>("build"),

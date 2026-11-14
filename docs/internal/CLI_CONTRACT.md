@@ -450,6 +450,43 @@ metadata presence. Successful preparation deliberately remains
 
 ### Sanitized diagnostics and detail continuation
 
+`definition inspect` is a registered read-only authoring operation with dedicated
+`DefinitionInspectSettings`. It accepts source/root discovery and offset/limit/
+expected-detail-digest options in both human and machine modes. It uses only
+`ICliAuthoringFiles.DiscoverSourceAsync` and bounded `ReadAsync`; it branches before
+revision-anchor access and build publication. No answers, native output, or
+Presentation dependency belongs to this route.
+
+`CliDefinitionHandlers` builds a combined inventory from admitted
+`DefinitionOutputSelector.Options`, `DefinitionOutputOption.NextActions` and
+`DefinitionNode.PresentationMetadata.SuggestedSource`. Traversal covers properties,
+items, additional properties and variants. Source locations use the immutable
+`DefinitionSuggestedSource.Location` API; no second metadata parser is involved.
+Static schema pointers escape property names with RFC 6901 `~0` and `~1`.
+Inventory IDs equal the item's schema pointer and sort ordinally across all kinds.
+
+`CliMachineWorkflow` snapshots page items. The closed item vocabulary contains
+kind, ID, schema pointer, condition presence and kind-specific option IDs, target
+option, priority, source/target schema pointers or artifact count. It never carries
+titles, descriptions, predicates, initial values or answers. Counts distinguish
+options, next actions and suggestions; total and retainedCount are exact.
+The digest is SHA-256 over `workflow`, a NUL separator and the canonical definition
+digest. It binds the complete public definition, without hashing private input.
+It is a continuation identity, not publisher authentication.
+
+Inspect pages default to 16 and cap at 32. Its nonnegative integer offset is
+validated against the actual full inventory, independently of the diagnostic
+detail offset cap. Checked arithmetic computes terminal and nextOffset.
+Noninitial pages require the matching expected digest; any supplied mismatch
+returns `workflow-digest-mismatch`. Out-of-range offsets return
+`workflow-offset-invalid`. The existing serializer measures envelope bytes,
+including framing, against the invocation output limit. Pages shrink from the
+end until they also fit 8,192 serialized workflow bytes; an entry that cannot fit
+returns `workflow-item-unencodable`. No truncation changes the retained inventory.
+`CliHumanOutput` displays the same fitted structural page and continuation data.
+`CliCommandSchemaMetadata` owns the workflow schema and operation restrictions;
+its generated schema and command reference must be refreshed together.
+
 Diagnostic `path` uses bounded RFC 6901 pointers, with an empty pointer for the
 document root and `~0`/`~1` escaping for member tokens. Optional numeric `line`
 and `column` are one-based; column counts Unicode scalars. `byteOffset` is

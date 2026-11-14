@@ -30,6 +30,8 @@ internal static class CliDefinitionHandlers
             DefinitionAuthoringDocument document = Parse(bytes, yaml, cancellationToken);
             Definition definition = DefinitionAuthoringCompiler.Compile(document);
             cancellationToken.ThrowIfCancellationRequested();
+            if (command.Operation == "inspect")
+                return Inspect(definition, command, invocation, cancellationToken);
             string anchor = Anchor(source, definition.Revision);
             if (command.Operation == "revise")
             {
@@ -108,6 +110,101 @@ internal static class CliDefinitionHandlers
             };
         }
         catch (DecoderFallbackException) { return CliResults.Failure(CliExitCode.Data, "definition-source-invalid", "/source"); }
+    }
+
+    private static CliCommandResult Inspect(Definition definition, CliCommand command, CliInvocation invocation,
+        CancellationToken cancellationToken)
+    {
+        var inventory = new List<CliMachineWorkflowItem>();
+        int options = 0, actions = 0, suggestions = 0;
+        if (definition.Presentation?.OutputSelector is { } selector)
+        {
+            for (int index = 0; index < selector.Options.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                DefinitionOutputOption option = selector.Options[index];
+                string path = "/presentation/outputSelector/options/" + index.ToString(CultureInfo.InvariantCulture);
+                inventory.Add(new("option", path, path, false)
+                {
+                    OptionId = option.Value,
+                    SourcePointer = SchemaPointer(selector.Location),
+                    ArtifactCount = option.ArtifactIds.Count
+                });
+                options = checked(options + 1);
+                for (int actionIndex = 0; actionIndex < option.NextActions.Count; actionIndex++)
+                {
+                    DefinitionOutputNextAction action = option.NextActions[actionIndex];
+                    string actionPath = path + "/nextActions/" + actionIndex.ToString(CultureInfo.InvariantCulture);
+                    inventory.Add(new("next-action", actionPath, actionPath, action.ProposedWhen is not null)
+                    {
+                        OptionId = option.Value,
+                        TargetOption = action.TargetOption,
+                        Priority = action.Priority
+                    });
+                    actions = checked(actions + 1);
+                }
+            }
+        }
+        var pending = new Stack<(DefinitionNode Node, string Path)>();
+        pending.Push((definition.Configuration, "/configuration"));
+        while (pending.TryPop(out var current))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (current.Node.PresentationMetadata.SuggestedSource is { } source)
+            {
+                string path = current.Path + "/x-configurator/suggestedFrom";
+                inventory.Add(new("suggestion", path, path, source.When is not null)
+                {
+                    SourcePointer = SchemaPointer(source.Location),
+                    TargetPointer = current.Path
+                });
+                suggestions = checked(suggestions + 1);
+            }
+            foreach ((string name, DefinitionNode child) in current.Node.Properties)
+                pending.Push((child, current.Path + "/properties/" + Escape(name)));
+            if (current.Node.Items is { } items) pending.Push((items, current.Path + "/items"));
+            if (current.Node.AdditionalProperties is { } map) pending.Push((map, current.Path + "/additionalProperties"));
+            for (int index = 0; index < current.Node.Variants.Count; index++)
+                pending.Push((current.Node.Variants[index], current.Path + "/oneOf/" + index.ToString(CultureInfo.InvariantCulture)));
+        }
+        CliMachineWorkflowItem[] ordered = inventory.OrderBy(item => item.Id, StringComparer.Ordinal).ToArray();
+        string digest = ArtifactDigest.Compute(Encoding.UTF8.GetBytes("workflow\0" + definition.Digest.Value)).Value;
+        if (command.Offset > 0 && command.ExpectedDetailDigest != digest
+            || command.ExpectedDetailDigest is not null && command.ExpectedDetailDigest != digest)
+            return CliResults.Failure(CliExitCode.Data, "workflow-digest-mismatch", "/source");
+        if (command.Offset > ordered.Length)
+            return CliResults.Failure(CliExitCode.Data, "workflow-offset-invalid", "/source");
+        var page = new CliMachineWorkflow(
+            command.Offset,
+            command.Limit,
+            ordered.Length,
+            digest,
+            options,
+            actions,
+            suggestions,
+            ordered.Skip(command.Offset).Take(command.Limit).ToArray());
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            CliCommandResult result = CliResults.Success() with
+            {
+                DefinitionDigest = definition.Digest.Value,
+                Preparation = "ready",
+                Workflow = page
+            };
+            // The normal serializer is the sole wire-size oracle, including framing and envelope overhead.
+            if (JsonSerializer.SerializeToUtf8Bytes(page, CliJsonContext.Default.CliMachineWorkflow).Length <= 8192
+                && CliMachineOutput.Serialize(command, result, int.MaxValue).Length <= invocation.Io.MaximumOutputBytes)
+                return result;
+            if (page.ReturnedCount <= 1)
+                return CliResults.Failure(CliExitCode.Data, "workflow-item-unencodable", "/source");
+            page = page with { Items = page.Items.SkipLast(1).ToArray() };
+        }
+
+        static string Escape(string token) => token.Replace("~", "~0", StringComparison.Ordinal)
+            .Replace("/", "~1", StringComparison.Ordinal);
+        static string SchemaPointer(DefinitionPath path) => "/configuration"
+            + string.Concat(path.Segments.Select(segment => "/properties/" + Escape(segment)));
     }
 
     private static CliCommandResult Schema(string kind)

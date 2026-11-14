@@ -41,6 +41,7 @@ internal static class CliMachineOutput
             DetailDigest = digest,
             Detail = detail,
             Assessment = result.Assessment,
+            Workflow = result.Workflow,
             Help = result.Help,
             AuthoringContractVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == CliExitCode.Success && result.Help is null ? ConfiguratorVersion.Current : null,
             RuntimeSchemaVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == CliExitCode.Success && result.Help is null ? ConfiguratorVersion.Current : null,

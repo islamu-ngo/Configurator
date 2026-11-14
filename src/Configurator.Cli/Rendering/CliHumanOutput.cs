@@ -25,6 +25,16 @@ internal static class CliHumanOutput
         grid.AddColumn();
         grid.AddRow(new Text(TextFor("Status")), new Text(State(CliResults.Lower(result.Exit))));
         grid.AddRow(new Text(TextFor("Scope")), new Text(TextFor("ScopeDescription")));
+        if (result.Workflow is { } workflow)
+        {
+            grid.AddRow(new Text("workflow"), new Text(string.Create(CultureInfo.InvariantCulture,
+                $"{workflow.ReturnedCount}/{workflow.Total}; digest={workflow.Digest}")));
+            foreach (CliMachineWorkflowItem item in workflow.Items)
+                grid.AddRow(new Text(item.Kind), new Text(JsonSerializer.Serialize(item,
+                    CliJsonContext.Default.CliMachineWorkflowItem)));
+            if (workflow.NextOffset is { } next)
+                grid.AddRow(new Text("--offset"), new Text(next.ToString(CultureInfo.InvariantCulture)));
+        }
         if (result.Assessment is { } assessment)
         {
             grid.AddRow(new Text(TextFor("AssessmentExecution")), new Text(State(result.Completion)));

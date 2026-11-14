@@ -25,6 +25,9 @@ internal static partial class CliMachineContractVerifier
         ["$.coverage"] = ["coveredCount", "missingCount", "detailDigest"],
         ["$.readiness"] = ["state", "missingCount", "blockedCount"],
         ["$.assessment"] = ["definitionDigest", "artifactId", "compatibility", "coverage", "inventory", "autofill", "retainedCount"],
+        ["$.workflow"] = ["offset", "limit", "total", "digest", "optionCount", "nextActionCount", "suggestionCount",
+            "items", "retainedCount", "returnedCount", "terminal", "nextOffset"],
+        ["$.workflow.items[]"] = ["kind", "id", "schemaPointer", "conditional"],
         ["$.detail"] = ["kind", "offset", "limit", "retainedCount", "returnedCount", "nextOffset", "terminal", "digest", "diagnostics", "coverage", "findings"],
         ["$.detail.coverage[]"] = ["id", "state"],
         ["$.detail.findings[]"] = ["classification", "code"],
@@ -37,7 +40,8 @@ internal static partial class CliMachineContractVerifier
     private static readonly Dictionary<string, string[]> Allowed = Required.ToDictionary(
         item => item.Key, item => item.Key switch
         {
-            "$" => [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion", "detail", "help", "schema", "assessment"],
+            "$" => [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion", "detail", "help", "schema", "assessment", "workflow"],
+            "$.workflow.items[]" => [.. item.Value, "optionId", "targetOption", "sourcePointer", "targetPointer", "priority", "artifactCount"],
             "$.assessment" or "$.detail" => [.. item.Value, "total"],
             "$.artifacts[]" => [.. item.Value, "digest"],
             "$.detail.findings[]" => [.. item.Value, "source", "schema"],
@@ -88,6 +92,8 @@ internal static partial class CliMachineContractVerifier
             ["$.readiness"] = schema["$defs"]!["readiness"]!.AsObject(),
             ["$.detail"] = schema["$defs"]!["detail"]!.AsObject(),
             ["$.assessment"] = schema["$defs"]!["assessment"]!.AsObject(),
+            ["$.workflow"] = schema["$defs"]!["workflow"]!.AsObject(),
+            ["$.workflow.items[]"] = schema["$defs"]!["workflowItem"]!.AsObject(),
             ["$.detail.findings[]"] = schema["$defs"]!["finding"]!.AsObject(),
             ["$.detail.findings[].source"] = schema["$defs"]!["findingSource"]!.AsObject(),
             ["$.detail.findings[].schema"] = schema["$defs"]!["findingSchema"]!.AsObject(),
@@ -228,6 +234,7 @@ internal static partial class CliMachineContractVerifier
             ValidateReadiness(root["readiness"] as JsonObject, "$.readiness", errors);
             ValidateSummary(root, errors);
             ValidateAssessment(root, errors);
+            ValidateWorkflow(root, errors);
             if (root.ContainsKey("detail")) ValidateDetail(root, errors);
             if (root.ContainsKey("help") || root["invocation"]?["operation"]?.GetValue<string>() == "help"
                 && root["exitCode"]?.GetValue<int>() == 0) ValidateHelp(root, errors);
@@ -237,6 +244,60 @@ internal static partial class CliMachineContractVerifier
             errors.Add("machine-property-type");
         }
         return errors.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static void ValidateWorkflow(JsonObject root, List<string> errors)
+    {
+        bool expected = root["invocation"]?["commandFamily"]?.GetValue<string>() == "definition"
+            && root["invocation"]?["operation"]?.GetValue<string>() == "inspect"
+            && root["exitCode"]?.GetValue<int>() == 0 && !root.ContainsKey("help");
+        if (root["workflow"] is not JsonObject page)
+        {
+            if (expected) errors.Add("machine-workflow-required");
+            return;
+        }
+        if (!expected) errors.Add("machine-workflow-unexpected");
+        ValidateObject(page, "$.workflow", errors);
+        if (page["items"] is not JsonArray items || items.Count > 32)
+        {
+            errors.Add("machine-workflow-items");
+            return;
+        }
+        int offset = page["offset"]!.GetValue<int>(), count = items.Count, total = page["total"]!.GetValue<int>();
+        long next = (long)offset + count;
+        bool terminal = next == total;
+        if (offset < 0 || offset > total || next > total
+            || page["limit"]!.GetValue<int>() is < 1 or > 32 || count > page["limit"]!.GetValue<int>()
+            || page["returnedCount"]!.GetValue<int>() != count || page["retainedCount"]!.GetValue<int>() != total
+            || page["terminal"]!.GetValue<bool>() != terminal
+            || (terminal ? page["nextOffset"] is not null : page["nextOffset"]?.GetValue<int>() != next || count == 0)
+            || (long)page["optionCount"]!.GetValue<int>() + page["nextActionCount"]!.GetValue<int>()
+                + page["suggestionCount"]!.GetValue<int>() != total
+            || page["digest"]?.GetValue<string>() is not { Length: 64 } digest
+            || digest.Any(character => !char.IsAsciiHexDigitLower(character))
+            || Encoding.UTF8.GetByteCount(page.ToJsonString()) > 8192)
+            errors.Add("machine-workflow-bounds");
+        string? previous = null;
+        foreach (JsonObject item in items.OfType<JsonObject>())
+        {
+            ValidateObject(item, "$.workflow.items[]", errors);
+            string id = item["id"]!.GetValue<string>();
+            if (id != item["schemaPointer"]!.GetValue<string>() || !id.StartsWith('/')
+                || previous is not null && StringComparer.Ordinal.Compare(previous, id) >= 0)
+                errors.Add("machine-workflow-order");
+            previous = id;
+            string kind = item["kind"]!.GetValue<string>();
+            string[] fields = kind switch
+            {
+                "option" => ["kind", "id", "schemaPointer", "conditional", "optionId", "sourcePointer", "artifactCount"],
+                "next-action" => ["kind", "id", "schemaPointer", "conditional", "optionId", "targetOption", "priority"],
+                "suggestion" => ["kind", "id", "schemaPointer", "conditional", "sourcePointer", "targetPointer"],
+                _ => []
+            };
+            if (!item.Select(property => property.Key).ToHashSet(StringComparer.Ordinal).SetEquals(fields)
+                || kind == "next-action" && item["priority"]!.GetValue<string>() is not ("recommended" or "available" or "optional"))
+                errors.Add("machine-workflow-vocabulary");
+        }
     }
 
     private static void InspectStructuredFields(JsonObject schema, List<string> errors)
@@ -306,7 +367,7 @@ internal static partial class CliMachineContractVerifier
                 || identity["properties"]?["id"]?["const"]?.GetValue<string>() != id)
             || identities.Select(identity => identity!["properties"]!["kind"]!["const"]!.GetValue<string>())
                 .Distinct(StringComparer.Ordinal).Count() != 4
-            || schema["allOf"] is not JsonArray { Count: 3 })
+            || schema["allOf"] is not JsonArray { Count: 5 })
             errors.Add("schema-discovery-operation");
     }
 

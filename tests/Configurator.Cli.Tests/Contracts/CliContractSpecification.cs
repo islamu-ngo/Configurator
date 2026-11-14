@@ -19,7 +19,7 @@ internal static class CliContractSpecification
                 ["doctor"] = new HashSet<string>(["doctor"], StringComparer.Ordinal),
                 ["secret"] = new HashSet<string>(["generate", "derive"], StringComparer.Ordinal),
                 ["profile"] = new HashSet<string>(["save", "list", "inspect", "unlock", "diff", "upgrade-plan", "adopt", "slots", "recovery-check"], StringComparer.Ordinal),
-                ["definition"] = new HashSet<string>(["init", "check", "build", "revise", "lint", "schema", "answer-schema"], StringComparer.Ordinal)
+                ["definition"] = new HashSet<string>(["init", "check", "build", "revise", "lint", "inspect", "schema", "answer-schema"], StringComparer.Ordinal)
             });
 
     internal static readonly IReadOnlyDictionary<string, string> SchemaIds =

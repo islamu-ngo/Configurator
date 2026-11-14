@@ -1,0 +1,29 @@
+Change-Id: CHG-01M7DW4C13VCKH238ZFRZTW5XN
+Title: "Inspect public definition workflows through bounded CLI pages"
+Type: feat
+Scope: self-hosting
+Summary: "Expose definition output options, conditional next actions and suggested-value links as a bounded, digest-bound structural inventory without reading answers or writing files."
+Group: cli-definition-workflow-inspection
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Inspection accepts public source discovery only. Structural pages exclude authored prose, predicate values and private answers, and never grant output or target apply authority."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Definition inspect uses bounded offset/limit pages with a definition-bound continuation digest and explicit size, offset and mismatch failures."
+  OpenAPI:
+    Reference: schemas/configurator-cli.schema.json
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Use the returned nextOffset and expected detail digest to continue the complete inventory. Inspection reports static structure rather than answer-dependent eligibility."

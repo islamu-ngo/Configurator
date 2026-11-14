@@ -210,6 +210,49 @@ public static class CliCommandSchemaMetadata
                     ["findings"] = BoundedArray("finding", 32)
                 })
         };
+        definitions["workflow"] = ObjectSchema(["offset", "limit", "total", "digest", "optionCount",
+            "nextActionCount", "suggestionCount", "items", "retainedCount", "returnedCount", "terminal", "nextOffset"], new()
+            {
+                ["offset"] = Integer(0, int.MaxValue),
+                ["limit"] = Integer(1, 32),
+                ["total"] = Integer(0, int.MaxValue),
+                ["digest"] = String(null, null, "^[0-9a-f]{64}$"),
+                ["optionCount"] = Integer(0, 64),
+                ["nextActionCount"] = Integer(0, 4032),
+                ["suggestionCount"] = Integer(0, int.MaxValue),
+                ["items"] = BoundedArray("workflowItem", 32),
+                ["retainedCount"] = Integer(0, int.MaxValue),
+                ["returnedCount"] = Integer(0, 32),
+                ["terminal"] = new JsonObject { ["type"] = "boolean" },
+                ["nextOffset"] = new JsonObject { ["oneOf"] = new JsonArray(Integer(0, int.MaxValue), new JsonObject { ["type"] = "null" }) }
+            });
+        definitions["workflowItem"] = ObjectSchema(["kind", "id", "schemaPointer", "conditional"], new()
+        {
+            ["kind"] = Enum(["option", "next-action", "suggestion"]),
+            ["id"] = String(1, 65536, "^(?:/(?:[^~/]|~[01])*)+$"),
+            ["schemaPointer"] = String(1, 65536, "^(?:/(?:[^~/]|~[01])*)+$"),
+            ["conditional"] = new JsonObject { ["type"] = "boolean" },
+            ["optionId"] = String(0, 65536, "^[\\s\\S]*$"),
+            ["targetOption"] = String(0, 65536, "^[\\s\\S]*$"),
+            ["sourcePointer"] = String(1, 65536, "^(?:/(?:[^~/]|~[01])*)+$"),
+            ["targetPointer"] = String(1, 65536, "^(?:/(?:[^~/]|~[01])*)+$"),
+            ["priority"] = Enum(["recommended", "available", "optional"]),
+            ["artifactCount"] = Integer(1, 64)
+        });
+        definitions["workflowItem"]!["oneOf"] = JsonNode.Parse("""
+            [{"properties":{"kind":{"const":"option"},"conditional":{"const":false}},
+              "required":["optionId","sourcePointer","artifactCount"],
+              "not":{"anyOf":[{"required":["targetOption"]},{"required":["targetPointer"]},{"required":["priority"]}]}},
+             {"properties":{"kind":{"const":"next-action"}},"required":["optionId","targetOption","priority"],
+              "not":{"anyOf":[{"required":["sourcePointer"]},{"required":["targetPointer"]},{"required":["artifactCount"]}]}},
+             {"properties":{"kind":{"const":"suggestion"}},"required":["sourcePointer","targetPointer"],
+              "not":{"anyOf":[{"required":["optionId"]},{"required":["targetOption"]},{"required":["priority"]},{"required":["artifactCount"]}]}}]
+            """);
+        definitions["workflow"]!["oneOf"] = JsonNode.Parse("""
+            [{"properties":{"terminal":{"const":true},"nextOffset":{"type":"null"}}},
+             {"properties":{"terminal":{"const":false},"nextOffset":{"type":"integer","minimum":1,"maximum":2147483647},
+               "returnedCount":{"type":"integer","minimum":1,"maximum":32}}}]
+            """);
         definitions["assessment"]!["oneOf"] = new JsonArray(
             new JsonObject
             {
@@ -321,6 +364,7 @@ public static class CliCommandSchemaMetadata
                 ["detailDigest"] = String(null, null, "^[0-9a-f]{64}$"),
                 ["detail"] = Ref("detail"),
                 ["assessment"] = Ref("assessment"),
+                ["workflow"] = Ref("workflow"),
                 ["help"] = Ref("help"),
                 ["schema"] = Ref("schema"),
                 ["diagnostics"] = BoundedArray("diagnostic", 16),
@@ -333,7 +377,12 @@ public static class CliCommandSchemaMetadata
             ["$defs"] = definitions
         };
         root["allOf"] = JsonNode.Parse("""
-            [{"if":{"required":["schema"]},"then":{"properties":{
+            [{"if":{"required":["workflow"]},"then":{"properties":{
+                "invocation":{"properties":{"commandFamily":{"const":"definition"},"operation":{"const":"inspect"}}},
+                "exitCode":{"const":0}},"not":{"required":["help"]}}},
+             {"if":{"properties":{"invocation":{"properties":{"commandFamily":{"const":"definition"},"operation":{"const":"inspect"}}},
+                "exitCode":{"const":0}},"not":{"required":["help"]}},"then":{"required":["workflow"]}},
+             {"if":{"required":["schema"]},"then":{"properties":{
                 "invocation":{"properties":{"commandFamily":{"const":"definition"},"operation":{"const":"schema"}}},
                 "exitCode":{"const":0}},"not":{"required":["help"]}}},
              {"if":{"properties":{"invocation":{"properties":{"commandFamily":{"const":"definition"},"operation":{"const":"schema"}}},

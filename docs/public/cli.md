@@ -361,6 +361,7 @@ The CLI uses strict, case-sensitive option parsing:
 | `definition init` | `--project-id`, `--name`, `--application-version` (unless forking) | `--root`, `--output`, `--format`, `--fork-from`, `--from-env-example`, `--from-schema`, `--accept-bounded-semantics` | Initialize a source, or fork to a new family with explicit output |
 | `definition check` | *(none)* | `--source`, `--root`, `--against` | Verify maintainer source syntax and canonical hash |
 | `definition lint` | *(none)* | `--source`, `--root`, `--against`, `--detail`, `--offset`, `--limit`, `--expected-detail-digest` | Admit source and report bounded authoring warnings without publication |
+| `definition inspect` | *(none)* | `--source`, `--root`, `--offset`, `--limit`, `--expected-detail-digest` | Inspect public output options, next actions and suggested-value links without reading answers or writing files |
 | `definition schema` | *(none)* | `--kind` | Discover built-in public schemas without reading files |
 | `definition build` | *(none)* | `--source`, `--root`, `--against`, `--output`, `--id-map` | Compile maintainer source into distribution JSON |
 | `definition revise` | `--output` *(when changed)* | `--source`, `--root`, `--against` | Increment revision if source contents changed |
@@ -393,6 +394,35 @@ stdin is rejected without prompting.
 ## Command Examples
 
 ### Authoring diagnostics and schema discovery
+
+`definition inspect --source configurator.yaml --machine` returns a `workflow`
+page. It reports option IDs, action targets and priorities, static schema pointers,
+condition presence and structural counts. It excludes authored titles, descriptions,
+predicate operands, initial values and answers. Human mode displays the same bounded
+inventory. Inspection uses public authoring source discovery, without reading revision
+anchors or accepting answer and output paths.
+
+Pages default to 16 entries and accept `--limit` from 1 through 32. Options,
+next actions and suggested-value links share one inventory ordered by their schema
+pointer IDs. `total` and `retainedCount` describe the complete inventory;
+`returnedCount` describes this page. Continue with the returned `nextOffset` and
+`--expected-detail-digest` set to the workflow's `digest`. The last page has a null
+`nextOffset`; an empty graph returns an empty terminal page. The digest binds the
+admitted public definition, so any source change requires restarting at offset zero.
+It does not authenticate the publisher.
+
+The CLI shortens pages to fit the 8,192-byte workflow budget and the invocation's
+output limit. Always advance by `nextOffset`, rather than adding the requested
+limit. Missing or mismatched continuation digests, offsets beyond the inventory,
+and individual entries that cannot fit produce explicit errors. No links are
+silently discarded. Inspection does not evaluate conditions against private values
+or promise that a proposed action is currently eligible.
+
+For reusable values, author `suggestedFrom` only where the provider establishes
+matching semantics, types and sensitivity. Equal names alone do not establish that
+two settings mean the same thing. `definition lint --quality` reports Core's
+structural authoring advisories; advisory warnings do not reject an otherwise valid
+definition.
 
 ```bash
 islamu-configurator definition lint \
