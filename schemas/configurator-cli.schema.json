@@ -10,15 +10,25 @@
     "runtimeSchemaVersion": "0.0.1",
     "commandOptions": [
       "--accept-bounded-semantics",
+      "--acknowledge-device-only",
+      "--action",
       "--against",
       "--answers",
       "--application-version",
       "--artifact",
       "--baseline",
+      "--cipher",
+      "--comparison",
+      "--confirm-passphrase-file",
+      "--confirm-passphrase-stdin",
       "--definition",
       "--detail",
+      "--device",
+      "--device-recipient-id",
       "--dry-run",
+      "--environment-context",
       "--expected-detail-digest",
+      "--expected-digest",
       "--expected-revision",
       "--fork-from",
       "--format",
@@ -29,21 +39,32 @@
       "--id-map",
       "--input",
       "--input-revision",
+      "--kdf",
       "--key",
       "--kind",
       "--limit",
       "--machine",
+      "--mode",
       "--name",
+      "--new-passphrase-file",
+      "--new-passphrase-stdin",
       "--offset",
       "--output",
+      "--passphrase-file",
+      "--passphrase-stdin",
       "--pointer",
+      "--profile-id",
       "--project-id",
       "--quality",
+      "--recipient",
       "--revision-field",
       "--root",
       "--secret-input-file",
       "--secret-input-stdin",
+      "--snapshot-id",
       "--source",
+      "--source-definition",
+      "--store",
       "--text"
     ],
     "repeatableOptions": [
@@ -642,6 +663,214 @@
         ]
       },
       {
+        "name": "profile",
+        "operations": [
+          {
+            "name": "save",
+            "options": [
+              "--acknowledge-device-only",
+              "--artifact",
+              "--cipher",
+              "--confirm-passphrase-file",
+              "--confirm-passphrase-stdin",
+              "--definition",
+              "--device",
+              "--environment-context",
+              "--help",
+              "--input",
+              "--kdf",
+              "--machine",
+              "--mode",
+              "--output",
+              "--passphrase-file",
+              "--passphrase-stdin",
+              "--store",
+              "--text"
+            ]
+          },
+          {
+            "name": "list",
+            "options": [
+              "--help",
+              "--limit",
+              "--machine",
+              "--offset",
+              "--store",
+              "--text"
+            ]
+          },
+          {
+            "name": "inspect",
+            "options": [
+              "--device",
+              "--help",
+              "--input",
+              "--machine",
+              "--passphrase-file",
+              "--passphrase-stdin",
+              "--profile-id",
+              "--recipient",
+              "--snapshot-id",
+              "--store",
+              "--text"
+            ]
+          },
+          {
+            "name": "unlock",
+            "options": [
+              "--device",
+              "--help",
+              "--input",
+              "--machine",
+              "--passphrase-file",
+              "--passphrase-stdin",
+              "--profile-id",
+              "--recipient",
+              "--snapshot-id",
+              "--store",
+              "--text"
+            ]
+          },
+          {
+            "name": "diff",
+            "options": [
+              "--baseline",
+              "--comparison",
+              "--definition",
+              "--device",
+              "--help",
+              "--input",
+              "--machine",
+              "--passphrase-file",
+              "--passphrase-stdin",
+              "--profile-id",
+              "--recipient",
+              "--snapshot-id",
+              "--source-definition",
+              "--store",
+              "--text"
+            ]
+          },
+          {
+            "name": "upgrade-plan",
+            "options": [
+              "--baseline",
+              "--comparison",
+              "--definition",
+              "--device",
+              "--help",
+              "--input",
+              "--machine",
+              "--passphrase-file",
+              "--passphrase-stdin",
+              "--profile-id",
+              "--recipient",
+              "--snapshot-id",
+              "--source-definition",
+              "--store",
+              "--text"
+            ]
+          },
+          {
+            "name": "adopt",
+            "options": [
+              "--answers",
+              "--artifact",
+              "--baseline",
+              "--comparison",
+              "--definition",
+              "--device",
+              "--help",
+              "--input",
+              "--machine",
+              "--output",
+              "--passphrase-file",
+              "--passphrase-stdin",
+              "--profile-id",
+              "--recipient",
+              "--snapshot-id",
+              "--source-definition",
+              "--store",
+              "--text"
+            ]
+          },
+          {
+            "name": "slots",
+            "options": [
+              "--acknowledge-device-only",
+              "--action",
+              "--confirm-passphrase-file",
+              "--confirm-passphrase-stdin",
+              "--device",
+              "--help",
+              "--input",
+              "--machine",
+              "--new-passphrase-file",
+              "--new-passphrase-stdin",
+              "--passphrase-file",
+              "--passphrase-stdin",
+              "--profile-id",
+              "--recipient",
+              "--snapshot-id",
+              "--store",
+              "--text"
+            ]
+          },
+          {
+            "name": "recovery-check",
+            "options": [
+              "--device",
+              "--device-recipient-id",
+              "--expected-digest",
+              "--help",
+              "--input",
+              "--machine",
+              "--passphrase-file",
+              "--passphrase-stdin",
+              "--profile-id",
+              "--recipient",
+              "--snapshot-id",
+              "--store",
+              "--text"
+            ]
+          }
+        ],
+        "options": [
+          "--acknowledge-device-only",
+          "--action",
+          "--answers",
+          "--artifact",
+          "--baseline",
+          "--cipher",
+          "--comparison",
+          "--confirm-passphrase-file",
+          "--confirm-passphrase-stdin",
+          "--definition",
+          "--device",
+          "--device-recipient-id",
+          "--environment-context",
+          "--expected-digest",
+          "--help",
+          "--input",
+          "--kdf",
+          "--limit",
+          "--machine",
+          "--mode",
+          "--new-passphrase-file",
+          "--new-passphrase-stdin",
+          "--offset",
+          "--output",
+          "--passphrase-file",
+          "--passphrase-stdin",
+          "--profile-id",
+          "--recipient",
+          "--snapshot-id",
+          "--source-definition",
+          "--store",
+          "--text"
+        ]
+      },
+      {
         "name": "doctor",
         "operations": [
           {
@@ -834,12 +1063,14 @@
             "env",
             "definition",
             "secret",
+            "profile",
             "doctor",
             "cli"
           ]
         },
         "operation": {
           "enum": [
+            "adopt",
             "answer-schema",
             "build",
             "bundle-check",
@@ -858,15 +1089,21 @@
             "generate",
             "import",
             "init",
+            "inspect",
             "lint",
             "list",
             "open",
             "prefill",
             "preview",
+            "recovery-check",
             "render",
             "revise",
+            "save",
             "schema",
             "show",
+            "slots",
+            "unlock",
+            "upgrade-plan",
             "validate",
             "help"
           ]
@@ -1310,7 +1547,9 @@
             "authoring-source",
             "compiled-definition",
             "logical-id-map",
-            "answer-schema"
+            "answer-schema",
+            "encrypted-profile",
+            "comparison-profile"
           ]
         },
         "mediaType": {
@@ -1789,15 +2028,36 @@
     },
     {
       "if": {
-        "properties": {
-          "invocation": {
+        "anyOf": [
+          {
             "properties": {
-              "commandFamily": {
-                "const": "secret"
+              "invocation": {
+                "properties": {
+                  "commandFamily": {
+                    "const": "secret"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "invocation": {
+                "properties": {
+                  "commandFamily": {
+                    "const": "profile"
+                  },
+                  "operation": {
+                    "enum": [
+                      "adopt",
+                      "list"
+                    ]
+                  }
+                }
               }
             }
           }
-        }
+        ]
       },
       "then": {
         "properties": {

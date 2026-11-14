@@ -18,6 +18,7 @@ internal static class CliContractSpecification
                 ["env"] = new HashSet<string>(["render", "validate"], StringComparer.Ordinal),
                 ["doctor"] = new HashSet<string>(["doctor"], StringComparer.Ordinal),
                 ["secret"] = new HashSet<string>(["generate", "derive"], StringComparer.Ordinal),
+                ["profile"] = new HashSet<string>(["save", "list", "inspect", "unlock", "diff", "upgrade-plan", "adopt", "slots", "recovery-check"], StringComparer.Ordinal),
                 ["definition"] = new HashSet<string>(["init", "check", "build", "revise", "lint", "schema", "answer-schema"], StringComparer.Ordinal)
             });
 

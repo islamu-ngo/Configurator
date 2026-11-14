@@ -47,15 +47,25 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | Option | Repeatable |
 | --- | --- |
 | --accept-bounded-semantics | false |
+| --acknowledge-device-only | false |
+| --action | false |
 | --against | false |
 | --answers | false |
 | --application-version | false |
 | --artifact | true |
 | --baseline | false |
+| --cipher | false |
+| --comparison | false |
+| --confirm-passphrase-file | false |
+| --confirm-passphrase-stdin | false |
 | --definition | false |
 | --detail | false |
+| --device | false |
+| --device-recipient-id | false |
 | --dry-run | false |
+| --environment-context | false |
 | --expected-detail-digest | false |
+| --expected-digest | false |
 | --expected-revision | false |
 | --fork-from | false |
 | --format | false |
@@ -66,21 +76,32 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | --id-map | false |
 | --input | false |
 | --input-revision | false |
+| --kdf | false |
 | --key | false |
 | --kind | false |
 | --limit | false |
 | --machine | false |
+| --mode | false |
 | --name | false |
+| --new-passphrase-file | false |
+| --new-passphrase-stdin | false |
 | --offset | false |
 | --output | false |
+| --passphrase-file | false |
+| --passphrase-stdin | false |
 | --pointer | false |
+| --profile-id | false |
 | --project-id | false |
 | --quality | false |
+| --recipient | false |
 | --revision-field | false |
 | --root | false |
 | --secret-input-file | false |
 | --secret-input-stdin | false |
+| --snapshot-id | false |
 | --source | false |
+| --source-definition | false |
+| --store | false |
 | --text | false |
 
 ## Public commands and operations
@@ -119,6 +140,16 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | env | &#40;union&#41; | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
 | env | render | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
 | env | validate | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
+| profile | &#40;union&#41; | --acknowledge-device-only&#44; --action&#44; --answers&#44; --artifact&#44; --baseline&#44; --cipher&#44; --comparison&#44; --confirm-passphrase-file&#44; --confirm-passphrase-stdin&#44; --definition&#44; --device&#44; --device-recipient-id&#44; --environment-context&#44; --expected-digest&#44; --help&#44; --input&#44; --kdf&#44; --limit&#44; --machine&#44; --mode&#44; --new-passphrase-file&#44; --new-passphrase-stdin&#44; --offset&#44; --output&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --source-definition&#44; --store&#44; --text |
+| profile | adopt | --answers&#44; --artifact&#44; --baseline&#44; --comparison&#44; --definition&#44; --device&#44; --help&#44; --input&#44; --machine&#44; --output&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --source-definition&#44; --store&#44; --text |
+| profile | diff | --baseline&#44; --comparison&#44; --definition&#44; --device&#44; --help&#44; --input&#44; --machine&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --source-definition&#44; --store&#44; --text |
+| profile | inspect | --device&#44; --help&#44; --input&#44; --machine&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --store&#44; --text |
+| profile | list | --help&#44; --limit&#44; --machine&#44; --offset&#44; --store&#44; --text |
+| profile | recovery-check | --device&#44; --device-recipient-id&#44; --expected-digest&#44; --help&#44; --input&#44; --machine&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --store&#44; --text |
+| profile | save | --acknowledge-device-only&#44; --artifact&#44; --cipher&#44; --confirm-passphrase-file&#44; --confirm-passphrase-stdin&#44; --definition&#44; --device&#44; --environment-context&#44; --help&#44; --input&#44; --kdf&#44; --machine&#44; --mode&#44; --output&#44; --passphrase-file&#44; --passphrase-stdin&#44; --store&#44; --text |
+| profile | slots | --acknowledge-device-only&#44; --action&#44; --confirm-passphrase-file&#44; --confirm-passphrase-stdin&#44; --device&#44; --help&#44; --input&#44; --machine&#44; --new-passphrase-file&#44; --new-passphrase-stdin&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --store&#44; --text |
+| profile | unlock | --device&#44; --help&#44; --input&#44; --machine&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --store&#44; --text |
+| profile | upgrade-plan | --baseline&#44; --comparison&#44; --definition&#44; --device&#44; --help&#44; --input&#44; --machine&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --source-definition&#44; --store&#44; --text |
 | secret | &#40;union&#41; | --definition&#44; --generated-password-output&#44; --help&#44; --input&#44; --machine&#44; --output&#44; --pointer&#44; --secret-input-file&#44; --secret-input-stdin&#44; --text |
 | secret | derive | --definition&#44; --help&#44; --input&#44; --machine&#44; --output&#44; --pointer&#44; --secret-input-file&#44; --secret-input-stdin&#44; --text |
 | secret | generate | --definition&#44; --generated-password-output&#44; --help&#44; --input&#44; --machine&#44; --output&#44; --pointer&#44; --text |

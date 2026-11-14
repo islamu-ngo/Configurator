@@ -32,5 +32,22 @@ internal sealed record CliCommand(
     internal string? Pointer { get; init; }
     internal string? SecretInput { get; init; }
     internal string? GeneratedPasswordOutput { get; init; }
+    internal string? Store { get; init; }
+    internal string? ProfileMode { get; init; }
+    internal string? EnvironmentContext { get; init; }
+    internal string? PassphraseConfirmationInput { get; init; }
+    internal string? PassphraseInput { get; init; }
+    internal bool Device { get; init; }
+    internal bool AcknowledgeDeviceOnly { get; init; }
+    internal Guid? ProfileId { get; init; }
+    internal Guid? SnapshotId { get; init; }
+    internal int RecipientIndex { get; init; }
+    internal string? SourceDefinition { get; init; }
+    internal string? RecoveryDigest { get; init; }
+    internal Guid? DeviceRecipientId { get; init; }
+    internal string ProfileAction { get; init; } = "inspect";
+    internal string? NewPassphraseInput { get; init; }
+    internal int ProfileListOffset { get; init; }
+    internal int ProfileListLimit { get; init; } = 16;
 }
 

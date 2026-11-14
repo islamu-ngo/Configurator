@@ -92,7 +92,7 @@ internal static class CliPackageValidation
                 Require(help.GetProperty("scope").GetString() == "root");
                 Require(help.GetProperty("commandPath").GetArrayLength() == 0);
                 Require(help.GetProperty("commands").EnumerateArray().Select(item => item.GetString())
-                    .ToHashSet(StringComparer.Ordinal).SetEquals(["artifact", "catalogue", "definition", "doctor", "env", "secret"]));
+                    .ToHashSet(StringComparer.Ordinal).SetEquals(["artifact", "catalogue", "definition", "doctor", "env", "secret", "profile"]));
                 Require(document.RootElement.GetProperty("artifacts").GetArrayLength() == 0);
             });
 
@@ -186,6 +186,59 @@ internal static class CliPackageValidation
                     Require(terminal.RootElement.GetProperty("detail").GetProperty("terminal").GetBoolean());
                     Require(terminal.RootElement.GetProperty("detail").GetProperty("returnedCount").GetInt32() == 0);
                 });
+                await Cohort("encrypted-profile-policy", async () =>
+                {
+                    string store = Path.Combine(workspace, "profiles");
+                    Directory.CreateDirectory(store);
+                    if (OperatingSystem.IsLinux())
+                        File.SetUnixFileMode(store, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                    string material = Path.Combine(workspace, "material");
+                    await File.WriteAllTextAsync(material, "synthetic-package-profile-passphrase");
+                    if (OperatingSystem.IsLinux())
+                        File.SetUnixFileMode(material, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                    string[] save = ["profile", "save", "--definition", source, "--input", input,
+                        "--mode", "import-upgrade-only", "--environment-context", "synthetic",
+                        "--store", store, "--passphrase-file", material, "--confirm-passphrase-file", material, "--machine"];
+                    var saved = await ExecuteAsync(workspace, executable, save);
+                    if (!OperatingSystem.IsLinux())
+                    {
+                        Require(saved.ExitCode != 0 && Directory.GetFiles(store).Length == 0);
+                        return;
+                    }
+                    using JsonDocument receipt = Envelope(saved, schema.RootElement, "profile", "save", 0);
+                    string[] files = Directory.GetFiles(store);
+                    Require(files.Length == 1);
+                    byte[] container = await File.ReadAllBytesAsync(files[0]);
+                    using JsonDocument jwe = JsonDocument.Parse(container);
+                    JsonElement root = jwe.RootElement;
+                    string encoded = root.GetProperty("protected").GetString()!;
+                    string padded = encoded.Replace('-', '+').Replace('_', '/');
+                    padded += new string('=', (4 - padded.Length % 4) % 4);
+                    using JsonDocument header = JsonDocument.Parse(Convert.FromBase64String(padded));
+                    Require(header.RootElement.GetProperty("enc").GetString() == "A256GCM");
+                    Require(header.RootElement.GetProperty("typ").GetString() == "cfgvault");
+                    JsonElement recipient = root.TryGetProperty("recipients", out JsonElement recipients)
+                        ? recipients.GetArrayLength() == 1 ? recipients[0] : throw new InvalidDataException()
+                        : root;
+                    JsonElement local = recipient.GetProperty("header");
+                    JsonElement algorithm = header.RootElement.TryGetProperty("alg", out JsonElement protectedAlgorithm)
+                        ? protectedAlgorithm : local.GetProperty("alg");
+                    JsonElement cost = header.RootElement.TryGetProperty("p2c", out JsonElement protectedCost)
+                        ? protectedCost : local.GetProperty("p2c");
+                    Require(algorithm.GetString() == "PBES2-HS512+A256KW" && cost.GetInt32() == 600000);
+                    Require(root.GetProperty("ciphertext").GetString()!.Length > 0
+                        && !StrictUtf8.GetString(container).Contains("synthetic-package-service", StringComparison.Ordinal));
+                    Require(File.GetUnixFileMode(files[0]) == (UnixFileMode.UserRead | UnixFileMode.UserWrite));
+                    var opened = await ExecuteAsync(workspace, executable, ["profile", "unlock", "--input", files[0],
+                        "--passphrase-file", material, "--machine"]);
+                    using JsonDocument status = Envelope(opened, schema.RootElement, "profile", "unlock", 0);
+                    Require(status.RootElement.GetProperty("artifacts").GetArrayLength() == 0);
+                    var rejected = await ExecuteAsync(workspace, executable, [.. save, "--cipher", "A128GCM"]);
+                    Require(rejected.ExitCode != 0 && Directory.GetFiles(store).Length == 1);
+                    var rejectedKdf = await ExecuteAsync(workspace, executable, [.. save, "--kdf", "PBES2-HS256+A128KW"]);
+                    Require(rejectedKdf.ExitCode != 0 && Directory.GetFiles(store).Length == 1);
+                    Require((await File.ReadAllBytesAsync(files[0])).AsSpan().SequenceEqual(container));
+                });
             }
             finally { Directory.Delete(workspace, recursive: true); }
             Console.WriteLine($"CLI_PACKAGE_RESULT {(failures == 0 ? "passed" : "failed")} failedCohorts={failures}");
@@ -243,7 +296,7 @@ internal static class CliPackageValidation
             Require(root.TryGetProperty("help", out _) == (operation == "help"));
             Require(root.GetProperty("diagnosticsTotal").GetInt32() == root.GetProperty("diagnostics").GetArrayLength()
                 + root.GetProperty("diagnosticsOmitted").GetInt32());
-            if (expectedExit == 0) Require(root.GetProperty("diagnosticsTotal").GetInt32() == 0);
+            if (expectedExit == 0 && family != "profile") Require(root.GetProperty("diagnosticsTotal").GetInt32() == 0);
             else if (operation != "compare") Require(root.GetProperty("diagnosticsTotal").GetInt32() > 0);
             if (root.TryGetProperty("assessment", out JsonElement assessment))
             {
@@ -333,10 +386,12 @@ internal static class CliPackageValidation
         }
         if (rule.TryGetProperty("not", out JsonElement excluded)) Require(!Matches(excluded));
         if (rule.TryGetProperty("oneOf", out JsonElement alternatives)) Require(alternatives.EnumerateArray().Count(Matches) == 1);
+        if (rule.TryGetProperty("anyOf", out JsonElement choicesOf)) Require(choicesOf.EnumerateArray().Any(Matches));
         if (rule.TryGetProperty("allOf", out JsonElement requirements))
             foreach (JsonElement requirement in requirements.EnumerateArray()) Validate(value, requirement, schema);
-        if (rule.TryGetProperty("if", out JsonElement condition) && Matches(condition)
-            && rule.TryGetProperty("then", out JsonElement consequence)) Validate(value, consequence, schema);
+        if (rule.TryGetProperty("if", out JsonElement condition)
+            && rule.TryGetProperty(Matches(condition) ? "then" : "else", out JsonElement consequence))
+            Validate(value, consequence, schema);
         if (rule.TryGetProperty("const", out JsonElement constant)) Require(JsonElement.DeepEquals(value, constant));
         if (rule.TryGetProperty("enum", out JsonElement choices)) Require(choices.EnumerateArray().Any(item => JsonElement.DeepEquals(value, item)));
         if (rule.TryGetProperty("type", out JsonElement type))
@@ -444,6 +499,34 @@ internal static class CliPackageValidation
             if (!valid) rejected++;
         }
         Check(good + "\n", true);
+        int digestPolicyAccepted = 0;
+        foreach (var (family, operation, digestRequired) in new (string, string, bool)[]
+        {
+            ("secret", "generate", false),
+            ("profile", "adopt", false),
+            ("profile", "list", false),
+            ("artifact", "validate", true),
+            ("doctor", "doctor", true),
+            ("profile", "save", true)
+        })
+        {
+            foreach (bool includeDigest in new[] { false, true })
+            {
+                JsonObject candidate = JsonNode.Parse(good)!.AsObject();
+                candidate["invocation"]!["commandFamily"] = family;
+                candidate["invocation"]!["operation"] = operation;
+                if (!includeDigest) candidate["artifacts"]![0]!.AsObject().Remove("digest");
+                bool accepted = true;
+                try
+                {
+                    using JsonDocument document = JsonDocument.Parse(candidate.ToJsonString());
+                    Validate(document.RootElement, schema, schema);
+                }
+                catch (Exception exception) when (IsInputError(exception)) { accepted = false; }
+                Require(accepted == (includeDigest == digestRequired));
+                if (accepted) digestPolicyAccepted++; else rejected++;
+            }
+        }
         foreach (string text in new[] { "", "not-json\n", "[]\n", good, good + "\n\n", "\uFEFF" + good + "\n",
             good + "\r\n", good + "\n{}\n", "\u001b" + good + "\n", new string(' ', MaximumOutputBytes) + good + "\n",
             good.Replace("\"dryRun\":false", "\"dryRun\":false,\"dryRun\":false", StringComparison.Ordinal) + "\n" })
@@ -642,7 +725,7 @@ internal static class CliPackageValidation
             obj => obj["detail"]!["findings"]![0]!["correction"] = correctionLocation.DeepClone(),
             obj => obj["detail"]!["findings"] = new JsonArray()
         }) CheckComparison(mutate, false);
-        Console.WriteLine($"CLI_PACKAGE_SELF_TEST passed accepted={4 + assessmentAccepted} rejected={rejected}");
+        Console.WriteLine($"CLI_PACKAGE_SELF_TEST passed accepted={4 + assessmentAccepted + digestPolicyAccepted} rejected={rejected}");
         return 0;
     }
 

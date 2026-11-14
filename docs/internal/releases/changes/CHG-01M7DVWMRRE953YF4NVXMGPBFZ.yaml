@@ -1,0 +1,29 @@
+Change-Id: CHG-01M7DVWMRRE953YF4NVXMGPBFZ
+Title: "Manage encrypted profiles through explicit CLI commands"
+Type: feat
+Scope: privacy
+Summary: "Expose bounded profile save, discovery, unlock, comparison, upgrade, restricted adoption, recipient management and exact-copy recovery checks through typed CLI settings and safe receipts."
+Group: cli-profile-commands
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Typed settings bound credential channels and fixed policy before I/O. Restricted adoption passes retained values directly to the native writer; receipts exclude private values, physical paths and plaintext adoption digests."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Encrypted saves require explicit environment context and confirmed bounded portable input or acknowledged device custody. Discovery, planning, recipient management and exact-copy recovery have separate typed commands."
+  OpenAPI:
+    Reference: schemas/configurator-cli.schema.json
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Profile commands do not grant target apply permission. Native host support and independently held recovery references remain required; resealing does not revoke old copies."

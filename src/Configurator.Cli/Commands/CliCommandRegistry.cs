@@ -14,6 +14,7 @@ internal static class CliCommandRegistry
         EnvironmentCommands.Descriptor,
         DefinitionCommands.Descriptor,
         SecretCommands.Descriptor,
+        ProfileCommands.Descriptor,
         DoctorCommands.Descriptor
     ];
 

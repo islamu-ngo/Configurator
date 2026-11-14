@@ -42,6 +42,86 @@ does not qualify that package. With unchanged public metadata, no command schema
 or generated reference regeneration is needed. CLI still consumes Core and
 Artifacts directly without a Presentation dependency.
 
+### Encrypted local profiles
+
+`ProfileCommands` registers the closed `profile save|list|inspect|unlock|diff|upgrade-plan|adopt|slots|recovery-check`
+family. Typed settings validate policy identifiers, explicit destinations and
+credential-channel conflicts before I/O, then bind immutable `CliCommand`
+fields. `CliApplication` dispatches to `CliProfileHandlers`; its internal
+store/keyring factories let focused tests replace native boundaries without
+changing the executable's default `LocalProfileVaultStore` and
+`OsKeyringProvider` ownership.
+
+The only admitted policy is JSON JWE with `A256GCM`,
+`PBES2-HS512+A256KW` and PBKDF2-HMAC-SHA512 at 600000 iterations.
+`--cipher` and `--kdf` assert those fixed identifiers; they cannot select another
+algorithm or work factor. Passphrases use exactly one bounded
+`--passphrase-stdin` or `--passphrase-file` channel. The adapter validates strict
+UTF-8 against Core's 1024-byte limit, preserves newline bytes and disposes the
+owned input. Portable recipient creation additionally requires exactly one
+`--confirm-passphrase-stdin` or `--confirm-passphrase-file`, bounded identically.
+`CryptographicOperations.FixedTimeEquals` checks the exact unnormalized bytes
+before keyring creation or immutable publication; both buffers are disposed.
+Unlock inputs do not require confirmation. No argv/environment passphrase
+channel exists. Answer, credential and confirmation stdin cannot compete;
+resealing applies that rule to old credential, new credential and confirmation.
+
+`save` preserves four explicit modes. `compare-only` writes a stripped comparison
+baseline, encrypted modes seal an authenticated payload, and `unencrypted-target`
+delegates ordinary answers to the existing restricted artifact export path.
+Encrypted saves require a caller-selected nonempty `--environment-context`
+bounded to 256 characters and bind it into the authenticated payload without a
+fabricated default. Comparison saves accept the same explicit context.
+Device-only encrypted save requires `--acknowledge-device-only`. Creation and
+lookup are separate keyring operations; reopening uses lookup only and never
+manufactures a replacement credential. Immutable opaque profile/snapshot names
+and native publication belong to the store. Unsupported hosts refuse without an
+ordinary-file fallback. The publication ledger preserves installed/unknown
+outcomes through later failures. A saved profile does not establish target
+readiness or acceptance.
+
+`list` pages unverified discovery metadata. `inspect` and `slots --action inspect`
+admit only bounded container structure and report unauthenticated recipient
+counts and the fixed policy. `unlock` authenticates and emits safe status only.
+Core owns the authenticated embedded historical schema and its joint binding
+with target definitions; encrypted planning and adoption do not require an
+external historical copy. Optional supplied history must match.
+Comparison baselines can be planned
+with `--comparison`; they cannot restore secrets. Missing independently held
+commitment keys do not establish protected equality.
+
+For `--baseline` comparisons, optional `--source-definition` describes the
+before baseline, not the current encrypted profile. Core validates that distinct
+binding and reports supported comparisons unavailable when source evidence is absent.
+
+`adopt` validates optional supplied historical evidence through `DefinitionRegistry`,
+then passes only caller-supplied public/replacement answers to
+`ProfileCompositionInput`. `ProfileArtifactComposer` consumes retained values
+inside that disposable scope. Its output crosses `WriteToNativeSaveAsync`
+directly into the deliberate restricted writer; no retained plaintext
+`AnswerSnapshot`, preview or ordinary answer dump is constructed.
+
+`slots --action reseal` authenticates the old snapshot and seals a new immutable
+snapshot with the new portable passphrase. Old files remain unchanged and retain
+their old recipients. `recovery-check` uses `ProfileRecoveryVerifier` with
+independent portable credentials and a separately trusted `--expected-digest`.
+When the trusted reference includes a device recipient, supply its routing UUID
+with `--device-recipient-id`; this is metadata, not a key or proof of recovery.
+Verification covers only that selected recipient and exact snapshot. No keyring
+provider is used by this check.
+
+Machine receipts contain opaque identities, fixed codes and ciphertext digests,
+never credential values, answer values or physical paths. Logical JSON Pointer
+locations identify schema or safe reference metadata, not filesystem locations.
+The generated schema admits encrypted/comparison profile artifact receipts.
+Discovery has no established file digest; blind adoption omits the plaintext
+artifact digest. Both routes prohibit that field, while save receipts retain
+the ciphertext/comparison-file digest needed for exact-copy references.
+Generator order remains schema, ratchets, then command reference; `targetApply`
+stays false. Focused tests exercise application sinks, actual executable
+stdin/stdout/stderr and supported-host immutable publication. Those checks do
+not qualify an OS keyring, another host, backup retention or secure erasure.
+
 ### Schema-driven secret operations
 
 `SecretCommands` registers `secret generate` and `secret derive` with explicit

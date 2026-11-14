@@ -214,7 +214,13 @@ internal static partial class CliMachineContractVerifier
                 && root["artifacts"] is JsonArray secretArtifacts
                 && secretArtifacts.OfType<JsonObject>().Any(artifact => artifact.ContainsKey("digest")))
                 errors.Add("machine-secret-artifact-digest");
+            bool profileDigestForbidden = root["invocation"]?["commandFamily"]?.GetValue<string>() == "profile"
+                && root["invocation"]?["operation"]?.GetValue<string>() is "list" or "adopt";
+            if (profileDigestForbidden && root["artifacts"] is JsonArray profileArtifacts
+                && profileArtifacts.OfType<JsonObject>().Any(artifact => artifact.ContainsKey("digest")))
+                errors.Add("machine-profile-artifact-digest");
             if (root["invocation"]?["commandFamily"]?.GetValue<string>() != "secret"
+                && !profileDigestForbidden
                 && root["artifacts"] is JsonArray ordinaryArtifacts
                 && ordinaryArtifacts.OfType<JsonObject>().Any(artifact => !artifact.ContainsKey("digest")))
                 errors.Add("machine-artifact-digest-required");
@@ -711,7 +717,7 @@ internal static partial class CliMachineContractVerifier
             if (id.Length is < 1 or > 128 || !KeyPattern().IsMatch(id) || !ids.Add(id)
                 || artifact.ContainsKey("digest") && !DigestPattern().IsMatch(artifact["digest"]?.GetValue<string>() ?? string.Empty)
                 || artifact["sensitivity"]?.GetValue<string>() is not ("public" or "restricted")
-                || artifact["kind"]?.GetValue<string>() is not ("catalogue" or "definition-artifact" or "answer-snapshot" or "generated-password" or "doctor-report" or "authoring-source" or "compiled-definition" or "logical-id-map" or "answer-schema")
+                || artifact["kind"]?.GetValue<string>() is not ("catalogue" or "definition-artifact" or "answer-snapshot" or "generated-password" or "doctor-report" or "authoring-source" or "compiled-definition" or "logical-id-map" or "answer-schema" or "encrypted-profile" or "comparison-profile")
                 || mediaType.Length is < 1 or > 128 || !MediaTypePattern().IsMatch(mediaType)
                 || artifact["pathIntent"]?.GetValue<string>() is not ("none" or "input" or "output" or "stdout")
                 || writeStatus is not ("none" or "planned" or "written" or "not-attempted" or "conflict" or "blocked" or "failed" or "unknown")

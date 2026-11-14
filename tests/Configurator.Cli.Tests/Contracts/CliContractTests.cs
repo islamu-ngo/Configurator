@@ -30,14 +30,18 @@ public sealed class CliContractTests
         JsonObject schema = CliMachineContractVerifier.ParseSchema(first);
         await Assert.That(CliMachineContractVerifier.InspectSchema(schema)).IsEmpty();
         await Assert.That(schema["_metadata"]!["commands"]!.AsArray().Select(node => node!["name"]!.GetValue<string>()))
-            .IsEquivalentTo(["catalogue", "env", "artifact", "doctor", "definition", "secret"]);
+            .IsEquivalentTo(["catalogue", "env", "artifact", "doctor", "definition", "secret", "profile"]);
         await Assert.That(schema["_metadata"]!["commandOptions"]!.AsArray().Select(node => node!.GetValue<string>()))
             .IsEquivalentTo(["--help", "--machine", "--text", "--dry-run", "--input", "--baseline",
                 "--output", "--key", "--definition", "--artifact", "--format", "--expected-revision",
                 "--revision-field", "--input-revision", "--answers", "--source", "--root", "--against",
                 "--id-map", "--project-id", "--name", "--application-version", "--fork-from", "--from-env-example",
                 "--from-schema", "--accept-bounded-semantics", "--kind", "--detail", "--offset", "--limit", "--expected-detail-digest",
-                "--pointer", "--generated-password-output", "--secret-input-file", "--secret-input-stdin", "--quality"]);
+                "--pointer", "--generated-password-output", "--secret-input-file", "--secret-input-stdin", "--quality",
+                "--store", "--mode", "--environment-context", "--confirm-passphrase-stdin", "--confirm-passphrase-file",
+                "--acknowledge-device-only", "--cipher", "--kdf", "--passphrase-stdin", "--passphrase-file", "--device",
+                "--profile-id", "--snapshot-id", "--recipient", "--comparison", "--source-definition",
+                "--expected-digest", "--device-recipient-id", "--action", "--new-passphrase-stdin", "--new-passphrase-file"]);
         await Assert.That(schema["_metadata"]!["repeatableOptions"]!.AsArray().Select(node => node!.GetValue<string>()))
             .IsEquivalentTo(["--artifact"]);
         await Assert.That(schema["properties"]!["exitCode"]!["enum"]!.AsArray().Select(node => node!.GetValue<int>()))
@@ -788,7 +792,7 @@ public sealed class CliContractTests
         {
             ["scope"] = "root",
             ["commandPath"] = new JsonArray(),
-            ["commands"] = new JsonArray("catalogue", "artifact", "env", "definition", "secret", "doctor"),
+            ["commands"] = new JsonArray("catalogue", "artifact", "env", "definition", "secret", "doctor", "profile"),
             ["options"] = new JsonArray()
         };
     }
@@ -798,7 +802,7 @@ public sealed class CliContractTests
     {
         (string[] Arguments, string Family, string Operation, string Scope, string[] Path, string[] Commands)[] cases =
         [
-            (["--help", "--machine"], "cli", "help", "root", [], ["catalogue", "artifact", "env", "definition", "secret", "doctor"]),
+            (["--help", "--machine"], "cli", "help", "root", [], ["catalogue", "artifact", "env", "definition", "secret", "doctor", "profile"]),
             (["artifact", "--help", "--machine"], "artifact", "help", "branch", ["artifact"],
                 ["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "compare", "prefill", "bundle-check", "bundle-create", "preview"]),
             (["artifact", "bundle-create", "--help", "--machine"], "artifact", "bundle-create", "leaf", ["artifact", "bundle-create"], [])

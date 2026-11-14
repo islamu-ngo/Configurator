@@ -49,6 +49,122 @@ See [packaging](packaging.md) for host boundaries and the
 [technical conformance profile](../internal/DEFINITION_CONFORMANCE_PROFILE.md)
 for the bounded definition mechanisms and limits.
 
+## Save and recover local profiles
+
+The command family is `profile save|list|inspect|unlock|diff|upgrade-plan|adopt|slots|recovery-check`.
+Use `--machine` to capture complete opaque identifiers and publication receipts.
+No command grants target apply permission.
+
+Choose one save mode: `compare-only` strips protected values and cannot restore
+them; `import-upgrade-only` retains encrypted values for restricted composition;
+`inspectable-encrypted` retains an encrypted inspectable profile, while CLI
+unlock still reports status only; `unencrypted-target` exports an ordinary target
+artifact through the native restricted writer.
+
+```bash
+islamu-configurator profile save --store ./profiles \
+  --definition configurator.yaml --input answers.json \
+  --mode import-upgrade-only --environment-context production \
+  --passphrase-file ./portable-passphrase \
+  --confirm-passphrase-file ./portable-passphrase-confirmation --machine
+islamu-configurator profile list --store ./profiles --offset 0 --limit 16 --machine
+```
+
+Passphrases use exactly one `--passphrase-stdin` or `--passphrase-file`.
+There is no argv or environment passphrase option. Input is strict UTF-8,
+at most 1024 bytes; new passphrases require at least 15 Unicode scalars.
+No newline is removed, so provide the exact same bytes when reopening.
+Never put credentials in arguments or filenames. Answer stdin cannot also be
+passphrase stdin. Private paths are not echoed in results.
+
+Encrypted save requires an explicit nonempty `--environment-context` of at most
+256 characters. It is authenticated payload input; the CLI does not infer an
+environment or supply a default. Comparison saves may use the same option to
+retain a consistent comparison context.
+
+Creating a portable recipient requires exactly one
+`--confirm-passphrase-file` or `--confirm-passphrase-stdin`, with the same
+1024-byte strict UTF-8 bound. Confirmation must match the primary bytes exactly:
+no whitespace trimming or Unicode normalization occurs. Length is not entropy.
+Only one of answers, primary passphrase and confirmation may consume stdin.
+Existing unlock credentials require no creation confirmation.
+
+The fixed reviewed policy is JSON JWE, `A256GCM`, `PBES2-HS512+A256KW`,
+and PBKDF2-HMAC-SHA512 at 600000 iterations. Optional `--cipher` and `--kdf`
+assert those exact cipher and key-algorithm identifiers; unsupported identifiers
+are rejected. There is no alternative cipher selection or cost override.
+
+For native device credentials, encrypted save accepts `--device`, optionally
+alongside an independent portable passphrase. Device-only save additionally
+requires `--acknowledge-device-only`: losing access to that device, account or
+keyring can make recovery impossible. Lookup during reopening never creates a
+replacement key. Native keyring and protected-save support require separate host
+qualification; an unavailable host refuses without an ordinary-file fallback.
+
+Select a stored revision with `--store`, `--profile-id` and `--snapshot-id`.
+Alternatively, portable inspect/unlock/planning/adoption can read an explicitly
+selected local `--input` file. Recipient indices are zero-based; a configured
+device recipient occupies index zero, before portable recipients. `inspect` and
+`slots --action inspect` report unverified container structure, not authenticated
+identity or working recovery. `unlock` authenticates but never exports answers.
+
+```bash
+islamu-configurator profile unlock --input ./saved.cfgvault \
+  --recipient 0 --passphrase-stdin --machine
+islamu-configurator profile adopt --input ./saved.cfgvault \
+  --definition ./target.yaml --source-definition ./original.yaml \
+  --artifact config --output ./prepared.json \
+  --passphrase-file ./portable-passphrase --machine
+```
+
+Adoption requires a deliberate restricted destination; `--output -` is rejected.
+Optional `--answers` supplies public or explicit replacement answers. The
+authenticated encrypted payload already embeds the admitted historical
+definition; an external copy is optional and must match if supplied.
+Retained blind values pass through
+scoped composition directly to protected output, without an answer dump or
+preview. Target validation can still require replacement values.
+
+`diff` and `upgrade-plan` take `--definition` and optional `--source-definition`.
+Use `--comparison` for a stripped baseline instead of an encrypted input.
+Optional `--baseline` compares against another local comparison baseline.
+With `--baseline`, `--source-definition` describes that before-baseline schema,
+independently of the current encrypted profile's embedded history. Missing
+before-schema evidence leaves supported comparisons explicitly unavailable.
+Results report eligibility, schema changes and unavailable comparisons; no
+independently held comparison key means no claim of protected equality.
+Plans always require revalidation during actual adoption.
+
+Capture the saved snapshot's ciphertext digest and opaque identities as a
+trusted reference. Do not compute a new digest from an untrusted replacement
+and treat that as the saved reference.
+
+```bash
+islamu-configurator profile recovery-check --store ./profiles \
+  --profile-id PROFILE_UUID --snapshot-id SNAPSHOT_UUID \
+  --recipient 0 --expected-digest TRUSTED_SHA256 \
+  --passphrase-file ./portable-passphrase --machine
+```
+
+Supply the saved reference's device routing UUID with `--device-recipient-id`
+when present, and select a portable recipient after it. Recovery checking uses
+no device keyring; success verifies only the selected recipient and exact file,
+not every backup or whether a human has retained the passphrase safely.
+
+`slots --action reseal` uses the stored revision's ordinary unlock options and
+exactly one `--new-passphrase-stdin` or `--new-passphrase-file`, plus
+`--confirm-passphrase-stdin` or `--confirm-passphrase-file` for that new value.
+Only one of old passphrase, new passphrase and confirmation may consume stdin.
+Resealing creates a fresh immutable
+snapshot with the new portable recipient; it does not revoke access to old
+copies, rotate target credentials or delete historical keys.
+
+If every working recipient is lost, reinstalling Configurator or contacting
+support cannot reconstruct it. Uninstall/reset may remove or preserve files and
+OS entries; neither outcome is guaranteed. Keep independent recovery material
+separately and test the exact copied snapshot. See
+[import and recovery guidance](import-and-compare.md).
+
 ## Generate or derive a secret locally
 
 `secret generate` uses the selected field's admitted `x-configurator.secret`

@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Configurator.Cli.Commands;
 using Configurator.Core.Definitions;
+using Configurator.Artifacts.Profiles;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -10,6 +11,16 @@ namespace Configurator.Cli;
 
 public sealed class CliApplication
 {
+    private readonly Func<string, IProfileVaultStore> _profileStore;
+    private readonly Func<IOsKeyringProvider> _profileKeyring;
+
+    public CliApplication() : this(root => new LocalProfileVaultStore(root), () => new OsKeyringProvider()) { }
+
+    internal CliApplication(Func<string, IProfileVaultStore> profileStore, Func<IOsKeyringProvider> profileKeyring)
+    {
+        _profileStore = profileStore;
+        _profileKeyring = profileKeyring;
+    }
     public Task<CliExitCode> RunAsync(CliInvocation invocation, CancellationToken cancellationToken = default) =>
         RunCoreAsync(invocation, null, cancellationToken);
 
@@ -105,6 +116,8 @@ public sealed class CliApplication
                 "artifact" or "env" => await CliArtifactHandlers.ExecuteAsync(command, invocation, ledger, cancellationToken),
                 "definition" => await CliDefinitionHandlers.ExecuteAsync(command, invocation, ledger, cancellationToken),
                 "secret" => await CliSecretHandlers.ExecuteAsync(command, invocation, ledger, cancellationToken),
+                "profile" => await CliProfileHandlers.ExecuteAsync(command, invocation, ledger,
+                    _profileStore, _profileKeyring, cancellationToken),
                 "doctor" => CliArtifactHandlers.Doctor(),
                 _ => CliResults.Failure(CliExitCode.Usage, "command-unknown")
             };

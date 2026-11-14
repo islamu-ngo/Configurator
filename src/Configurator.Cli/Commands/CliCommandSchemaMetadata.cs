@@ -132,7 +132,7 @@ public static class CliCommandSchemaMetadata
             ["artifact"] = ObjectSchema(["id", "kind", "mediaType", "sensitivity", "pathIntent", "writeStatus", "installation", "verification"], new()
             {
                 ["id"] = String(1, 128, "^[A-Za-z][A-Za-z0-9._-]*$"),
-                ["kind"] = Enum(["catalogue", "definition-artifact", "answer-snapshot", "generated-password", "doctor-report", "authoring-source", "compiled-definition", "logical-id-map", "answer-schema"]),
+                ["kind"] = Enum(["catalogue", "definition-artifact", "answer-snapshot", "generated-password", "doctor-report", "authoring-source", "compiled-definition", "logical-id-map", "answer-schema", "encrypted-profile", "comparison-profile"]),
                 ["mediaType"] = String(1, 128, "^[a-z0-9][a-z0-9.+-]*/[a-z0-9][a-z0-9.+-]*(?:;v=[a-z0-9.-]+)?$"),
                 ["digest"] = String(null, null, "^[0-9a-f]{64}$"),
                 ["sensitivity"] = Enum(["public", "restricted"]),
@@ -338,7 +338,9 @@ public static class CliCommandSchemaMetadata
                 "exitCode":{"const":0}},"not":{"required":["help"]}}},
              {"if":{"properties":{"invocation":{"properties":{"commandFamily":{"const":"definition"},"operation":{"const":"schema"}}},
                 "exitCode":{"const":0}},"not":{"required":["help"]}},"then":{"required":["schema"]}},
-             {"if":{"properties":{"invocation":{"properties":{"commandFamily":{"const":"secret"}}}}},
+              {"if":{"anyOf":[
+                 {"properties":{"invocation":{"properties":{"commandFamily":{"const":"secret"}}}}},
+                 {"properties":{"invocation":{"properties":{"commandFamily":{"const":"profile"},"operation":{"enum":["adopt","list"]}}}}}]},
               "then":{"properties":{"artifacts":{"items":{"not":{"required":["digest"]}}}}},
               "else":{"properties":{"artifacts":{"items":{"required":["digest"]}}}}}]
             """);
