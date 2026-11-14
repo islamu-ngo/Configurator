@@ -356,6 +356,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             {
                 RetireProfileSession();
                 OnPropertyChanged(nameof(Profile));
+                RetireOutputWorkflow(clearHistory: true);
                 RetireImportComparison();
                 RetireDocument();
                 Dictionary<string, JsonElement>? originalBranches = _index!.Root.HasVariants ? _editing.Root.ToDictionary() : null;
@@ -512,6 +513,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             try
             {
                 _editing.Privacy = next;
+                RetireOutputWorkflow(clearHistory: true);
                 if (!enabled)
                 {
                     RetireProfileSession();
@@ -1166,6 +1168,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         _projection = null;
         _promotionPending = true;
         _editing.AdvanceRevision();
+        RetireOutputWorkflow(clearHistory: false);
         OnPropertyChanged(nameof(InputRevision));
         OnPropertyChanged(nameof(HasInputErrors));
         OnPropertyChanged(nameof(HasAnswerBudgetError));
@@ -1194,6 +1197,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (_disposed) return;
             _disposed = true;
             RetireProfileSession();
+            RetireOutputWorkflow(clearHistory: true);
             RetireSecretResult();
             RetireDocument();
             RetireImportComparison();

@@ -1,0 +1,27 @@
+Change-Id: CHG-01M7DWB1D9D8TJQ51PDNWNX5EB
+Title: "Track acknowledged output deliveries against captured workspace authority"
+Type: feat
+Scope: privacy
+Summary: "Capture complete prepared artifact coverage, reject stale or cross-workspace acknowledgements, distinguish delivery facts from completion and retire contexts during workspace privacy transitions."
+Group: output-export-evidence
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Acknowledgement requires the exact captured form owner, generation, definition, option, revision and eligible artifact set. Edits retire authority; private clearing, consent transitions and disposal clear contexts and history."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/definitions.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definitions.md
+    Disposition: not-applicable

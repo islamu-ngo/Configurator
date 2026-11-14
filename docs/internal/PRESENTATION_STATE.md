@@ -814,3 +814,30 @@ Input invalidation retires candidates; consent transitions, private clearing
 and disposal synchronously retire their authority and owned candidate buffers.
 `CopyPreview` deliberately transfers a string to the caller; managed strings,
 JSON allocations and caller-owned copies have no guaranteed erasure contract.
+
+## Captured output export evidence
+
+`DefinitionFormOutputWorkflow` owns value-free `DefinitionOutputExportContext`
+instances and `WorkspaceOutputWorkflow` projections. The adapter captures the
+prepared input revision and complete eligible artifact set once, after
+successful preparation. It retains its existing operation-generation and
+workspace fences around I/O. `RecordOutputExport` then checks form identity,
+definition digest, preparation generation, selected option and input revision
+under the form gate before accepting exact successful artifact IDs.
+
+Coverage accumulates only within the same input revision and eligible set.
+`NotExported`, `Partial`, `ExportedCurrent` and `ExportedStale` describe coverage;
+`ClipboardCopied`, `DownloadRequested` and `NativeSaveVerified` describe the
+separate delivery facts. An unverified native installation is not a successful
+workflow acknowledgement. Native adapters retain their physical receipts
+independently, including partial and unknown results.
+
+Input changes retire held contexts and stale prior receipts without advancing
+a second revision. A receipt itself changes only workflow notification state.
+Private-state clearing, consent transitions and disposal synchronously clear
+history as well as contexts. Ordinary preparation cancellation invalidates
+the held context while retaining already acknowledged delivery facts.
+Proposals evaluate admitted Core conditions against the current validation,
+order by priority then authored order, and localize numeric document paths.
+The projection contains no answer values or artifact bytes. Shared tests do
+not qualify client integration, browser download completion or native hosts.
