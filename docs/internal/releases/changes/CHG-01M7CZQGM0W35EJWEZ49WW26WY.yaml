@@ -1,0 +1,27 @@
+Change-Id: CHG-01M7CZQGM0W35EJWEZ49WW26WY
+Title: "Constrain secret generation options to admitted policy"
+Type: feat
+Scope: privacy
+Summary: "Allow callers to tighten generation length, byte count and character choices while enforcing schema requirements and the free-draw entropy floor, with injected unbiased index sampling and cleared working buffers."
+Group: secret-generation-options
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: src/Configurator.Core/Secrets/SecretGenerationBounds.cs
+    Disposition: documented
+    Detail: "Options can tighten admitted schema requirements but cannot disable required character classes or lower the 128-bit free-draw entropy floor. Injected randomness uses rejection sampling for index selection; temporary working buffers are cleared without claiming complete managed-string erasure."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/SECRET_CRYPTOGRAPHY.md
+    Disposition: not-applicable

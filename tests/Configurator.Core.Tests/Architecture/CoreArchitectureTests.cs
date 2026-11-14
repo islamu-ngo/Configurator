@@ -432,7 +432,10 @@ internal static class SetupCoreAssemblyVerifier
             or "Configurator.Core.Definitions.DefinitionSecretVocabulary" => name == owner.Name,
         "Configurator.Core.Definitions.DefinitionSecretGeneration" => name == owner.Name || name is "Password" or "get_Password" or "set_Password",
         "Configurator.Core.Secrets.SecretGenerationResult" => name == owner.Name || name is "GeneratedPassword" or "get_GeneratedPassword",
-        "Configurator.Core.Secrets.SecretGenerator" or "Configurator.Core.Secrets.SecretDerivation"
+        "Configurator.Core.Secrets.SecretGenerationBounds" => name == owner.Name || name is "IsPasswordBased" or "get_IsPasswordBased" or "set_IsPasswordBased",
+        "Configurator.Core.Secrets.SecretGenerationOptions"
+            or "Configurator.Core.Secrets.SecretGenerationAssessment"
+            or "Configurator.Core.Secrets.SecretGenerator" or "Configurator.Core.Secrets.SecretDerivation"
             or "Configurator.Core.Secrets.SecretKeyMaterial" or "Configurator.Core.Secrets.SecretValue"
             or "Configurator.Core.Secrets.SecretValueValidator" => name == owner.Name,
         _ => false,

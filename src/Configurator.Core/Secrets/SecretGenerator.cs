@@ -14,22 +14,39 @@ public static class SecretGenerator
         else entropy.GetBytes(destination);
     }
     public static SecretGenerationResult Generate(DefinitionSecretSpecification specification, ReadOnlySpan<char> input = default,
-        RandomNumberGenerator? entropy = null)
+        RandomNumberGenerator? entropy = null) =>
+        GenerateCore(specification, options: null, input, entropy);
+
+    public static SecretGenerationResult Generate(DefinitionSecretSpecification specification, SecretGenerationOptions options,
+        ReadOnlySpan<char> input = default, RandomNumberGenerator? entropy = null)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        return GenerateCore(specification, options, input, entropy);
+    }
+
+    private static SecretGenerationResult GenerateCore(DefinitionSecretSpecification specification, SecretGenerationOptions? options,
+        ReadOnlySpan<char> input, RandomNumberGenerator? entropy)
     {
         ArgumentNullException.ThrowIfNull(specification);
         if (!DefinitionSecretVocabulary.IsDefined(specification))
             return Denied("secret-profile-unavailable");
         if (specification.Acquisition != DefinitionSecretAcquisition.Local || specification.Generation is null)
             return Denied("secret-generation-unavailable");
+        if (options is not null)
+        {
+            SecretGenerationAssessment assessment = SecretGenerationBounds.From(specification).Evaluate(options);
+            if (!assessment.IsValid)
+                return Denied(assessment.ErrorCode ?? "secret-generation-policy-invalid");
+        }
         SecretValue? original = null;
         try
         {
             string value;
             switch (specification.Kind)
             {
-                case DefinitionSecretKind.Password: value = Password(specification); break;
+                case DefinitionSecretKind.Password: value = Password(specification, options, entropy); break;
                 case DefinitionSecretKind.OpaqueToken:
-                case DefinitionSecretKind.SymmetricKey: value = RandomBytes(specification, entropy); break;
+                case DefinitionSecretKind.SymmetricKey: value = RandomBytes(specification, options, entropy); break;
                 case DefinitionSecretKind.PrivateKey: value = SecretKeyMaterial.Generate(specification); break;
                 case DefinitionSecretKind.PasswordHash:
                 case DefinitionSecretKind.Digest:
@@ -37,7 +54,7 @@ public static class SecretGenerator
                     {
                         if (!input.IsEmpty || specification.Generation.Password is not { Kind: DefinitionSecretKind.Password } password)
                             return Denied("secret-input-invalid");
-                        using var generated = Generate(password, entropy: entropy);
+                        using var generated = GenerateCore(password, options, input: default, entropy: entropy);
                         if (!generated.Succeeded) return Denied(generated.ErrorCode!);
                         original = new SecretValue(generated.Output!.Characters);
                         input = original.Characters;
@@ -60,9 +77,10 @@ public static class SecretGenerator
         finally { original?.Dispose(); }
     }
 
-    private static string RandomBytes(DefinitionSecretSpecification specification, RandomNumberGenerator? entropy)
+    private static string RandomBytes(DefinitionSecretSpecification specification, SecretGenerationOptions? options,
+        RandomNumberGenerator? entropy)
     {
-        int length = specification.Generation!.Bytes;
+        int length = options?.Bytes ?? specification.Generation!.Bytes;
         int floor = specification.Algorithm switch { DefinitionSecretAlgorithm.Hs384 => 48, DefinitionSecretAlgorithm.Hs512 => 64, DefinitionSecretAlgorithm.Hs256 => 32, _ => 16 };
         int exact = specification.Algorithm switch { DefinitionSecretAlgorithm.Aes128 => 16, DefinitionSecretAlgorithm.Aes192 => 24, DefinitionSecretAlgorithm.Aes256 => 32, _ => 0 };
         if (length < floor || length > 4096 || length < specification.Constraints.MinBytes
@@ -83,22 +101,45 @@ public static class SecretGenerator
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
-    private static string Password(DefinitionSecretSpecification specification)
+    private static string Password(DefinitionSecretSpecification specification, SecretGenerationOptions? options,
+        RandomNumberGenerator? entropy)
     {
         var policy = specification.Constraints;
         if (!SecretValueValidator.IsPasswordPolicyValid(policy))
             throw new ArgumentException("secret-generation-policy-invalid");
-        int length = specification.Generation!.Length;
+        int length = options?.Length ?? specification.Generation!.Length;
         int[] minima = [policy.MinLowercase, policy.MinUppercase, policy.MinDigits, policy.MinSymbols];
         long required = minima.Sum(value => (long)value);
         if (length is < 1 or > 1024 || length < specification.MinLength || length > specification.MaxLength
             || length > policy.MaxUtf8Bytes || minima.Any(value => value is < 0 or > 1024) || required > length)
             throw new ArgumentException("secret-generation-policy-invalid");
-        string[] categories = ["abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0123456789", policy.AllowedSymbols];
+        bool[] include =
+        [
+            options?.IncludeLowercase ?? true,
+            options?.IncludeUppercase ?? true,
+            options?.IncludeDigits ?? true,
+            options?.IncludeSymbols ?? true
+        ];
+        string extraForbidden = options?.AdditionalForbiddenCharacters ?? "";
+        string[] categories =
+        [
+            SecretGenerationBounds.LowercaseAlphabet,
+            SecretGenerationBounds.UppercaseAlphabet,
+            SecretGenerationBounds.DigitAlphabet,
+            policy.AllowedSymbols
+        ];
         for (int i = 0; i < categories.Length; i++)
         {
+            if (!include[i])
+            {
+                if (minima[i] != 0) throw new ArgumentException("secret-generation-policy-invalid");
+                categories[i] = "";
+                continue;
+            }
             categories[i] = new string(categories[i].Where(c => c is >= '!' and <= '~'
-                && !policy.ForbiddenCharacters.Contains(c) && (i != 3 || !char.IsAsciiLetterOrDigit(c))).Distinct().ToArray());
+                && !policy.ForbiddenCharacters.Contains(c, StringComparison.Ordinal)
+                && !extraForbidden.Contains(c, StringComparison.Ordinal)
+                && (i != 3 || !char.IsAsciiLetterOrDigit(c))).Distinct().ToArray());
             if (minima[i] != 0 && categories[i].Length == 0) throw new ArgumentException("secret-generation-policy-invalid");
         }
         string alphabet = string.Concat(categories);
@@ -111,16 +152,39 @@ public static class SecretGenerator
             int cursor = 0;
             for (int category = 0; category < categories.Length; category++)
                 for (int count = 0; count < minima[category]; count++)
-                    characters[cursor++] = categories[category][RandomNumberGenerator.GetInt32(categories[category].Length)];
-            while (cursor < length) characters[cursor++] = alphabet[RandomNumberGenerator.GetInt32(alphabet.Length)];
+                    characters[cursor++] = categories[category][SampleIndex(categories[category].Length, entropy)];
+            while (cursor < length) characters[cursor++] = alphabet[SampleIndex(alphabet.Length, entropy)];
             for (int index = length - 1; index > 0; index--)
             {
-                int other = RandomNumberGenerator.GetInt32(index + 1);
+                int other = SampleIndex(index + 1, entropy);
                 (characters[index], characters[other]) = (characters[other], characters[index]);
             }
             return new string(characters);
         }
         finally { CryptographicOperations.ZeroMemory(MemoryMarshal.AsBytes(characters.AsSpan())); }
+    }
+
+    /// <summary>Uniform index sampling via 32-bit rejection sampling to eliminate modulo bias.</summary>
+    private static int SampleIndex(int exclusiveUpperBound, RandomNumberGenerator? entropy)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(exclusiveUpperBound, 0);
+        if (exclusiveUpperBound == 1) return 0;
+        uint bound = (uint)exclusiveUpperBound;
+        ulong fullRange = 1UL << 32;
+        ulong limit = fullRange - (fullRange % bound);
+        Span<byte> bytes = stackalloc byte[4];
+        try
+        {
+            for (int attempt = 0; attempt < 1024; attempt++)
+            {
+                FillRandom(bytes, entropy);
+                uint value = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(bytes);
+                if (value < limit)
+                    return (int)(value % bound);
+            }
+            throw new CryptographicException("secret-entropy-bias-limit");
+        }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
     private static SecretGenerationResult Denied(string code) => new(null, errorCode: code);

@@ -786,7 +786,13 @@ generation eligibility, entropy floors and result disposal belong to the
 [cryptography contract](SECRET_CRYPTOGRAPHY.md). Host-supplied scale-profile
 evidence cannot transfer Event benchmark hashes or target-acceptance claims.
 Generation requires an explicit caller action; admission and validation never
-generate a value. A 32-byte opaque token encodes to 43 unpadded Base64url
+generate a value. `SecretGenerationBounds.From` exposes schema-derived bounds
+(`MinLength`..`MaxLength`, `MinBytes`..`MaxBytes`, `ExactByteCount`, required
+character classes, and the `128`-bit free-draw entropy floor) and `Evaluate`
+validates `SecretGenerationOptions` before generation or preview. `SecretGenerator.Generate`
+supports optional tightened `SecretGenerationOptions` and an injected `RandomNumberGenerator`
+for uniform 32-bit rejection sampling and zeroes temporary byte/char working
+buffers via `CryptographicOperations.ZeroMemory`. A 32-byte opaque token encodes to 43 unpadded Base64url
 characters: decoded byte policy and ordinary string length constraints both
 apply, in different units.
 
