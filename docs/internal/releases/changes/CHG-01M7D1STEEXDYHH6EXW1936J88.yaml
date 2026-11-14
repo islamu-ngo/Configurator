@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7D1STEEXDYHH6EXW1936J88
+Title: "Compose upgrades within retained-secret custody"
+Type: feat
+Scope: privacy
+Summary: "Evaluate retained values and explicit replacements inside an owned private scope, emit only restricted output or fresh sealed snapshots, and invalidate borrowed outputs immediately when authority retires."
+Group: profile-scoped-composition
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Evaluate retained private values without publishing an ordinary answer snapshot. Validate replacements against the admitted target, bind outputs to the borrowed owner's lifetime, consume predecessor authority on retirement, and expose only deliberate restricted-output callbacks or newly sealed snapshots. Changed policies and collection identities do not gain implicit carry authority."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/import-and-compare.md
+    Disposition: documented
+    Detail: "Blind retained values stay out of ordinary fields, undo, preview and copy; deliberate restricted preparation remains available. Clients must establish consent and confirmation separately. Managed copies and already entered sinks retain their documented physical limits."

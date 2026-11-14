@@ -215,6 +215,18 @@ validation and authorization remain separate.
 
 ### Immutable Native Revisions
 
+Blind profile upgrades keep retained values out of ordinary fields, answer
+dumps, undo, preview and copy. You can still deliberately prepare restricted
+target output or seal a new encrypted revision. Replacing a retained field
+requires confirmation and permanently retires that field's old retained value;
+undo does not restore it. Changes to secret policy or collection shape can
+require fresh values rather than carrying old ones by position.
+
+Native profile custody and scoped preparation are shared backend capabilities.
+Each client workflow must expose them explicitly; backend availability
+alone does not imply that every client already has profile controls. Browser
+retained custody belongs in its dedicated worker, with workspace consent.
+
 The native store writes a new revision under opaque profile and snapshot IDs.
 It never overwrites an existing revision or automatically prunes history.
 Encrypted snapshots and stripped comparisons both require protected native

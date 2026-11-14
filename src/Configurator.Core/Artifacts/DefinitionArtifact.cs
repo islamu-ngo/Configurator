@@ -9,13 +9,13 @@ public sealed class DefinitionArtifact : IDisposable
     private readonly object _sync = new();
     private bool _disposed;
     internal DefinitionArtifact(Definition definition, ArtifactDefinition artifact,
-        AnswerSnapshot answers, byte[] bytes)
+        long inputRevision, byte[] bytes)
     {
         _bytes = (byte[])bytes.Clone();
         Digest = ArtifactDigest.Compute(bytes);
         DefinitionDigest = definition.Digest;
         DefinitionRevision = definition.Revision;
-        InputRevision = answers.InputRevision;
+        InputRevision = inputRevision;
         ArtifactId = artifact.Id;
         FileName = artifact.FileName;
         ApplySemantics = artifact.ApplySemantics;
@@ -30,15 +30,14 @@ public sealed class DefinitionArtifact : IDisposable
         };
     }
     /// <summary>Returns a caller-owned copy. Disposal clears the artifact's retained buffer, not copies already returned.</summary>
-    public ReadOnlyMemory<byte> Bytes
+    public ReadOnlyMemory<byte> Bytes => new(CopyBytes());
+
+    internal byte[] CopyBytes()
     {
-        get
+        lock (_sync)
         {
-            lock (_sync)
-            {
-                ObjectDisposedException.ThrowIf(_disposed, this);
-                return new((byte[])_bytes.Clone());
-            }
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return (byte[])_bytes.Clone();
         }
     }
     public int ByteLength => _bytes.Length;

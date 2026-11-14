@@ -32,11 +32,15 @@ internal static class DefinitionJson
         budget ??= new CompositionBudget(CompositionLimits.Default);
         int normalizedNodes = 0;
         var buffer = new ArrayBufferWriter<byte>();
-        using (var writer = new Utf8JsonWriter(buffer))
-            await WriteAsync(writer, value, initialDepth);
-        if (buffer.WrittenCount > CompositionLimits.DefaultAggregateSourceBytes)
-            throw new DefinitionException("document-limit");
-        return buffer.WrittenSpan.ToArray();
+        try
+        {
+            using (var writer = new Utf8JsonWriter(buffer))
+                await WriteAsync(writer, value, initialDepth);
+            if (buffer.WrittenCount > CompositionLimits.DefaultAggregateSourceBytes)
+                throw new DefinitionException("document-limit");
+            return buffer.WrittenSpan.ToArray();
+        }
+        finally { buffer.Clear(); }
 
         async ValueTask WriteAsync(Utf8JsonWriter writer, JsonElement value, int depth)
         {

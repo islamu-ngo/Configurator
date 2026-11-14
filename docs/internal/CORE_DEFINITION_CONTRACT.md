@@ -4,7 +4,7 @@
 > **Status:** Current bounded-v0.0.1; candidate qualification and target acceptance are separate
 > **Owner:** Core
 > **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Core/Artifacts/`, `src/Configurator.Core/Definitions/Authoring/`
+> **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Core/Artifacts/`, `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Profiles/`
 
 The [public reference](../public/definition-reference.md) projects current
 admission. The [Definition Standard](../public/definition-standard.md) records
@@ -104,6 +104,32 @@ Protected equality additionally requires the held matching commitment key and
 context. The caller's admission owner must enforce all previously admitted
 revision/digest bindings before planning/adoption; the stateless planner cannot
 infer history omitted by its caller.
+
+`ProfileCompositionInput` borrows the live private profile, an admitted target,
+an ordinary snapshot containing only current public/replacement answers and
+immutable retained-path exclusions. Internal `DefinitionEvaluationInput`
+bridges the existing validation, deployment scope and artifact composer without
+constructing an ordinary `AnswerSnapshot` from retained values. Combined target
+validation permits a newly required public answer alongside an unchanged
+retained secret; changed secret policy still requires replacement. Collections
+and dynamic keys grant no implicit carry authority.
+
+`ProfilePayloadCodec.RetireRetainedFields` consumes its predecessor before
+validating the retirement request and clears consumed bytes even on rejection.
+The successor preserves source provenance and comparison identity while removing
+whole roots and adding root omissions. Existing borrowed scopes lose authority.
+This subset cannot be sealed as the unchanged source snapshot; resealing requires
+a fresh snapshot identity. Callers dispose prior prepared outputs before retirement.
+
+`ProfileArtifactComposer.Compose` returns metadata and a disposable
+`ProfileArtifact`, with no conversion to ordinary preview bytes. Its explicit
+native-save and Browser-download callbacks are deliberate disclosure boundaries.
+The scope registers outputs and clears them on disposal; already entered sinks
+retain the documented physical-write and managed-copy limits. Scoped sealing
+preserves mode, profile identity, comparison key, environment and source-locator
+provenance, embeds the admitted target definition and requires a fresh
+host-issued snapshot identity. It returns only owned ciphertext and safe
+recovery facts.
 
 ## Definition JSON
 
