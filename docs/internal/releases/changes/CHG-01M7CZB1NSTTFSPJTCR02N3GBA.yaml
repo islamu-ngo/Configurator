@@ -1,0 +1,27 @@
+Change-Id: CHG-01M7CZB1NSTTFSPJTCR02N3GBA
+Title: "Bound encrypted profile payloads and secret access"
+Type: feat
+Scope: privacy
+Summary: "Admit fixed authenticated-container policy and owned application payloads, with explicit inspectable access and irreversible retained-field retirement."
+Group: profile-payload-contract
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/SECRET_CRYPTOGRAPHY.md
+    Disposition: not-applicable
+  Security:
+    Reference: src/Configurator.Core/Profiles/ProfilePayloadCodec.cs
+    Disposition: documented
+    Detail: "Bound authenticated profile data, retain plaintext in an owned disposable scope, require inspectable mode for explicit answer disclosure, and consume predecessor ownership during field retirement. This contract alone provides no host or cryptographic certification."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/import-and-compare.md
+    Disposition: not-applicable

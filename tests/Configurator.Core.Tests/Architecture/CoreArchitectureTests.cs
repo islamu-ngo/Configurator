@@ -40,6 +40,30 @@ public sealed class CoreArchitectureTests
     }
 
     [Test]
+    public async Task ProfileContractsCannotAcquireNativeIoOrTargetApplyAuthority()
+    {
+        AssemblyBuilder assembly = AssemblyBuilder.DefineDynamicAssembly(
+            new AssemblyName("Configurator.SyntheticProfileBoundary"), AssemblyBuilderAccess.Run);
+        TypeBuilder type = assembly.DefineDynamicModule("main").DefineType(
+            "Configurator.Core.Profiles.SyntheticProfileBoundary", TypeAttributes.Public);
+        type.DefinePInvokeMethod("ReadNative", "libc", "getpid",
+            MethodAttributes.Static | MethodAttributes.PinvokeImpl,
+            CallingConventions.Standard, typeof(int), Type.EmptyTypes,
+            System.Runtime.InteropServices.CallingConvention.Cdecl,
+            System.Runtime.InteropServices.CharSet.Ansi);
+        MethodBuilder apply = type.DefineMethod("ApplyAsync", MethodAttributes.Public | MethodAttributes.Static,
+            typeof(void), Type.EmptyTypes);
+        apply.GetILGenerator().Emit(OpCodes.Ret);
+        Type compiled = type.CreateType()!;
+
+        string[] native = SetupCoreAssemblyVerifier.VerifyTypes([compiled], assembly);
+        string[] authority = SetupCoreAssemblyVerifier.VerifyOfflinePortabilityClosure([compiled]);
+
+        await Assert.That(native).IsEquivalentTo(new[] { $"native import {compiled.FullName}.ReadNative" });
+        await Assert.That(authority).IsEquivalentTo(new[] { $"offline authority method {compiled.FullName}.ApplyAsync" });
+    }
+
+    [Test]
     public async Task DefinitionClosureHasNoHostIoOrLiveTargetCapability()
     {
         string[] violations = SetupCoreAssemblyVerifier.VerifyOfflinePortabilityClosure(ProductAssembly);
@@ -234,7 +258,7 @@ internal static class SetupCoreAssemblyVerifier
     {
         Type[] types = exportedTypes.Where(type =>
             type.Namespace is "Configurator.Core.Definitions" or "Configurator.Core.Definitions.Authoring"
-                or "Configurator.Core.Artifacts").ToArray();
+                or "Configurator.Core.Artifacts" or "Configurator.Core.Profiles").ToArray();
         string[] forbiddenCapabilities =
         [
             "EnvironmentValue", "Credential", "DeploymentCoordinate", "LiveAuthority",
@@ -290,7 +314,8 @@ internal static class SetupCoreAssemblyVerifier
                 && !isEnvironmentContract
                 && !isCompositionContract
                 && type.Namespace is not "Configurator.Core.Definitions" and not "Configurator.Core.Definitions.Authoring"
-                    and not "Configurator.Core.Artifacts" and not "Configurator.Core.Secrets")
+                    and not "Configurator.Core.Artifacts" and not "Configurator.Core.Secrets"
+                    and not "Configurator.Core.Profiles")
                 failures.Add($"forbidden public namespace {type.FullName}");
 
             foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Static))
@@ -309,7 +334,9 @@ internal static class SetupCoreAssemblyVerifier
             foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             {
                 if ((type == typeof(Configurator.Core.Definitions.DefinitionException)
-                        || type == typeof(Configurator.Core.Definitions.Authoring.DefinitionSchemaImportException))
+                        || type == typeof(Configurator.Core.Definitions.Authoring.DefinitionSchemaImportException)
+                        || type == typeof(Configurator.Core.Profiles.ProfileException)
+                        || type == typeof(Configurator.Core.Profiles.ProfileRecoveryException))
                     && property.DeclaringType == typeof(Exception)) continue;
                 if (isPublicContract && IsMutableCollection(property.PropertyType))
                     failures.Add($"mutable collection {type.FullName}.{property.Name}");
@@ -391,6 +418,7 @@ internal static class SetupCoreAssemblyVerifier
     {
         "Configurator.Core.Definitions.DefinitionNode" => name is "Secret" or "get_Secret",
         "Configurator.Core.Definitions.DefinitionSensitivityPolicy" => name is "ContainsSecret" or "DeclaresSecret",
+        "Configurator.Core.Profiles.ProfileSecretCommitment" => name == owner.Name,
         "Configurator.Core.Definitions.DefinitionSecretConstraints" => name == owner.Name,
         "Configurator.Core.Definitions.DefinitionSecretSpecification" => name == owner.Name,
         "Configurator.Core.Definitions.DefinitionSecretAcquisition"
