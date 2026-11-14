@@ -1,6 +1,7 @@
 namespace Configurator.Core.Definitions;
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 internal static partial class DefinitionAdmission
 {
@@ -108,7 +109,9 @@ internal static partial class DefinitionAdmission
                         string pointer = value.GetString()!;
                         DefinitionPath path = DefinitionPath.Parse(pointer);
                         if (path.Segments.Count == 0 || !seen.Add(path)) throw new DefinitionException("deployment-reference");
-                        _ = Reference(JsonSerializer.SerializeToElement(new { scope = "root", path = pointer }), root, null);
+                        _ = Reference(JsonSerializer.SerializeToElement(
+                            new JsonObject { ["scope"] = "root", ["path"] = pointer },
+                            CoreJsonContext.Default.JsonObject), root, null);
                     }
                 }
             }

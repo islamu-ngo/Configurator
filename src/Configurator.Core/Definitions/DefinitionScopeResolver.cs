@@ -2,6 +2,7 @@ namespace Configurator.Core.Definitions;
 
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Configurator.Core.Composition;
 
 /// <summary>Resolves admitted deployment metadata against one immutable answer snapshot.</summary>
@@ -44,7 +45,11 @@ public static class DefinitionScopeResolver
 
         internal DefinitionConfigurationContext? Resolve(DefinitionDeployment deployment)
         {
-            Index(definition.Configuration, DefinitionPath.Parse(""), JsonSerializer.SerializeToElement(answers.Values));
+            var root = new JsonObject();
+            foreach ((string name, JsonElement supplied) in answers.Values)
+                root.Add(name, JsonNode.Parse(supplied.GetRawText()));
+            Index(definition.Configuration, DefinitionPath.Parse(""),
+                JsonSerializer.SerializeToElement(root, CoreJsonContext.Default.JsonObject));
             Add(DefinitionPath.Parse(deployment.RecipePointer), false);
             Add(DefinitionPath.Parse(deployment.ScopePointer), false);
             bool? applicable = true;

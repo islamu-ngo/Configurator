@@ -3,12 +3,14 @@ namespace Configurator.Core.Definitions;
 using System.Collections.ObjectModel;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Configurator.Core.Composition;
 
 /// <summary>Immutable recursive shape data. Constructing a shape does not admit a definition or validate answers.</summary>
 public sealed record DefinitionNode
 {
-    private static readonly JsonElement EmptyKeywords = JsonSerializer.SerializeToElement(new { });
+    private static readonly JsonElement EmptyKeywords =
+        JsonSerializer.SerializeToElement(new JsonObject(), CoreJsonContext.Default.JsonObject);
     private readonly string _keywordIdentity;
 
     public DefinitionNode(DefinitionNodeType type, bool nullable = false,

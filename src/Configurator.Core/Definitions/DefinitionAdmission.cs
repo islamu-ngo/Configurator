@@ -369,7 +369,9 @@ internal static partial class DefinitionAdmission
         foreach (JsonElement pointer in values.EnumerateArray())
         {
             if (!seen.Add(pointer.GetString()!)) throw new DefinitionException("presentation-duplicate");
-            _ = Reference(JsonSerializer.SerializeToElement(new { scope = "root", path = pointer.GetString() }), root, null);
+            _ = Reference(JsonSerializer.SerializeToElement(
+                new JsonObject { ["scope"] = "root", ["path"] = pointer.GetString() },
+                CoreJsonContext.Default.JsonObject), root, null);
             paths.Add(DefinitionPath.Parse(pointer.GetString()!));
         }
         return paths;
@@ -455,7 +457,7 @@ internal static partial class DefinitionAdmission
             locales.Add(Text(localization.GetProperty("defaultLocale"), 128));
             foreach (JsonProperty translation in localization.GetProperty("translations").EnumerateObject())
             {
-                Text(JsonSerializer.SerializeToElement(translation.Name), 128);
+                Text(JsonSerializer.SerializeToElement(translation.Name, CoreJsonContext.Default.String), 128);
                 locales.Add(translation.Name);
                 Only(translation.Value, "direction", "overrides");
                 if (translation.Value.TryGetProperty("direction", out _)) Choice(translation.Value, "direction", "ltr", "rtl");

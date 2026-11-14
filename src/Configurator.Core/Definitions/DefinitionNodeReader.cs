@@ -334,7 +334,7 @@ internal static class DefinitionNodeReader
             if (property.Name is not ("properties" or "required" or "items" or "additionalProperties" or "$defs" or "oneOf"))
                 keywords.Add(property.Name, JsonNode.Parse(property.Value.GetRawText()));
         var node = new DefinitionNode(nodeType, nullable, properties, required, items, map, variants,
-            keywords: JsonSerializer.SerializeToElement(keywords));
+            keywords: JsonSerializer.SerializeToElement(keywords, CoreJsonContext.Default.JsonObject));
         ChargeKeywords(node.Keywords, depth);
         void ChargeKeywords(JsonElement value, int level)
         {

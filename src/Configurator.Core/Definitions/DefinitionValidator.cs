@@ -241,7 +241,9 @@ public static class DefinitionValidator
                 components[component] = key.GetString()!;
             }
             // JSON-encode each component so composite keys cannot collide through separator injection.
-            if (!keys.Add(JsonSerializer.Serialize(components))) return index;
+            var keyComponents = new JsonArray();
+            foreach (string component in components) keyComponents.Add((JsonNode?)JsonValue.Create(component));
+            if (!keys.Add(keyComponents.ToJsonString())) return index;
             index++;
         }
         return -1;
@@ -336,7 +338,10 @@ public static class DefinitionValidator
         }
         else if (path.Segments.Count == 0)
         {
-            value = JsonSerializer.SerializeToElement(values);
+            var root = new JsonObject();
+            foreach ((string name, JsonElement supplied) in values)
+                root.Add(name, JsonNode.Parse(supplied.GetRawText()));
+            value = JsonSerializer.SerializeToElement(root, CoreJsonContext.Default.JsonObject);
             return true;
         }
         else
@@ -478,7 +483,7 @@ public static class DefinitionValidator
         };
         if (guard.TryGetProperty("required", out var required))
             foreach (JsonElement name in required.EnumerateArray())
-                operands.Add(new JsonObject { ["op"] = "exists", ["reference"] = Reference(name.GetString()!) });
+                operands.Add((JsonNode)new JsonObject { ["op"] = "exists", ["reference"] = Reference(name.GetString()!) });
         if (guard.TryGetProperty("properties", out var properties))
             foreach (JsonProperty property in properties.EnumerateObject())
             {
@@ -490,7 +495,7 @@ public static class DefinitionValidator
                     [constant ? "value" : "values"] = JsonNode.Parse(
                         (constant ? expected : property.Value.GetProperty("enum")).GetRawText())
                 };
-                operands.Add(new JsonObject
+                operands.Add((JsonNode)new JsonObject
                 {
                     ["op"] = "any",
                     ["operands"] = new JsonArray(

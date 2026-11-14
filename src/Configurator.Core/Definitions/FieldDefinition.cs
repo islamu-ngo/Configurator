@@ -93,7 +93,8 @@ public sealed class FieldDefinition
     private static string InferredTitle(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return "Setting";
-        string title = name.Any(char.IsControl) ? JsonSerializer.Serialize(name) : DefinitionDisplayText.Humanize(name);
+        string title = name.Any(char.IsControl)
+            ? JsonSerializer.Serialize(name, CoreJsonContext.Default.String) : DefinitionDisplayText.Humanize(name);
         return title.Length <= MaximumTitleLength ? title : title[..MaximumTitleLength];
     }
 
