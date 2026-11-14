@@ -109,13 +109,34 @@ public sealed partial class DefinitionFormModel
             if (_disposed) return Task.FromResult(new DefinitionSecretOperationResult(false, "secret-operation-unavailable"));
             location = DataPath(path);
         }
-        return GenerateSecretAsync(location, input, cooperativeYield, cancellationToken);
+        return GenerateSecretAsync(location, options: null, input, cooperativeYield, cancellationToken);
     }
 
     /// <summary>Generates through the same custody and revision fence at literal configuration coordinates.</summary>
-    public async Task<DefinitionSecretOperationResult> GenerateSecretAsync(DefinitionPath location,
+    public Task<DefinitionSecretOperationResult> GenerateSecretAsync(DefinitionPath location,
         ReadOnlyMemory<char> input = default, Func<CancellationToken, ValueTask>? cooperativeYield = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        GenerateSecretAsync(location, options: null, input, cooperativeYield, cancellationToken);
+
+    /// <summary>Generates using validated <see cref="SecretGenerationOptions"/> through the same custody and revision fence.</summary>
+    public Task<DefinitionSecretOperationResult> GenerateSecretAsync(IReadOnlyList<string> path,
+        SecretGenerationOptions options, ReadOnlyMemory<char> input = default,
+        Func<CancellationToken, ValueTask>? cooperativeYield = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(options);
+        DefinitionPath location;
+        lock (_gate)
+        {
+            if (_disposed) return Task.FromResult(new DefinitionSecretOperationResult(false, "secret-operation-unavailable"));
+            location = DataPath(path);
+        }
+        return GenerateSecretAsync(location, options, input, cooperativeYield, cancellationToken);
+    }
+
+    private async Task<DefinitionSecretOperationResult> GenerateSecretAsync(DefinitionPath location,
+        SecretGenerationOptions? options, ReadOnlyMemory<char> input = default,
+        Func<CancellationToken, ValueTask>? cooperativeYield = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(location);
         DefinitionSecretSpecification specification;
@@ -153,7 +174,9 @@ public sealed partial class DefinitionFormModel
             }
             await Task.Yield();
             cancellationToken.ThrowIfCancellationRequested();
-            result = await Task.Run(() => SecretGenerator.Generate(specification, ownedInput), cancellationToken);
+            result = await Task.Run(() => options is not null
+                ? SecretGenerator.Generate(specification, options, ownedInput)
+                : SecretGenerator.Generate(specification, ownedInput), cancellationToken);
             if (cooperativeYield is not null) await cooperativeYield(cancellationToken);
             using (BeginMutation(PresentationStrings.Get("UndoActionGenerateSecret", Locale)))
             {

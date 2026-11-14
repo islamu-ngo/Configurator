@@ -889,3 +889,9 @@ never resurrects cleared or revoked answers. `DefinitionSecretGeneratorSession`
 validates `SecretGenerator` character/byte bounds (`ExactByteCount` and range
 constraints) in memory and commits generated values to `DefinitionFormModel`
 only through explicit session adoption before clearing temporary preview state.
+
+The direct `GenerateSecretAsync` path also accepts validated
+`SecretGenerationOptions`. Both existing overloads retain their signatures and
+use the same private generation/adoption path. Options change the admitted
+generator input; they do not bypass cancellation, consent, scalar validation or
+the captured input-revision check.

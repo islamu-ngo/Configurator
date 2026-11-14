@@ -1,0 +1,27 @@
+Change-Id: CHG-01M7DY29V2ZBSXW2MKX9G53Q3V
+Title: "Accept validated options through direct workspace secret generation"
+Type: feat
+Scope: privacy
+Summary: "Route explicit secret-generation options through the existing cancellation, custody, validation and revision-fenced workspace adoption path while preserving existing public signatures."
+Group: direct-secret-generation-options
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Validated options use the existing cancellation, consent, result validation and captured revision fences before workspace adoption. Existing public generation signatures remain available."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
