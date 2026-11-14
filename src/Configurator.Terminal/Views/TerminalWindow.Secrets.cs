@@ -3,6 +3,7 @@ namespace Configurator.Terminal;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using Configurator.Core.Definitions;
+using Configurator.Core.Secrets;
 using Configurator.Presentation;
 using global::Terminal.Gui.App;
 using global::Terminal.Gui.ViewBase;
@@ -14,6 +15,7 @@ internal sealed partial class TerminalWindow
     private readonly CancellationTokenSource _secretCancellation = new();
     private Dialog? _secretDialog;
     private SecretTextField? _dialogSecret;
+    private TerminalSecretGeneratorDialog? _secretGeneratorDialog;
     internal Task SecretCompletion => _secretCompletion;
 
     internal void ToggleSecretVisibility()
@@ -39,7 +41,36 @@ internal sealed partial class TerminalWindow
     private void ClearSecretDialog()
     {
         _dialogSecret?.ClearSensitiveState();
+        if (_secretGeneratorDialog is { } generator)
+        {
+            generator.CancelAndClear();
+            _application.RequestStop(generator);
+        }
         if (_secretDialog is { } dialog) _application.RequestStop(dialog);
+    }
+
+    private static bool HasConfigurableSecretOptions(TerminalFieldEditor.Slot slot)
+    {
+        DefinitionSecretSpecification? policy = (slot.IsList ? slot.Schema.Items : slot.Schema)?.Secret;
+        return policy is not null && SecretGenerationBounds.From(policy).SupportsOptions;
+    }
+
+    internal void OpenSecretGenerator()
+    {
+        if (_tooSmall || _slot is null || !CommitField()) return;
+        DefinitionPath path = TerminalFieldEditor.EditLocation(_slot, _itemIndex);
+        using DefinitionSecretGeneratorSession? session = _operation.Form.CreateSecretGeneratorSession(path);
+        if (session is null) return;
+        using var dialog = new TerminalSecretGeneratorDialog(_operation.Form, session, _application, NativeClipboard());
+        _secretGeneratorDialog = dialog;
+        try { _application.Run(dialog); }
+        finally
+        {
+            dialog.CancelAndClear();
+            _secretGeneratorDialog = null;
+        }
+        ShowField();
+        FocusInput();
     }
 
     private void GenerateSecret()

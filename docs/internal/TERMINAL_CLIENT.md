@@ -493,3 +493,11 @@ qualification. Those obligations remain in the Terminal hardening follow-up.
 Safe synthetic evidence is retained at
 `.tmp/cross-platform-quality-terminal-drafts/qualification.json`; the parent
 workstream still owns solution-wide and additional-host assurance.
+
+## Connected Terminal editing
+
+The Terminal window coordinates section navigation, guided fields, compact
+settings and explicit document editing over one shared form. Choice and
+discovery dialogs consume bounded schema metadata; local secret options use
+the transient shared generator session. Task-transfer dialogs retain captured
+review authority and retire with edits, replacement or window disposal.

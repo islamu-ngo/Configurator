@@ -841,7 +841,13 @@ public sealed class TerminalGuiAdapterTests
                 "PreparePreview", "SaveProtected", "PreviewReady", "DraftInvalid",
                 "ProtectedDraftSaved", "ProtectedDraftFailed", "ValidateDraft", "ClearPrivate",
                 "PrivateCleared", "InputChanged", "NoFields", "NextAttempt", "PublicationAttempt",
-                "PublicationUnknown", "PublicationInProgress", "PublicationFailed", "PublicationCleanupFailed"
+                "PublicationUnknown", "PublicationInProgress", "PublicationFailed", "PublicationCleanupFailed",
+                "StageConfigure", "StageReview", "StageFiles", "Sections", "ConfigureGuided", "ConfigureCompact",
+                "NamingHumanized", "NamingTechnical", "FindFields", "DocumentEditor", "UndoAction", "ChoiceList",
+                "DialogApply", "DialogPreview", "DialogCancel", "DocumentTooLarge", "DocumentStale",
+                "SecretOptions", "SecretGeneratorTitle", "SecretLengthLabel", "SecretBytesLabel",
+                "SecretForbiddenLabel", "SecretPreviewLabel", "SecretPreviewAction",
+                "SecretEntropyReady", "SecretEntropyLow", "SecretInvalidBounds", "SecretApplied"
             ];
             foreach (string culture in new[] { "en", "ar" })
             {
@@ -933,18 +939,24 @@ public sealed class TerminalGuiAdapterTests
         window.BeginInit();
         window.EndInit();
         window.Frame = new Rectangle(0, 0, 80, 24);
-        window.ApplyViewportPolicy(window.Viewport.Size);
-        foreach (View view in window.SubViews) view.SetRelativeLayout(window.GetContentSize());
-        await Assert.That(window.PublicInput.Visible).IsTrue();
-        View[] controls = window.SubViews.Where(view => view.CanFocus && view.Visible && view.Enabled).ToArray();
-        foreach (View control in controls)
+        foreach (TerminalWorkbenchStage stage in Enum.GetValues<TerminalWorkbenchStage>())
         {
-            await Assert.That(control.SetFocus()).IsTrue();
-            await Assert.That(window.Viewport.Contains(control.Frame)).IsTrue();
+            window.SetStage(stage);
+            window.ApplyViewportPolicy(window.Viewport.Size);
+            foreach (View view in window.SubViews) view.SetRelativeLayout(window.GetContentSize());
+            if (stage == TerminalWorkbenchStage.Configure)
+                await Assert.That(window.PublicInput.Visible).IsTrue();
+            View[] controls = window.SubViews.Where(view => view.CanFocus && view.Visible && view.Enabled).ToArray();
+            await Assert.That(controls.Length).IsGreaterThan(0);
+            foreach (View control in controls)
+            {
+                await Assert.That(control.SetFocus()).IsTrue();
+                await Assert.That(window.Viewport.Contains(control.Frame)).IsTrue();
+            }
+            await Assert.That(controls.SelectMany((left, index) => controls.Skip(index + 1)
+                .Select(right => Rectangle.Intersect(left.Frame, right.Frame)))
+                .All(rectangle => rectangle.Width == 0 || rectangle.Height == 0)).IsTrue();
         }
-        await Assert.That(controls.SelectMany((left, index) => controls.Skip(index + 1)
-            .Select(right => Rectangle.Intersect(left.Frame, right.Frame)))
-            .All(rectangle => rectangle.Width == 0 || rectangle.Height == 0)).IsTrue();
     }
 
     [Test]
@@ -998,17 +1010,35 @@ public sealed class TerminalGuiAdapterTests
     {
         using var harness = new Harness();
         var window = harness.Window;
-        window.Frame = new Rectangle(0, 0, 40, 12);
+        window.BeginInit();
+        window.EndInit();
+
+        window.Frame = new Rectangle(0, 0, 75, 19);
         window.ApplyViewportPolicy(window.Frame.Size);
         await Assert.That(window.SubViews.Where(view => view.CanFocus && view.Visible)).IsEmpty();
         await Assert.That(window.SubViews.OfType<Label>().Any(view =>
             view.Visible && view.Text == TerminalStrings.Get("TerminalTooSmall"))).IsTrue();
+        await Assert.That(window.SectionNavigator.Visible).IsFalse();
+
+        window.Frame = new Rectangle(0, 0, 80, 24);
+        window.ApplyViewportPolicy(window.Frame.Size);
+        foreach (View view in window.SubViews)
+            await Assert.That(view.SetRelativeLayout(window.Viewport.Size)).IsTrue();
+        await Assert.That(window.PublicInput.Visible).IsTrue();
+        await Assert.That(window.SectionNavigator.Visible).IsFalse();
+        await Assert.That(window.SubViews.OfType<Button>().Single(button =>
+            button.Text == TerminalStrings.Get("Sections")).Visible).IsTrue();
+
         window.Frame = new Rectangle(0, 0, 100, 30);
         window.ApplyViewportPolicy(window.Frame.Size);
         foreach (View view in window.SubViews)
             await Assert.That(view.SetRelativeLayout(window.Viewport.Size)).IsTrue();
         await Assert.That(window.PublicInput.Visible).IsTrue();
         await Assert.That(window.MaskedInput.Visible).IsFalse();
+        await Assert.That(window.SectionNavigator.Visible).IsTrue();
+        await Assert.That(window.SectionNavigator.Frame.Width).IsEqualTo(32);
+        await Assert.That(window.SubViews.OfType<Button>().Single(button =>
+            button.Text == TerminalStrings.Get("Sections")).Visible).IsFalse();
         await Assert.That(window.SubViews.OfType<Button>().Where(view => view.Visible)
             .All(button => button.CanFocus)).IsTrue();
         View[] focusable = window.SubViews.Where(view => view.CanFocus && view.Visible).ToArray();
@@ -1024,18 +1054,25 @@ public sealed class TerminalGuiAdapterTests
         using var harness = new Harness(initialize: true);
         harness.Window.BeginInit();
         harness.Window.EndInit();
-        harness.Window.Frame = new Rectangle(0, 0, 100, 30);
-        harness.Window.ApplyViewportPolicy(harness.Window.Frame.Size);
-        foreach (View view in harness.Window.SubViews)
-            view.SetRelativeLayout(harness.Window.Viewport.Size);
-        View[] labels = harness.Window.SubViews.OfType<Label>().Where(label => label.Visible).ToArray();
-        View[] buttons = harness.Window.SubViews.OfType<Button>().Where(button => button.Visible).ToArray();
-        foreach (View button in buttons)
-            await Assert.That(button.Viewport.Height).IsGreaterThan(0);
-        string[] overlaps = buttons.SelectMany(button => labels.Where(label =>
-                Rectangle.Intersect(button.Frame, label.Frame) is { Width: > 0, Height: > 0 })
-            .Select(label => $"{button.Text}:{button.Frame} intersects {label.Text}:{label.Frame}")).ToArray();
-        await Assert.That(overlaps).IsEmpty();
+        foreach (Size size in new[] { new Size(80, 24), new Size(100, 30) })
+        {
+            foreach (TerminalWorkbenchStage stage in Enum.GetValues<TerminalWorkbenchStage>())
+            {
+                harness.Window.SetStage(stage);
+                harness.Window.Frame = new Rectangle(Point.Empty, size);
+                harness.Window.ApplyViewportPolicy(harness.Window.Frame.Size);
+                foreach (View view in harness.Window.SubViews)
+                    view.SetRelativeLayout(harness.Window.Viewport.Size);
+                View[] labels = harness.Window.SubViews.OfType<Label>().Where(label => label.Visible).ToArray();
+                View[] buttons = harness.Window.SubViews.OfType<Button>().Where(button => button.Visible).ToArray();
+                foreach (View button in buttons)
+                    await Assert.That(button.Viewport.Height).IsGreaterThan(0);
+                string[] overlaps = buttons.SelectMany(button => labels.Where(label =>
+                        Rectangle.Intersect(button.Frame, label.Frame) is { Width: > 0, Height: > 0 })
+                    .Select(label => $"{size}/{stage} {button.Text}:{button.Frame} intersects {label.Text}:{label.Frame}")).ToArray();
+                await Assert.That(overlaps).IsEmpty();
+            }
+        }
     }
 
     [Test]
@@ -1222,6 +1259,9 @@ public sealed class TerminalGuiAdapterTests
             .Single(button => button.Text == TerminalStrings.Get("NextOutcome", locale));
         Button attempt = harness.Window.SubViews.OfType<Button>()
             .Single(button => button.Text == TerminalStrings.Get("NextAttempt", locale));
+        await Assert.That(outcome.Visible && attempt.Visible).IsFalse();
+        harness.Window.SubViews.OfType<Button>()
+            .Single(button => button.Text == TerminalStrings.Get("StageFiles", locale)).InvokeCommand(Command.Accept);
         await Assert.That(outcome.Visible && attempt.Visible).IsTrue();
         await Assert.That(outcome.Enabled || attempt.Enabled).IsFalse();
         string initial = harness.Window.StatusText;
@@ -1245,6 +1285,7 @@ public sealed class TerminalGuiAdapterTests
     public async Task PartialSaveStatusIdentifiesEachCommittedOutputAndManualRecovery()
     {
         using var harness = new Harness(initialize: true);
+        harness.Window.SetStage(TerminalWorkbenchStage.FilesAndSave);
         var receipt = new ProtectedArtifactPublicationReceipt(Guid.NewGuid(),
         [
             new("config", ProtectedArtifactCommitResult.Installed(verificationSucceeded: true)),
@@ -1316,6 +1357,7 @@ public sealed class TerminalGuiAdapterTests
                 harness.DrainCallbacks();
             }
             harness.Window.ClearPrivateState();
+            harness.Window.SetStage(TerminalWorkbenchStage.FilesAndSave);
             Button history = harness.Window.SubViews.OfType<Button>()
                 .Single(button => button.Text == TerminalStrings.Get("NextAttempt"));
             await Assert.That(history.Visible).IsTrue();
@@ -1485,6 +1527,100 @@ public sealed class TerminalGuiAdapterTests
             {"op":"object","members":{"rows":{"op":"copy","reference":{"scope":"root","path":"/rows"}}}}
             """);
         return DefinitionSourceCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(source.ToJsonString()));
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task WorkbenchRendersRichFieldMetadataUnitsDefaultDeprecationAndSupportsCtrlZUndo()
+    {
+        var source = EditingSource("""
+            "timeout":{"title":"Request timeout","description":"HTTP client request deadline","type":"integer","deprecated":true,
+              "x-configurator":{"sensitivity":"public","detail":"basic","units":"seconds","defaultText":"30 seconds","deprecationMessage":"Use timeoutV2"}},
+            "secretKey":{"title":"Signing key","type":"string","x-configurator":{"sensitivity":"secret","detail":"basic"}}
+            """);
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+            System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var harness = new Harness(initialize: true, form: form);
+
+        string metadata = harness.Window.HelpText;
+        await Assert.That(metadata).Contains("HTTP client request deadline");
+        await Assert.That(metadata).Contains("seconds");
+        await Assert.That(metadata).Contains("30 seconds");
+        await Assert.That(metadata).Contains("Use timeoutV2");
+
+        harness.Window.PublicInput.Text = "45";
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        await Assert.That(harness.Form.Snapshot().Values["timeout"].GetInt32()).IsEqualTo(45);
+
+        await Assert.That(harness.Window.NewKeyDownEvent(Key.Z.WithCtrl)).IsTrue();
+        await Assert.That(harness.Form.Snapshot().Values.ContainsKey("timeout")).IsFalse();
+        await Assert.That(harness.Window.PublicInput.Text).IsEqualTo(string.Empty);
+
+        // Clearing private state after an undoable secret edit must clear secret undo leaves too.
+        harness.Window.MoveField(1);
+        await Assert.That(harness.Window.MaskedInput.TryReplaceSensitiveInput("top-secret-value")).IsTrue();
+        await Assert.That(harness.Window.CommitField()).IsTrue();
+        harness.Window.ClearPrivateState();
+        harness.Window.NewKeyDownEvent(Key.Z.WithCtrl);
+        await Assert.That(harness.Form.Snapshot().Values.ContainsKey("secretKey")).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task WorkbenchPublicMapAndObjectListTitlesUseLiteralTrimmedKeysAndItemTitlePointerWhileMaskingPrivateKeys()
+    {
+        var source = EditingSource("""
+            "publicMap":{"title":"Public labels","type":"object","additionalProperties":{"type":"string","x-configurator":{"sensitivity":"public"}},
+              "x-configurator":{"sensitivity":"public","detail":"basic"}},
+            "routes":{"title":"Routes","type":"array",
+              "x-configurator":{"sensitivity":"public","detail":"basic","itemTitlePointer":"/host"},
+              "items":{"type":"object","additionalProperties":false,"required":["host"],
+                "x-configurator":{"sensitivity":"public"},"properties":{
+                  "host":{"title":"Host","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}}}},
+            "secretMap":{"title":"Private headers","type":"object","additionalProperties":{"type":"string","x-configurator":{"sensitivity":"secret"}},
+              "x-configurator":{"sensitivity":"secret","detail":"basic"}}
+            """);
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+            System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.SetValue(["publicMap"], System.Text.Json.JsonSerializer.SerializeToElement(
+            new Dictionary<string, string> { ["  region  "] = "eu-central" }));
+        form.SetValue(["routes"], System.Text.Json.JsonSerializer.SerializeToElement(
+            new[] { new { host = "api.example.org" } }));
+        form.SetValue(["secretMap"], System.Text.Json.JsonSerializer.SerializeToElement(
+            new Dictionary<string, string> { ["private-header-key"] = "super-secret" }));
+
+        using var harness = new Harness(initialize: true, form: form);
+        string[] publicSlots = Enumerable.Range(0, 12)
+            .Select(index =>
+            {
+                string title = harness.Window.FieldText;
+                harness.Window.MoveField(1);
+                return title;
+            }).ToArray();
+
+        await Assert.That(publicSlots.Any(title => title.Contains("region", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(publicSlots.Any(title => title.Contains("api.example.org", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(publicSlots.Any(title => title.Contains("private-header-key", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(publicSlots.Any(title => title.Contains("super-secret", StringComparison.Ordinal))).IsFalse();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task WorkbenchRespectsHumanizedAndTechnicalNamingToggle()
+    {
+        var source = EditingSource("""
+            "smtp_host":{"type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}
+            """);
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+            System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var harness = new Harness(initialize: true, form: form);
+
+        await Assert.That(harness.Window.FieldText).Contains("SMTP Host");
+        Button naming = harness.Window.SubViews.OfType<Button>()
+            .Single(button => button.Text == TerminalStrings.Get("NamingTechnical"));
+        await Assert.That(naming.InvokeCommand(Command.Accept)).IsTrue();
+        await Assert.That(harness.Form.WorkspaceNamingMode).IsEqualTo(WorkspaceNamingMode.Technical);
+        await Assert.That(harness.Window.FieldText).Contains("smtp_host");
     }
 
     private sealed class Harness : IDisposable

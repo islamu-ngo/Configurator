@@ -6,10 +6,12 @@ using System.Text.Json.Nodes;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Artifacts;
 using Configurator.Core.Definitions;
+using Configurator.Core.Secrets;
 using Configurator.Presentation;
 using Configurator.Terminal;
 using global::Terminal.Gui.App;
 using global::Terminal.Gui.Input;
+using global::Terminal.Gui.ViewBase;
 
 [NotInParallel]
 public sealed class TerminalSecretGenerationTests
@@ -180,6 +182,74 @@ public sealed class TerminalSecretGenerationTests
             await Assert.That(clipboard.Contents).IsEqualTo(original);
             await Assert.That(harness.Form.Snapshot().Values["password"].GetString()).IsEqualTo(original);
         }
+    }
+
+    [Test]
+    public async Task SecretGeneratorDialogDelegatesToSessionEnforcesEntropyFloorAndAppliesOnlyExplicitly()
+    {
+        var policy = new JsonObject
+        {
+            ["kind"] = "password",
+            ["acquisition"] = "local",
+            ["generation"] = new JsonObject { ["length"] = 24 }
+        };
+        using var harness = new Harness(policy);
+        using DefinitionSecretGeneratorSession? session = harness.Form.CreateSecretGeneratorSession(["password"]);
+        await Assert.That(session).IsNotNull();
+
+        using var dialog = new TerminalSecretGeneratorDialog(harness.Form, session!);
+        await Assert.That(dialog.X).IsEqualTo(Pos.Center());
+        await Assert.That(dialog.Y).IsEqualTo(Pos.Center());
+
+        dialog.ApplyOptions(new SecretGenerationOptions
+        {
+            Length = 8,
+            IncludeLowercase = true,
+            IncludeUppercase = false,
+            IncludeDigits = false,
+            IncludeSymbols = false
+        });
+        await Assert.That(session!.MeetsEntropyFloor).IsFalse();
+        await Assert.That(dialog.CanGenerate).IsFalse();
+        await Assert.That(await dialog.PreviewCandidateAsync()).IsFalse();
+        await Assert.That(harness.Form.Snapshot().Values.ContainsKey("password")).IsFalse();
+
+        dialog.ApplyOptions(new SecretGenerationOptions
+        {
+            Length = 28,
+            IncludeLowercase = true,
+            IncludeUppercase = true,
+            IncludeDigits = true,
+            IncludeSymbols = false
+        });
+        await Assert.That(dialog.CanGenerate).IsTrue();
+        await Assert.That(await dialog.PreviewCandidateAsync()).IsTrue();
+        await Assert.That(session.HasCandidate).IsTrue();
+        await Assert.That(dialog.PreviewBuffer.Count).IsEqualTo(28);
+        await Assert.That(harness.Form.Snapshot().Values.ContainsKey("password")).IsFalse();
+
+        await Assert.That(await dialog.ApplyCandidateAsync()).IsTrue();
+        await Assert.That(harness.Form.Snapshot().Values["password"].GetString()!.Length).IsEqualTo(28);
+        await Assert.That(dialog.PreviewBuffer.Count).IsEqualTo(0);
+
+        // Byte-token generator mode
+        var tokenPolicy = new JsonObject
+        {
+            ["kind"] = "opaque-token",
+            ["acquisition"] = "local",
+            ["encoding"] = "hex",
+            ["constraints"] = new JsonObject { ["minBytes"] = 16, ["maxBytes"] = 64 },
+            ["generation"] = new JsonObject { ["bytes"] = 32 }
+        };
+        using var tokenHarness = new Harness(tokenPolicy);
+        using DefinitionSecretGeneratorSession? tokenSession = tokenHarness.Form.CreateSecretGeneratorSession(["password"]);
+        await Assert.That(tokenSession).IsNotNull();
+        using var tokenDialog = new TerminalSecretGeneratorDialog(tokenHarness.Form, tokenSession!);
+        tokenDialog.ApplyOptions(new SecretGenerationOptions { Bytes = 48 });
+        await Assert.That(await tokenDialog.PreviewCandidateAsync()).IsTrue();
+        await Assert.That(tokenHarness.Form.Snapshot().Values.ContainsKey("password")).IsFalse();
+        await Assert.That(await tokenDialog.ApplyCandidateAsync()).IsTrue();
+        await Assert.That(tokenHarness.Form.Snapshot().Values["password"].GetString()!.Length).IsEqualTo(96);
     }
 
     private sealed class Harness : IDisposable

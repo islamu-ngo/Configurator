@@ -1,4 +1,39 @@
 <root>
+  <data name="Profiles" xml:space="preserve"><value>Encrypted local profiles (Ctrl+P)</value></data>
+  <data name="ProfileArtifact" xml:space="preserve"><value>Target artifact ID</value></data>
+  <data name="ProfileTargetPath" xml:space="preserve"><value>Absolute target output file</value></data>
+  <data name="ProfileRetirePath" xml:space="preserve"><value>Retained field pointer</value></data>
+  <data name="ProfileRetire" xml:space="preserve"><value>Retire retained value</value></data>
+  <data name="ProfileRetireConfirm" xml:space="preserve"><value>Press Retire again to permanently remove this retained value, then enter its replacement in Configure. Undo cannot restore it.</value></data>
+  <data name="ProfilePolicy" xml:space="preserve"><value>Reviewed JSON JWE: A256GCM / PBES2-HS512+A256KW; PBKDF2-HMAC-SHA512, 600000 iterations. Unsupported algorithms are rejected. No FIPS claim.</value></data>
+  <data name="ProfileStore" xml:space="preserve"><value>Absolute local store directory</value></data>
+  <data name="ProfileRevision" xml:space="preserve"><value>Revision index (from List)</value></data>
+  <data name="ProfileRecipient" xml:space="preserve"><value>Recipient index (zero based)</value></data>
+  <data name="ProfileDigest" xml:space="preserve"><value>Trusted recovery digest</value></data>
+  <data name="ProfileDeviceId" xml:space="preserve"><value>Recovery device ID (optional)</value></data>
+  <data name="ProfilePassphrase" xml:space="preserve"><value>Profile passphrase (separate)</value></data>
+  <data name="ProfileConfirmation" xml:space="preserve"><value>Confirm new passphrase</value></data>
+  <data name="ProfileRecoveryWarning" xml:space="preserve"><value>Recommend portable recovery: enter a separate passphrase (15+ characters). Keyring/account/device loss can permanently block recovery. Reinstall/support cannot reconstruct keys. Test recovery with a separate copy and retain its trusted digest.</value></data>
+  <data name="ProfilePortable" xml:space="preserve"><value>Portable passphrase only</value></data>
+  <data name="ProfileDevice" xml:space="preserve"><value>Use device keyring (toggle)</value></data>
+  <data name="ProfileAcknowledge" xml:space="preserve"><value>I accept device-only permanent loss risk</value></data>
+  <data name="ProfileList" xml:space="preserve"><value>List revisions</value></data>
+  <data name="ProfileOpen" xml:space="preserve"><value>Unlock profile</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>Compare schema</value></data>
+  <data name="ProfileSaveBlind" xml:space="preserve"><value>Save import/upgrade only</value></data>
+  <data name="ProfileSaveInspectable" xml:space="preserve"><value>Save inspectable encrypted</value></data>
+  <data name="ProfileSaveComparison" xml:space="preserve"><value>Save comparison only</value></data>
+  <data name="ProfileUpgrade" xml:space="preserve"><value>Upgrade snapshot</value></data>
+  <data name="ProfileCheckRecovery" xml:space="preserve"><value>Check portable recovery</value></data>
+  <data name="ProfileTarget" xml:space="preserve"><value>Unencrypted target: Files and Save</value></data>
+  <data name="ProfileWorking" xml:space="preserve"><value>Working locally; Cancel retires this operation.</value></data>
+  <data name="ProfileResult" xml:space="preserve"><value>Profile result:</value></data>
+  <data name="OutputTasks" xml:space="preserve"><value>Output tasks</value></data>
+  <data name="PreviousTaskPage" xml:space="preserve"><value>Previous task page</value></data>
+  <data name="NextTaskPage" xml:space="preserve"><value>Next task page</value></data>
+  <data name="ReuseValue" xml:space="preserve"><value>Review suggested value</value></data>
+  <data name="TransferSelect" xml:space="preserve"><value>Select / deselect value</value></data>
+  <data name="TransferNextCandidate" xml:space="preserve"><value>Next suggested value</value></data>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
@@ -129,4 +164,51 @@
   <data name="PreparationFailed" xml:space="preserve"><value>Preparation failed. Retry the operation; your answers have not been classified as invalid.</value></data>
   <data name="PreparationCancelled" xml:space="preserve"><value>Preparation cancelled. No output is ready to save.</value></data>
   <data name="PreparationRetired" xml:space="preserve"><value>Inputs changed during preparation. Prepare the current answers again.</value></data>
+  <data name="StageConfigure" xml:space="preserve"><value>1:Configure</value></data>
+  <data name="StageReview" xml:space="preserve"><value>2:Review &amp; Import</value></data>
+  <data name="StageFiles" xml:space="preserve"><value>3:Files &amp; Save</value></data>
+  <data name="Sections" xml:space="preserve"><value>Sections…</value></data>
+  <data name="ConfigureGuided" xml:space="preserve"><value>Guided</value></data>
+  <data name="ConfigureCompact" xml:space="preserve"><value>Compact</value></data>
+  <data name="NamingHumanized" xml:space="preserve"><value>Human</value></data>
+  <data name="NamingTechnical" xml:space="preserve"><value>Wire</value></data>
+  <data name="FindFields" xml:space="preserve"><value>Find…</value></data>
+  <data name="DocumentEditor" xml:space="preserve"><value>Doc…</value></data>
+  <data name="UndoAction" xml:space="preserve"><value>Undo</value></data>
+  <data name="ChoiceList" xml:space="preserve"><value>Choices…</value></data>
+  <data name="SectionNavigatorTitle" xml:space="preserve"><value>Sections</value></data>
+  <data name="CompactColumns" xml:space="preserve"><value>Field|Status|Origin|Value</value></data>
+  <data name="CompactEditAction" xml:space="preserve"><value>Edit row</value></data>
+  <data name="CompactOmitAction" xml:space="preserve"><value>Omit row</value></data>
+  <data name="DialogApply" xml:space="preserve"><value>Apply</value></data>
+  <data name="DialogPreview" xml:space="preserve"><value>Preview diff</value></data>
+  <data name="DialogCancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="DialogJump" xml:space="preserve"><value>Jump to field</value></data>
+  <data name="DialogFilter" xml:space="preserve"><value>Filter</value></data>
+  <data name="DocumentTitle" xml:space="preserve"><value>Configuration document</value></data>
+  <data name="DocumentTooLarge" xml:space="preserve"><value>Document exceeds the 256 KiB safety limit.</value></data>
+  <data name="DocumentStale" xml:space="preserve"><value>Answers changed after preview; reopen and review before applying.</value></data>
+  <data name="DocumentPreviewReady" xml:space="preserve"><value>Preview ready</value></data>
+  <data name="DiffSummaryFormat" xml:space="preserve"><value>{0} change(s)</value></data>
+  <data name="DiscoveryTitle" xml:space="preserve"><value>Find settings &amp; actions</value></data>
+  <data name="ChoiceDialogTitle" xml:space="preserve"><value>Select option</value></data>
+  <data name="DeprecatedBadge" xml:space="preserve"><value>Deprecated</value></data>
+  <data name="UnitsLabel" xml:space="preserve"><value>Units</value></data>
+  <data name="FooterHints" xml:space="preserve"><value>Tab Move  Ctrl+Z Undo  F2 Sections  F3 Find  Ctrl+E Doc</value></data>
+  <data name="FilesStageSummary" xml:space="preserve"><value>Prepare outputs, then save protected files (create-only, never overwrites).</value></data>
+  <data name="SecretOptions" xml:space="preserve"><value>Options…</value></data>
+  <data name="SecretGeneratorTitle" xml:space="preserve"><value>Secret generator</value></data>
+  <data name="SecretLengthLabel" xml:space="preserve"><value>Length:</value></data>
+  <data name="SecretBytesLabel" xml:space="preserve"><value>Bytes:</value></data>
+  <data name="SecretForbiddenLabel" xml:space="preserve"><value>Exclude:</value></data>
+  <data name="SecretLowerLabel" xml:space="preserve"><value>a-z</value></data>
+  <data name="SecretUpperLabel" xml:space="preserve"><value>A-Z</value></data>
+  <data name="SecretDigitsLabel" xml:space="preserve"><value>0-9</value></data>
+  <data name="SecretSymbolsLabel" xml:space="preserve"><value>!@#</value></data>
+  <data name="SecretPreviewLabel" xml:space="preserve"><value>Generated candidate (masked):</value></data>
+  <data name="SecretPreviewAction" xml:space="preserve"><value>Preview</value></data>
+  <data name="SecretEntropyReady" xml:space="preserve"><value>Policy met</value></data>
+  <data name="SecretEntropyLow" xml:space="preserve"><value>Entropy below 128-bit floor</value></data>
+  <data name="SecretInvalidBounds" xml:space="preserve"><value>Invalid bounds</value></data>
+  <data name="SecretApplied" xml:space="preserve"><value>Generated secret applied to draft.</value></data>
  </root>

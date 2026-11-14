@@ -318,3 +318,10 @@ To protect sensitive configuration data:
 Deterministic adapter/control tests and actual interactive process qualification
 are separate evidence. A prepared configuration does not prove target acceptance,
 grant apply permission or qualify a new operating-system host.
+
+## Connected editing views
+
+Use the section navigator and guided, compact or document views to edit one
+local workspace. Discovery and command controls help reach settings. Preview
+document changes or suggested transfers before adopting them; private compact
+values remain masked and target saving remains a deliberate native action.

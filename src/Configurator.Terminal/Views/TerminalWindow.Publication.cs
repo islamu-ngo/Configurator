@@ -121,7 +121,6 @@ internal sealed partial class TerminalWindow
             _masked.ClearSensitiveState();
             _importPath.Text = string.Empty;
             _loading = false;
-            _operation.ClearPrivateState();
             ShowField();
         }
         RefreshCommands();
@@ -156,6 +155,7 @@ internal sealed partial class TerminalWindow
         ProbePublicationDrawState("receipt-before");
 #endif
         _status.Text = TerminalStrings.FormatReceipt(_receipt, _outcomeIndex, _operation.Form.Locale);
+        _receiptLabel.Text = _status.Text;
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
         ProbePublicationDrawState("receipt-status");
 #endif

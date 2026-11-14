@@ -1,4 +1,39 @@
 <root>
+  <data name="Profiles" xml:space="preserve"><value>ملفات التعريف المحلية المشفرة (Ctrl+P)</value></data>
+  <data name="ProfileArtifact" xml:space="preserve"><value>معرف ملف الهدف</value></data>
+  <data name="ProfileTargetPath" xml:space="preserve"><value>المسار المطلق لملف الهدف</value></data>
+  <data name="ProfileRetirePath" xml:space="preserve"><value>مؤشر الحقل المحتفظ به</value></data>
+  <data name="ProfileRetire" xml:space="preserve"><value>إزالة القيمة المحتفظ بها</value></data>
+  <data name="ProfileRetireConfirm" xml:space="preserve"><value>اضغط الإزالة مرة ثانية لحذف القيمة المحتفظ بها نهائيا، ثم أدخل بديلها في الإعداد. لا يعيدها التراجع.</value></data>
+  <data name="ProfilePolicy" xml:space="preserve"><value>الصيغة المراجعة: ⁨JSON JWE: A256GCM / PBES2-HS512+A256KW; PBKDF2-HMAC-SHA512, 600000⁩ تكرار. تُرفض الخوارزميات غير المدعومة. لا ادعاء باعتماد ⁨FIPS⁩.</value></data>
+  <data name="ProfileStore" xml:space="preserve"><value>المسار المطلق للمخزن المحلي</value></data>
+  <data name="ProfileRevision" xml:space="preserve"><value>رقم النسخة من القائمة</value></data>
+  <data name="ProfileRecipient" xml:space="preserve"><value>رقم المستلم بدءا من صفر</value></data>
+  <data name="ProfileDigest" xml:space="preserve"><value>بصمة الاستعادة الموثوقة</value></data>
+  <data name="ProfileDeviceId" xml:space="preserve"><value>معرف جهاز الاستعادة الاختياري</value></data>
+  <data name="ProfilePassphrase" xml:space="preserve"><value>عبارة مرور مستقلة للملف</value></data>
+  <data name="ProfileConfirmation" xml:space="preserve"><value>تأكيد عبارة المرور الجديدة</value></data>
+  <data name="ProfileRecoveryWarning" xml:space="preserve"><value>نوصي باستعادة محمولة بعبارة مرور مستقلة من 15 حرفا أو أكثر. فقدان الجهاز أو الحساب أو مخزن المفاتيح قد يمنع الاستعادة نهائيا. لا تعيد التثبيت ولا جهة الدعم إنشاء المفاتيح. اختبر نسخة مستقلة واحتفظ ببصمتها الموثوقة.</value></data>
+  <data name="ProfilePortable" xml:space="preserve"><value>عبارة مرور محمولة فقط</value></data>
+  <data name="ProfileDevice" xml:space="preserve"><value>استخدام مخزن مفاتيح الجهاز</value></data>
+  <data name="ProfileAcknowledge" xml:space="preserve"><value>أقبل خطر الفقدان الدائم عند الاعتماد على الجهاز وحده</value></data>
+  <data name="ProfileList" xml:space="preserve"><value>عرض النسخ</value></data>
+  <data name="ProfileOpen" xml:space="preserve"><value>فتح الملف المشفر</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>مقارنة المخطط</value></data>
+  <data name="ProfileSaveBlind" xml:space="preserve"><value>حفظ للاستيراد والترقية فقط</value></data>
+  <data name="ProfileSaveInspectable" xml:space="preserve"><value>حفظ مشفر قابل للفحص</value></data>
+  <data name="ProfileSaveComparison" xml:space="preserve"><value>حفظ للمقارنة فقط</value></data>
+  <data name="ProfileUpgrade" xml:space="preserve"><value>ترقية إلى نسخة جديدة</value></data>
+  <data name="ProfileCheckRecovery" xml:space="preserve"><value>اختبار الاستعادة المحمولة</value></data>
+  <data name="ProfileTarget" xml:space="preserve"><value>هدف غير مشفر: الملفات والحفظ</value></data>
+  <data name="ProfileWorking" xml:space="preserve"><value>عملية محلية جارية؛ الإلغاء ينهي صلاحيتها.</value></data>
+  <data name="ProfileResult" xml:space="preserve"><value>نتيجة الملف:</value></data>
+  <data name="OutputTasks" xml:space="preserve"><value>مهام الإخراج</value></data>
+  <data name="PreviousTaskPage" xml:space="preserve"><value>صفحة المهام السابقة</value></data>
+  <data name="NextTaskPage" xml:space="preserve"><value>صفحة المهام التالية</value></data>
+  <data name="ReuseValue" xml:space="preserve"><value>مراجعة القيمة المقترحة</value></data>
+  <data name="TransferSelect" xml:space="preserve"><value>تحديد القيمة / إلغاء تحديدها</value></data>
+  <data name="TransferNextCandidate" xml:space="preserve"><value>القيمة المقترحة التالية</value></data>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
   <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
@@ -129,4 +164,51 @@
   <data name="PreparationFailed" xml:space="preserve"><value>تعذر التحضير. أعد المحاولة؛ لم يتم تصنيف إجاباتك على أنها غير صالحة.</value></data>
   <data name="PreparationCancelled" xml:space="preserve"><value>أُلغي التحضير. لا توجد مخرجات جاهزة للحفظ.</value></data>
   <data name="PreparationRetired" xml:space="preserve"><value>تغيرت المدخلات أثناء التحضير. أعد تحضير الإجابات الحالية.</value></data>
+  <data name="StageConfigure" xml:space="preserve"><value>1:تهيئة</value></data>
+  <data name="StageReview" xml:space="preserve"><value>2:مراجعة واستيراد</value></data>
+  <data name="StageFiles" xml:space="preserve"><value>3:ملفات وحفظ</value></data>
+  <data name="Sections" xml:space="preserve"><value>الأقسام…</value></data>
+  <data name="ConfigureGuided" xml:space="preserve"><value>موجه</value></data>
+  <data name="ConfigureCompact" xml:space="preserve"><value>مضغوط</value></data>
+  <data name="NamingHumanized" xml:space="preserve"><value>وصف</value></data>
+  <data name="NamingTechnical" xml:space="preserve"><value>مفاتيح</value></data>
+  <data name="FindFields" xml:space="preserve"><value>بحث…</value></data>
+  <data name="DocumentEditor" xml:space="preserve"><value>مستند…</value></data>
+  <data name="UndoAction" xml:space="preserve"><value>تراجع</value></data>
+  <data name="ChoiceList" xml:space="preserve"><value>خيارات…</value></data>
+  <data name="SectionNavigatorTitle" xml:space="preserve"><value>الأقسام</value></data>
+  <data name="CompactColumns" xml:space="preserve"><value>الحقل|الحالة|المصدر|القيمة</value></data>
+  <data name="CompactEditAction" xml:space="preserve"><value>تعديل الصف</value></data>
+  <data name="CompactOmitAction" xml:space="preserve"><value>إهمال الصف</value></data>
+  <data name="DialogApply" xml:space="preserve"><value>تطبيق</value></data>
+  <data name="DialogPreview" xml:space="preserve"><value>معاينة الفرق</value></data>
+  <data name="DialogCancel" xml:space="preserve"><value>إلغاء</value></data>
+  <data name="DialogJump" xml:space="preserve"><value>انتقال للحقل</value></data>
+  <data name="DialogFilter" xml:space="preserve"><value>تصفية</value></data>
+  <data name="DocumentTitle" xml:space="preserve"><value>مستند الإعدادات</value></data>
+  <data name="DocumentTooLarge" xml:space="preserve"><value>يتجاوز المستند حد الأمان البالغ 256 كيلوبايت.</value></data>
+  <data name="DocumentStale" xml:space="preserve"><value>تغيّرت الإجابات بعد المعاينة؛ أعد الفتح والمراجعة قبل التطبيق.</value></data>
+  <data name="DocumentPreviewReady" xml:space="preserve"><value>المعاينة جاهزة</value></data>
+  <data name="DiffSummaryFormat" xml:space="preserve"><value>{0} تغيير</value></data>
+  <data name="DiscoveryTitle" xml:space="preserve"><value>البحث عن الإعدادات والإجراءات</value></data>
+  <data name="ChoiceDialogTitle" xml:space="preserve"><value>اختر قيمة</value></data>
+  <data name="DeprecatedBadge" xml:space="preserve"><value>مهمل</value></data>
+  <data name="UnitsLabel" xml:space="preserve"><value>الوحدات</value></data>
+  <data name="FooterHints" xml:space="preserve"><value>Tab تنقل  Ctrl+Z تراجع  F2 الأقسام  F3 بحث  Ctrl+E مستند</value></data>
+  <data name="FilesStageSummary" xml:space="preserve"><value>جهّز المخرجات ثم احفظ الملفات المحمية (إنشاء فقط، لا استبدال).</value></data>
+  <data name="SecretOptions" xml:space="preserve"><value>خيارات…</value></data>
+  <data name="SecretGeneratorTitle" xml:space="preserve"><value>مولد الأسرار</value></data>
+  <data name="SecretLengthLabel" xml:space="preserve"><value>الطول:</value></data>
+  <data name="SecretBytesLabel" xml:space="preserve"><value>البايت:</value></data>
+  <data name="SecretForbiddenLabel" xml:space="preserve"><value>استثناء:</value></data>
+  <data name="SecretLowerLabel" xml:space="preserve"><value>a-z</value></data>
+  <data name="SecretUpperLabel" xml:space="preserve"><value>A-Z</value></data>
+  <data name="SecretDigitsLabel" xml:space="preserve"><value>0-9</value></data>
+  <data name="SecretSymbolsLabel" xml:space="preserve"><value>!@#</value></data>
+  <data name="SecretPreviewLabel" xml:space="preserve"><value>المرشح المُنشأ (مقنّع):</value></data>
+  <data name="SecretPreviewAction" xml:space="preserve"><value>معاينة</value></data>
+  <data name="SecretEntropyReady" xml:space="preserve"><value>يفي بالسياسة</value></data>
+  <data name="SecretEntropyLow" xml:space="preserve"><value>الإنتروبيا دون حد 128 بت</value></data>
+  <data name="SecretInvalidBounds" xml:space="preserve"><value>حدود غير صالحة</value></data>
+  <data name="SecretApplied" xml:space="preserve"><value>تم تطبيق السر المُنشأ على المسودة.</value></data>
  </root>

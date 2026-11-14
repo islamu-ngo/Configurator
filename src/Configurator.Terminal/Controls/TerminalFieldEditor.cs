@@ -10,7 +10,7 @@ using Configurator.Presentation;
 internal sealed class TerminalFieldEditor
 {
     internal sealed record Slot(DefinitionFormModel Form, DefinitionFieldInput? Field, string[] Path, DefinitionNode Schema,
-        string? FallbackTitle = null)
+        string? FallbackTitle = null, bool PreferFallbackTitle = false)
     {
         internal DefinitionFieldInput Input => Field ?? throw new InvalidOperationException("root-editor-has-no-field");
         internal JsonElement Metadata => Schema.Keywords;
@@ -18,8 +18,11 @@ internal sealed class TerminalFieldEditor
         internal string Identity { get; } = Form.GetEditorIdentity(
             DefinitionPath.FromSegments(Field is null ? Path : [Field.Definition.Name, .. Path]));
         internal DefinitionEditorPresentation? Presentation => Form.GetEditorPresentation(Location);
-        internal string Title => FallbackTitle is not null && !Metadata.TryGetProperty("title", out _)
-            ? FallbackTitle : Presentation?.Title ?? Field?.Definition.Title ?? TerminalStrings.Get("ConfigurationRoot", Form.Locale);
+        internal string Title => PreferFallbackTitle && !string.IsNullOrEmpty(FallbackTitle)
+            ? FallbackTitle
+            : FallbackTitle is not null && !Metadata.TryGetProperty("title", out _)
+                ? FallbackTitle
+                : Presentation?.Title ?? Field?.Definition.Title ?? TerminalStrings.Get("ConfigurationRoot", Form.Locale);
         internal string Type => Schema.JsonType;
         internal bool IsList => Schema.Type == DefinitionNodeType.Sequence;
         internal bool IsObject => Type == "object";
@@ -77,22 +80,46 @@ internal sealed class TerminalFieldEditor
     internal static bool AddItem(Slot slot) => slot.IsList && slot.Form.GetFieldValidation(slot.Location).CanEdit &&
         slot.Form.AddListItem(slot.Location);
 
+    internal static IReadOnlyList<DefinitionChoicePresentation> ChoicePresentations(Slot slot)
+    {
+        DefinitionPath path = EditLocation(slot, 0);
+        bool append = slot.IsList && !HasItem(slot, 0);
+        DefinitionPath validationPath = append ? slot.Location : path;
+        DefinitionFieldValidation facts = slot.Form.GetFieldValidation(validationPath);
+        if (facts.RequiresMasking || facts.HasProtectedDescendants) return [];
+        DefinitionEditorPresentation? presentation = slot.Form.GetEditorPresentation(path);
+        if (presentation?.Choices is { Count: > 0 } choices) return choices;
+        if (slot.ScalarType == "boolean")
+            return presentation?.GetBooleanChoicePresentations() ?? [];
+        return [];
+    }
+
     internal static IReadOnlyList<string> Choices(Slot slot)
     {
+        IReadOnlyList<DefinitionChoicePresentation> presented = ChoicePresentations(slot);
+        if (presented.Count > 0) return presented.Select(choice => choice.Label).ToArray();
         DefinitionPath path = EditLocation(slot, 0);
         bool append = slot.IsList && !HasItem(slot, 0);
         DefinitionFieldValidation facts = slot.Form.GetFieldValidation(append ? slot.Location : path);
         JsonElement metadata = slot.IsList ? slot.Schema.Items!.Keywords : slot.Metadata;
-        if (metadata.TryGetProperty("enum", out JsonElement declared) && facts.HasProtectedDescendants) return [];
-        IReadOnlyList<DefinitionChoicePresentation>? choices = slot.Form.GetEditorPresentation(path)?.Choices;
-        if (choices is { Count: > 0 }) return choices.Select(choice => choice.Label).ToArray();
+        if (facts.RequiresMasking || facts.HasProtectedDescendants) return [];
         if (facts.AllowedValues.Count > 0)
             return facts.AllowedValues.Select(choice => choice.ValueKind == JsonValueKind.String
                 ? choice.GetString()! : choice.GetRawText()).ToArray();
-        if (append && declared.ValueKind == JsonValueKind.Array)
+        if (append && metadata.TryGetProperty("enum", out JsonElement declared) && declared.ValueKind == JsonValueKind.Array)
             return declared.EnumerateArray().Select(choice => choice.ValueKind == JsonValueKind.String
                 ? choice.GetString()! : choice.GetRawText()).ToArray();
-        return slot.ScalarType == "boolean" ? ["false", "true"] : [];
+        return [];
+    }
+
+    internal static string FormatDisplayValue(Slot slot, int listIndex = 0)
+    {
+        if (slot.RequiresMasking) return string.Empty;
+        string raw = Read(slot, listIndex);
+        if (string.IsNullOrEmpty(raw)) return string.Empty;
+        int selected = ChoiceIndex(slot, listIndex);
+        IReadOnlyList<DefinitionChoicePresentation> choices = ChoicePresentations(slot);
+        return selected >= 0 && selected < choices.Count ? choices[selected].Label : raw;
     }
 
     internal static DefinitionPath EditLocation(Slot slot, int index) => slot.IsList
@@ -128,26 +155,49 @@ internal sealed class TerminalFieldEditor
     internal static bool AddMapEntry(Slot slot, string key) =>
         slot.IsMap && slot.Form.GetFieldValidation(slot.Location).CanEdit && slot.Form.AddMapEntry(slot.Location, key);
 
+    internal static bool SelectChoicePresentation(Slot slot, DefinitionChoicePresentation choice, int listIndex = 0)
+    {
+        IReadOnlyList<DefinitionChoicePresentation> choices = ChoicePresentations(slot);
+        int index = choices.ToList().FindIndex(item => item.WireToken == choice.WireToken && item.Label == choice.Label);
+        if (index < 0) index = choices.ToList().FindIndex(item => item.WireToken == choice.WireToken);
+        return index >= 0 && SelectChoice(slot, index, listIndex);
+    }
+
     internal static bool Write(Slot slot, string text, int listIndex = 0)
     {
         if (!slot.Form.GetFieldValidation(slot.Location).CanEdit) return false;
         if (slot.IsObject || slot.IsObjectList) return text.Length == 0;
+        string normalized = ResolveEditableChoiceToken(slot, text);
         if (slot.IsList)
         {
             JsonArray array = Node(slot) as JsonArray ?? [];
             if (listIndex < 0 || listIndex > array.Count) return false;
-            if (listIndex == array.Count && text.Length == 0) return true;
+            if (listIndex == array.Count && normalized.Length == 0) return true;
             if (array.Count >= MaximumItems(slot) && listIndex == array.Count) return false;
             DefinitionPath itemPath = EditLocation(slot, listIndex);
-            if (listIndex < array.Count) return slot.Form.EditValue(itemPath, text);
-            if (!DefinitionScalarEditing.TryParse(slot.ScalarType, text, slot.Schema.Items!.Keywords, out JsonElement? scalar))
+            if (listIndex < array.Count) return slot.Form.EditValue(itemPath, normalized);
+            if (!DefinitionScalarEditing.TryParse(slot.ScalarType, normalized, slot.Schema.Items!.Keywords, out JsonElement? scalar))
             {
-                return AddItem(slot) && slot.Form.EditValue(itemPath, text);
+                return AddItem(slot) && slot.Form.EditValue(itemPath, normalized);
             }
             if (scalar is null) return true;
-            return AddItem(slot) && slot.Form.EditValue(itemPath, text);
+            return AddItem(slot) && slot.Form.EditValue(itemPath, normalized);
         }
-        return slot.Form.EditValue(slot.Location, text);
+        return slot.Form.EditValue(slot.Location, normalized);
+    }
+
+    private static string ResolveEditableChoiceToken(Slot slot, string text)
+    {
+        if (string.IsNullOrEmpty(text) || slot.RequiresMasking) return text;
+        IReadOnlyList<DefinitionChoicePresentation> choices = ChoicePresentations(slot);
+        if (choices.Count == 0) return text;
+        // Map an unambiguous localized label back to its canonical wire token while leaving raw tokens intact.
+        if (choices.Any(choice => string.Equals(choice.WireToken, text, StringComparison.Ordinal))) return text;
+        DefinitionChoicePresentation[] labelMatches = choices
+            .Where(choice => string.Equals(choice.Label, text, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(choice.DisplayLabel, text, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        return labelMatches.Length == 1 ? labelMatches[0].WireToken : text;
     }
 
     internal static void Remove(Slot slot, int listIndex)

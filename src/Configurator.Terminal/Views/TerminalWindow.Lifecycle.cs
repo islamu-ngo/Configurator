@@ -11,6 +11,7 @@ internal sealed partial class TerminalWindow
     internal void ClearPrivateState()
     {
         ClearSecretDialog();
+        _transferDialog?.Retire();
         _importOperation.RequestCancellationAsync();
         _loading = true;
         _masked.ClearSensitiveState();
@@ -42,7 +43,7 @@ internal sealed partial class TerminalWindow
     private void BeginClose()
     {
         ClearPrivateState();
-        foreach (View view in _normal) view.Enabled = false;
+        foreach (View view in SubViews) view.Enabled = false;
         Status("ShutdownWaiting");
         Task pending = Task.WhenAll(_importOperation.Completion, _workspace.WaitForPendingOperationsAsync(), _secretCompletion, _preparationCompletion);
         Observe(pending);
@@ -143,6 +144,7 @@ internal sealed partial class TerminalWindow
         {
             _disposed = true;
             ClearSecretDialog();
+            _transferDialog?.Retire();
             _secretCancellation.Cancel();
             _secretCancellation.Dispose();
             _preparationCancellation.Cancel();

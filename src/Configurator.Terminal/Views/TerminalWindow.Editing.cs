@@ -8,9 +8,12 @@ using Configurator.Presentation;
 using global::Terminal.Gui.Drawing;
 using global::Terminal.Gui.Text;
 using global::Terminal.Gui.ViewBase;
+using global::Terminal.Gui.Views;
 
 internal sealed partial class TerminalWindow
 {
+    private TerminalTransferReviewDialog? _transferDialog;
+
     private void EditorChanged()
     {
         if (_loading || _disposed || Volatile.Read(ref _closeRequested) != 0) return;
@@ -208,10 +211,29 @@ internal sealed partial class TerminalWindow
         finally { _loading = false; }
     }
 
-    private void ShowFieldLabel(int count) => _fieldLabel.Text = _slot is null ? LocalizedText("NoFields")
-        : Safe($"{LocalizedNumber(_fieldIndex + 1)}/{LocalizedNumber(count)} {_slot.Title} ({_slot.ScalarType})"
+    private void ShowFieldLabel(int count)
+    {
+        if (_slot is null)
+        {
+            _fieldLabel.Text = LocalizedText("NoFields");
+            return;
+        }
+        DefinitionEditorPresentation? presentation = _slot.Presentation;
+        string? rowPrefix = ResolvePublicRowPrefix(_slot);
+        string? wireSuffix = presentation is { HasCopyableWireToken: true, WireToken.Length: > 0 } &&
+            !string.Equals(presentation.WireToken, _slot.Title, StringComparison.Ordinal)
+            ? $" [{presentation.WireToken}]"
+            : null;
+        string valueSummary = !_slot.IsContainer && !_slot.RequiresMasking &&
+            TerminalFieldEditor.ChoicePresentations(_slot).Count > 0 &&
+            TerminalFieldEditor.FormatDisplayValue(_slot, _itemIndex) is { Length: > 0 } formatted &&
+            !string.Equals(formatted, _value.Text, StringComparison.Ordinal)
+            ? $" = {formatted}"
+            : string.Empty;
+        _fieldLabel.Text = Safe($"{LocalizedNumber(_fieldIndex + 1)}/{LocalizedNumber(count)} {rowPrefix}{_slot.Title} ({_slot.ScalarType}){wireSuffix}{valueSummary}"
             + (_slot.IsList ? $" [{LocalizedNumber(_itemIndex + 1)}/{LocalizedNumber(TerminalFieldEditor.ItemCount(_slot) + 1)}]" : "")
             + (_operation.Form.GetEditorState(_slot.Location)?.IsRequired == true ? " | " + LocalizedText("Required") : "")
+            + (presentation?.IsDeprecated == true ? " | " + LocalizedText("DeprecatedBadge") : "")
             + (TerminalFieldEditor.Value(_slot) is { ValueKind: JsonValueKind.Null } ? " | " + LocalizedText("NullValue")
                 : _operation.Form.AnswerOrigin(_slot.Location) switch
                 {
@@ -219,43 +241,117 @@ internal sealed partial class TerminalWindow
                     DefinitionAnswerOrigin.Generated => " | " + LocalizedText("GeneratedValue"),
                     _ => ""
                 }));
+    }
+
+    private string? ResolvePublicRowPrefix(TerminalFieldEditor.Slot slot)
+    {
+        if (slot.RequiresMasking || slot.Location.Segments.Count < 3) return null;
+        DefinitionPath parentPath = DefinitionPath.FromSegments(slot.Location.Segments.Take(slot.Location.Segments.Count - 1));
+        if (_operation.Form.GetFieldValidation(parentPath).HasProtectedDescendants) return null;
+        TerminalFieldEditor.Slot? parentSlot = VisibleSlots.FirstOrDefault(candidate => candidate.Location.Equals(parentPath));
+        return parentSlot is { PreferFallbackTitle: true, Title.Length: > 0 } &&
+            !string.Equals(parentSlot.Title, slot.Title, StringComparison.Ordinal)
+            ? parentSlot.Title + " > "
+            : null;
+    }
 
     private void SetEditorVisibility()
     {
-        bool scalar = !_tooSmall && _slot is { IsObject: false, IsObjectList: false }
+        bool guided = !_tooSmall && _stage == TerminalWorkbenchStage.Configure && _configureMode == TerminalConfigureMode.Guided;
+        bool compact = !_tooSmall && _stage == TerminalWorkbenchStage.Configure && _configureMode == TerminalConfigureMode.Compact;
+        bool review = !_tooSmall && _stage == TerminalWorkbenchStage.ReviewAndImport;
+        bool files = !_tooSmall && _stage == TerminalWorkbenchStage.FilesAndSave;
+
+        _sectionNavigator.Visible = !_tooSmall && _sidebarVisible;
+        if (_sectionsButton is not null) _sectionsButton.Visible = !_tooSmall && !_sidebarVisible;
+
+        bool scalar = guided && _slot is { IsObject: false, IsObjectList: false }
             && (!_slot.IsList || TerminalFieldEditor.MaximumItems(_slot) > 0);
+        _experience.Visible = guided;
+        _optionalEditors.Visible = guided;
+        _locale.Visible = guided;
+        _correction.Visible = guided;
+        _helpNext.Visible = guided;
+        _fieldLabel.Visible = guided;
+        _help.Visible = guided;
         _value.Visible = scalar && _slot is { RequiresMasking: false };
-        _masked.Visible = scalar && _slot is { RequiresMasking: true } || !_tooSmall && _slot is { IsMap: true };
-        _addItem.Visible = !_tooSmall && (_slot is { IsList: true } or { IsMap: true });
+        _masked.Visible = (scalar && _slot is { RequiresMasking: true }) || (guided && _slot is { IsMap: true });
+        _previousField.Visible = guided;
+        _nextField.Visible = guided;
+        _applyField.Visible = guided;
+
+        _addItem.Visible = guided && (_slot is { IsList: true } or { IsMap: true });
         _addItem.Text = LocalizedText(_slot is { IsMap: true } ? "AddMapEntry" : "AddItem");
-        _supplyContainer.Visible = !_tooSmall && _slot is { IsContainer: true } && _slot.Schema.Variants.Count == 0;
-        _clearContainer.Visible = !_tooSmall && _slot is not null && _slot.Location.Segments.Count > 0;
+        _supplyContainer.Visible = guided && _slot is { IsContainer: true } && _slot.Schema.Variants.Count == 0;
+        _clearContainer.Visible = guided && _slot is not null && _slot.Location.Segments.Count > 0;
         _clearContainer.Text = LocalizedText("OmitValue");
-        _choice.Visible = !_tooSmall && _slot is not null &&
-            (_slot.Schema.Variants.Count > 0 || TerminalFieldEditor.Choices(_slot).Count > 0);
-        _choice.Text = LocalizedText(_slot is not null && _slot.Schema.Variants.Count > 0 ? "ChooseVariant" : "Choose");
+
+        bool hasVariants = _slot is not null && _slot.Schema.Variants.Count > 0;
+        int choiceCount = _slot is null ? 0 : TerminalFieldEditor.ChoicePresentations(_slot).Count;
+        bool hasAnyChoices = hasVariants || choiceCount > 0 || (_slot is not null && TerminalFieldEditor.Choices(_slot).Count > 0);
+        _choice.Visible = guided && hasAnyChoices;
+        _choice.Text = LocalizedText(hasVariants ? "ChooseVariant" : "Choose");
+        _choiceList.Visible = guided && !hasVariants && choiceCount > 0;
+
         DefinitionFieldValidation? facts = _slot is null ? null : _operation.Form.GetFieldValidation(_slot.Location);
         _value.ReadOnly = _masked.ReadOnly = facts?.CanEdit != true;
-        _addItem.Enabled = _supplyContainer.Enabled = _choice.Enabled = facts?.CanEdit == true;
+        _addItem.Enabled = _supplyContainer.Enabled = _choice.Enabled = _choiceList.Enabled = facts?.CanEdit == true;
         _clearContainer.Enabled = facts?.CanOmit == true;
-        _null.Visible = !_tooSmall && facts?.CanSetNull == true;
-        _reset.Visible = !_tooSmall && facts?.CanReset == true;
-        _suggest.Visible = !_tooSmall && facts?.CanApplySuggestion == true;
+        _null.Visible = guided && facts?.CanSetNull == true;
+        _reset.Visible = guided && facts?.CanReset == true;
+        _suggest.Visible = guided && facts?.CanApplySuggestion == true;
+        _reuseValue.Visible = guided && _slot?.Schema.PresentationMetadata.SuggestedSource is not null;
         for (int index = 0; index < _itemActions.Length; index++)
-            _itemActions[index].Visible = !_tooSmall && _slot is { IsList: true, IsObjectList: false } &&
+            _itemActions[index].Visible = guided && _slot is { IsList: true, IsObjectList: false } &&
                 TerminalFieldEditor.HasItem(_slot, _itemIndex) &&
                 (index == 0 ? _operation.Form.GetFieldValidation(TerminalFieldEditor.EditLocation(_slot, _itemIndex)).CanSetNull
                     : _operation.Form.GetFieldValidation(TerminalFieldEditor.EditLocation(_slot, _itemIndex)).CanApplySuggestion);
-        foreach (var button in _listButtons) button.Visible = !_tooSmall && _slot is { IsList: true };
+        foreach (var button in _listButtons) button.Visible = guided && _slot is { IsList: true };
         bool secret = scalar && _slot is { RequiresMasking: true };
         _generateSecret.Visible = secret;
+        _secretOptions.Visible = secret && _slot is not null && HasConfigurableSecretOptions(_slot);
         _revealSecret.Visible = secret;
         _copySecret.Visible = secret;
         _revealSecret.Text = LocalizedText(_masked.IsRevealed ? "HideSecret" : "ShowSecret");
+
+        _compactTable.Visible = compact;
+        _compactEditButton.Visible = compact;
+        _compactOmitButton.Visible = compact;
+
+        _reviewSummaryLabel.Visible = review;
+        _reviewJumpButton.Visible = review;
+        _reviewFindButton.Visible = review;
+        _artifactButton.Visible = review;
+        _selectOutputButton.Visible = review;
+        _artifactLabel.Visible = review;
+        _importFileLabel.Visible = review;
+        _importPath.Visible = review;
+        _import.Visible = review;
+        _fillImport.Visible = review;
+        _nextFinding.Visible = review;
+        _comparisonLabel.Visible = review;
+
+        _filesSummaryLabel.Visible = files;
+        _validateButton.Visible = files;
+        _prepare.Visible = files;
+        _save.Visible = files;
+        _clearPrivateButton.Visible = files;
+        _nextOutcome.Visible = files;
+        _nextAttempt.Visible = files;
+        _receiptLabel.Visible = files;
+        _nextActions.Visible = files && _operation.Form.OutputWorkflow.ProposedNextActions.Count > 0;
+
+        LayoutCurrentStage();
     }
 
     private void FocusInput()
     {
+        if (_stage != TerminalWorkbenchStage.Configure) return;
+        if (_configureMode == TerminalConfigureMode.Compact)
+        {
+            _compactTable.SetFocus();
+            return;
+        }
         if (_slot is not null && _slot.Schema.Variants.Count > 0) _choice.SetFocus();
         else if (_slot?.IsMap == true) _masked.SetFocus();
         else if (_slot?.IsObject == true) _supplyContainer.SetFocus();
@@ -279,7 +375,12 @@ internal sealed partial class TerminalWindow
     private void FormViewChanged(object? sender, EventArgs args) =>
         DispatchToOwner(static window =>
         {
-            if (Volatile.Read(ref window._closeRequested) == 0) window.ShowField();
+            if (Volatile.Read(ref window._closeRequested) == 0)
+            {
+                window._sectionNavigator.Refresh();
+                window._compactTable.RefreshRows();
+                window.ShowField();
+            }
         });
 
     private void CycleChoice()
@@ -316,6 +417,11 @@ internal sealed partial class TerminalWindow
     {
         if (_slot is null) return;
         DefinitionPath path = item ? TerminalFieldEditor.EditLocation(_slot, _itemIndex) : _slot.Location;
+        if (action == "ApplySuggestion" && _slot.Schema.PresentationMetadata.SuggestedSource is not null)
+        {
+            if (CommitField()) ReviewTransfer(_operation.Form.ReviewSuggestion(path));
+            return;
+        }
         DefinitionFieldValidation facts = _operation.Form.GetFieldValidation(path);
         if (!(action switch { "SetNull" => facts.CanSetNull, "ResetValue" => facts.CanReset, _ => facts.CanApplySuggestion }))
         {
@@ -345,13 +451,13 @@ internal sealed partial class TerminalWindow
 
     private void ShowHelp()
     {
-        string text = _slot is null ? "" : _slot.Title + " (" + _slot.Type + ")\n" + _slot.Help;
+        string text = _slot is null ? "" : _slot.Help;
         if (_slot is not null)
         {
             DefinitionPath path = _slot.IsList && TerminalFieldEditor.HasItem(_slot, _itemIndex)
                 ? TerminalFieldEditor.EditLocation(_slot, _itemIndex) : _slot.Location;
             string correction = PresentationStrings.FieldCorrection(_operation.Form.GetFieldValidation(path), _operation.Form.Locale);
-            if (correction.Length > 0) text += "\n" + correction;
+            if (correction.Length > 0) text = text.Length > 0 ? text + "\n" + correction : correction;
         }
         if (_slot is not null && _slot.Schema.Variants.Count > 0)
         {
@@ -360,18 +466,23 @@ internal sealed partial class TerminalWindow
                 text += $"\n{LocalizedNumber(selected + 1)}/{LocalizedNumber(_slot.Schema.Variants.Count)} " +
                     _operation.Form.GetVariantTitle(_slot.Location, selected);
         }
-        if (_slot is { IsMap: true }) text = LocalizedText("MapKeyHelp") + "\n" + text;
+        if (_slot is { IsMap: true }) text = LocalizedText("MapKeyHelp") + (text.Length > 0 ? "\n" + text : "");
         if (_slot is { IsList: true } list && TerminalFieldEditor.HasItem(list, _itemIndex))
-            text += "\n" + TerminalStrings.FormatHelp(
+        {
+            string itemHelp = TerminalStrings.FormatHelp(
                 _operation.Form.GetEditorPresentation(TerminalFieldEditor.EditLocation(list, _itemIndex)), list.Schema.Items!.Keywords, _operation.Form.Locale);
+            if (itemHelp.Length > 0) text += (text.Length > 0 ? "\n" : "") + itemHelp;
+        }
         if (_slot is { RequiresMasking: true, IsObject: false, IsObjectList: false })
         {
             DefinitionSecretValidation rules = _operation.Form.GetSecretValidation(
                 TerminalFieldEditor.EditLocation(_slot, _itemIndex));
-            text += "\n" + string.Join("\n", rules.Requirements.Select(rule => rule.Message)
+            string secretText = string.Join("\n", rules.Requirements.Select(rule => rule.Message)
                 .Concat(rules.Failures.Select(rule => LocalizedText("SecretRuleFailed") + " " + rule.Message)));
+            if (secretText.Length > 0) text += (text.Length > 0 ? "\n" : "") + secretText;
         }
-        IReadOnlyList<string> pages = TerminalStrings.HelpPages(text, Math.Max(2, (Viewport.Width - 4) / 2));
+        int contentWidth = Math.Max(24, Viewport.Width - (_sidebarVisible ? 35 : 2));
+        IReadOnlyList<string> pages = TerminalStrings.HelpPages(text, contentWidth, linesPerPage: 3);
         _helpPage %= Math.Max(1, pages.Count);
         _help.Text = pages.Count > 0 ? pages[_helpPage] : "";
         _helpNext.Text = LocalizedText("Help") + $" {LocalizedNumber(_helpPage + 1)}/{LocalizedNumber(Math.Max(1, pages.Count))}";
@@ -399,6 +510,8 @@ internal sealed partial class TerminalWindow
                     form.Fields.Single(input => input.Definition.Id == diagnostic.FieldId).Definition.Name, .. diagnostic.RelativePath]);
             }
             if (!form.FocusEditor(literal)) continue;
+            SetStage(TerminalWorkbenchStage.Configure);
+            SetConfigureMode(TerminalConfigureMode.Guided);
             var slots = VisibleSlots;
             int index = slots.ToList().FindIndex(slot => slot.Location.Equals(literal));
             if (index < 0 && literal.Segments.Count > 0)
@@ -420,4 +533,287 @@ internal sealed partial class TerminalWindow
         Status("DraftInvalid");
     }
 
+    private void OpenOutputTasks()
+    {
+        if (_operation.IsPublishing || _preparing || !CommitField()
+            || _operation.Form.Definition.Presentation?.OutputSelector is not { } selector) return;
+        using var dialog = new TerminalOutputTasksDialog(_operation.Form, _application);
+        _application.Run(dialog);
+        if (dialog.TargetOption is { } target) ReviewTransfer(_operation.Form.ReviewOutputTransition(target));
+    }
+
+    private void ReviewInlineTransfer()
+    {
+        if (_operation.IsPublishing || _preparing || _slot is null || !CommitField()) return;
+        ReviewTransfer(_operation.Form.ReviewSuggestion(TerminalFieldEditor.EditLocation(_slot, _itemIndex)));
+    }
+
+    private void ReviewTransfer(DefinitionTransitionTransferPlan review)
+    {
+        CancelImport();
+        using var dialog = new TerminalTransferReviewDialog(_operation.Form, review, _application);
+        _transferDialog = dialog;
+        try { _application.Run(dialog); }
+        finally { _transferDialog = null; }
+        if (dialog.TransferResult?.Succeeded == true)
+        {
+            _fieldIndex = 0;
+            _itemIndex = 0;
+            ShowField(preserveLocation: false);
+            FocusInput();
+        }
+        RefreshCommands();
+    }
+}
+
+internal sealed class TerminalOutputTasksDialog : Dialog
+{
+    private const int TasksPerPage = 8;
+    private readonly List<Button> _taskButtons = [];
+    private readonly Button _cancel;
+    private readonly Button _previousPage;
+    private readonly Button _nextPage;
+    private int _page;
+    internal TerminalOutputTasksDialog(DefinitionFormModel form,
+        global::Terminal.Gui.App.IApplication? application = null)
+    {
+        Title = TerminalStrings.Get("OutputTasks", form.Locale);
+        Width = Dim.Percent(90);
+        var options = form.Definition.Presentation!.OutputSelector!.Options;
+        Height = Math.Min(TasksPerPage, options.Count) + (options.Count > TasksPerPage ? 6 : 5);
+        int index = 0;
+        foreach (var option in options)
+        {
+            string position = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var state = form.OutputWorkflow.Tasks.Single(task => task.Option == option.Value);
+            string text = form.LocalizedText(DefinitionPath.FromSegments(
+                ["presentation", "outputSelector", "options", position, "title"]), option.Title)!
+                + " | " + PresentationStrings.OutputStatus(state, form.Locale);
+            var button = new Button
+            {
+                X = 0,
+                Y = index++,
+                Width = Dim.Fill(),
+                Height = 1,
+                ShadowStyle = null,
+                Text = new string(text.Select(character => char.IsControl(character) ? ' ' : character).ToArray()),
+                HotKeySpecifier = (Rune)0xffff
+            };
+            _taskButtons.Add(button);
+            button.Accepting += (_, args) =>
+            {
+                args.Handled = true;
+                TargetOption = option.Value;
+                application?.RequestStop(this);
+            };
+            Add(button);
+        }
+        _previousPage = new Button
+        {
+            X = 0,
+            Y = TasksPerPage,
+            Width = Dim.Fill(),
+            Height = 1,
+            ShadowStyle = null,
+            Text = TerminalStrings.Get("PreviousTaskPage", form.Locale),
+            Visible = options.Count > TasksPerPage
+        };
+        _previousPage.Accepting += (_, args) => { args.Handled = true; MovePage(-1); };
+        _nextPage = new Button
+        {
+            X = 0,
+            Y = TasksPerPage + 1,
+            Width = Dim.Fill(),
+            Height = 1,
+            ShadowStyle = null,
+            Text = TerminalStrings.Get("NextTaskPage", form.Locale),
+            Visible = options.Count > TasksPerPage
+        };
+        _nextPage.Accepting += (_, args) => { args.Handled = true; MovePage(1); };
+        Add(_previousPage, _nextPage);
+        _cancel = new Button
+        {
+            X = 0,
+            Y = Math.Min(TasksPerPage, options.Count) + (options.Count > TasksPerPage ? 2 : 0),
+            Width = Dim.Fill(),
+            Height = 1,
+            ShadowStyle = null,
+            Text = PresentationStrings.Get("TransferCancel", form.Locale)
+        };
+        _cancel.Accepting += (_, args) => { args.Handled = true; TargetOption = null; application?.RequestStop(this); };
+        Add(_cancel);
+        ShowPage();
+    }
+
+    internal string? TargetOption { get; private set; }
+
+    private void MovePage(int delta)
+    {
+        _page = Math.Clamp(_page + delta, 0, (_taskButtons.Count - 1) / TasksPerPage);
+        ShowPage();
+        _taskButtons[_page * TasksPerPage].SetFocus();
+    }
+
+    private void ShowPage()
+    {
+        int first = _page * TasksPerPage;
+        for (int index = 0; index < _taskButtons.Count; index++)
+        {
+            _taskButtons[index].Visible = index >= first && index < first + TasksPerPage;
+            if (_taskButtons[index].Visible) _taskButtons[index].Y = index - first;
+        }
+        _previousPage.Enabled = _page > 0;
+        _nextPage.Enabled = first + TasksPerPage < _taskButtons.Count;
+    }
+}
+
+/// <summary>Retains only candidate identities and deliberate choices; previews are read when displayed.</summary>
+internal sealed class TerminalTransferReviewDialog : Dialog
+{
+    private readonly DefinitionFormModel _form;
+    private readonly DefinitionTransitionTransferPlan _review;
+    private readonly global::Terminal.Gui.App.IApplication? _application;
+    private readonly HashSet<int> _selected;
+    private readonly Label _detail;
+    private readonly Button _toggle;
+    private readonly Button _apply;
+    private readonly Button? _switchOnly;
+    private readonly Button _cancel;
+    private int _index;
+
+    internal TerminalTransferReviewDialog(DefinitionFormModel form, DefinitionTransitionTransferPlan review,
+        global::Terminal.Gui.App.IApplication? application = null)
+    {
+        _form = form;
+        _review = review;
+        _application = application;
+        _selected = review.Candidates.Where(candidate => candidate.SelectedByDefault && !candidate.DestinationProvided)
+            .Select(candidate => candidate.Id).ToHashSet();
+        Title = ReviewText("TransferReviewTitle");
+        Width = Dim.Percent(90);
+        Height = 17;
+        _detail = new Label
+        {
+            X = 0,
+            Y = 0,
+            Width = Dim.Fill(),
+            Height = 7,
+            HotKeySpecifier = (Rune)0xffff
+        };
+        var next = new Button
+        {
+            X = 0,
+            Y = 8,
+            Height = 1,
+            ShadowStyle = null,
+            Text = TerminalStrings.Get("TransferNextCandidate", form.Locale)
+        };
+        next.Accepting += (_, args) => { args.Handled = true; MoveCandidate(); };
+        _toggle = new Button
+        {
+            X = 0,
+            Y = 9,
+            Height = 1,
+            ShadowStyle = null,
+            Text = TerminalStrings.Get("TransferSelect", form.Locale)
+        };
+        _toggle.Accepting += (_, args) => { args.Handled = true; ToggleCandidate(); };
+        _apply = new Button
+        {
+            X = 0,
+            Y = 10,
+            Width = Dim.Fill(),
+            Height = 1,
+            ShadowStyle = null,
+            Text = ReviewText(review.TargetOption is null ? "TransferApply" : "TransferApplyAndSwitch"),
+            Enabled = review.TargetOption is not null || review.Candidates.Count > 0
+        };
+        _apply.Accepting += (_, args) => { args.Handled = true; Apply(false); };
+        Add(_detail, next, _toggle);
+        Add(_apply);
+        if (review.TargetOption is not null)
+        {
+            _switchOnly = new Button
+            {
+                X = 0,
+                Y = 11,
+                Width = Dim.Fill(),
+                Height = 1,
+                ShadowStyle = null,
+                Text = ReviewText("TransferSwitchWithoutCopy")
+            };
+            _switchOnly.Accepting += (_, args) => { args.Handled = true; Apply(true); };
+            Add(_switchOnly);
+        }
+        _cancel = new Button
+        {
+            X = 0,
+            Y = review.TargetOption is null ? 11 : 12,
+            Width = Dim.Fill(),
+            Height = 1,
+            ShadowStyle = null,
+            Text = ReviewText("TransferCancel")
+        };
+        _cancel.Accepting += (_, args) => { args.Handled = true; ClearPreview(); application?.RequestStop(this); };
+        Add(_cancel);
+        form.InputChanged += InputChanged;
+        ShowCandidate();
+    }
+
+    internal DefinitionTransferResult? TransferResult { get; private set; }
+    private string ReviewText(string key) => PresentationStrings.Get(key, _form.Locale);
+
+    internal void MoveCandidate()
+    {
+        if (_review.Candidates.Count == 0) return;
+        _index = (_index + 1) % _review.Candidates.Count;
+        ShowCandidate();
+    }
+
+    internal void ToggleCandidate()
+    {
+        if (_review.Candidates.Count == 0) return;
+        int id = _review.Candidates[_index].Id;
+        if (!_selected.Add(id)) _selected.Remove(id);
+        ShowCandidate();
+    }
+
+    internal void Apply(bool switchWithoutCopy)
+    {
+        TransferResult = _form.ApplyTransfer(_review, switchWithoutCopy ? [] : _selected);
+        ClearPreview();
+        if (TransferResult.Succeeded) _application?.RequestStop(this);
+        else _detail.Text = ReviewText("TransferStale");
+    }
+
+    private void ShowCandidate()
+    {
+        _toggle.Enabled = _review.Candidates.Count > 0;
+        if (_review.Candidates.Count == 0) { _detail.Text = ReviewText("TransferUnavailable"); return; }
+        var candidate = _review.Candidates[_index];
+        string preview = candidate.RequiresMasking ? ReviewText("TransferMasked")
+            : _form.ReadTransferPreview(_review, candidate.Id)?.ToString() ?? ReviewText("TransferUnavailable");
+        _detail.Text = new string(($"{_index + 1}/{_review.Candidates.Count} "
+            + $"{candidate.SourceTitle} -> {candidate.TargetTitle}\n{preview}\n"
+            + (candidate.DestinationProvided ? ReviewText("TransferOverwrite") + "\n" : string.Empty)
+            + TerminalStrings.Get(_selected.Contains(candidate.Id) ? "Selected" : "NotSelected", _form.Locale))
+            .Select(character => char.IsControl(character) && character != '\n' ? ' ' : character).ToArray());
+    }
+
+    private void ClearPreview() => _detail.Text = string.Empty;
+    internal void Retire()
+    {
+        ClearPreview();
+        _application?.RequestStop(this);
+    }
+    private void InputChanged(object? sender, EventArgs args)
+    {
+        Retire();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { _form.InputChanged -= InputChanged; ClearPreview(); _selected.Clear(); }
+        base.Dispose(disposing);
+    }
 }

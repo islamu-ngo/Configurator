@@ -1,0 +1,29 @@
+Change-Id: CHG-01M7E0AX1JXPZ16CW9WGA3D2VX
+Title: "Connect Terminal section compact and document editing"
+Type: feat
+Scope: self-hosting
+Summary: "Integrate shared workspace projections with Terminal navigation, guided and compact settings, document editing, metadata discovery, local secret options and explicit task-transfer review."
+Group: terminal-workspace-integration
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: documented
+    Detail: "One shared workspace remains authoritative across editing modes. Protected table rows stay masked, and document/transfer adoption remains explicit."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Section navigation, compact/document editing, local secret options and command controls share the same accepted configuration."
+  OpenAPI:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "The native workbench exposes guided, compact and document views with explicit review and save stages."

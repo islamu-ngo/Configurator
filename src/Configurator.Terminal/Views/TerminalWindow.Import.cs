@@ -90,7 +90,9 @@ internal sealed partial class TerminalWindow
         _status.Text = Safe(eligibility + " " + PresentationStrings.ImportAutofill(form.ImportAutofillCode, form.Locale) +
             (form.CanAdoptImportComparison ? "" : " " + LocalizedText("ComparisonRecovery")));
         _status.ClearHistoryChanges();
+        _comparisonLabel.Text = _help.Text;
         _help.SetNeedsDraw();
+        _comparisonLabel.SetNeedsDraw();
         _status.SetNeedsDraw();
     }
 

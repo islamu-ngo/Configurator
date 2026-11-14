@@ -24,7 +24,17 @@ internal static class TerminalStrings
         var parts = new List<string>();
         if (presentation.Description is { Length: > 0 } description) parts.Add(description);
         if (presentation.Instructions is { Length: > 0 } instructions) parts.Add(instructions);
-        if (presentation.Units is { Length: > 0 } units) parts.Add(units);
+        var qualifiers = new List<string>();
+        if (presentation.Units is { Length: > 0 } units) qualifiers.Add(Get("UnitsLabel") + ": " + units);
+        if (presentation.IfOmittedDisplay is { Length: > 0 } ifOmitted) qualifiers.Add(ifOmitted);
+        if (qualifiers.Count > 0) parts.Add(string.Join(" | ", qualifiers));
+        if (presentation.IsDeprecated)
+        {
+            string badge = presentation.DeprecationGuidance is { Length: > 0 } guide
+                ? Get("DeprecatedBadge") + ": " + guide
+                : Get("DeprecatedBadge");
+            parts.Add(badge);
+        }
         if (metadata.TryGetProperty("x-configurator", out JsonElement extension) &&
             extension.TryGetProperty("secret", out JsonElement secret))
             parts.Add(Get(secret.GetProperty("acquisition").GetString() switch
@@ -33,32 +43,47 @@ internal static class TerminalStrings
                 "local" => "CredentialCreate",
                 _ => "CredentialExisting"
             }));
-        parts.AddRange(presentation.Choices.Where(choice => choice.Explanation is { Length: > 0 })
-            .Select(choice => choice.Label + ": " + choice.Explanation));
+        parts.AddRange(presentation.Choices.Where(choice => choice.Explanation is { Length: > 0 } || choice.IsDeprecated)
+            .Select(choice => choice.Label
+                + (choice.HasCopyableWireToken && choice.WireToken != choice.Label ? $" ({choice.WireToken})" : "")
+                + (choice.IsDeprecated && choice.DeprecationGuidance is { Length: > 0 } dep
+                    ? $" [{Get("DeprecatedBadge")}: {dep}]" : "")
+                + (choice.Explanation is { Length: > 0 } exp ? ": " + exp : "")));
         parts.AddRange(presentation.Links.Select(link => link.Title + ": " + link.Url));
         return string.Join("\n", parts);
     }
 
     /// <summary>Pages inert public guidance without interpreting markup, links or terminal escape sequences.</summary>
-    internal static IReadOnlyList<string> HelpPages(string text, int width)
+    internal static IReadOnlyList<string> HelpPages(string text, int width, int linesPerPage = 3)
     {
         width = Math.Max(1, width);
+        linesPerPage = Math.Max(1, linesPerPage);
         var lines = new List<string>();
         foreach (string paragraph in text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
         {
-            string safe = new(paragraph.Select(character => char.IsControl(character) ? ' ' : character).ToArray());
+            string safe = Safe(paragraph);
             if (safe.Length == 0) lines.Add("");
             for (int start = 0; start < safe.Length;)
             {
-                int length = Math.Min(width, safe.Length - start);
-                if (start + length < safe.Length && char.IsHighSurrogate(safe[start + length - 1])) length--;
-                if (length == 0) length = Math.Min(2, safe.Length - start);
+                int remaining = safe.Length - start;
+                if (remaining <= width)
+                {
+                    lines.Add(safe[start..]);
+                    break;
+                }
+                int length = width;
+                int breakAt = safe.LastIndexOf(' ', start + width - 1, width);
+                if (breakAt > start) length = breakAt - start;
+                else if (char.IsHighSurrogate(safe[start + length - 1])) length--;
+                if (length <= 0) length = Math.Min(2, remaining);
                 lines.Add(safe.Substring(start, length));
                 start += length;
+                while (start < safe.Length && safe[start] == ' ') start++;
             }
         }
-        return Enumerable.Range(0, (lines.Count + 1) / 2)
-            .Select(index => string.Join("\n", lines.Skip(index * 2).Take(2))).ToArray();
+        int pageCount = (lines.Count + linesPerPage - 1) / linesPerPage;
+        return Enumerable.Range(0, pageCount)
+            .Select(index => string.Join("\n", lines.Skip(index * linesPerPage).Take(linesPerPage))).ToArray();
     }
     internal static string FormatReceipt(ProtectedArtifactPublicationReceipt receipt, int index, string locale = "en")
     {

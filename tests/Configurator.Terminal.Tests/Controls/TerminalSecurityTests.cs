@@ -2,8 +2,11 @@ namespace Configurator.Terminal.Tests;
 
 using System.Security.Cryptography;
 using Configurator.Artifacts;
+using Configurator.Core.Definitions;
+using Configurator.Presentation;
 using Configurator.Terminal;
 using global::Terminal.Gui.Input;
+using global::Terminal.Gui.ViewBase;
 
 public sealed class TerminalSecurityTests
 {
@@ -152,5 +155,50 @@ public sealed class TerminalSecurityTests
             await Assert.That(Directory.EnumerateFiles(directory).Count()).IsEqualTo(1);
         }
         finally { Directory.Delete(directory, true); }
+    }
+
+    [Test]
+    public async Task SecretGeneratorDialogZeroesBuffersOnCancelAndNeverEmitsOsc52()
+    {
+        string source = """
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"5c11a8f3-8d95-4b23-b1dc-8e2f6308339e","revision":1},
+             "project":{"id":"terminal.secret.dialog","name":"Secret Dialog","publisher":"example"},
+             "applicationVersions":["1"],"entryPoints":["setup"],
+             "configuration":{"type":"object","additionalProperties":false,
+               "x-configurator":{"sensitivity":"public"},
+               "properties":{"password":{"title":"Password","type":"string","minLength":16,"maxLength":128,
+                 "x-configurator":{"sensitivity":"secret","detail":"basic",
+                   "secret":{"kind":"password","acquisition":"local","generation":{"length":24}}}}}},
+             "outputs":{"config.json":{"id":"config","format":"json","targetUpdateMode":"create","restartRequirement":"process",
+               "projection":{"op":"object","members":{}}}}}
+            """;
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes(source)));
+        using DefinitionSecretGeneratorSession session = form.CreateSecretGeneratorSession(["password"])!;
+
+        var dialog = new TerminalSecretGeneratorDialog(form, session);
+        try
+        {
+            await Assert.That(dialog.X).IsEqualTo(Pos.Center());
+            await Assert.That(dialog.Y).IsEqualTo(Pos.Center());
+            await Assert.That(await dialog.PreviewCandidateAsync()).IsTrue();
+            await Assert.That(dialog.PreviewBuffer.Count).IsGreaterThanOrEqualTo(24);
+            string previewText = dialog.ExportAllVisibleText();
+            await Assert.That(previewText).DoesNotContain("\x1b]52;");
+
+            dialog.CancelAndClear();
+            await Assert.That(dialog.PreviewBuffer.Count).IsEqualTo(0);
+            await Assert.That(session.HasCandidate).IsFalse();
+            await Assert.That(form.Snapshot().Values.ContainsKey("password")).IsFalse();
+
+            await Assert.That(await dialog.PreviewCandidateAsync()).IsTrue();
+            await Assert.That(dialog.PreviewBuffer.Count).IsGreaterThanOrEqualTo(24);
+        }
+        finally
+        {
+            dialog.Dispose();
+        }
+        await Assert.That(dialog.PreviewBuffer.Count).IsEqualTo(0);
+        await Assert.That(form.Snapshot().Values.ContainsKey("password")).IsFalse();
     }
 }
