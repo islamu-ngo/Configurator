@@ -14,7 +14,7 @@ internal sealed class DefinitionFormFacts
     private readonly HashSet<DefinitionPath> _requiredPaths = [];
     private readonly Dictionary<DefinitionPath, IReadOnlyList<DefinitionFieldCorrectionReason>> _correctionReasons = [];
     private readonly record struct EntryState(DefinitionFormIndex.Node Metadata, DefinitionFormSection Section,
-        DefinitionNodeState Node, bool InputError, bool Deferred, DefinitionAnswerOrigin Origin,
+        DefinitionNodeState Node, DefinitionPath LiteralPath, bool InputError, bool Deferred, DefinitionAnswerOrigin Origin,
         IReadOnlyList<string>? Artifacts, IReadOnlyList<string>? BindingKeys);
 
     internal DefinitionFormFacts(DefinitionFormModel form, DefinitionFormIndex index,
@@ -79,24 +79,38 @@ internal sealed class DefinitionFormFacts
         }
         foreach (var (path, reasons) in correctionReasons)
             _correctionReasons.Add(path, Array.AsReadOnly(reasons.Distinct().ToArray()));
+
+        DefinitionPath NodeLiteralPath(DefinitionNodeState node) =>
+            node.Location is { } location && form.TryCorrectionPath(node.FieldId, location, validation, out IReadOnlyList<string> path)
+                ? node.FieldId.Length == 0 ? DefinitionPath.FromSegments(path) : form.DataPath(path)
+                : form.DataPath([node.FieldId, .. node.RelativePath]);
+
+        DefinitionPath DiagnosticLiteralPath(DefinitionDiagnostic diagnostic) =>
+            diagnostic.Location is { } location && form.TryCorrectionPath(diagnostic.FieldId, location, validation, out IReadOnlyList<string> path)
+                ? diagnostic.FieldId.Length == 0 ? DefinitionPath.FromSegments(path) : form.DataPath(path)
+                : form.DataPath([diagnostic.FieldId, .. diagnostic.RelativePath]);
+
         Progress = CountProgress(validation.Nodes, validation.Diagnostics, InputDiagnostics);
         SectionProgress = new ReadOnlyDictionary<string, DefinitionFormProgress>(form.Sections.ToDictionary(
             section => section.Id, section => form.Sections.Count == 1 &&
-                section.Fields.Count == index.FieldIds.Count ? Progress : CountProgress(
-                validation.Nodes.Where(node => index.SectionsByField.TryGetValue(node.FieldId, out var owner) &&
-                    owner.Id == section.Id),
-                validation.Diagnostics.Where(diagnostic => index.SectionsByField.TryGetValue(diagnostic.FieldId, out var owner) &&
-                    owner.Id == section.Id),
-                InputDiagnostics.Where(diagnostic => index.SectionsByField.TryGetValue(diagnostic.FieldId, out var owner) &&
-                    owner.Id == section.Id).ToArray()),
+                index.SectionsByPointer.Count <= 1 ? Progress : CountProgress(
+                validation.Nodes.Where(node => index.ResolveSection(NodeLiteralPath(node))?.Id == section.Id),
+                validation.Diagnostics.Where(diagnostic => index.ResolveSection(DiagnosticLiteralPath(diagnostic))?.Id == section.Id),
+                InputDiagnostics.Where(diagnostic => index.ResolveSection(DiagnosticLiteralPath(diagnostic))?.Id == section.Id).ToArray()),
             StringComparer.Ordinal));
+
+        var sectionActivePaths = form.Sections.ToDictionary(section => section.Id, _ => new HashSet<DefinitionPath>(), StringComparer.Ordinal);
+        var sectionSuppliedOptional = form.Sections.ToDictionary(section => section.Id, _ => 0, StringComparer.Ordinal);
+        var sectionActiveCount = form.Sections.ToDictionary(section => section.Id, _ => 0, StringComparer.Ordinal);
+
         var entries = new List<EntryState>(validation.Nodes.Count);
         foreach (var (node, path) in resolvedNodes)
         {
             DefinitionFormIndex.Node metadata;
             if (!(node.FieldId.Length == 0 ? form.TryRootMetadata(path, out metadata, out _, validation)
                 : form.TryMetadataNode(path, out metadata, out _, validation))) continue;
-            DefinitionFormSection section = index.SectionsByField.GetValueOrDefault(node.FieldId) ?? form.Sections[0];
+            DefinitionPath literalPath = node.FieldId.Length == 0 ? DefinitionPath.FromSegments(path) : form.DataPath(path);
+            DefinitionFormSection section = index.ResolveSection(literalPath) ?? form.Sections[0];
             bool inputError = false;
             for (int diagnosticIndex = 0; diagnosticIndex < InputDiagnostics.Count; diagnosticIndex++)
             {
@@ -109,11 +123,28 @@ internal sealed class DefinitionFormFacts
             bool deferred = !inputError && IsDeferredLeaf(node);
             DefinitionAnswerOrigin origin = node.FieldId.Length == 0 ? form.RootAnswerOrigin(path, validation)
                 : form.AnswerOrigin(path, validation);
+            if (node.IsActive && !(node.FieldId.Length > 0 && form.IsConfigurationSelector([node.FieldId], validation)))
+            {
+                sectionActivePaths[section.Id].Add(literalPath);
+                sectionActiveCount[section.Id]++;
+                if (!node.IsObligation && (node.IsProvided ||
+                    origin is DefinitionAnswerOrigin.Explicit or DefinitionAnswerOrigin.Imported or DefinitionAnswerOrigin.Generated))
+                {
+                    sectionSuppliedOptional[section.Id]++;
+                }
+            }
             index.Bindings.TryGetValue(node.FieldId, out var binding);
-            entries.Add(new(metadata, section, node, inputError, deferred, origin, binding.Artifacts, binding.Keys));
+            entries.Add(new(metadata, section, node, literalPath, inputError, deferred, origin, binding.Artifacts, binding.Keys));
         }
+        SectionActivePaths = sectionActivePaths;
+        SectionActivity = form.Sections.ToDictionary(
+            section => section.Id,
+            section => (sectionActiveCount[section.Id], sectionSuppliedOptional[section.Id]),
+            StringComparer.Ordinal);
         EntryState[] capturedEntries = entries.ToArray();
-        Entries = CreateEntries(capturedEntries, index, _activeFields);
+        var entriesWithPaths = CreateEntries(capturedEntries, index, _activeFields);
+        Entries = new(() => entriesWithPaths.Value.Entries);
+        EntryLiteralPaths = new(() => entriesWithPaths.Value.LiteralPaths);
         RelevantPaths = CreateRelevantPaths(capturedEntries, index);
 
         bool IsDeferredLeaf(DefinitionNodeState node) =>
@@ -158,12 +189,34 @@ internal sealed class DefinitionFormFacts
 
     }
 
-    private static Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> CreateEntries(EntryState[] entries,
+    private static Lazy<(IReadOnlyList<DefinitionDiscoveryEntry> Entries, IReadOnlyDictionary<string, DefinitionPath> LiteralPaths)> CreateEntries(
+        EntryState[] entries,
         DefinitionFormIndex index, IReadOnlySet<string> activeFields) =>
-        new(() => Array.AsReadOnly(entries.Select(entry => new DefinitionDiscoveryEntry(
-            entry.Metadata, entry.Section, entry.Node, entry.InputError, entry.Deferred, entry.Origin,
-            entry.Artifacts, entry.BindingKeys, entry.Node.IsActive ? [] :
-                ActiveControllers(entry.Metadata, index, activeFields))).ToArray()));
+        new(() =>
+        {
+            var list = new DefinitionDiscoveryEntry[entries.Length];
+            var paths = new Dictionary<string, DefinitionPath>(entries.Length, StringComparer.Ordinal);
+            for (int i = 0; i < entries.Length; i++)
+            {
+                EntryState entry = entries[i];
+                var item = new DefinitionDiscoveryEntry(
+                    entry.Metadata, entry.Section, entry.Node, entry.InputError, entry.Deferred, entry.Origin,
+                    entry.Artifacts, entry.BindingKeys, entry.Node.IsActive ? [] :
+                        ActiveControllers(entry.Metadata, index, activeFields));
+                list[i] = item;
+                paths[SafePathKey(entry.Node.FieldId, entry.Node.RelativePath)] = entry.LiteralPath;
+            }
+            return (Array.AsReadOnly(list), new ReadOnlyDictionary<string, DefinitionPath>(paths));
+        });
+
+    internal static string SafePathKey(string fieldId, IReadOnlyList<string> relativePath)
+    {
+        if (relativePath.Count == 0) return fieldId;
+        var parts = new string[relativePath.Count + 1];
+        parts[0] = fieldId;
+        for (int i = 0; i < relativePath.Count; i++) parts[i + 1] = relativePath[i];
+        return string.Join('\0', parts);
+    }
 
     private static Lazy<IReadOnlySet<DefinitionPath>> CreateRelevantPaths(EntryState[] entries, DefinitionFormIndex index) =>
         new(() =>
@@ -207,7 +260,10 @@ internal sealed class DefinitionFormFacts
     internal DefinitionFormProgress Progress { get; }
     internal IReadOnlyDictionary<string, DefinitionFormProgress> SectionProgress { get; }
     internal Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> Entries { get; }
+    internal Lazy<IReadOnlyDictionary<string, DefinitionPath>> EntryLiteralPaths { get; }
     internal Lazy<IReadOnlySet<DefinitionPath>> RelevantPaths { get; }
+    internal IReadOnlyDictionary<string, HashSet<DefinitionPath>> SectionActivePaths { get; }
+    internal IReadOnlyDictionary<string, (int ActiveCount, int SuppliedOptionalCount)> SectionActivity { get; }
     internal IEnumerable<DefinitionPath> CorrectionPaths => _correctionPaths;
     internal IEnumerable<DefinitionPath> PromotionPaths => _promotionPaths;
     internal bool IsActive(string fieldId) => _activeFields.Contains(fieldId);

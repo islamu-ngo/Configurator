@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
   <data name="ProfileReplace" xml:space="preserve"><value>استبدال القيمة المحتفظ بها</value></data>
+  <data name="ProfileRetained" xml:space="preserve"><value>محتفظ بها للإخراج المقيد. لا تتوفر إمكانية الكشف أو النسخ أو المعاينة.</value></data>
+  <data name="ProfileReplacementRequired" xml:space="preserve"><value>استبدل هذا الحقل المحتفظ به صراحة قبل المتابعة. لا يمكن للتراجع استعادة قيمته السابقة المحتفظ بها.</value></data>
+  <data name="ProfileWorkerCustody" xml:space="preserve"><value>تبقى ملفات المتصفح المشفرة داخل العامل المخصص لمساحة العمل.</value></data>
   <data name="FieldRequired" xml:space="preserve"><value>أدخل هذه القيمة المطلوبة.</value></data>
   <data name="FieldType" xml:space="preserve"><value>أدخل قيمة من النوع المحدد.</value></data>
   <data name="FieldConstraint" xml:space="preserve"><value>صحح القيمة لتطابق المتطلبات المحددة.</value></data>
@@ -69,6 +72,18 @@
   <data name="ImportStale" xml:space="preserve"><value>مرفوض: قارن الملف الحالي مجدداً.</value></data>
   <data name="ImportWorkspaceUnsupported" xml:space="preserve"><value>مرفوض: لا يمكن لمساحة العمل تخزين جميع الإعدادات المستردة.</value></data>
   <data name="ImportAutofillRefused" xml:space="preserve"><value>مرفوض: الملف غير مؤهل للتعبئة التلقائية الصارمة.</value></data>
+  <data name="SecretOptionsOutOfBounds" xml:space="preserve"><value>خيارات توليد السر خارج الحدود المسموح بها.</value></data>
+  <data name="SecretGenerationPolicyInvalid" xml:space="preserve"><value>أبقِ جميع فئات المحارف المطلوبة في المخطط مفعّلة ومتاحة.</value></data>
+  <data name="SecretGenerationEntropyInsufficient" xml:space="preserve"><value>زِد الطول أو المحارف المسموح بها لبلوغ ما لا يقل عن 128 بت من العشوائية.</value></data>
+  <data name="IfOmittedFormat" xml:space="preserve"><value>إذا تُرك فارغاً: {0}</value></data>
+  <data name="ControllerImpactSummary" xml:space="preserve"><value>يتحكم في {0} إعدادات عبر {1} أقسام</value></data>
+  <data name="RedactedValue" xml:space="preserve"><value>••••••••</value></data>
+  <data name="PrivateMapEntryLabel" xml:space="preserve"><value>مدخل محمي #{0}</value></data>
+  <data name="BooleanTrueDefault" xml:space="preserve"><value>نعم</value></data>
+  <data name="BooleanFalseDefault" xml:space="preserve"><value>لا</value></data>
+  <data name="StageConfigure" xml:space="preserve"><value>التهيئة</value></data>
+  <data name="StageReview" xml:space="preserve"><value>المراجعة</value></data>
+  <data name="StageOutput" xml:space="preserve"><value>الملفات</value></data>
   <data name="UndoActionEdit" xml:space="preserve"><value>تعديل الإعداد</value></data>
   <data name="UndoActionOmit" xml:space="preserve"><value>إغفال الإعداد</value></data>
   <data name="UndoActionReset" xml:space="preserve"><value>إعادة تعيين الإعداد</value></data>
@@ -81,5 +96,50 @@
   <data name="UndoActionGenerateSecret" xml:space="preserve"><value>تطبيق السر المولّد</value></data>
   <data name="UndoActionDocument" xml:space="preserve"><value>تطبيق المستند</value></data>
   <data name="UndoActionImport" xml:space="preserve"><value>استيراد الإعدادات</value></data>
+  <data name="CommandUndoTitle" xml:space="preserve"><value>التراجع عن آخر تغيير</value></data>
+  <data name="CommandUndoSubtitle" xml:space="preserve"><value>إرجاع آخر تعديل في مساحة العمل</value></data>
+  <data name="CommandRedoTitle" xml:space="preserve"><value>إعادة التغيير</value></data>
+  <data name="CommandRedoSubtitle" xml:space="preserve"><value>إعادة تطبيق التعديل المُتراجع عنه</value></data>
+  <data name="CommandGuidedTitle" xml:space="preserve"><value>التبديل إلى النموذج الموجّه</value></data>
+  <data name="CommandGuidedSubtitle" xml:space="preserve"><value>عرض الأقسام مع الإرشادات خطوة بخطوة</value></data>
+  <data name="CommandCompactTitle" xml:space="preserve"><value>التبديل إلى الجدول المضغوط</value></data>
+  <data name="CommandCompactSubtitle" xml:space="preserve"><value>عرض وتعديل الإعدادات في جدول كثيف سريع التنقل</value></data>
+  <data name="CommandReviewTitle" xml:space="preserve"><value>فتح مرحلة المراجعة</value></data>
+  <data name="CommandReviewSubtitle" xml:space="preserve"><value>مراجعة الأخطاء والأسرار المؤجلة ومصادر القيم</value></data>
+  <data name="CommandFilesTitle" xml:space="preserve"><value>فتح الملفات والمخرجات</value></data>
+  <data name="CommandFilesSubtitle" xml:space="preserve"><value>تحضير أو تنزيل أو حفظ ملفات التهيئة الناتجة</value></data>
+  <data name="CommandToggleNamingTitle" xml:space="preserve"><value>تبديل التسمية المبسطة / التقنية</value></data>
+  <data name="CommandToggleNamingSubtitle" xml:space="preserve"><value>التبديل بين العناوين المقروءة والمفاتيح التقنية</value></data>
+  <data name="CommandToggleInspectorTitle" xml:space="preserve"><value>إظهار / إخفاء المفتش السياقي</value></data>
+  <data name="CommandToggleInspectorSubtitle" xml:space="preserve"><value>عرض توثيق المخطط وتأثير المتحكم</value></data>
+  <data name="CommandDocumentTitle" xml:space="preserve"><value>فتح محرر المستند النصي</value></data>
+  <data name="CommandDocumentSubtitle" xml:space="preserve"><value>تحرير التهيئة كنص منظم مع معاينة التغييرات قبل التطبيق</value></data>
+  <data name="CommandShortcutsTitle" xml:space="preserve"><value>دليل اختصارات لوحة المفاتيح</value></data>
+  <data name="CommandShortcutsSubtitle" xml:space="preserve"><value>عرض اختصارات التنقل والتحرير والوصول السريع</value></data>
+  <data name="CommandNextErrorTitle" xml:space="preserve"><value>الانتقال إلى الخطأ التالي</value></data>
+  <data name="CommandNextErrorSubtitle" xml:space="preserve"><value>تحديد القسم التالي الذي يحتوي على أخطاء</value></data>
+  <data name="CommandNextRequiredTitle" xml:space="preserve"><value>الانتقال إلى القسم المطلوب التالي</value></data>
+  <data name="CommandNextRequiredSubtitle" xml:space="preserve"><value>تحديد القسم التالي ذي الإعدادات المطلوبة الناقصة</value></data>
+  <data name="CommandNextUnvisitedTitle" xml:space="preserve"><value>الانتقال إلى القسم غير المفتوح التالي</value></data>
+  <data name="CommandNextUnvisitedSubtitle" xml:space="preserve"><value>تحديد القسم التالي الذي لم يُفتح للمراجعة بعد</value></data>
+  <data name="OutputStatusNotExported" xml:space="preserve"><value>لم يُصدّر بعد</value></data>
+  <data name="OutputStatusPartial" xml:space="preserve"><value>صُدّرت بعض الملفات</value></data>
+  <data name="OutputStatusExportedCurrent" xml:space="preserve"><value>صُدّرت جميع الملفات المؤهلة</value></data>
+  <data name="OutputStatusExportedStale" xml:space="preserve"><value>تغيرت الإجابات منذ التصدير</value></data>
+  <data name="OutputDeliveryClipboardCopied" xml:space="preserve"><value>نُسخ إلى الحافظة</value></data>
+  <data name="OutputDeliveryDownloadRequested" xml:space="preserve"><value>طُلب التنزيل</value></data>
+  <data name="OutputDeliveryNativeSaveVerified" xml:space="preserve"><value>حُفظ محليًا وتم التحقق منه</value></data>
   <data name="UndoActionTransfer" xml:space="preserve"><value>تطبيق القيم المراجعة</value></data>
+  <data name="TransferReviewTitle" xml:space="preserve"><value>مراجعة القيم المقترحة</value></data>
+  <data name="TransferApply" xml:space="preserve"><value>تطبيق القيم المحددة</value></data>
+  <data name="TransferApplyAndSwitch" xml:space="preserve"><value>تطبيق القيم المحددة والانتقال</value></data>
+  <data name="TransferSwitchWithoutCopy" xml:space="preserve"><value>الانتقال دون نسخ</value></data>
+  <data name="TransferCancel" xml:space="preserve"><value>إلغاء</value></data>
+  <data name="TransferOverwrite" xml:space="preserve"><value>استبدال القيمة المدخلة أو الحذف الصريح</value></data>
+  <data name="TransferMasked" xml:space="preserve"><value>قيمة محمية؛ المعاينة محجوبة</value></data>
+  <data name="TransferUnavailable" xml:space="preserve"><value>لا تتوفر قيم مقترحة مؤهلة.</value></data>
+  <data name="TransferStale" xml:space="preserve"><value>تغيرت مساحة العمل. راجع القيم مجددًا.</value></data>
+  <data name="NextActionsTitle" xml:space="preserve"><value>مهام إخراج ذات صلة</value></data>
+  <data name="TransferFrom" xml:space="preserve"><value>من</value></data>
+  <data name="TransferPreviewLimited" xml:space="preserve"><value>المعاينة مختصرة؛ تُطبّق القيمة كاملة.</value></data>
 </root>

@@ -786,35 +786,6 @@ the editor and stale confirmations cannot discard a newer owner. Section and
 appearance changes remain presentation operations inside the pinned workspace;
 they do not introduce shared answer caches or target authority.
 
-## Memory-only undo and redo
-
-`DefinitionFormUndoHistory` retains at most 32 accepted-state transitions.
-Deliberate editing callers supply localized labels; the outer mutation captures
-before/after states and records only changes that publish an input revision.
-Undo/redo restores values, omissions, drafts, origins and logical row identities
-through the existing accepted-state owner, then advances the global revision.
-`SetSecretEntryEnabled(false)` synchronously purges secret history;
-`ClearPrivateState()` purges protected history; disposal retires both stacks.
-Clearing does not create a new undo entry. Managed strings and JSON allocations
-do not have a guaranteed memory-erasure contract.
-
-## Secret generator sessions
-
-`DefinitionSecretGeneratorSession` validates `SecretGenerator` character/byte
-bounds (`ExactByteCount` and range constraints) in memory and commits generated
-values to `DefinitionFormModel` only through explicit session adoption before
-clearing temporary preview state.
-
-Sessions register with their form and share its mutation gate, input revision,
-secret-operation generation and exact editor identity. Preview generation does
-not write answers or create undo entries. Apply rechecks current eligibility,
-validates the generated value and complete candidate snapshot, and records the
-generated origin through the same adoption helper as existing quick generation.
-Input invalidation retires candidates; consent transitions, private clearing
-and disposal synchronously retire their authority and owned candidate buffers.
-`CopyPreview` deliberately transfers a string to the caller; managed strings,
-JSON allocations and caller-owned copies have no guaranteed erasure contract.
-
 ## Captured output export evidence
 
 `DefinitionFormOutputWorkflow` owns value-free `DefinitionOutputExportContext`
@@ -871,3 +842,50 @@ review authority. Undo/redo uses the existing secret-retiring history.
 Notifications occur after adoption and gate release. A throwing observer
 cannot convert a committed change into a rejection or roll back a newer
 reentrant edit; the result exposes `ObserverFailed` without exception text.
+The [decision record](adr/ADR-output-guidance-and-value-transfer.md) explains
+these boundaries. Shared tests do not establish client or platform qualification.
+
+## Workspace Projection, Undo History, Commands & Secret Session
+
+`DefinitionFormIndex.ResolveSection` resolves section ownership by longest
+literal pointer prefix through `SectionsByPointer` before falling back to root
+field ID or the first workspace section, letting multi-segment authored
+pointers split nested containers across sections without double-counting
+obligations in `SectionProgress`.
+
+Each `DefinitionFormProjection` pairs that progress with a two-dimensional
+`SectionStatusProjection` (`ConfigurationStatus`: `Invalid`,
+`MissingRequired`, `UnresolvedApplicability`, `SecretDeferred`,
+`RequiredComplete`, `OptionalUnset`, `OutsideSelectedScope`,
+`PendingEvaluation`; `Coverage`: `NotVisited`, `Opened`, `Reviewed`, plus
+`HasNewlyRelevantSettings` downgrade tracking and `HiddenOptionalTitles`), a
+`WorkspaceProgressSummary` tracking active/opened/reviewed section
+denominators alongside required counts, `WorkspaceNavigationProjection` (wizard
+step indices and next-required / next-error / next-unvisited section jumps), and
+immutable `WorkspacePresentationOptions` (`WorkspaceDensity`,
+`WorkspaceNamingMode`, `WorkspaceLayoutMode`). `EnrichSection` evaluates
+section/group `ApplicableWhen` and auto-expands `InitiallyCollapsed` groups
+whenever a blocking diagnostic falls inside the group's pointer scope.
+
+`DefinitionEditorPresentation` projects dual UX naming (`DisplayLabel`,
+`WireToken`, `SecondaryLabel`, `HasCopyableWireToken`), widget/help metadata
+(`Placeholder`, `DefaultText`, `IfOmittedDisplay`, `DeprecationGuidance`,
+`Widget`, `Rows`, `Syntax`, `BooleanLabels`, `ItemTitlePointer`, `UniqueBy`,
+`OrderedPropertyNames`), and `ControllerImpactSummary` from admitted schema
+metadata without materializing answer defaults. `CompactPropertyRow` (`GetCompactRows`)
+projects flat tabular rows honoring `BrowserNoSecrets` locking, redacted
+sensitive previews and private dynamic map entry masking (`MatchesQuery` excludes
+private map keys and values). `SetDiscoverySelection` supports metadata-only
+`DefinitionDiscoveryFilter` facets (`Invalid`, `MissingRequired`, `Modified`,
+`DeferredSecret`), and `GetAvailableCommands` exposes `WorkspaceCommandDescriptor`
+entries with current shortcut hints and enablement.
+
+`DefinitionFormUndoHistory` retains at most 32 workspace snapshots, records
+each outer workspace mutation once, and
+synchronously removes secret/protected entries and scrubs any surviving
+snapshots via `DefinitionSecretPolicy.RemoveSecrets` on `DisableSecretEntry()`,
+`ClearPrivateState()`, `ClearSensitiveContent()`, and `Dispose()` so undo/redo
+never resurrects cleared or revoked answers. `DefinitionSecretGeneratorSession`
+validates `SecretGenerator` character/byte bounds (`ExactByteCount` and range
+constraints) in memory and commits generated values to `DefinitionFormModel`
+only through explicit session adoption before clearing temporary preview state.

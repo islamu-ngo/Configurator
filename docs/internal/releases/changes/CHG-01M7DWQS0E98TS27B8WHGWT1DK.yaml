@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7DWQS0E98TS27B8WHGWT1DK
+Title: "Project schema-aware workspace sections and editing views"
+Type: feat
+Scope: self-hosting
+Summary: "Expose immutable section review status, navigation, compact rows, command choices and typed field presentation from the shared workspace while keeping local presentation preferences separate from answer revisions."
+Group: shared-workspace-projection
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Compact and discovery projections preserve secret consent, mask protected previews and exclude private values and dynamic map keys from search and sort. View preferences do not advance accepted-answer revisions."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Sections expose separate configuration and review status, nested pointer ownership, hidden optional inventory, wizard jumps and metadata-only command choices from the existing immutable workspace."
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definitions.md
+    Disposition: not-applicable

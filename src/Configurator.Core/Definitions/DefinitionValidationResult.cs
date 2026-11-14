@@ -52,6 +52,20 @@ public sealed class DefinitionValidationResult
     /// <summary>Indicates whether any field or deferred secret dependency has not yet resolved.</summary>
     public bool HasUndecidedDependencies => UndecidedRoots.Count > 0 || UndecidedLocations.Count > 0;
 
+    /// <summary>Returns <see langword="true"/> when <paramref name="path"/> or its subtree depends on an undecided value.</summary>
+    public bool IsPathUndecided(DefinitionPath path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        if (path.Segments.Count == 0) return false;
+        if (UndecidedRoots.Contains(path.Segments[0])) return true;
+        foreach (DefinitionPath location in UndecidedLocations)
+        {
+            int shared = Math.Min(location.Segments.Count, path.Segments.Count);
+            if (location.Segments.Take(shared).SequenceEqual(path.Segments.Take(shared), StringComparer.Ordinal))
+                return true;
+        }
+        return false;
+    }
     /// <summary>Explicitly reads a resolved private value; serialized validation facts remain value-free.</summary>
     public bool TryGetEffectiveValue(DefinitionPath location, out JsonElement value)
     {

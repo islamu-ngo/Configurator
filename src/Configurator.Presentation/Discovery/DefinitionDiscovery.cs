@@ -5,6 +5,34 @@ using Configurator.Core.Definitions;
 
 public enum DefinitionDiscoveryFacet { Section, Requirement, Applicability, State, Sensitivity, Artifact }
 
+public enum DefinitionDiscoveryFilter { All, Invalid, MissingRequired, Modified, DeferredSecret }
+
+public enum WorkspaceCommandId
+{
+    Undo,
+    Redo,
+    SwitchToGuided,
+    SwitchToCompact,
+    SwitchToReview,
+    SwitchToFiles,
+    ToggleNamingMode,
+    ToggleInspector,
+    OpenDocumentEditor,
+    OpenShortcutsHelp,
+    JumpToNextError,
+    JumpToNextRequired,
+    JumpToNextUnvisited
+}
+
+/// <summary>Localized executable workspace command for unified command palettes.</summary>
+public sealed record WorkspaceCommandDescriptor(
+    WorkspaceCommandId Id,
+    string Title,
+    string Subtitle,
+    string ShortcutHint,
+    bool IsEnabled,
+    string? TargetSectionId = null);
+
 /// <summary>Public metadata and projected facts only; never supply answers, drafts or artifact contents.</summary>
 public sealed class DefinitionDiscoveryEntry
 {
@@ -125,9 +153,11 @@ public sealed class DefinitionDiscoveryEntry
 public sealed class DefinitionDiscoverySelection
 {
     public DefinitionDiscoverySelection(string query = "", bool includeInactive = false,
-        IReadOnlyDictionary<DefinitionDiscoveryFacet, IReadOnlyList<string>>? facets = null)
+        IReadOnlyDictionary<DefinitionDiscoveryFacet, IReadOnlyList<string>>? facets = null,
+        DefinitionDiscoveryFilter filter = DefinitionDiscoveryFilter.All)
     {
         ArgumentNullException.ThrowIfNull(query);
+        if (!Enum.IsDefined(filter)) throw new ArgumentOutOfRangeException(nameof(filter));
         if (query.Length > 256)
             throw new ArgumentException("discovery-query-limit", nameof(query));
         string[] tokens = query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
@@ -136,6 +166,7 @@ public sealed class DefinitionDiscoverySelection
         Query = query.Trim();
         QueryTerms = Array.AsReadOnly(tokens);
         IncludeInactive = includeInactive;
+        Filter = filter;
         var snapshot = new Dictionary<DefinitionDiscoveryFacet, IReadOnlyList<string>>();
         if (facets is not null)
             foreach ((DefinitionDiscoveryFacet facet, IReadOnlyList<string> values) in facets)
@@ -146,6 +177,7 @@ public sealed class DefinitionDiscoverySelection
     public string Query { get; }
     public IReadOnlyList<string> QueryTerms { get; }
     public bool IncludeInactive { get; }
+    public DefinitionDiscoveryFilter Filter { get; }
     public IReadOnlyDictionary<DefinitionDiscoveryFacet, IReadOnlyList<string>> Facets { get; }
 }
 
@@ -225,12 +257,25 @@ public static class DefinitionDiscovery
             !(selection.Facets.TryGetValue(DefinitionDiscoveryFacet.Applicability, out var applicability) &&
               applicability.Contains("inactive", StringComparer.OrdinalIgnoreCase)))
             return false;
+        if (!MatchesFilter(entry, selection.Filter))
+            return false;
         foreach ((DefinitionDiscoveryFacet facet, IReadOnlyList<string> selected) in selection.Facets)
             if (facet != ignored && selected.Count != 0 &&
                 !Values(entry, facet).Any(value => selected.Contains(value, StringComparer.OrdinalIgnoreCase)))
                 return false;
         return true;
     }
+
+    private static bool MatchesFilter(DefinitionDiscoveryEntry entry, DefinitionDiscoveryFilter filter) => filter switch
+    {
+        DefinitionDiscoveryFilter.All => true,
+        DefinitionDiscoveryFilter.Invalid => entry.NeedsAttention,
+        DefinitionDiscoveryFilter.MissingRequired => entry.IsRequired && !entry.IsReady && !entry.IsDeferred,
+        DefinitionDiscoveryFilter.Modified => entry.IsProvided ||
+            entry.Origin is DefinitionAnswerOrigin.Explicit or DefinitionAnswerOrigin.Imported or DefinitionAnswerOrigin.Generated,
+        DefinitionDiscoveryFilter.DeferredSecret => entry.IsDeferred,
+        _ => throw new ArgumentOutOfRangeException(nameof(filter))
+    };
 
     private static IEnumerable<string> Values(DefinitionDiscoveryEntry entry, DefinitionDiscoveryFacet facet)
     {

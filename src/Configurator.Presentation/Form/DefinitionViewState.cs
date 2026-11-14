@@ -11,6 +11,12 @@ internal sealed class DefinitionViewState(string selectedExperienceId)
     internal bool OptionalEditorsExpanded { get; set; }
     internal FieldDisclosure? DisclosureOverride { get; set; }
     internal DefinitionDiscoverySelection DiscoverySelection { get; set; } = new();
+    internal WorkspacePresentationOptions PresentationOptions { get; set; } = new();
+    internal string? CurrentSectionId { get; set; }
+    internal HashSet<string> OpenedSections { get; } = new(StringComparer.Ordinal);
+    internal Dictionary<string, HashSet<DefinitionPath>> ReviewedSignatures { get; } = new(StringComparer.Ordinal);
+    internal HashSet<string> DowngradedSections { get; } = new(StringComparer.Ordinal);
+    internal Dictionary<(string SectionId, string GroupId), bool> GroupExpansion { get; } = new();
     internal HashSet<string> PromotedPaths { get; } = new(StringComparer.Ordinal);
     internal Dictionary<string, bool> SectionExpansion { get; } = new(StringComparer.Ordinal);
     internal Dictionary<string, bool> EditorExpansion { get; } = new(StringComparer.Ordinal);
@@ -35,6 +41,11 @@ internal sealed class DefinitionViewState(string selectedExperienceId)
     internal void Clear()
     {
         ResetExpansion(clearPromotions: true);
+        GroupExpansion.Clear();
+        OpenedSections.Clear();
+        ReviewedSignatures.Clear();
+        DowngradedSections.Clear();
+        CurrentSectionId = null;
         DiscoverySelection = new();
     }
 }

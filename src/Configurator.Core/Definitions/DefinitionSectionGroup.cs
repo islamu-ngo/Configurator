@@ -27,4 +27,14 @@ public sealed record DefinitionSectionGroup
     public IReadOnlyList<string> Pointers { get; }
     /// <summary>Data-only predicate deciding when the group is relevant; it never changes validation.</summary>
     public JsonElement? ApplicableWhen { get; }
+
+    /// <summary>Evaluates <see cref="ApplicableWhen"/> against an existing validation snapshot without altering answers.</summary>
+    public bool IsApplicable(DefinitionValidationResult validation)
+    {
+        ArgumentNullException.ThrowIfNull(validation);
+        return ApplicableWhen is not { } condition || DefinitionValidator.EvaluateCondition(
+            condition, validation.Values, validation.UndecidedRoots,
+            deferredLocations: validation.DeferredLocations,
+            unresolvedLocations: validation.UndecidedLocations) == true;
+    }
 }

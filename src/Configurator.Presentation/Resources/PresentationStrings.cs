@@ -47,9 +47,17 @@ public static class PresentationStrings
         "secret-stale" => "SecretStale",
         "secret-busy" => "SecretBusy",
         "secret-operation-unavailable" or "secret-generation-unavailable" => "SecretOperationUnavailable",
+        "secret-options-out-of-bounds" => "SecretOptionsOutOfBounds",
+        "secret-generation-policy-invalid" => "SecretGenerationPolicyInvalid",
+        "secret-generation-entropy-insufficient" => "SecretGenerationEntropyInsufficient",
         "secret-generated-value-invalid" => "SecretGeneratedValueInvalid",
         _ => "ValueConstraintInvalid"
     }, locale);
+
+    public static string OutputStatus(DefinitionOutputTaskState state, string locale) =>
+        string.Join("; ", new[] { Get("OutputStatus" + state.Status, locale) }
+            .Concat(state.Deliveries.Select(delivery => delivery.Kind).Distinct()
+                .Select(kind => Get("OutputDelivery" + kind, locale))));
 
     public static string FieldCorrection(DefinitionFieldValidation facts, string locale) =>
         string.Join(Environment.NewLine, facts.Reasons.Select(reason => Get("Field" + reason, locale))

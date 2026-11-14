@@ -40,8 +40,7 @@ public sealed partial class DefinitionFormModel
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryEditorMetadata(path, out _, out _)) return false;
             if (TryLocalExpansion(path, out bool expanded)) return expanded;
-            DefinitionFormSection? section = TryOrdinaryRootPath(path.Segments, out string[] ordinary)
-                ? _index!.SectionsByField[ordinary[0]] : null;
+            DefinitionFormSection? section = path.Segments.Count > 0 ? _index!.ResolveSection(path) : null;
             bool all = section is not null && _view.SectionExpansion.TryGetValue(section.Id, out bool sectionExpanded)
                 ? sectionExpanded : OptionalEditorsExpanded;
             return all || EffectiveDisclosure == FieldDisclosure.Advanced;
@@ -384,8 +383,7 @@ public sealed partial class DefinitionFormModel
         using var mutation = BeginMutation();
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!TryEditorMetadata(path, out _, out _) || !IsEditorActive(path)) return false;
-        DefinitionFormSection? section = TryOrdinaryRootPath(path.Segments, out string[] ordinary)
-            ? _index!.SectionsByField[ordinary[0]] : null;
+        DefinitionFormSection? section = path.Segments.Count > 0 ? _index!.ResolveSection(path) : null;
         if (section is not null && !Experiences.Single(item => item.Id == SelectedExperienceId).Sections.Contains(section.Id) &&
             Experiences.FirstOrDefault(item => item.Sections.Contains(section.Id)) is { } experience)
             SelectExperience(experience.Id);

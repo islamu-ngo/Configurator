@@ -79,9 +79,10 @@ public sealed partial class DefinitionFormModel
         return true;
     }
 
-    internal bool IsConfigurationSelector(IReadOnlyList<string> path)
+    internal bool IsConfigurationSelector(IReadOnlyList<string> path, DefinitionValidationResult? validation = null)
     {
-        if (path.Count != 1 || Definition.Deployment is not { } deployment || ConfigurationContext is null)
+        if (path.Count != 1 || Definition.Deployment is not { } deployment ||
+            (validation ?? Validate()).ConfigurationContext is null)
             return false;
         string name = Fields[_index!.FieldPositions[path[0]]].Definition.Name;
         return name == DefinitionPath.Parse(deployment.RecipePointer).Segments[0] ||

@@ -52,6 +52,7 @@ internal sealed class DefinitionFormIndex
             Controllers = Array.AsReadOnly(extension.ValueKind == JsonValueKind.Object &&
                 extension.TryGetProperty("applicableWhen", out JsonElement condition)
                 ? References(condition).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray() : []);
+            ControllerPaths = Array.AsReadOnly(ConditionPaths(extension).ToArray());
         }
 
         internal DefinitionNode Schema { get; }
@@ -72,6 +73,37 @@ internal sealed class DefinitionFormIndex
         internal bool HasEssentialDecision { get; }
         internal FieldDisclosure Disclosure { get; }
         internal IReadOnlyList<string> Controllers { get; }
+        internal IReadOnlyList<DefinitionPath> ControllerPaths { get; }
+
+        private static HashSet<DefinitionPath> ConditionPaths(JsonElement extension)
+        {
+            if (extension.ValueKind != JsonValueKind.Object) return [];
+            var paths = new HashSet<DefinitionPath>();
+            if (extension.TryGetProperty("applicableWhen", out JsonElement applicable))
+                CollectReferencePaths(applicable, paths);
+            if (extension.TryGetProperty("requiredWhen", out JsonElement required))
+                CollectReferencePaths(required, paths);
+            return paths;
+        }
+
+        private static void CollectReferencePaths(JsonElement condition, HashSet<DefinitionPath> paths)
+        {
+            if (condition.ValueKind != JsonValueKind.Object) return;
+            if (condition.TryGetProperty("reference", out JsonElement reference))
+            {
+                if (reference.TryGetProperty("scope", out JsonElement scope) && scope.GetString() == "root" &&
+                    reference.TryGetProperty("path", out JsonElement rawPath) && rawPath.GetString() is { } text)
+                {
+                    DefinitionPath parsed = DefinitionPath.Parse(text);
+                    if (parsed.Segments.Count > 0) paths.Add(parsed);
+                }
+            }
+            else if (condition.TryGetProperty("operands", out JsonElement operands) && operands.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement operand in operands.EnumerateArray())
+                    CollectReferencePaths(operand, paths);
+            }
+        }
 
         private static IEnumerable<string> References(JsonElement condition)
         {
@@ -105,7 +137,15 @@ internal sealed class DefinitionFormIndex
         RootPathKeys = definition.Fields.ToDictionary(field => field.Id,
             field => DefinitionPath.FromSegments([field.Id]), StringComparer.Ordinal);
         SectionsByField = sections.SelectMany(section => section.Fields.Select(field => (field, section)))
-            .ToDictionary(item => item.field, item => item.section, StringComparer.Ordinal);
+            .GroupBy(item => item.field, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First().section, StringComparer.Ordinal);
+        var byPointer = new Dictionary<DefinitionPath, DefinitionFormSection>();
+        foreach (DefinitionFormSection section in sections)
+            foreach (string pointer in section.Pointers)
+                byPointer.TryAdd(DefinitionPath.Parse(pointer), section);
+        SectionsByPointer = byPointer;
+        _fallbackSection = sections.Count > 0 ? sections[0] : null;
+        DependentsByController = CollectControllerDependents(Root, ResolveSection);
         ExperienceSections = experiences.ToDictionary(experience => experience.Id, experience =>
         {
             var order = experience.Sections.Select((id, position) => (id, position))
@@ -121,6 +161,7 @@ internal sealed class DefinitionFormIndex
             Keys: (IReadOnlyList<string>)Array.AsReadOnly(pair.Value.Keys.ToArray())), StringComparer.Ordinal);
     }
 
+    private readonly DefinitionFormSection? _fallbackSection;
     internal Dictionary<string, Node> Roots { get; }
     internal Node Root { get; }
     internal Dictionary<string, int> FieldPositions { get; }
@@ -131,8 +172,56 @@ internal sealed class DefinitionFormIndex
     internal Dictionary<string, string> RootIdentities { get; }
     private Dictionary<string, DefinitionPath> RootPathKeys { get; }
     internal Dictionary<string, DefinitionFormSection> SectionsByField { get; }
+    internal IReadOnlyDictionary<DefinitionPath, DefinitionFormSection> SectionsByPointer { get; }
+    internal IReadOnlyDictionary<DefinitionPath, (int FieldCount, int SectionCount)> DependentsByController { get; }
     internal Dictionary<string, IReadOnlyList<DefinitionFormSection>> ExperienceSections { get; }
     internal Dictionary<string, (IReadOnlyList<string> Artifacts, IReadOnlyList<string> Keys)> Bindings { get; }
+
+    internal DefinitionFormSection? ResolveSection(DefinitionPath dataPath)
+    {
+        for (int length = dataPath.Segments.Count; length >= 1; length--)
+        {
+            if (SectionsByPointer.TryGetValue(DefinitionPath.FromSegments(dataPath.Segments.Take(length)), out DefinitionFormSection? owner))
+                return owner;
+        }
+        if (dataPath.Segments.Count > 0 &&
+            FieldIdsByName.TryGetValue(dataPath.Segments[0], out string? fieldId) &&
+            SectionsByField.TryGetValue(fieldId, out DefinitionFormSection? byField))
+            return byField;
+        return _fallbackSection;
+    }
+
+    private static Dictionary<DefinitionPath, (int FieldCount, int SectionCount)> CollectControllerDependents(
+        Node root,
+        Func<DefinitionPath, DefinitionFormSection?> resolveSection)
+    {
+        var map = new Dictionary<DefinitionPath, (HashSet<DefinitionPath> Fields, HashSet<string> Sections)>();
+        Visit(root, []);
+        return map.ToDictionary(pair => pair.Key, pair => (pair.Value.Fields.Count, pair.Value.Sections.Count));
+
+        void Visit(Node node, string[] segments)
+        {
+            if (segments.Length > 0 && node.ControllerPaths.Count > 0)
+            {
+                DefinitionPath target = DefinitionPath.FromSegments(segments);
+                string? sectionId = resolveSection(target)?.Id;
+                foreach (DefinitionPath controller in node.ControllerPaths)
+                {
+                    if (!map.TryGetValue(controller, out var bucket))
+                    {
+                        bucket = (new HashSet<DefinitionPath>(), new HashSet<string>(StringComparer.Ordinal));
+                        map.Add(controller, bucket);
+                    }
+                    bucket.Fields.Add(target);
+                    if (sectionId is not null) bucket.Sections.Add(sectionId);
+                }
+            }
+            foreach ((string name, Node child) in node.Properties) Visit(child, [.. segments, name]);
+            if (node.Item is { } item) Visit(item, segments);
+            if (node.Additional is { } additional) Visit(additional, segments);
+            foreach (Node variant in node.Variants) Visit(variant, segments);
+        }
+    }
 
     internal DefinitionPath PathKey(IReadOnlyList<string> path) =>
         path.Count == 1 && RootPathKeys.TryGetValue(path[0], out DefinitionPath? key)

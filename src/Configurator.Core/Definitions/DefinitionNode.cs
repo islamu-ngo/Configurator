@@ -132,6 +132,8 @@ public sealed record DefinitionNode
     public IReadOnlyList<DefinitionChoice> OptionMetadata { get; }
     /// <summary>Admitted non-value display metadata such as placeholders, widgets and deprecation guidance.</summary>
     public DefinitionFieldPresentationMetadata PresentationMetadata { get; }
+    /// <summary>Item-relative composite key paths declared by <c>x-configurator.uniqueBy</c>, or none.</summary>
+    public IReadOnlyList<DefinitionPath> UniqueBy => DefinitionUniqueKey.Of(this);
     public IReadOnlyList<string> Required { get; }
     public DefinitionNode? Items { get; }
     public DefinitionNode? AdditionalProperties { get; }
