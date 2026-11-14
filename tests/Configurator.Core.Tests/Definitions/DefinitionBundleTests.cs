@@ -12,17 +12,22 @@ namespace Configurator.Core.Tests.Definitions;
 public sealed class DefinitionBundleTests
 {
     [Test]
-    public async Task SelectedOutputsShareOneMeasuredValidationAndEachComposeOnce()
+    [Arguments(ActivityIdFormat.W3C)]
+    [Arguments(ActivityIdFormat.Hierarchical)]
+    public async Task SelectedOutputsShareOneMeasuredValidationAndEachComposeOnce(ActivityIdFormat idFormat)
     {
         using var activity = new Activity(nameof(SelectedOutputsShareOneMeasuredValidationAndEachComposeOnce));
+        activity.SetIdFormat(idFormat);
         activity.Start();
         using var measurement = new PreparationMeasurement(activity);
         using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(Definition(3),
             ["yaml2", "config", "dotenv1"], DefinitionFixture.Answers());
 
+        await Assert.That(ReferenceEquals(Activity.Current, activity)).IsTrue();
         await Assert.That(bundle.Succeeded).IsTrue();
         await Assert.That(string.Join(',', measurement.Composed)).IsEqualTo("config,dotenv1,yaml2");
         await Assert.That(measurement.Validations).IsEqualTo(1);
+        await Assert.That(measurement.DraftModes.SequenceEqual([false])).IsTrue();
     }
 
     [Test]
@@ -111,6 +116,8 @@ public sealed class DefinitionBundleTests
         }).Throws<OperationCanceledException>();
         await Assert.That(string.Join(',', measurement.Composed)).IsEqualTo("config");
         await Assert.That(measurement.Validations).IsEqualTo(1);
+        await Assert.That(measurement.DraftModes.SequenceEqual([draft])).IsTrue();
+        await Assert.That(ReferenceEquals(Activity.Current, activity)).IsTrue();
     }
 
     [Test]
@@ -229,42 +236,42 @@ public sealed class DefinitionBundleTests
         return DefinitionFixture.Parse(root.ToJsonString());
     }
 
-    internal sealed class PreparationMeasurement : IObserver<DiagnosticListener>,
-        IObserver<KeyValuePair<string, object?>>, IDisposable
+    internal sealed class PreparationMeasurement : IDisposable
     {
         private readonly Activity _activity;
         private readonly Action<string>? _composed;
-        private readonly IDisposable _listeners;
-        private readonly List<IDisposable> _subscriptions = [];
+        private readonly ActivityListener _listener;
         public PreparationMeasurement(Activity activity, Action<string>? composed = null)
         {
             _activity = activity;
             _composed = composed;
-            _listeners = DiagnosticListener.AllListeners.Subscribe(this);
+            _listener = new()
+            {
+                ShouldListenTo = source => source.Name == "Configurator.Core.Preparation",
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                SampleUsingParentId = (ref ActivityCreationOptions<string> _) => ActivitySamplingResult.AllData,
+                ActivityStarted = OnStarted
+            };
+            ActivitySource.AddActivityListener(_listener);
         }
         public int Validations { get; private set; }
+        public List<bool> DraftModes { get; } = [];
         public List<string> Composed { get; } = [];
-        public void OnNext(DiagnosticListener value)
+        private void OnStarted(Activity activity)
         {
-            if (value.Name == "Configurator.Core.Preparation") _subscriptions.Add(value.Subscribe(this));
-        }
-        public void OnNext(KeyValuePair<string, object?> value)
-        {
-            if (!ReferenceEquals(Activity.Current, _activity)) return;
-            if (value.Key == "ValidationCompleted") Validations++;
-            if (value.Key == "ArtifactComposed")
+            if (!ReferenceEquals(activity.Parent, _activity)) return;
+            if (activity.OperationName == "ValidationCompleted")
             {
-                string id = (string)value.Value!;
+                Validations++;
+                DraftModes.Add((bool)activity.GetTagItem("draft")!);
+            }
+            if (activity.OperationName == "ArtifactComposed")
+            {
+                string id = (string)activity.GetTagItem("artifact.id")!;
                 Composed.Add(id);
                 _composed?.Invoke(id);
             }
         }
-        public void OnCompleted() { }
-        public void OnError(Exception error) { }
-        public void Dispose()
-        {
-            _listeners.Dispose();
-            foreach (IDisposable subscription in _subscriptions) subscription.Dispose();
-        }
+        public void Dispose() => _listener.Dispose();
     }
 }

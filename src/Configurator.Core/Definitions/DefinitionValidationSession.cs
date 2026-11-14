@@ -19,8 +19,8 @@ internal static class DefinitionValidationSession
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(answers);
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
-        if (scopeObservation is null && DefinitionArtifactComposer.PreparationDiagnostics.IsEnabled("ValidationStarted"))
-            DefinitionArtifactComposer.PreparationDiagnostics.Write("ValidationStarted", null);
+        if (scopeObservation is null)
+            DefinitionArtifactComposer.ObservePreparation("ValidationStarted");
 #endif
         DefinitionNode rootSchema = definition.Configuration;
         if (rootSchema.Discriminator is { } discriminator)
@@ -107,8 +107,8 @@ internal static class DefinitionValidationSession
                 await Emit(new("value-partially-observed", ""));
             if (scopeObservation is null && !PropertyCountValid(rootSchema, effective.Count, rootComplete))
                 await Emit(new("value-invalid", ""));
-            if (scopeObservation is null && DefinitionArtifactComposer.PreparationDiagnostics.IsEnabled("ValidationCompleted"))
-                DefinitionArtifactComposer.PreparationDiagnostics.Write("ValidationCompleted", draft);
+            if (scopeObservation is null)
+                DefinitionArtifactComposer.ObservePreparation("ValidationCompleted", draft: draft);
             return new(rootFields.Select(field => states[field.Name]), diagnostics, effective, deferred, unresolved, nodes,
                 deferredLocations, configurationContext, uncertainLocations.Concat(invalidLocations).Concat(deferredLocations).ToHashSet(),
                 unresolvedLocations);

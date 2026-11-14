@@ -11,7 +11,21 @@ using Configurator.Core.Definitions;
 
 public static class DefinitionArtifactComposer
 {
-    internal static readonly DiagnosticListener PreparationDiagnostics = new("Configurator.Core.Preparation");
+    private static readonly ActivitySource PreparationDiagnostics = new("Configurator.Core.Preparation");
+
+    /// <summary>
+    /// Emits a synchronous point observation through ActivityStarted, with only admitted metadata.
+    /// The activity's Parent is the caller's ambient activity; disposal restores it before preparation continues.
+    /// Activity duration measures notification overhead, not the named preparation operation.
+    /// </summary>
+    internal static void ObservePreparation(string name, bool? draft = null, string? artifactId = null)
+    {
+        using Activity? activity = PreparationDiagnostics.CreateActivity(name, ActivityKind.Internal);
+        if (activity is null) return;
+        if (draft is { } draftMode) activity.SetTag("draft", draftMode);
+        if (artifactId is not null) activity.SetTag("artifact.id", artifactId);
+        activity.Start();
+    }
 
     public static DefinitionArtifactResult Compose(
         Definition definition, string artifactId, AnswerSnapshot answers,
@@ -74,19 +88,16 @@ public static class DefinitionArtifactComposer
             var activeRoots = validation.Fields.Where(field => field.IsActive).Select(field => field.Definition.Name)
                 .Concat(validation.Values.Keys).ToHashSet(StringComparer.Ordinal);
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
-            if (PreparationDiagnostics.IsEnabled("ProjectionStarted"))
-                PreparationDiagnostics.Write("ProjectionStarted", null);
+            ObservePreparation("ProjectionStarted");
 #endif
             (bool include, JsonNode? output) = Project(artifact.Data.GetProperty("projection"), null, null, null, "", "", 1);
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
-            if (PreparationDiagnostics.IsEnabled("ProjectionCompleted"))
-                PreparationDiagnostics.Write("ProjectionCompleted", null);
+            ObservePreparation("ProjectionCompleted");
 #endif
             if (!include) return new(null, [new("artifact-omitted", "")]);
             cancellationToken.ThrowIfCancellationRequested();
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
-            if (PreparationDiagnostics.IsEnabled("SerializationStarted"))
-                PreparationDiagnostics.Write("SerializationStarted", null);
+            ObservePreparation("SerializationStarted");
 #endif
             using JsonDocument document = JsonDocument.Parse(output?.ToJsonString() ?? "null");
             byte[] canonical = DefinitionJson.Canonicalize(document.RootElement, keyPolicy: CompositionKeyPolicy.Exact);
@@ -112,11 +123,9 @@ public static class DefinitionArtifactComposer
                     throw new DefinitionException("artifact-limit");
                 cancellationToken.ThrowIfCancellationRequested();
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
-                if (PreparationDiagnostics.IsEnabled("SerializationCompleted"))
-                    PreparationDiagnostics.Write("SerializationCompleted", null);
+                ObservePreparation("SerializationCompleted");
 #endif
-                if (PreparationDiagnostics.IsEnabled("ArtifactComposed"))
-                    PreparationDiagnostics.Write("ArtifactComposed", artifact.Id);
+                ObservePreparation("ArtifactComposed", artifactId: artifact.Id);
                 return new(new(definition, artifact, answers, bytes), []);
             }
             finally

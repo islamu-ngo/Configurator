@@ -140,7 +140,6 @@ namespace Configurator.Engineering;
         private static readonly object Gate = new();
         private static readonly List<object> Samples = [];
         private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-        private static readonly List<IDisposable> Subscriptions = [];
         private static object? _root;
         private static List<Stamp>? _stamps;
         private static TaskCompletionSource? _worker;
@@ -227,7 +226,14 @@ namespace Configurator.Engineering;
 #endif
                     if (!Form.SelectLocale(locale)) throw new InvalidOperationException();
                 }).ConfigureAwait(false);
-                Subscriptions.Add(DiagnosticListener.AllListeners.Subscribe(new ListenerObserver()));
+                using var preparationListener = new ActivityListener
+                {
+                    ShouldListenTo = source => source.Name == "Configurator.Core.Preparation",
+                    Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                    SampleUsingParentId = (ref ActivityCreationOptions<string> _) => ActivitySamplingResult.AllData,
+                    ActivityStarted = ObservePreparation
+                };
+                ActivitySource.AddActivityListener(preparationListener);
                 // A distinct process/scenario retains first use and every warmup/measured attempt.
                 for (int index = 0; index < 46; index++)
                 {
@@ -289,7 +295,6 @@ namespace Configurator.Engineering;
             }
             finally
             {
-                foreach (IDisposable subscription in Subscriptions) subscription.Dispose();
                 _requested?.Dispose();
             }
             var host = new
@@ -910,29 +915,14 @@ namespace Configurator.Engineering;
 
         internal readonly record struct CollectionCounts(int Gen0, int Gen1, int Gen2);
 
-        private sealed class ListenerObserver : IObserver<DiagnosticListener>
+        private static void ObservePreparation(Activity activity)
         {
-            public void OnNext(DiagnosticListener value)
-            {
-                if (value.Name == "Configurator.Core.Preparation")
-                    Subscriptions.Add(value.Subscribe(new PreparationObserver(),
-                        name => name is "ValidationStarted" or "ValidationCompleted"
-                            or "ProjectionStarted" or "ProjectionCompleted"
-                            or "SerializationStarted" or "SerializationCompleted" or "ArtifactComposed"));
-            }
-            public void OnCompleted() { }
-            public void OnError(Exception error) { }
-        }
-
-        private sealed class PreparationObserver : IObserver<KeyValuePair<string, object?>>
-        {
-            public void OnNext(KeyValuePair<string, object?> value)
-            {
-                // Never retain the diagnostic payload, including artifact identifiers.
-                if (Environment.CurrentManagedThreadId == Volatile.Read(ref _workerThread)) Mark(value.Key);
-            }
-            public void OnCompleted() { }
-            public void OnError(Exception error) { }
+            // Never retain the activity or its tags, including artifact identifiers.
+            if (Environment.CurrentManagedThreadId == Volatile.Read(ref _workerThread)
+                && activity.OperationName is "ValidationStarted" or "ValidationCompleted"
+                    or "ProjectionStarted" or "ProjectionCompleted"
+                    or "SerializationStarted" or "SerializationCompleted" or "ArtifactComposed")
+                Mark(activity.OperationName);
         }
     }
 #endif
