@@ -8,5 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Configurator.Core\Configurator.Core.csproj" />
+    <PackageReference Include="jose-jwt" />
   </ItemGroup>
 </Project>

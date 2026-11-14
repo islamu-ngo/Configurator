@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7D0HZPD8S0SH4813AK6Q9QY
+Title: "Encrypt portable profiles through maintained JWE execution"
+Type: feat
+Scope: privacy
+Summary: "Use the admitted jose-jwt implementation for the fixed authenticated profile, selected-recipient opening and owned cancellation boundaries, with exact native dependency locks and original terms."
+Group: native-profile-container
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/SECRET_CRYPTOGRAPHY.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/SECRET_CRYPTOGRAPHY.md
+    Disposition: documented
+    Detail: "Delegate encryption and recipient wrapping to jose-jwt 5.3.0 under one admitted A256GCM/PBES2-HS512+A256KW policy with exactly 600000 derivation iterations. Attempt one selected recipient, retain the execution permit until physical work finishes, clear owned copies, and reject stale/cancelled adoption. No complete managed-memory erasure, working OS keyring or external audit is claimed."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/SECRET_CRYPTOGRAPHY.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/import-and-compare.md
+    Disposition: documented
+    Detail: "Algorithms and derivation cost are fixed. Portable passphrases use exact valid UTF-8; weak passphrases, lost recipients and old copies retain their documented risks. Client controls and host qualification remain separate."

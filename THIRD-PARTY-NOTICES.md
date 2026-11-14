@@ -27,6 +27,12 @@ source. See the [decision, source register and history](docs/internal/TERMINAL_G
 
 ## Native and client framework closure
 
+Native encrypted-profile operations use `jose-jwt` `5.3.0` under MIT, retaining
+Copyright (c) 2014-2024 dvsekhvalnov. The native notice generator retains its
+original `LICENSE` and package metadata with each consuming distribution.
+The [profile dependency record](docs/internal/legal/dependencies/encrypted-local-profiles.md)
+binds the reviewed archive, original terms and update ownership.
+
 Shared cryptographic operations use `BouncyCastle.Cryptography` `2.7.0` under
 MIT, copyright 2000–2026 The Legion of the Bouncy Castle Inc. Its original
 license is retained in the package notice tree and the hash-bound supplemental

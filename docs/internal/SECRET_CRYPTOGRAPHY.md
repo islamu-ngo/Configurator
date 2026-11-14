@@ -5,7 +5,7 @@
 > **Status:** Core profiles verified on Linux x64 and the published browser AOT probe; product qualification is recorded separately
 > **Owner:** Core
 > **Last Verified:** 2026-11-02
-> **Source Anchors:** `src/Configurator.Core/Secrets/`, `Directory.Packages.props`
+> **Source Anchors:** `src/Configurator.Core/Secrets/`, `src/Configurator.Core/Profiles/`, `src/Configurator.Artifacts/Profiles/`, `Directory.Packages.props`
 
 The typed definition policy is the authority for generation and validation.
 Core performs local operations only; valid syntax and locally generated material
@@ -67,9 +67,101 @@ JWK serialization reserves 8192 bytes up front for the bounded RSA/EC formats,
 avoiding abandoned secret-bearing buffers during buffer growth; the written
 buffer is zeroed after encoding.
 
+## Encrypted local profile container
+
+The local-profile workstream is being integrated. The Core/native container
+boundary is separate from existing secret generation; client workflows, keyring,
+restore and package qualification remain their own gates.
+
+`IProfileContainerCodec` is one host-independent facade. Core admits authenticated
+application payloads and owns retained plaintext through `UnlockedProfile`.
+Artifacts implements the native facade with `jose-jwt` 5.3.0. The selected Browser
+implementation is a separate dedicated-worker integration, not a Core dependency.
+
+The single format is RFC 7516 JSON JWE, admitting its general and flattened
+serializations with exact separate root shapes and identical recipient policy.
+Mixed shapes and compact serialization reject before derivation. It uses A256GCM content encryption and
+PBES2-HS512+A256KW recipients with PBKDF2-HMAC-SHA512 exactly 600000 iterations.
+There is no algorithm menu or fallback. The maintained library creates content
+keys, nonces, salts and wrapped recipients. The CPU-hard derivation choice is not
+equivalent to memory-hard Argon2id and cannot make a weak human passphrase strong.
+
+Admission limits encrypted input/output to 4 MiB and plaintext to 2 MiB, with at
+most eight recipients. Strict framework JSON rejects duplicate/colliding headers,
+depth above eight, unknown fields, external AAD, compression and alternate
+algorithms. Require canonical base64url, library-created salts of 12-64 bytes,
+12-byte IV and 16-byte tag. Exactly one selected recipient is attempted on open;
+an unrelated working recipient never causes an automatic retry. Native instances
+share one nonqueued execution permit, held until physical work finishes.
+
+Native device material is a random 32-byte value represented as Base64 text;
+portable passphrases use exact valid UTF-8 without normalization. Creation
+requires at least 15 Unicode scalars and at most 1024 UTF-8 bytes. Length is not
+an entropy claim. Invalid UTF-8 is rejected rather than replaced.
+
+Authenticated payloads require product contract 0.0.1, the configuration-profile
+purpose, an exact admitted encrypted mode, nonempty profile/snapshot identities,
+actual admitted definition content, private source/environment context and the
+bounded answer envelope. Compare-only and ordinary unencrypted target output are
+separate modes. `InspectAnswers` rejects import-upgrade-only payloads; ordinary
+serialization of an unlocked owner contains no retained answers. Clients must
+also establish workspace consent and preserve operation-generation fencing.
+The authenticated `comparisonKey` member is mandatory and nullable. A present
+key contains only its nonempty ID and canonical Base64 encoding of 32 independent
+bytes. `CompareBaselineCodec.Create(UnlockedProfile)` can use that key inside
+scoped Core processing without publishing it or the retained answers. It
+rechecks owner liveness before returning the stripped result. Transient immutable
+validator/snapshot allocations remain subject to the stated runtime erasure
+limit; they never become the retained blind owner.
+
+Routing labels and the whole recipient set are not authenticated authority.
+Native unlock does not verify unused recovery recipients. Recovery verification
+must independently exercise the exact copied file with the native material
+unavailable; its reference digest must itself be trusted. Resealing cannot revoke
+old copies or rotate target credentials.
+
+Cancellation rejects adoption after native work returns, clears owned copies
+and keeps the execution permit until then. Native library string inputs and
+framework/library allocations do not have a complete-erasure guarantee. This
+boundary does not itself establish workspace fencing, protected save, a working
+keyring or restore.
+
+The [dependency record](legal/dependencies/encrypted-local-profiles.md) binds
+original MIT terms and exact package identities. Provider and temporary AOT
+worker receipts are not product integration or an external security audit.
+
+## Stripped profile comparisons
+
+`CompareBaselineCodec` produces bounded `CompareBaselineSnapshot` data from an
+admitted definition and supplied answers. It uses `DefinitionSensitivityPolicy`
+and the admitted variant selector; public descendants cannot lower an ancestor's
+sensitivity. It retains fixed public properties and a structural type projection,
+without schema defaults, examples or other raw keyword data. Dynamic map names
+are omitted. Collections containing protected descendants are omitted as a whole;
+there are no ordinal secret commitments that could attach to a different row.
+Missing values are never replaced with effective defaults.
+
+Optional `ProfileSecretCommitment` owns a separately supplied 32-byte key.
+Bouncy Castle HMAC-SHA256 receives a JSON-array frame containing a versioned
+purpose, key ID, profile ID, definition family, exact environment context, fixed
+schema path and canonical value. A separate context frame prevents cross-context
+equality claims. Dynamic maps and protected collections can have one commitment
+at their fixed container path; private keys and row paths never become labels.
+The baseline contains only key ID, context tag and commitments. Neither its key
+nor raw private environment context is exported.
+
+Equality requires the actual held key, matching key/profile/family/context and
+an available fixed-path commitment. Otherwise it is unavailable. Key rotation
+does not preserve comparison authority. These tags disclose equality/linkability;
+public answers can still reveal operational information. The stripped structure
+cannot reconstruct the old definition or restore omitted values. Full schema
+comparison requires independently admitted matching definition content.
+Owned key/framing buffers are cleared; managed/library copies retain the
+documented runtime erasure limits.
+
 ## Dependency and independent-design record
 
-The exact dependency is `BouncyCastle.Cryptography` 2.7.0, NuGet repository commit
+The existing secret-generation dependency is `BouncyCastle.Cryptography` 2.7.0, NuGet repository commit
 `4007498b13582d90ee1eda5d9920c324428b98b3`, with no transitive packages. Package
 metadata declares MIT. Original terms are retained under
 `eng/configurator/dependency-notices/bouncycastle.cryptography/2.7.0/`.

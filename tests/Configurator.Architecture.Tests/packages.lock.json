@@ -103,7 +103,8 @@
       "configurator.artifacts": {
         "type": "Project",
         "dependencies": {
-          "Configurator.Core": "[0.0.1, )"
+          "Configurator.Core": "[0.0.1, )",
+          "jose-jwt": "[5.3.0, )"
         }
       },
       "configurator.cli": {
@@ -140,6 +141,12 @@
         "requested": "[8.4.2, )",
         "resolved": "8.4.2",
         "contentHash": "WadCzGEc2U+3e20avRLng4qNtt4zoOGWrdUISqJWrHe3/FSnrYjuM5Sb4yQb09LhkBXrrI4Zt3dLKgRMbItsrg=="
+      },
+      "jose-jwt": {
+        "type": "CentralTransitive",
+        "requested": "[5.3.0, )",
+        "resolved": "5.3.0",
+        "contentHash": "Doidvhyg6TN77F6HPL6Ry0KkEz6tnOUlAWfxOMSSESLU6vQSDJerX5/mr8k4xv2kA05W2Y8Ji0HXLPJM+02W9w=="
       },
       "Microsoft.Testing.Extensions.CodeCoverage": {
         "type": "CentralTransitive",

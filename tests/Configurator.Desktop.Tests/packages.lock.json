@@ -271,7 +271,8 @@
       "configurator.artifacts": {
         "type": "Project",
         "dependencies": {
-          "Configurator.Core": "[0.0.1, )"
+          "Configurator.Core": "[0.0.1, )",
+          "jose-jwt": "[5.3.0, )"
         }
       },
       "configurator.core": {
@@ -287,7 +288,6 @@
           "Avalonia": "[12.1.6, )",
           "Avalonia.BuildServices": "[11.3.2, )",
           "Avalonia.Desktop": "[12.1.6, )",
-          "Avalonia.Dialogs": "[12.1.6, )",
           "Avalonia.Themes.Fluent": "[12.1.6, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "Configurator.Artifacts": "[0.0.1, )",
@@ -347,6 +347,12 @@
         "requested": "[8.4.2, )",
         "resolved": "8.4.2",
         "contentHash": "WadCzGEc2U+3e20avRLng4qNtt4zoOGWrdUISqJWrHe3/FSnrYjuM5Sb4yQb09LhkBXrrI4Zt3dLKgRMbItsrg=="
+      },
+      "jose-jwt": {
+        "type": "CentralTransitive",
+        "requested": "[5.3.0, )",
+        "resolved": "5.3.0",
+        "contentHash": "Doidvhyg6TN77F6HPL6Ry0KkEz6tnOUlAWfxOMSSESLU6vQSDJerX5/mr8k4xv2kA05W2Y8Ji0HXLPJM+02W9w=="
       },
       "Microsoft.Extensions.DependencyInjection": {
         "type": "CentralTransitive",

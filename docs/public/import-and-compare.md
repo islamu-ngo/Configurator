@@ -154,6 +154,51 @@ Application maintainers can embed direct upgrade links in their release notes:
 
 For the detailed engineering architecture and distribution strategy, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
 
+## Encrypted Local Profile Contract
+
+The selected format is JSON Web Encryption with AES-256-GCM and a fixed
+PBKDF2-HMAC-SHA512 password profile. Algorithms and costs are not user-selectable.
+Use a strong, unique portable passphrase; the 15-character minimum is not a
+strength guarantee. Passphrases are not trimmed or normalized.
+
+Inspectable-encrypted mode permits deliberate disclosure after workspace
+consent. Import-upgrade-only mode retains values for restricted upgrade and
+composition without ordinary reveal, copy or undo. Compare-only baselines omit
+protected values; ordinary target files remain a separate deliberate output.
+All answer-derived files remain private even when encrypted or stripped.
+
+A device credential is convenience, not a recovery backdoor. A copied file needs
+a working recipient. Recovery is only verified after independently opening that
+exact copy without the native device material. Losing all applicable credentials
+is unrecoverable; reinstalling the application cannot reconstruct them. Changing
+a passphrase affects new snapshots, not stolen or historical copies.
+
+The profile boundary admits files up to 4 MiB and rejects unsupported formats,
+costs or ambiguous metadata. It never guesses another algorithm or recipient
+after a failed selected attempt. This limit is distinct from ordinary artifact
+import limits below.
+
+### What A Profile Comparison Can Retain
+
+A compare-only baseline keeps declared public values and a limited description
+of the setting structure. It excludes protected values, schema defaults/examples
+and dynamic map names. A collection with protected members is omitted as a whole,
+so a row number cannot identify a retained secret after rows move. Missing
+answers stay missing. Public values can still reveal infrastructure or operating
+choices; treat the file as private.
+
+Optional keyed comparisons can identify a changed protected setting without
+retaining its recoverable value. The comparison key must remain separately
+protected in the user keyring or an encrypted profile. It is never included in
+the comparison file or a plaintext key export. Equality is available only with
+that held key and matching profile, definition family, environment and field
+identity. Missing or rotated keys, changed context and absent commitments mean
+**Unavailable**, never **Unchanged**. Equality tags also reveal linkability.
+
+This file cannot restore omitted settings. Its limited structure is not the
+historical schema: complete schema upgrade planning needs the actual matching
+old definition as well as the target definition.
+
 ### Upgrade Against Real Definitions
 
 Upgrade planning checks the actual old and target definitions, rather than
