@@ -6583,49 +6583,73 @@
             ],
             "properties": {
               "isOfficialInstance": {
-                "description": "Manifest field `document.isOfficialInstance` Prepare integrity through Event; edits require a fresh content digest. Revision is server-owned.",
+                "description": "Proposed draft isOfficialInstance for the same operating legal entity as the bootstrap operator. Review independently; this draft grants no host identity, official status or signing authority. Event owns integrity and revision acceptance.",
                 "type": "boolean",
                 "x-configurator": {
+                  "suggestedFrom": {
+                    "pointer": "/identity/operatorIdentity/isOfficialInstance",
+                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                  },
                   "detail": "standard",
                   "sensitivity": "sensitive"
                 }
               },
               "jurisdictionCountryCode": {
-                "description": "Manifest field `document.jurisdictionCountryCode` Prepare integrity through Event; edits require a fresh content digest. Revision is server-owned.",
+                "description": "Proposed draft jurisdictionCountryCode for the same operating legal entity as the bootstrap operator. Review independently; this draft grants no host identity, official status or signing authority. Event owns integrity and revision acceptance.",
                 "type": "string",
                 "x-configurator": {
+                  "suggestedFrom": {
+                    "pointer": "/identity/operatorIdentity/jurisdictionCountryCode",
+                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                  },
                   "detail": "standard",
                   "sensitivity": "sensitive"
                 }
               },
               "legalName": {
-                "description": "Manifest field `document.legalName` Prepare integrity through Event; edits require a fresh content digest. Revision is server-owned.",
+                "description": "Proposed draft legalName for the same operating legal entity as the bootstrap operator. Review independently; this draft grants no host identity, official status or signing authority. Event owns integrity and revision acceptance.",
                 "type": "string",
                 "x-configurator": {
+                  "suggestedFrom": {
+                    "pointer": "/identity/operatorIdentity/legalName",
+                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                  },
                   "detail": "standard",
                   "sensitivity": "sensitive"
                 }
               },
               "operatorId": {
-                "description": "Manifest field `document.operatorId` Prepare integrity through Event; edits require a fresh content digest. Revision is server-owned.",
+                "description": "Proposed draft operatorId for the same operating legal entity as the bootstrap operator. Review independently; this draft grants no host identity, official status or signing authority. Event owns integrity and revision acceptance.",
                 "type": "string",
                 "x-configurator": {
+                  "suggestedFrom": {
+                    "pointer": "/identity/operatorIdentity/operatorId",
+                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                  },
                   "detail": "standard",
                   "sensitivity": "sensitive"
                 }
               },
               "operatorKindCode": {
-                "description": "Manifest field `document.operatorKindCode` Prepare integrity through Event; edits require a fresh content digest. Revision is server-owned.",
+                "description": "Proposed draft operatorKindCode for the same operating legal entity as the bootstrap operator. Review independently; this draft grants no host identity, official status or signing authority. Event owns integrity and revision acceptance.",
                 "type": "string",
                 "x-configurator": {
+                  "suggestedFrom": {
+                    "pointer": "/identity/operatorIdentity/operatorKindCode",
+                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                  },
                   "detail": "standard",
                   "sensitivity": "sensitive"
                 }
               },
               "publicName": {
-                "description": "Manifest field `document.publicName` Prepare integrity through Event; edits require a fresh content digest. Revision is server-owned.",
+                "description": "Proposed draft publicName for the same operating legal entity as the bootstrap operator. Review independently; this draft grants no host identity, official status or signing authority. Event owns integrity and revision acceptance.",
                 "type": "string",
                 "x-configurator": {
+                  "suggestedFrom": {
+                    "pointer": "/identity/operatorIdentity/publicName",
+                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                  },
                   "detail": "standard",
                   "sensitivity": "sensitive"
                 }
@@ -6639,9 +6663,13 @@
                 }
               },
               "websiteUrl": {
-                "description": "Manifest field `document.websiteUrl` Prepare integrity through Event; edits require a fresh content digest. Revision is server-owned.",
+                "description": "Proposed draft websiteUrl for the same operating legal entity as the bootstrap operator. Review independently; this draft grants no host identity, official status or signing authority. Event owns integrity and revision acceptance.",
                 "type": "string",
                 "x-configurator": {
+                  "suggestedFrom": {
+                    "pointer": "/identity/operatorIdentity/websiteUrl",
+                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                  },
                   "detail": "standard",
                   "sensitivity": "sensitive"
                 }
@@ -7814,7 +7842,7 @@
   ],
   "identity": {
     "familyId": "f79259e8-af23-49b0-8d8d-6e371cc96080",
-    "revision": 4
+    "revision": 5
   },
   "localization": {
     "defaultLocale": "en",
@@ -7822,6 +7850,20 @@
       "ar": {
         "direction": "rtl",
         "overrides": {
+          "/presentation/outputSelector/options/0/description": "أعد الملفات المرتبطة بحسب خيارات الاستضافة وبيانات المشغل المدخلة.",
+          "/presentation/outputSelector/options/0/nextActions/0/title": "إعداد بيان التكوين",
+          "/presentation/outputSelector/options/0/nextActions/1/title": "إعداد حزمة المستأجر",
+          "/presentation/outputSelector/options/0/nextActions/2/title": "مراجعة مسودة هوية المشغل",
+          "/presentation/outputSelector/options/3/description": "راجع مسودة الهوية المقترحة؛ يبقى قبولها واعتماد التوقيع من صلاحيات Event.",
+          "/presentation/outputSelector/options/3/nextActions/0/title": "مراجعة المسودات القانونية الاختيارية",
+          "/presentation/outputSelector/options/3/nextActions/0/description": "محتوى تحريري مرافق اختياري؛ لا يعني ضرورة قانونية أو موافقة.",
+          "/configuration/properties/operatorIdentity/properties/document/properties/isOfficialInstance/description": "قيمة مقترحة لمسودة تخص الكيان القانوني المشغل نفسه في بيانات التهيئة. راجعها بصورة مستقلة؛ لا تمنح هوية المضيف أو صفة رسمية أو صلاحية توقيع. يملك Event قبول التكامل والمراجعة.",
+          "/configuration/properties/operatorIdentity/properties/document/properties/jurisdictionCountryCode/description": "قيمة مقترحة لمسودة تخص الكيان القانوني المشغل نفسه في بيانات التهيئة. راجعها بصورة مستقلة؛ لا تمنح هوية المضيف أو صفة رسمية أو صلاحية توقيع. يملك Event قبول التكامل والمراجعة.",
+          "/configuration/properties/operatorIdentity/properties/document/properties/legalName/description": "قيمة مقترحة لمسودة تخص الكيان القانوني المشغل نفسه في بيانات التهيئة. راجعها بصورة مستقلة؛ لا تمنح هوية المضيف أو صفة رسمية أو صلاحية توقيع. يملك Event قبول التكامل والمراجعة.",
+          "/configuration/properties/operatorIdentity/properties/document/properties/operatorId/description": "قيمة مقترحة لمسودة تخص الكيان القانوني المشغل نفسه في بيانات التهيئة. راجعها بصورة مستقلة؛ لا تمنح هوية المضيف أو صفة رسمية أو صلاحية توقيع. يملك Event قبول التكامل والمراجعة.",
+          "/configuration/properties/operatorIdentity/properties/document/properties/operatorKindCode/description": "قيمة مقترحة لمسودة تخص الكيان القانوني المشغل نفسه في بيانات التهيئة. راجعها بصورة مستقلة؛ لا تمنح هوية المضيف أو صفة رسمية أو صلاحية توقيع. يملك Event قبول التكامل والمراجعة.",
+          "/configuration/properties/operatorIdentity/properties/document/properties/publicName/description": "قيمة مقترحة لمسودة تخص الكيان القانوني المشغل نفسه في بيانات التهيئة. راجعها بصورة مستقلة؛ لا تمنح هوية المضيف أو صفة رسمية أو صلاحية توقيع. يملك Event قبول التكامل والمراجعة.",
+          "/configuration/properties/operatorIdentity/properties/document/properties/websiteUrl/description": "قيمة مقترحة لمسودة تخص الكيان القانوني المشغل نفسه في بيانات التهيئة. راجعها بصورة مستقلة؛ لا تمنح هوية المضيف أو صفة رسمية أو صلاحية توقيع. يملك Event قبول التكامل والمراجعة.",
           "/artifacts/1/title": "بيئة عملية واجهة API",
           "/artifacts/2/title": "بيئة عملية Blazor",
           "/artifacts/3/title": "مدخلات Compose لواجهة API",
@@ -9744,6 +9786,15 @@
             "environment-compose-blazor"
           ],
           "title": "Environment",
+          "description": "Prepare related files only for the hosting choices and operator details supplied.",
+          "nextActions": [
+            { "targetOption": "configuration-manifest", "title": "Prepare configuration manifest", "priority": "recommended", "proposedWhen": { "op": "any", "operands": [
+              { "op": "equals", "reference": { "scope": "root", "path": "/hosting/configurationManifest/mode" }, "value": "Bootstrap" },
+              { "op": "equals", "reference": { "scope": "root", "path": "/hosting/configurationManifest/mode" }, "value": "ValidateOnly" }
+            ] } },
+            { "targetOption": "tenant-package", "title": "Prepare tenant package", "priority": "available", "proposedWhen": { "op": "equals", "reference": { "scope": "root", "path": "/hosting/deploymentMode" }, "value": "MultiTenant" } },
+            { "targetOption": "operator-identity", "title": "Review operator identity draft", "priority": "available", "proposedWhen": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } } }
+          ],
           "value": "environment"
         },
         {
@@ -9765,6 +9816,10 @@
             "operator-identity"
           ],
           "title": "Operator identity",
+          "description": "Review a proposed identity draft; Event retains acceptance and signing authority.",
+          "nextActions": [
+            { "targetOption": "legal-drafts", "title": "Review optional legal drafts", "description": "Optional editorial companion; no legal necessity or approval is implied.", "priority": "optional", "proposedWhen": { "op": "exists", "reference": { "scope": "root", "path": "/operatorIdentity/document/operatorId" } } }
+          ],
           "value": "operator-identity"
         },
         {

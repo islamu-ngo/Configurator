@@ -193,6 +193,42 @@ are never printed.
 
 ## Initial source provenance
 
+### Current Event workflow adoption
+
+Revision 5 adds `nextActions` and scalar `suggestedFrom` metadata through the
+existing authoring compiler. The example and store sources are each revised
+against their own canonical revision 4 anchor with `definition revise`; both
+anchors currently identify family `f79259e8-af23-49b0-8d8d-6e371cc96080`.
+Identity is preserved rather than assigned by the store builder. Native example
+generation compiles `examples/islamu-event/definition.json`; the builder creates
+only the missing `store/islamu-event/releases/5.json`. Releases 1–4 retain their
+original bytes.
+
+Environment proposes configuration-manifest for
+`/hosting/configurationManifest/mode` Bootstrap or ValidateOnly, tenant-package
+for `/hosting/deploymentMode` MultiTenant, and operator-identity when
+`/identity/operatorIdentity/operatorId` exists. Operator-identity proposes
+legal-drafts with optional priority when `/operatorIdentity/document/operatorId`
+exists. This is editorial relevance, without legal necessity or approval.
+
+The seven mappings join the same operating legal entity's `isOfficialInstance`,
+`jurisdictionCountryCode`, `legalName`, `operatorId`, `operatorKindCode`,
+`publicName` and `websiteUrl` from `/identity/operatorIdentity/` to
+`/operatorIdentity/document/`. Public source ancestry and sensitive destination
+floors remain intact. The source kind enum and URI website are narrower than
+the destination strings. Every suggestion requires the source operator ID,
+independent of task selection; inactive retained source values remain eligible.
+Destinations describe proposed independently editable drafts without host
+identity, official-status or signing authority. English metadata and Arabic
+positional overrides travel through the same compiler.
+
+`OutputGuidanceProviderTests` exercises actual public provider compilation,
+hosting predicates, explicit transfer from inactive sources, absent-ID refusal,
+and synthetic manually supplied artifact parity against immutable revision 4.
+The [public recipe](../public/definition-cookbook.md#event-follow-up-tasks-and-independently-editable-identity-drafts)
+explains operator behavior. Local owner checks do not qualify Browser interaction,
+assistive technology, target acceptance, signing or package publication.
+
 `store/islamu-event/releases/1.json` through `3.json` are immutable history and
 stay byte-identical. `releases/4.json` is created by the store builder from the
 revision 4 source and is byte-identical to `examples/islamu-event/definition.json`;
@@ -207,12 +243,13 @@ have a new nested shape. Golden comparison against `releases/3.json` (with the
 flat fixtures) shows identical artifacts for every answer fixture, and per-area
 readiness probes match the former toggles.
 
-The retained `store/minimal-self-hosted/releases/2.json` and
-`store/islamu-event/releases/5.json` are byte-identical native copies of
+The historical provenance record for `store/minimal-self-hosted/releases/2.json`
+and the former Event public snapshot describes byte-identical native copies of
 first-party public resources at their original paths:
 `examples/minimal-self-hosted/setup-definition.json` and
 `src/Configurator.Browser/Definitions/islamu-event.public.json`.
-Those historical paths are not current source owners. Both originals come from Configurator commit
+Those historical paths are not current source owners. The former Event snapshot
+is not the current revision 5 workflow release described above. Both originals come from Configurator commit
 `7a244ee1af60129d30f95e11522088851ccb9493`. The neutral source blob is
 `ba3a88b9d5d49fc87b9d7cf27c7c99f56b34c65e`; the Event source blob is
 `fd2e868f4bd7cbd2358ddd5d8a5ec6c3a10436ed`. Native `cmp` verifies the copies.

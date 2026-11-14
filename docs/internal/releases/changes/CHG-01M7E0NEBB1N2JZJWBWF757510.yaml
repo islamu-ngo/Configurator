@@ -1,0 +1,30 @@
+Change-Id: CHG-01M7E0NEBB1N2JZJWBWF757510
+Title: "Adopt reviewed follow-up tasks in Event definition revision five"
+Type: feat
+Scope: self-hosting
+Summary: "Compile conditional related tasks and seven explicit same-entity identity suggestions into the Event example and immutable store revision five, preserving releases one through four."
+Group: event-definition-workflow
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DEFINITION_STORE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DEFINITION_STORE.md
+    Disposition: documented
+    Detail: "Suggestions remain explicit independently editable drafts, preserve sensitivity floors and grant no target identity, official-status, legal approval or signing authority."
+  Migration:
+    Reference: docs/public/definition-store.md
+    Disposition: documented
+    Detail: "Event family identity is retained at revision five; immutable releases one through four remain unchanged."
+  Configuration:
+    Reference: docs/public/definition-cookbook.md
+    Disposition: documented
+    Detail: "Conditional related tasks and seven operator-ID-gated identity mappings require deliberate review."
+  OpenAPI:
+    Reference: docs/internal/DEFINITION_STORE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definition-store.md
+    Disposition: documented
+    Detail: "Native compilation and store generation create the new canonical revision without publication or trust activation."

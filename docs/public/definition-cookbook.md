@@ -21,6 +21,45 @@ These independently authored fragments use that vocabulary; they were not
 executed in this documentation unit. Named fixture methods below are source
 anchors for the mechanism, not a new claim that their suites passed.
 
+## Event follow-up tasks and independently editable identity drafts
+
+The maintained Event provider revision 5 offers related tasks after an export
+acknowledgement. Environment proposes a configuration manifest when
+`/hosting/configurationManifest/mode` is `Bootstrap` or `ValidateOnly`, a tenant
+package when `/hosting/deploymentMode` is `MultiTenant`, and an operator identity
+draft when `/identity/operatorIdentity/operatorId` exists. `Off`, `SingleTenant`
+and an absent operator ID suppress their respective proposals.
+
+The operator identity draft can explicitly reuse seven bootstrap values. Each
+source below is under `/identity/operatorIdentity/`; its independently editable
+destination is under `/operatorIdentity/document/`.
+
+| Leaf | Meaning shared by bootstrap and proposed draft |
+| --- | --- |
+| `isOfficialInstance` | Proposed official-instance declaration, without granting official status |
+| `jurisdictionCountryCode` | Operating entity's jurisdiction |
+| `legalName` | Operating entity's legal name |
+| `operatorId` | Identifier of that same operating legal entity |
+| `operatorKindCode` | Kind of that operating legal entity |
+| `publicName` | Operating entity's public display name |
+| `websiteUrl` | Operating entity's website |
+
+The bootstrap kind enum and URI website constraint are subsets of the draft's
+string fields. Sources remain public through their ancestors; destinations stay
+sensitive. Each `suggestedFrom` uses `pointer` and an `exists` condition on the
+bootstrap operator ID, independent of the selected output task. Retained
+bootstrap values can therefore be reviewed while their source group is inactive.
+Without that ID there is no suggestion. Merely opening a task copies nothing;
+review and adoption are explicit, and subsequent edits remain independent.
+
+After an operator identity export, an existing document operator ID makes legal
+drafts an **optional editorial companion**. This establishes no legal necessity,
+legal approval, host identity or signing authority. Event owns integrity,
+revision and acceptance checks. Arabic text uses actual positional localization
+paths such as `/presentation/outputSelector/options/0/nextActions/0/title`.
+See the [store contribution contract](definition-store.md) for immutable revision
+generation and history preservation.
+
 ## Legal documents with editable language rows
 
 The Event example groups each legal document in a closed object. Its
@@ -72,6 +111,44 @@ JSON null. Reset and suggestion adoption are deliberate editing operations,
 not additional private-envelope members.
 
 ## Output choices without application-specific UI
+
+Collect genuinely shared facts once and project them into multiple artifacts
+with `copy`. Use a suggestion link only when the destination has its own meaning
+and may later diverge. For example, two public string fields with the same
+constraints may declare the destination as:
+
+```yaml
+type: string
+x-configurator:
+  sensitivity: public
+  suggestedFrom:
+    pointer: /organizationName
+```
+
+The source must already be a statically named scalar field in the same
+configuration. Optional `when` uses the ordinary predicate grammar; named
+predicates are lowered during compilation. The link provides no value and
+does not overwrite a manual answer, omission or draft. Reviewed adoption,
+masking and current secret consent belong to the client workflow.
+Use matching or wider destination constraints. Admission rejects unproven
+compatibility, weaker destination sensitivity, generated-secret endpoints and
+cycles. Matching field names alone do not establish shared meaning.
+
+The shared form's review lists eligible source/destination pairs without
+retaining their values. Existing destination answers, explicit omissions and
+invalid drafts start unchecked. Selecting a pair explicitly permits that
+overwrite; switching tasks without a selection preserves every destination.
+An edit after review requires a fresh review. Applying selected pairs and
+switching tasks creates one accepted change and one undo entry.
+
+A retained source can remain useful after its task becomes inactive, provided
+the supplied scalar is still valid and its authored condition and current
+secret custody permit reading it. Missing, blank, omitted or invalid sources
+produce no usable candidate. False and zero remain supplied values. Protected
+previews stay masked even with consent, and revocation retires held reviews.
+Client-specific controls and actual platform qualification remain separate from
+this shared contract; see the
+[state contract](../internal/PRESENTATION_STATE.md#reviewed-value-transfer).
 
 Declare one public, nonnullable, unconditionally editable root string enum,
 then bind its exact values to artifact IDs. This partial authoring fragment

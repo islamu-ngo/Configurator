@@ -60,6 +60,27 @@ catalog inclusion does not authenticate a publisher or prove target acceptance.
 
 ---
 
+## Event provider revision 5
+
+Revision 5 adds conditional follow-up tasks and seven explicitly reviewed
+bootstrap-to-document identity suggestions. The
+[provider recipe](definition-cookbook.md#event-follow-up-tasks-and-independently-editable-identity-drafts)
+describes their conditions and same-entity meaning. These are proposed editable
+drafts; they do not establish target acceptance, signing authority or legal
+approval. Missing operator IDs produce no identity suggestions, and legal
+drafts remain an optional editorial companion.
+
+Maintainers use `definition revise` against the existing canonical definition
+for each source, then compile the example and generate the store. Preserve each
+source's family; never infer identity from matching project names. The current
+example and store anchors both use family
+`f79259e8-af23-49b0-8d8d-6e371cc96080`. Releases 1 through 4 remain immutable,
+and the builder creates `store/islamu-event/releases/5.json` without rewriting
+them. Metadata adoption leaves manually supplied artifact values unchanged.
+Generation is local public-data preparation, with no publication or trust
+activation. The [engineering contract](../internal/DEFINITION_STORE.md)
+owns the native commands and history checks.
+
 ## Proposing a Project to the Store
 
 Anyone may submit a pull request to add an open-source application to the official store catalog under [`store/`](../../store/README.md).
