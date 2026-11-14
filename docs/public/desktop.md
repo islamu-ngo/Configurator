@@ -399,3 +399,11 @@ Definition-standard-redesign Phase 12 qualification remains separate.
 Desktop supports light, dark and high-contrast palettes. Its four density
 presets change control spacing and row sizes while preserving text scaling.
 Host and assistive-technology qualification remain separate checks.
+
+## Local profiles and recovery
+
+Open Local profiles and recovery in preparation or privacy settings. Choose a
+protection mode and deliberately save a new immutable revision. Keep its saved
+reference separately, then select that exact revision to check portable recovery.
+Retiring a retained field requires confirmation. Old encrypted copies retain
+their original access, and rekeying a profile does not rotate target credentials.

@@ -57,6 +57,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         Navigation = new DesktopNavigationViewModel(workspace);
         Publisher = publisher;
         ImportReview = importReview;
+        Profiles = new ProfileManagerViewModel(workspace, messenger);
         messenger.Register<DesktopShellViewModel, OperationRequestedMessage>(this,
             static (root, message) => root.Begin(message));
         messenger.Register<DesktopShellViewModel, InputsInvalidatedMessage>(this,
@@ -89,6 +90,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     public DesktopNavigationViewModel Navigation { get; }
     public ArtifactPublisherViewModel Publisher { get; }
     public DesktopImportReviewViewModel ImportReview { get; }
+    public ProfileManagerViewModel Profiles { get; }
     public int AppearanceIndex
     {
         get => _appearanceIndex;
@@ -281,6 +283,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         Invalidate();
         Loader.Dispose();
         ImportReview.Dispose();
+        Profiles.Dispose();
         Publisher.Dispose();
         Navigation.Dispose();
         Workspace.Dispose();

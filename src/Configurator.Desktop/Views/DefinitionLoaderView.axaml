@@ -5,6 +5,7 @@
     xmlns:store="using:Configurator.Presentation.Store"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
     <StackPanel Spacing="14">
+      <local:ProfileWorkspaceView />
       <TextBlock Text="{Binding Workspace.Strings[PreparationTitle]}" FontSize="{DynamicResource ConfiguratorTitleFontSize}" FontWeight="SemiBold" />
 
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">

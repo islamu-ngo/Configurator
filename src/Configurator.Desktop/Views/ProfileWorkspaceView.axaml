@@ -1,0 +1,91 @@
+<UserControl x:Class="Configurator.Desktop.Views.ProfileWorkspaceView"
+    xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Configurator.Desktop.ViewModels"
+    xmlns:profiles="using:Configurator.Artifacts.Profiles"
+    x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
+  <Expander Header="{Binding Workspace.Strings[ProfileTitle]}" HorizontalAlignment="Stretch">
+    <StackPanel Spacing="8" IsEnabled="{Binding !IsBusy}">
+      <TextBlock Text="{Binding Workspace.Strings[ProfileDirectory]}" />
+      <TextBox Text="{Binding Profiles.Directory, Mode=TwoWay}" MaxLength="4096" FlowDirection="LeftToRight"
+               AutomationProperties.Name="{Binding Workspace.Strings[ProfileDirectory]}" />
+      <Button Content="{Binding Workspace.Strings[ProfileRefresh]}" Command="{Binding Profiles.RefreshCommand}" />
+      <TextBlock Text="{Binding Workspace.Strings[ProfileRevisionHelp]}" TextWrapping="Wrap" />
+      <ListBox Name="ProfileRevisions" ItemsSource="{Binding Profiles.Revisions}" FlowDirection="LeftToRight"
+               SelectedItem="{Binding Profiles.SelectedRevision, Mode=TwoWay}"
+               AutomationProperties.Name="{Binding Workspace.Strings[ProfileTitle]}" MaxHeight="180">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="profiles:ProfileRevisionDescriptor">
+            <StackPanel Spacing="4">
+              <TextBlock Text="{Binding ProfileId}" />
+              <TextBlock Text="{Binding SnapshotId}" />
+              <TextBlock Text="{Binding Kind}" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <TextBlock Text="{Binding Workspace.Strings[ProfileModeLabel]}" />
+      <ComboBox Name="ProfileMode" SelectedIndex="{Binding Profiles.ModeIndex, Mode=TwoWay}"
+                IsEnabled="{Binding !Profiles.HasProfile}"
+                AutomationProperties.Name="{Binding Workspace.Strings[ProfileTitle]}">
+        <ComboBoxItem><TextBlock Text="{Binding Workspace.Strings[ProfileModeCompareOnly]}" TextWrapping="Wrap" MaxWidth="360" /></ComboBoxItem>
+        <ComboBoxItem><TextBlock Text="{Binding Workspace.Strings[ProfileModeImportUpgradeOnly]}" TextWrapping="Wrap" MaxWidth="360" /></ComboBoxItem>
+        <ComboBoxItem><TextBlock Text="{Binding Workspace.Strings[ProfileModeInspectableEncrypted]}" TextWrapping="Wrap" MaxWidth="360" /></ComboBoxItem>
+        <ComboBoxItem><TextBlock Text="{Binding Workspace.Strings[ProfileModeUnencryptedTarget]}" TextWrapping="Wrap" MaxWidth="360" /></ComboBoxItem>
+      </ComboBox>
+      <TextBlock Text="{Binding Profiles.ReviewedProfile}" FlowDirection="LeftToRight" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Profiles.Profile.Mode}" FlowDirection="LeftToRight" IsVisible="{Binding Profiles.HasProfile}" />
+      <CheckBox Content="{Binding Workspace.Strings[ProfileUseDevice]}" IsChecked="{Binding Profiles.UseDevice, Mode=TwoWay}" />
+      <TextBlock Text="{Binding Workspace.Strings[ProfileDeviceKeyId]}" />
+      <TextBox Text="{Binding Profiles.DeviceKeyId, Mode=TwoWay}" MaxLength="36" FlowDirection="LeftToRight"
+               AutomationProperties.Name="{Binding Workspace.Strings[ProfileDeviceKeyId]}" />
+      <Button Content="{Binding Workspace.Strings[ProfileCreateDevice]}" Command="{Binding Profiles.CreateDeviceKeyCommand}" />
+      <TextBlock Text="{Binding Workspace.Strings[ProfileDeviceWarning]}" TextWrapping="Wrap" />
+      <CheckBox Content="{Binding Workspace.Strings[ProfileDeviceAcknowledgement]}"
+                IsChecked="{Binding Profiles.AcknowledgeDeviceOnly, Mode=TwoWay}" />
+      <TextBlock Text="{Binding Workspace.Strings[ProfilePassphrase]}" />
+      <TextBox Name="ProfilePassphrase" PasswordChar="●" MaxLength="1024"
+               AutomationProperties.Name="{Binding Workspace.Strings[ProfilePassphrase]}" />
+      <TextBlock Text="{Binding Workspace.Strings[ProfileConfirmPassphrase]}" />
+      <TextBox Name="ProfileConfirmation" PasswordChar="●" MaxLength="1024"
+               AutomationProperties.Name="{Binding Workspace.Strings[ProfileConfirmPassphrase]}" />
+      <TextBlock Text="{Binding Workspace.Strings[ProfileRecipientIndex]}" />
+      <NumericUpDown Value="{Binding Profiles.RecipientIndex, Mode=TwoWay}" Minimum="0" Maximum="7"
+                     AutomationProperties.Name="{Binding Workspace.Strings[ProfileRecipientIndex]}" />
+      <WrapPanel ItemSpacing="8">
+        <Button Content="{Binding Workspace.Strings[ProfileOpen]}" Click="OpenProfile" />
+        <Button Content="{Binding Workspace.Strings[ProfileSave]}" Click="SaveProfile" />
+        <Button Content="{Binding Workspace.Strings[ProfileCompare]}" Click="CompareProfile" />
+        <Button Content="{Binding Workspace.Strings[ProfileRecoveryCheck]}" Click="CheckRecovery" />
+      </WrapPanel>
+      <TextBlock Text="{Binding Workspace.Strings[ProfileRetained]}" IsVisible="{Binding Profiles.HasProfile}" TextWrapping="Wrap" />
+      <ListBox Name="ProfileRetainedSlots" ItemsSource="{Binding Profiles.RetainedSlots}" MaxHeight="180" FlowDirection="LeftToRight"
+               AutomationProperties.Name="{Binding Workspace.Strings[ProfileRetained]}" />
+      <ListBox ItemsSource="{Binding Profiles.UpgradeFields}" MaxHeight="180" FlowDirection="LeftToRight"
+               AutomationProperties.Name="{Binding Workspace.Strings[ProfileCompare]}" />
+      <ListBox ItemsSource="{Binding Profiles.SchemaChanges}" MaxHeight="180" FlowDirection="LeftToRight"
+               AutomationProperties.Name="{Binding Workspace.Strings[ProfileCompare]}" />
+      <CheckBox Name="ProfileConfirmReplacement" Content="{Binding Workspace.Strings[ProfileConfirmReplacement]}" />
+      <Button Content="{Binding Workspace.Strings[ProfileReplace]}" Click="ReplaceRetained" />
+      <Button Content="{Binding Workspace.Strings[ProfilePrepareOutput]}" Click="SaveTarget"
+              IsVisible="{Binding Profiles.HasProfile}" />
+      <TextBlock Text="{Binding Workspace.Strings[ProfileRecoveryHelp]}" TextWrapping="Wrap" />
+      <StackPanel Spacing="4" IsVisible="{Binding Profiles.HasRecoveryReference}">
+        <TextBlock Text="{Binding Workspace.Strings[ProfileSavedReferenceHelp]}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Workspace.Strings[ProfileSavedProfileId]}" />
+        <TextBox Text="{Binding Profiles.RecoveryReference.ProfileId, Mode=OneWay}" IsReadOnly="True" FlowDirection="LeftToRight"
+                 AutomationProperties.Name="{Binding Workspace.Strings[ProfileSavedProfileId]}" />
+        <TextBlock Text="{Binding Workspace.Strings[ProfileSavedSnapshotId]}" />
+        <TextBox Text="{Binding Profiles.RecoveryReference.SnapshotId, Mode=OneWay}" IsReadOnly="True" FlowDirection="LeftToRight"
+                 AutomationProperties.Name="{Binding Workspace.Strings[ProfileSavedSnapshotId]}" />
+        <TextBlock Text="{Binding Workspace.Strings[ProfileSavedCiphertextDigest]}" />
+        <TextBox Text="{Binding Profiles.RecoveryReference.Digest.Value, Mode=OneWay}" IsReadOnly="True" FlowDirection="LeftToRight"
+                 AutomationProperties.Name="{Binding Workspace.Strings[ProfileSavedCiphertextDigest]}" />
+      </StackPanel>
+      <TextBlock Text="{Binding Workspace.Strings[ProfileRekeyHelp]}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Workspace.Strings[ProfileUninstallHelp]}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Profiles.RecoveryStatus}" FlowDirection="LeftToRight" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Workspace.Strings[ProfileStatusHelp]}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding Profiles.Status}" FlowDirection="LeftToRight" TextWrapping="Wrap" />
+    </StackPanel>
+  </Expander>
+</UserControl>

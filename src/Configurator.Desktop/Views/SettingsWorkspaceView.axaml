@@ -1,6 +1,7 @@
 <UserControl x:Class="Configurator.Desktop.Views.SettingsWorkspaceView"
     xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:Configurator.Desktop.ViewModels"
+    xmlns:local="using:Configurator.Desktop.Views"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
   <StackPanel Spacing="16" MaxWidth="800">
     <TextBlock Text="{Binding Workspace.Strings[Settings]}"
@@ -101,6 +102,7 @@
           <TextBlock Text="{Binding Workspace.Strings[SettingsWorkstationHostLabel]}" FontWeight="SemiBold" />
           <TextBlock Text="{Binding Publisher.ProtectedCapability}" TextWrapping="Wrap" />
         </StackPanel>
+        <local:ProfileWorkspaceView />
         <TextBlock Text="{Binding Workspace.Strings[SettingsPrivacyHelp]}"
                    Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
                    TextWrapping="Wrap" />

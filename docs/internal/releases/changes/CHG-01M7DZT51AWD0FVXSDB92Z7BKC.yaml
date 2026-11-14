@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7DZT51AWD0FVXSDB92Z7BKC
+Title: "Manage immutable encrypted profiles in the Desktop client"
+Type: feat
+Scope: privacy
+Summary: "Expose native profile modes, deliberate retained-value replacement, immutable saves, independent recovery checks and direct protected target output through Desktop controls."
+Group: desktop-profiles
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Retained values stay outside ordinary field answers. Recovery checks bind the selected immutable revision and saved ciphertext reference; target output uses the protected writer."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Desktop controls expose profile protection modes, immutable revisions, explicit replacement and independent portable recovery verification."

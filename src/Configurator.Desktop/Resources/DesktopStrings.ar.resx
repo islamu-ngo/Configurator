@@ -1,5 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="ProfileTitle" xml:space="preserve"><value>الملفات المحلية والاسترداد</value></data>
+  <data name="ProfileRevisionHelp" xml:space="preserve"><value>تعرض كل نسخة محفوظة معرف الملف ومعرف النسخة ونوعها. تظل القائمة غير موثقة حتى الفتح الموثق.</value></data>
+  <data name="ProfileModeLabel" xml:space="preserve"><value>وضع الحماية</value></data>
+  <data name="ProfileSavedReferenceHelp" xml:space="preserve"><value>مرجع آخر حفظ لملف مشفر ثبت تثبيته بنجاح. احتفظ بهذه المعرفات وبصمة النص المشفر منفصلة عن الملف المشفر. لا يثبت هذا الإيصال وحده نجاح الاسترداد.</value></data>
+  <data name="ProfileSavedProfileId" xml:space="preserve"><value>معرف الملف المحفوظ</value></data>
+  <data name="ProfileSavedSnapshotId" xml:space="preserve"><value>معرف النسخة المحفوظة</value></data>
+  <data name="ProfileSavedCiphertextDigest" xml:space="preserve"><value>بصمة SHA-256 للنص المشفر المحفوظ</value></data>
+  <data name="ProfileDirectory" xml:space="preserve"><value>مجلد الملفات الخاص (مسار مطلق)</value></data>
+  <data name="ProfileRefresh" xml:space="preserve"><value>عرض النسخ الثابتة (غير موثقة حتى فتحها)</value></data>
+  <data name="ProfileModeCompareOnly" xml:space="preserve"><value>للمقارنة فقط: قيم عامة وبنية مجردة دون أسرار قابلة للاسترداد. قد تظل القيم العامة بيانات تشغيلية خاصة.</value></data>
+  <data name="ProfileModeImportUpgradeOnly" xml:space="preserve"><value>للاستيراد والترقية فقط: لا يمكن كشف القيم المحتفظ بها أو نسخها أو معاينتها أو استعادتها بالتراجع. يستطيع مفكك تشفير محلي مخول فكها.</value></data>
+  <data name="ProfileModeInspectableEncrypted" xml:space="preserve"><value>مشفر قابل للفحص: يعيد الفتح الإجابات للتحرير والفحص العاديين.</value></data>
+  <data name="ProfileModeUnencryptedTarget" xml:space="preserve"><value>إخراج الهدف دون تشفير: استخدم المراجعة لإعداد ملفات الهدف وحفظها عمدا بحماية الوصول.</value></data>
+  <data name="ProfileUseDevice" xml:space="preserve"><value>استخدام مستلم حلقة مفاتيح النظام المهيأ</value></data>
+  <data name="ProfileDeviceKeyId" xml:space="preserve"><value>معرف مستلم الجهاز المهيأ</value></data>
+  <data name="ProfileCreateDevice" xml:space="preserve"><value>إنشاء مستلم جديد في حلقة مفاتيح النظام</value></data>
+  <data name="ProfileDeviceWarning" xml:space="preserve"><value>قد يمنع فقدان حلقة المفاتيح أو الحساب أو الجهاز الاسترداد نهائيا. أضف مستلما بعبارة مرور محمولة واختبره مستقلا. لا ينشئ البحث الفاشل بديلا.</value></data>
+  <data name="ProfileDeviceAcknowledgement" xml:space="preserve"><value>أقبل الفقدان الدائم إذا حفظت دون استرداد محمول ثم فقدت مستلم الجهاز.</value></data>
+  <data name="ProfilePassphrase" xml:space="preserve"><value>عبارة المرور المحمولة (١٥ محرف يونيكود على الأقل للمستلم الجديد)</value></data>
+  <data name="ProfileConfirmPassphrase" xml:space="preserve"><value>تأكيد عبارة المرور المحمولة الجديدة تماما</value></data>
+  <data name="ProfileRecipientIndex" xml:space="preserve"><value>فهرس مستلم واحد محدد (الجهاز في الفهرس صفر عند تهيئته)</value></data>
+  <data name="ProfileOpen" xml:space="preserve"><value>فتح النسخة المشفرة المحددة</value></data>
+  <data name="ProfileSave" xml:space="preserve"><value>حفظ نسخة ثابتة جديدة</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>مقارنة الأساس العام أو مراجعة الترقية</value></data>
+  <data name="ProfileRecoveryCheck" xml:space="preserve"><value>اختبار النسخة المحددة بالمستلم المحمول وحده</value></data>
+  <data name="ProfileRetained" xml:space="preserve"><value>لا تعرض الحقول المحتفظ بها أي قيم. حدد حقلا لإلغاء الاحتفاظ به قبل إدخال بديله. نتائج الترقية استشارية وتتطلب إعادة التحقق.</value></data>
+  <data name="ProfileConfirmReplacement" xml:space="preserve"><value>تأكيد الإلغاء الدائم للاحتفاظ بهذا الحقل، بما في ذلك التراجع.</value></data>
+  <data name="ProfileReplace" xml:space="preserve"><value>إلغاء الاحتفاظ بالحقل المحدد لاستبداله</value></data>
+  <data name="ProfilePrepareOutput" xml:space="preserve"><value>تركيب القيم المحتفظ بها وحفظ إخراج الهدف المحدد مباشرة</value></data>
+  <data name="ProfileRecoveryHelp" xml:space="preserve"><value>بعد الحفظ اعرض النسخ وحدد النسخة ذاتها. اختر المستلم المحمول وأدخل عبارة مروره. يستخدم التحقق سياقا جديدا دون مفتاح الجهاز ويخص هذه النسخة وحدها. تظل النسخة التاريخية المفتوحة دون مرجع حفظ موثوق غير موثقة.</value></data>
+  <data name="ProfileRekeyHelp" xml:space="preserve"><value>يحافظ حفظ ملف مفتوح على وضعه وينشئ نسخة جديدة بمفاتيح تشفير وقيمة فريدة جديدة. تحتفظ النسخ القديمة بإمكانية الوصول القديمة. لا يغير ذلك بيانات اعتماد الهدف.</value></data>
+  <data name="ProfileUninstallHelp" xml:space="preserve"><value>لا تكفي نسخة الملف المشفر دون مستلم يعمل. لا تعيد إعادة التثبيت أو خدمة الدعم بناء المفاتيح المفقودة. قد تبقى الملفات أو مدخلات المفاتيح بعد الإزالة أو إعادة الضبط لكن بقاءها غير مضمون.</value></data>
+  <data name="ProfileStatusHelp" xml:space="preserve"><value>تعرض الحالة التقنية أدناه نتيجة العملية. عند قفل المفاتيح أو رفض الوصول أو غيابها اختر المستلم المحمول صراحة وأعد المحاولة؛ لا يوجد بديل تلقائي. التثبيت والتحقق والتنظيف حقائق مستقلة.</value></data>
   <data name="Settings" xml:space="preserve"><value>الإعدادات</value></data>
   <data name="OutputNotEvaluated" xml:space="preserve"><value>لم يُقيّم الاكتمال بعد</value></data>
   <data name="OutputPreparedComplete" xml:space="preserve"><value>مجهّز؛ المخرج مكتمل</value></data>

@@ -1,5 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="ProfileTitle" xml:space="preserve"><value>Local profiles and recovery</value></data>
+  <data name="ProfileRevisionHelp" xml:space="preserve"><value>Each saved revision shows its profile ID, snapshot ID and file kind. Listings remain unverified until authenticated opening.</value></data>
+  <data name="ProfileModeLabel" xml:space="preserve"><value>Protection mode</value></data>
+  <data name="ProfileSavedReferenceHelp" xml:space="preserve"><value>Reference for the last successfully installed encrypted profile save. Keep these identifiers and ciphertext digest separately from the vault. This receipt alone does not verify recovery.</value></data>
+  <data name="ProfileSavedProfileId" xml:space="preserve"><value>Saved profile ID</value></data>
+  <data name="ProfileSavedSnapshotId" xml:space="preserve"><value>Saved snapshot ID</value></data>
+  <data name="ProfileSavedCiphertextDigest" xml:space="preserve"><value>Saved ciphertext SHA-256</value></data>
+  <data name="ProfileDirectory" xml:space="preserve"><value>Private profile directory (absolute path)</value></data>
+  <data name="ProfileRefresh" xml:space="preserve"><value>List immutable revisions (unverified until opened)</value></data>
+  <data name="ProfileModeCompareOnly" xml:space="preserve"><value>Compare only: public values and stripped structure; no recoverable secrets. Public values may still be private operational data.</value></data>
+  <data name="ProfileModeImportUpgradeOnly" xml:space="preserve"><value>Import and upgrade only: encrypted retained values cannot be revealed, copied, previewed or restored by undo. Local authorized decoders can still decrypt them.</value></data>
+  <data name="ProfileModeInspectableEncrypted" xml:space="preserve"><value>Inspectable encrypted: opening restores answers for ordinary editing and inspection.</value></data>
+  <data name="ProfileModeUnencryptedTarget" xml:space="preserve"><value>Unencrypted target output: use Review to deliberately prepare and save restricted target files.</value></data>
+  <data name="ProfileUseDevice" xml:space="preserve"><value>Use configured OS keyring recipient</value></data>
+  <data name="ProfileDeviceKeyId" xml:space="preserve"><value>Configured device recipient identifier</value></data>
+  <data name="ProfileCreateDevice" xml:space="preserve"><value>Create a new OS keyring recipient</value></data>
+  <data name="ProfileDeviceWarning" xml:space="preserve"><value>Keyring, account or device loss can permanently prevent recovery. Add a portable passphrase recipient and check it independently. A failed lookup never creates a replacement.</value></data>
+  <data name="ProfileDeviceAcknowledgement" xml:space="preserve"><value>I accept permanent loss if I save without portable recovery and lose the device recipient.</value></data>
+  <data name="ProfilePassphrase" xml:space="preserve"><value>Portable passphrase (new recipients require at least 15 Unicode characters)</value></data>
+  <data name="ProfileConfirmPassphrase" xml:space="preserve"><value>Confirm new portable passphrase exactly</value></data>
+  <data name="ProfileRecipientIndex" xml:space="preserve"><value>One selected recipient index (device is index zero when configured)</value></data>
+  <data name="ProfileOpen" xml:space="preserve"><value>Open selected encrypted revision</value></data>
+  <data name="ProfileSave" xml:space="preserve"><value>Save new immutable revision</value></data>
+  <data name="ProfileCompare" xml:space="preserve"><value>Compare public baseline or review upgrade</value></data>
+  <data name="ProfileRecoveryCheck" xml:space="preserve"><value>Check selected revision using portable recipient alone</value></data>
+  <data name="ProfileRetained" xml:space="preserve"><value>Retained fields contain no displayed values. Select a field to retire before entering its replacement. Upgrade facts are advisory and require revalidation.</value></data>
+  <data name="ProfileConfirmReplacement" xml:space="preserve"><value>Confirm permanent retirement of this retained field, including from undo.</value></data>
+  <data name="ProfileReplace" xml:space="preserve"><value>Retire selected field for replacement</value></data>
+  <data name="ProfilePrepareOutput" xml:space="preserve"><value>Compose retained values and save selected target output directly</value></data>
+  <data name="ProfileRecoveryHelp" xml:space="preserve"><value>After saving, list and select that exact revision. Select the portable recipient and enter its passphrase. Verification uses a fresh context without the device key and covers only this revision. An opened historical copy without a trusted saved reference remains unverified.</value></data>
+  <data name="ProfileRekeyHelp" xml:space="preserve"><value>Saving an opened profile preserves its mode and creates a fresh snapshot with new encryption keys and nonce. Old copies retain old access. This does not rotate target credentials.</value></data>
+  <data name="ProfileUninstallHelp" xml:space="preserve"><value>A vault copy is insufficient without a working recipient. Reinstall and support cannot reconstruct lost keys. Uninstall or reset may leave files or keyring entries, but preservation is not guaranteed.</value></data>
+  <data name="ProfileStatusHelp" xml:space="preserve"><value>Technical status below reports the operation. Locked, denied or missing keyring access requires explicit portable recipient selection and retry; there is no automatic fallback. Installation, verification and cleanup are separate facts.</value></data>
   <data name="Settings" xml:space="preserve"><value>Settings</value></data>
   <data name="OutputNotEvaluated" xml:space="preserve"><value>Completeness not evaluated</value></data>
   <data name="OutputPreparedComplete" xml:space="preserve"><value>Prepared; complete output</value></data>

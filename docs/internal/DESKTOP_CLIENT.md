@@ -722,3 +722,11 @@ spacing, card padding and table row resources. `DesktopTheme` applies these
 on the UI thread alongside the existing light/dark/high-contrast palette.
 Density changes do not replace font-size resources. Settings and workspace
 controls consume this resource mechanism in their own integration.
+
+## Native profile controls
+
+`ProfileManagerViewModel` connects the shared profile session, immutable native
+vault, selected OS recipient and independent recovery verifier. Its shell-owned
+lifetime retires retained slots with the workspace. `ProfileWorkspaceView`
+clears passphrase entry after deliberate actions and exposes saved reference
+identities separately from recovery status. Target output uses protected saving.
