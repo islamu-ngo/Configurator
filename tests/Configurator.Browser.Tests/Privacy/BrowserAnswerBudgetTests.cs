@@ -104,33 +104,28 @@ public sealed class BrowserAnswerBudgetTests
         await Assert.That(component.Find("[role=alert]").TextContent).Contains("bundle-limit");
     }
 
-    private sealed class ComposedOutputs : IObserver<DiagnosticListener>,
-        IObserver<KeyValuePair<string, object?>>, IDisposable
+    private sealed class ComposedOutputs : IDisposable
     {
         private readonly Activity _activity;
-        private readonly List<IDisposable> _subscriptions = [];
-        private readonly IDisposable _listeners;
+        private readonly ActivityListener _listener;
         public ComposedOutputs(Activity activity)
         {
             _activity = activity;
-            _listeners = DiagnosticListener.AllListeners.Subscribe(this);
+            _listener = new()
+            {
+                ShouldListenTo = source => source.Name == "Configurator.Core.Preparation",
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                SampleUsingParentId = (ref ActivityCreationOptions<string> _) => ActivitySamplingResult.AllData,
+                ActivityStarted = OnStarted
+            };
+            ActivitySource.AddActivityListener(_listener);
         }
         public List<string> Artifacts { get; } = [];
-        public void OnNext(DiagnosticListener value)
+        private void OnStarted(Activity activity)
         {
-            if (value.Name == "Configurator.Core.Preparation") _subscriptions.Add(value.Subscribe(this));
+            if (ReferenceEquals(activity.Parent, _activity) && activity.OperationName == "ArtifactComposed")
+                Artifacts.Add((string)activity.GetTagItem("artifact.id")!);
         }
-        public void OnNext(KeyValuePair<string, object?> value)
-        {
-            if (ReferenceEquals(Activity.Current, _activity) && value.Key == "ArtifactComposed")
-                Artifacts.Add((string)value.Value!);
-        }
-        public void OnCompleted() { }
-        public void OnError(Exception error) { }
-        public void Dispose()
-        {
-            _listeners.Dispose();
-            foreach (IDisposable subscription in _subscriptions) subscription.Dispose();
-        }
+        public void Dispose() => _listener.Dispose();
     }
 }

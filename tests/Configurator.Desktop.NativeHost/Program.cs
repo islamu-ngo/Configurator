@@ -1587,34 +1587,32 @@ internal static class Program
         await FlushAsync();
     }
 
-    private sealed class EventValidationMeasurement : IObserver<DiagnosticListener>,
-        IObserver<KeyValuePair<string, object?>>, IDisposable
+    private sealed class EventValidationMeasurement : IDisposable
     {
-        private readonly IDisposable _listeners;
-        private readonly List<IDisposable> _subscriptions = [];
+        private readonly ActivityListener _listener;
         private int _count;
-        internal EventValidationMeasurement() => _listeners = DiagnosticListener.AllListeners.Subscribe(this);
-        internal int Count => Volatile.Read(ref _count);
-        public void OnNext(DiagnosticListener listener)
+        internal EventValidationMeasurement()
         {
-            if (listener.Name == "Configurator.Core.Preparation") _subscriptions.Add(listener.Subscribe(this));
+            _listener = new()
+            {
+                ShouldListenTo = source => source.Name == "Configurator.Core.Preparation",
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                SampleUsingParentId = (ref ActivityCreationOptions<string> _) => ActivitySamplingResult.AllData,
+                ActivityStarted = OnStarted
+            };
+            ActivitySource.AddActivityListener(_listener);
         }
-        public void OnNext(KeyValuePair<string, object?> item)
+        internal int Count => Volatile.Read(ref _count);
+        private void OnStarted(Activity activity)
         {
-            if (item.Key != "ValidationCompleted" || Interlocked.Increment(ref _count) != 25) return;
+            if (activity.OperationName != "ValidationCompleted" || Interlocked.Increment(ref _count) != 25) return;
             string frames = string.Join(" > ", new StackTrace(false).GetFrames().Take(36)
                 .Select(frame => frame.GetMethod())
                 .Where(method => method is not null)
                 .Select(method => method!.DeclaringType?.FullName + "." + method.Name));
             Console.WriteLine("native-validation-stack:" + frames);
         }
-        public void OnCompleted() { }
-        public void OnError(Exception error) { }
-        public void Dispose()
-        {
-            _listeners.Dispose();
-            foreach (IDisposable subscription in _subscriptions) subscription.Dispose();
-        }
+        public void Dispose() => _listener.Dispose();
     }
 
     private static async Task ImportComparisonAsync(MainWindow window, DesktopShellViewModel shell,

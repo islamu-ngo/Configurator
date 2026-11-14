@@ -237,32 +237,27 @@ public sealed class DefinitionPreparedAdoptionTests
         }
     }
 
-    private sealed class PreparationMeasurement : IObserver<DiagnosticListener>,
-        IObserver<KeyValuePair<string, object?>>, IDisposable
+    private sealed class PreparationMeasurement : IDisposable
     {
         private readonly Activity _activity;
-        private readonly IDisposable _listeners;
-        private readonly List<IDisposable> _subscriptions = [];
+        private readonly ActivityListener _listener;
         public PreparationMeasurement(Activity activity)
         {
             _activity = activity;
-            _listeners = DiagnosticListener.AllListeners.Subscribe(this);
+            _listener = new()
+            {
+                ShouldListenTo = source => source.Name == "Configurator.Core.Preparation",
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                SampleUsingParentId = (ref ActivityCreationOptions<string> _) => ActivitySamplingResult.AllData,
+                ActivityStarted = OnStarted
+            };
+            ActivitySource.AddActivityListener(_listener);
         }
         public List<string> Events { get; } = [];
-        public void OnNext(DiagnosticListener value)
+        private void OnStarted(Activity activity)
         {
-            if (value.Name == "Configurator.Core.Preparation") _subscriptions.Add(value.Subscribe(this));
+            if (ReferenceEquals(activity.Parent, _activity)) Events.Add(activity.OperationName);
         }
-        public void OnNext(KeyValuePair<string, object?> value)
-        {
-            if (ReferenceEquals(Activity.Current, _activity)) Events.Add(value.Key);
-        }
-        public void OnCompleted() { }
-        public void OnError(Exception error) { }
-        public void Dispose()
-        {
-            _listeners.Dispose();
-            foreach (IDisposable subscription in _subscriptions) subscription.Dispose();
-        }
+        public void Dispose() => _listener.Dispose();
     }
 }
