@@ -11,7 +11,7 @@ public sealed partial class DefinitionFormModel
     public bool EditValue(DefinitionPath path, string? text)
     {
         ArgumentNullException.ThrowIfNull(path);
-        using var mutation = BeginMutation();
+        using var mutation = BeginMutation(PresentationStrings.Get(text is null ? "UndoActionOmit" : "UndoActionEdit", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
         return TryOrdinaryRootPath(path.Segments, out string[] ordinary)
             ? EditValue(ordinary, text) : EditRootValue(path.Segments, text);
@@ -21,7 +21,7 @@ public sealed partial class DefinitionFormModel
     public bool SetValue(DefinitionPath path, JsonElement? value)
     {
         ArgumentNullException.ThrowIfNull(path);
-        using var mutation = BeginMutation();
+        using var mutation = BeginMutation(PresentationStrings.Get(value is null ? "UndoActionOmit" : "UndoActionEdit", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
         return ApplyEditorValue(path, value, clearDrafts: true);
     }
@@ -30,7 +30,7 @@ public sealed partial class DefinitionFormModel
     public bool ResetValue(DefinitionPath path)
     {
         ArgumentNullException.ThrowIfNull(path);
-        using var mutation = BeginMutation();
+        using var mutation = BeginMutation(PresentationStrings.Get("UndoActionReset", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
         return TryOrdinaryRootPath(path.Segments, out string[] ordinary)
             ? ResetValue(ordinary) : ResetRootValue(path.Segments);
@@ -55,7 +55,7 @@ public sealed partial class DefinitionFormModel
     public bool SelectVariant(DefinitionPath path, int index)
     {
         ArgumentNullException.ThrowIfNull(path);
-        using var mutation = BeginMutation();
+        using var mutation = BeginMutation(PresentationStrings.Get("UndoActionChangeVariant", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (TryOrdinaryRootPath(path.Segments, out string[] ordinary)) return SelectVariant(ordinary, index);
         if (!TryRootMetadata(path.Segments, out DefinitionFormIndex.Node node, out _) ||

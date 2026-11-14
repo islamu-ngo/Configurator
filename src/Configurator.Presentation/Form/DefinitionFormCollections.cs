@@ -13,7 +13,7 @@ public sealed partial class DefinitionFormModel
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(key);
-        using (BeginMutation())
+        using (BeginMutation(PresentationStrings.Get("UndoActionAddMapEntry", Locale)))
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             DefinitionPath entryPath;
@@ -72,7 +72,7 @@ public sealed partial class DefinitionFormModel
 
     public bool AddListItem(DefinitionPath path)
     {
-        using (BeginMutation())
+        using (BeginMutation(PresentationStrings.Get("UndoActionAddItem", Locale)))
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _) ||
@@ -109,7 +109,7 @@ public sealed partial class DefinitionFormModel
 
     public bool RemoveListItem(DefinitionPath path, int index)
     {
-        using (BeginMutation())
+        using (BeginMutation(PresentationStrings.Get("UndoActionRemoveItem", Locale)))
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (ReadEditorValue(path) is not { ValueKind: JsonValueKind.Array } value ||

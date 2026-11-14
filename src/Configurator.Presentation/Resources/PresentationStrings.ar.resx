@@ -68,4 +68,16 @@
   <data name="ImportStale" xml:space="preserve"><value>مرفوض: قارن الملف الحالي مجدداً.</value></data>
   <data name="ImportWorkspaceUnsupported" xml:space="preserve"><value>مرفوض: لا يمكن لمساحة العمل تخزين جميع الإعدادات المستردة.</value></data>
   <data name="ImportAutofillRefused" xml:space="preserve"><value>مرفوض: الملف غير مؤهل للتعبئة التلقائية الصارمة.</value></data>
+  <data name="UndoActionEdit" xml:space="preserve"><value>تعديل الإعداد</value></data>
+  <data name="UndoActionOmit" xml:space="preserve"><value>إغفال الإعداد</value></data>
+  <data name="UndoActionReset" xml:space="preserve"><value>إعادة تعيين الإعداد</value></data>
+  <data name="UndoActionAddItem" xml:space="preserve"><value>إضافة عنصر</value></data>
+  <data name="UndoActionRemoveItem" xml:space="preserve"><value>إزالة عنصر</value></data>
+  <data name="UndoActionAddMapEntry" xml:space="preserve"><value>إضافة مدخل خريطة</value></data>
+  <data name="UndoActionSelectOption" xml:space="preserve"><value>تحديد خيار</value></data>
+  <data name="UndoActionChangeVariant" xml:space="preserve"><value>تغيير الفرع</value></data>
+  <data name="UndoActionSelectContext" xml:space="preserve"><value>تغيير نطاق النشر</value></data>
+  <data name="UndoActionGenerateSecret" xml:space="preserve"><value>تطبيق السر المولّد</value></data>
+  <data name="UndoActionDocument" xml:space="preserve"><value>تطبيق المستند</value></data>
+  <data name="UndoActionImport" xml:space="preserve"><value>استيراد الإعدادات</value></data>
 </root>

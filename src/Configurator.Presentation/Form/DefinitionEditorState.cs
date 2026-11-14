@@ -147,7 +147,7 @@ public sealed partial class DefinitionFormModel
     public bool ResetValue(IReadOnlyList<string> path)
     {
         ArgumentNullException.ThrowIfNull(path);
-        using var mutation = BeginMutation();
+        using var mutation = BeginMutation(PresentationStrings.Get("UndoActionReset", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!TryMetadataNode(path, out _, out _) || !CanMutate(path)) return false;
         if (IsRootLocation(path))

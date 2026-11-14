@@ -95,7 +95,7 @@ public sealed partial class DefinitionFormModel
         long revision = session.InputRevision;
         try
         {
-            using (BeginMutation())
+            using (BeginMutation(PresentationStrings.Get("UndoActionDocument", Locale)))
             {
                 if (!candidate.BelongsTo(session) || !session.IsCurrent(candidate.Generation)
                     || SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets)

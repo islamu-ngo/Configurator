@@ -1,0 +1,27 @@
+Change-Id: CHG-01M7D30JC1YCMYR9S8BPSK7WWG
+Title: "Undo workspace edits without reviving cleared secrets"
+Type: feat
+Scope: privacy
+Summary: "Keep bounded memory-only edit history over accepted workspace state, preserve logical collection rows and synchronously retire secret or protected history when custody ends."
+Group: workspace-safe-undo
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Bound transient history to 32 accepted-state transitions. Revoking secret consent purges secret history; private-state clearing purges protected history and cannot itself create a recoverable edit. Replay preserves row identity but advances the global revision so stale work remains invalid. Managed strings and JSON copies have no complete-erasure guarantee."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable

@@ -68,4 +68,16 @@
   <data name="ImportStale" xml:space="preserve"><value>Refused: compare the current file again.</value></data>
   <data name="ImportWorkspaceUnsupported" xml:space="preserve"><value>Refused: this workspace cannot store all recovered settings.</value></data>
   <data name="ImportAutofillRefused" xml:space="preserve"><value>Refused: the file is not eligible for strict autofill.</value></data>
+  <data name="UndoActionEdit" xml:space="preserve"><value>Edit setting</value></data>
+  <data name="UndoActionOmit" xml:space="preserve"><value>Omit setting</value></data>
+  <data name="UndoActionReset" xml:space="preserve"><value>Reset setting</value></data>
+  <data name="UndoActionAddItem" xml:space="preserve"><value>Add list item</value></data>
+  <data name="UndoActionRemoveItem" xml:space="preserve"><value>Remove list item</value></data>
+  <data name="UndoActionAddMapEntry" xml:space="preserve"><value>Add map entry</value></data>
+  <data name="UndoActionSelectOption" xml:space="preserve"><value>Select option</value></data>
+  <data name="UndoActionChangeVariant" xml:space="preserve"><value>Change branch</value></data>
+  <data name="UndoActionSelectContext" xml:space="preserve"><value>Change deployment scope</value></data>
+  <data name="UndoActionGenerateSecret" xml:space="preserve"><value>Apply generated secret</value></data>
+  <data name="UndoActionDocument" xml:space="preserve"><value>Apply document</value></data>
+  <data name="UndoActionImport" xml:space="preserve"><value>Import configuration</value></data>
 </root>

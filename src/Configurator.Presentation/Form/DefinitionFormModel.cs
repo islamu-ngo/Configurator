@@ -25,6 +25,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     private Lazy<IReadOnlyList<DefinitionDiscoveryEntry>>? _relevantEntries;
     private Lazy<DefinitionDiscoverySnapshot>? _discovery;
     private bool _promotionPending;
+    private readonly DefinitionFormUndoHistory _undoHistory = new();
+    private DefinitionAcceptedEditingState? _undoBaseline;
+    private string? _pendingUndoLabel;
+    private bool _inputChangedInUndoScope;
+    private bool _undoReplayActive;
+    private bool _privacyClearingActive;
     private DefinitionFormProjection? _projection;
     private bool _disposed;
 
@@ -345,78 +351,85 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            RetireImportComparison();
-            RetireDocument();
-            Dictionary<string, JsonElement>? originalBranches = _index!.Root.HasVariants ? _editing.Root.ToDictionary() : null;
-            bool hasProtectedRoots = DefinitionSecretPolicy.IsProtected(Definition.Configuration);
-            bool configurationProtected = DefinitionSecretPolicy.DeclaresProtected(Definition.Configuration);
-            var retiredOmissions = new HashSet<string[]>(SegmentPathComparer.Instance);
-            foreach (DefinitionFieldInput field in Fields)
+            _privacyClearingActive = true;
+            try
             {
-                FieldDefinition definition = field.Definition;
-                if (!configurationProtected && !DefinitionSecretPolicy.IsProtected(definition.Node)) continue;
-                if (configurationProtected || DefinitionSecretPolicy.DeclaresProtected(definition.Node))
+                RetireImportComparison();
+                RetireDocument();
+                Dictionary<string, JsonElement>? originalBranches = _index!.Root.HasVariants ? _editing.Root.ToDictionary() : null;
+                bool hasProtectedRoots = DefinitionSecretPolicy.IsProtected(Definition.Configuration);
+                bool configurationProtected = DefinitionSecretPolicy.DeclaresProtected(Definition.Configuration);
+                var retiredOmissions = new HashSet<string[]>(SegmentPathComparer.Instance);
+                foreach (DefinitionFieldInput field in Fields)
                 {
-                    ClearRowIdentities([definition.Id]);
-                    field.Clear();
-                    continue;
+                    FieldDefinition definition = field.Definition;
+                    if (!configurationProtected && !DefinitionSecretPolicy.IsProtected(definition.Node)) continue;
+                    if (configurationProtected || DefinitionSecretPolicy.DeclaresProtected(definition.Node))
+                    {
+                        ClearRowIdentities([definition.Id]);
+                        field.Clear();
+                        continue;
+                    }
+                    JsonNode? original = field.Value is { } supplied ? JsonNode.Parse(supplied.GetRawText()) : null;
+                    JsonNode? retained = original?.DeepClone();
+                    if (original is not null && DefinitionSecretPolicy.RemoveProtected(definition.Node, retained))
+                    {
+                        ClearRowIdentities([definition.Id]);
+                        field.Clear();
+                        continue;
+                    }
+                    // Location and omission checks resolve rows and branches against the current value, so they run before pruning.
+                    (HashSet<string[]> drafts, HashSet<string[]> origins) = DiscardedPaths(field.PrivateStatePaths(),
+                        path => RequiresMaskingAt(path, literal: false), original, retained, skip: 1);
+                    foreach (DefinitionPath omitted in Omitted.Where(path =>
+                                 path.Segments.Count > 1 && string.Equals(path.Segments[0], definition.Id, StringComparison.Ordinal)))
+                    {
+                        string[] segments = omitted.Segments.ToArray();
+                        if (Vanished(original, retained, segments, skip: 1) || RequiresMaskingAt(segments, literal: false))
+                            retiredOmissions.Add(segments);
+                    }
+                    JsonElement? retainedElement = field.Value is { ValueKind: JsonValueKind.Null } nullable ? nullable :
+                        retained is null ? null : JsonSerializer.SerializeToElement(retained);
+                    field.RetainPublic(retainedElement, drafts.Contains, origins.Contains);
                 }
-                JsonNode? original = field.Value is { } supplied ? JsonNode.Parse(supplied.GetRawText()) : null;
-                JsonNode? retained = original?.DeepClone();
-                if (original is not null && DefinitionSecretPolicy.RemoveProtected(definition.Node, retained))
+                DefinitionFieldState rootInput = _editing.RootInput;
+                JsonObject rootOriginal = JsonSerializer.SerializeToNode(_editing.Root)!.AsObject();
+                JsonObject rootRetained = rootOriginal.DeepClone().AsObject();
+                foreach (string name in _editing.Root.Keys.Where(name => !Fields.Any(field => field.Definition.Name == name)).ToArray())
                 {
-                    ClearRowIdentities([definition.Id]);
-                    field.Clear();
-                    continue;
+                    bool resolved = TryRootMetadata([name], out DefinitionFormIndex.Node node, out _, out bool inheritedProtected);
+                    if (!resolved || inheritedProtected || DefinitionSecretPolicy.RemoveProtected(node.Schema, rootRetained[name]))
+                        rootRetained.Remove(name);
                 }
-                // Location and omission checks resolve rows and branches against the current value, so they run before pruning.
-                (HashSet<string[]> drafts, HashSet<string[]> origins) = DiscardedPaths(field.PrivateStatePaths(),
-                    path => RequiresMaskingAt(path, literal: false), original, retained, skip: 1);
+                (HashSet<string[]> rootDrafts, HashSet<string[]> rootOrigins) = DiscardedPaths(
+                    rootInput.DraftTexts.Select(draft => draft.Path).Concat(rootInput.InvalidPaths)
+                        .Concat(rootInput.Origins.Select(origin => origin.Path)),
+                    path => RequiresMaskingAt(path, literal: true), rootOriginal, rootRetained, skip: 0);
                 foreach (DefinitionPath omitted in Omitted.Where(path =>
-                             path.Segments.Count > 1 && string.Equals(path.Segments[0], definition.Id, StringComparison.Ordinal)))
+                             path.Segments.Count > 0 && !Fields.Any(field => field.Definition.Id == path.Segments[0])))
                 {
                     string[] segments = omitted.Segments.ToArray();
-                    if (Vanished(original, retained, segments, skip: 1) || RequiresMaskingAt(segments, literal: false))
+                    if (RequiresMaskingAt(segments, literal: true) ||
+                        segments.Length > 1 && Vanished(rootOriginal, rootRetained, segments, skip: 0) ||
+                        !TryRootMetadata([segments[0]], out _, out _, out _))
                         retiredOmissions.Add(segments);
                 }
-                JsonElement? retainedElement = field.Value is { ValueKind: JsonValueKind.Null } nullable ? nullable :
-                    retained is null ? null : JsonSerializer.SerializeToElement(retained);
-                field.RetainPublic(retainedElement, drafts.Contains, origins.Contains);
+                Omitted.RemoveWhere(path => retiredOmissions.Contains(path.Segments.ToArray()));
+                rootInput.DraftTexts.RemoveAll(draft => rootDrafts.Contains(draft.Path));
+                rootInput.InvalidPaths.RemoveAll(rootDrafts.Contains);
+                rootInput.Origins.RemoveAll(origin => rootOrigins.Contains(origin.Path));
+                _editing.Root.Clear();
+                foreach ((string name, JsonNode? value) in rootRetained)
+                    _editing.Root.Add(name, JsonSerializer.SerializeToElement(value));
+                if (originalBranches is not null)
+                    foreach (string identity in ChangedBranchIdentities(_editing.Root, originalBranches))
+                        _editing.RetireBranch(identity);
+                _undoHistory.PurgeProtected(Definition, Fields, IsProtectedPathForUndo);
+                NotifyUndoPropertiesChanged();
+                if (hasProtectedRoots) OnInputChanged();
+                return hasProtectedRoots;
             }
-            DefinitionFieldState rootInput = _editing.RootInput;
-            JsonObject rootOriginal = JsonSerializer.SerializeToNode(_editing.Root)!.AsObject();
-            JsonObject rootRetained = rootOriginal.DeepClone().AsObject();
-            foreach (string name in _editing.Root.Keys.Where(name => !Fields.Any(field => field.Definition.Name == name)).ToArray())
-            {
-                bool resolved = TryRootMetadata([name], out DefinitionFormIndex.Node node, out _, out bool inheritedProtected);
-                if (!resolved || inheritedProtected || DefinitionSecretPolicy.RemoveProtected(node.Schema, rootRetained[name]))
-                    rootRetained.Remove(name);
-            }
-            (HashSet<string[]> rootDrafts, HashSet<string[]> rootOrigins) = DiscardedPaths(
-                rootInput.DraftTexts.Select(draft => draft.Path).Concat(rootInput.InvalidPaths)
-                    .Concat(rootInput.Origins.Select(origin => origin.Path)),
-                path => RequiresMaskingAt(path, literal: true), rootOriginal, rootRetained, skip: 0);
-            foreach (DefinitionPath omitted in Omitted.Where(path =>
-                         path.Segments.Count > 0 && !Fields.Any(field => field.Definition.Id == path.Segments[0])))
-            {
-                string[] segments = omitted.Segments.ToArray();
-                if (RequiresMaskingAt(segments, literal: true) ||
-                    segments.Length > 1 && Vanished(rootOriginal, rootRetained, segments, skip: 0) ||
-                    !TryRootMetadata([segments[0]], out _, out _, out _))
-                    retiredOmissions.Add(segments);
-            }
-            Omitted.RemoveWhere(path => retiredOmissions.Contains(path.Segments.ToArray()));
-            rootInput.DraftTexts.RemoveAll(draft => rootDrafts.Contains(draft.Path));
-            rootInput.InvalidPaths.RemoveAll(rootDrafts.Contains);
-            rootInput.Origins.RemoveAll(origin => rootOrigins.Contains(origin.Path));
-            _editing.Root.Clear();
-            foreach ((string name, JsonNode? value) in rootRetained)
-                _editing.Root.Add(name, JsonSerializer.SerializeToElement(value));
-            if (originalBranches is not null)
-                foreach (string identity in ChangedBranchIdentities(_editing.Root, originalBranches))
-                    _editing.RetireBranch(identity);
-            if (hasProtectedRoots) OnInputChanged();
-            return hasProtectedRoots;
+            finally { _privacyClearingActive = false; }
         }
     }
 
@@ -492,33 +505,40 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             DefinitionSessionPrivacy next = enabled ? DefinitionSessionPrivacy.BrowserSecretsEnabled
                 : DefinitionSessionPrivacy.BrowserNoSecrets;
             if (SessionPrivacy == next) return;
-            _editing.Privacy = next;
-            if (!enabled)
+            _privacyClearingActive = true;
+            try
             {
-                foreach (DefinitionFieldInput field in Fields)
+                _editing.Privacy = next;
+                if (!enabled)
                 {
-                    field.ClearDeniedDrafts(CanMutate);
-                    if (field.Value is not { } value)
+                    foreach (DefinitionFieldInput field in Fields)
                     {
-                        if (field.Definition.Sensitivity == FieldSensitivity.Secret) field.Clear();
-                        continue;
+                        field.ClearDeniedDrafts(CanMutate);
+                        if (field.Value is not { } value)
+                        {
+                            if (field.Definition.Sensitivity == FieldSensitivity.Secret) field.Clear();
+                            continue;
+                        }
+                        JsonNode? retained = DefinitionSecretPolicy.RemoveSecrets(field.Definition.Node,
+                            JsonNode.Parse(value.GetRawText()), DefinitionSecretPolicy.IsSecret(Definition.Configuration));
+                        if (retained is null) field.Clear();
+                        else field.RetainValue(JsonSerializer.SerializeToElement(retained));
                     }
-                    JsonNode? retained = DefinitionSecretPolicy.RemoveSecrets(field.Definition.Node,
-                        JsonNode.Parse(value.GetRawText()), DefinitionSecretPolicy.IsSecret(Definition.Configuration));
-                    if (retained is null) field.Clear();
-                    else field.RetainValue(JsonSerializer.SerializeToElement(retained));
+                    JsonNode? root = DefinitionSecretPolicy.RemoveSecrets(Definition.Configuration,
+                        JsonSerializer.SerializeToNode(_editing.Root));
+                    _editing.Root.Clear();
+                    if (root is JsonObject mapping)
+                        foreach ((string name, JsonNode? value) in mapping)
+                            _editing.Root.Add(name, JsonSerializer.SerializeToElement(value));
+                    _editing.RootInput.DraftTexts.RemoveAll(draft => !CanMutate(draft.Path));
+                    _editing.RootInput.InvalidPaths.RemoveAll(path => !CanMutate(path));
+                    _undoHistory.PurgeSecrets(Definition, Fields, IsSecretPathForUndo);
+                    NotifyUndoPropertiesChanged();
                 }
-                JsonNode? root = DefinitionSecretPolicy.RemoveSecrets(Definition.Configuration,
-                    JsonSerializer.SerializeToNode(_editing.Root));
-                _editing.Root.Clear();
-                if (root is JsonObject mapping)
-                    foreach ((string name, JsonNode? value) in mapping)
-                        _editing.Root.Add(name, JsonSerializer.SerializeToElement(value));
-                _editing.RootInput.DraftTexts.RemoveAll(draft => !CanMutate(draft.Path));
-                _editing.RootInput.InvalidPaths.RemoveAll(path => !CanMutate(path));
+                OnPropertyChanged(nameof(SessionPrivacy));
+                OnInputChanged();
             }
-            OnPropertyChanged(nameof(SessionPrivacy));
-            OnInputChanged();
+            finally { _privacyClearingActive = false; }
         }
     }
 
@@ -629,7 +649,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     public bool SelectChoice(DefinitionPath path, int index)
     {
-        using var mutation = BeginMutation();
+        using var mutation = BeginMutation(PresentationStrings.Get("UndoActionSelectOption", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
         return TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _) &&
             node.Metadata.TryGetProperty("enum", out JsonElement choices) &&
@@ -640,7 +660,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     public bool SetNull(DefinitionPath path)
     {
-        using var mutation = BeginMutation();
+        using var mutation = BeginMutation(PresentationStrings.Get("UndoActionEdit", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
         return TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _) && node.Schema.IsNullable &&
             SetValue(path, JsonSerializer.SerializeToElement<object?>(null));
@@ -649,7 +669,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     /// <summary>Explicitly replaces a branch with its discriminator only; Core resolves declared initialization.</summary>
     public bool SelectVariant(IReadOnlyList<string> path, int index)
     {
-        using var mutation = BeginMutation();
+        using var mutation = BeginMutation(PresentationStrings.Get("UndoActionChangeVariant", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out _) ||
             index < 0 || index >= node.Schema.Variants.Count || node.Schema.Discriminator is not { } discriminator)
@@ -667,7 +687,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     public bool ApplySuggestion(DefinitionPath path)
     {
-        using var mutation = BeginMutation();
+        using var mutation = BeginMutation(PresentationStrings.Get("UndoActionEdit", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
         return TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _) &&
             node.Metadata.TryGetProperty("x-configurator", out JsonElement metadata) &&
@@ -676,7 +696,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private bool ApplyValue(IReadOnlyList<string> path, JsonElement? value, bool clearDrafts)
     {
-        using (BeginMutation())
+        using (BeginMutation(PresentationStrings.Get(value is null ? "UndoActionOmit" : "UndoActionEdit", Locale)))
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (IsRootLocation(path)) return ApplyRootValue(path, value, clearDrafts);
@@ -769,7 +789,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     /// <summary>Records one deliberate draft edit or omission (null), including rejected or unchanged input, before notifying observers.</summary>
     public bool EditValue(IReadOnlyList<string> path, string? text)
     {
-        using (BeginMutation())
+        using (BeginMutation(PresentationStrings.Get(text is null ? "UndoActionOmit" : "UndoActionEdit", Locale)))
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (IsRootLocation(path)) return EditRootValue(path, text);
@@ -1068,7 +1088,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     private DefinitionImportResult AdoptImportedResult(DefinitionImportResult result, long revision,
         long generation, CancellationToken cancellationToken)
     {
-        using (BeginMutation())
+        using (BeginMutation(PresentationStrings.Get("UndoActionImport", Locale)))
         {
             if (!ImportIsCurrent(generation, revision, cancellationToken))
                 return new(false, null, "import-stale");
@@ -1106,7 +1126,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private void Edit(Func<bool> edit)
     {
-        using (BeginMutation())
+        using (BeginMutation(PresentationStrings.Get("UndoActionEdit", Locale)))
         {
             if (_disposed) return;
             bool hadAdmissionError = Fields.Any(input => input.InputDiagnosticCode is not null);
@@ -1121,6 +1141,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private void OnInputChanged()
     {
+        if (_undoBaseline is not null && !_undoReplayActive && !_privacyClearingActive)
+            _inputChangedInUndoScope = true;
         RetireSecretResult();
         RetireDocument();
         RetireImportComparison();
@@ -1161,6 +1183,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             RetireSecretResult();
             RetireDocument();
             RetireImportComparison();
+            _undoHistory.Clear();
+            _undoBaseline?.Retire();
+            _undoBaseline = null;
             _editing.Clear();
             Omitted.Clear();
             _facts = null;
@@ -1189,10 +1214,15 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         else notification();
     }
 
-    private Mutation BeginMutation()
+    private Mutation BeginMutation(string? undoLabel = null)
     {
         Monitor.Enter(_gate);
-        _mutationDepth++;
+        if (++_mutationDepth == 1 && undoLabel is not null && !_disposed && !_undoReplayActive && !_privacyClearingActive)
+        {
+            _undoBaseline = _editing.Capture();
+            _pendingUndoLabel = undoLabel;
+            _inputChangedInUndoScope = false;
+        }
         return new Mutation(this);
     }
 
@@ -1203,6 +1233,22 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             if (--_mutationDepth == 0)
             {
+                if (_undoBaseline is not null)
+                {
+                    if (_inputChangedInUndoScope && !_disposed && !_undoReplayActive && !_privacyClearingActive)
+                    {
+                        DefinitionAcceptedEditingState after = _editing.Capture();
+                        _undoHistory.Record(_pendingUndoLabel ?? "Edit", _undoBaseline, after, Definition, Fields, IsSecretPathForUndo);
+                        NotifyUndoPropertiesChanged();
+                    }
+                    else
+                    {
+                        _undoBaseline.Retire();
+                    }
+                    _undoBaseline = null;
+                    _pendingUndoLabel = null;
+                    _inputChangedInUndoScope = false;
+                }
                 if (_promotionPending && !_disposed)
                 {
                     _promotionPending = false;
@@ -1223,6 +1269,95 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
         if (failures is not null) throw new AggregateException(failures);
     }
+
+    public bool CanUndo { get { lock (_gate) return !_disposed && _undoHistory.CanUndo; } }
+    public bool CanRedo { get { lock (_gate) return !_disposed && _undoHistory.CanRedo; } }
+    public string? LastUndoLabel { get { lock (_gate) return _disposed ? null : _undoHistory.LastUndoLabel; } }
+    public string? LastRedoLabel { get { lock (_gate) return _disposed ? null : _undoHistory.LastRedoLabel; } }
+
+    public bool Undo()
+    {
+        using (BeginMutation())
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_undoHistory.TryPopUndo(out DefinitionAcceptedEditingState? restored, out _) || restored is null)
+                return false;
+            AdoptUndoSnapshot(restored);
+            return true;
+        }
+    }
+
+    public bool Redo()
+    {
+        using (BeginMutation())
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_undoHistory.TryPopRedo(out DefinitionAcceptedEditingState? restored, out _) || restored is null)
+                return false;
+            AdoptUndoSnapshot(restored);
+            return true;
+        }
+    }
+
+    private void AdoptUndoSnapshot(DefinitionAcceptedEditingState target)
+    {
+        _undoReplayActive = true;
+        try
+        {
+            DefinitionAcceptedEditingState previous = _editing.Capture();
+            target.InputRevision = previous.InputRevision;
+            target.NextRow = Math.Max(target.NextRow, previous.NextRow);
+            _editing.Adopt(target);
+            previous.Retire();
+            OnInputChanged();
+            foreach (DefinitionFieldInput field in Fields)
+                field.NotifyDocumentChanged();
+            NotifyUndoPropertiesChanged();
+        }
+        finally { _undoReplayActive = false; }
+    }
+
+    private void NotifyUndoPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(CanRedo));
+        OnPropertyChanged(nameof(LastUndoLabel));
+        OnPropertyChanged(nameof(LastRedoLabel));
+    }
+
+    public IReadOnlyList<long> GetListRowIdentities(IReadOnlyList<string> path) => GetListRowIdentities(DataPath(path));
+
+    public IReadOnlyList<long> GetListRowIdentities(DefinitionPath path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _) ||
+                node.Schema.Type != DefinitionNodeType.Sequence)
+                return Array.Empty<long>();
+            if (ReadEditorValue(path) is not { ValueKind: JsonValueKind.Array } array)
+                return Array.Empty<long>();
+            int count = array.GetArrayLength();
+            if (count == 0) return Array.Empty<long>();
+            string identity = GetEditorIdentity(path);
+            var ids = new long[count];
+            for (int index = 0; index < count; index++)
+                ids[index] = _editing.RowIdentity(identity, count, index);
+            return Array.AsReadOnly(ids);
+        }
+    }
+
+    private bool IsSecretPathForUndo(IReadOnlyList<string> path)
+    {
+        DefinitionPath literal = TryOrdinaryRootPath(path, out string[] ordinary) ? DataPath(ordinary) : DefinitionPath.FromSegments(path);
+        return TryRootMetadata(literal.Segments, out DefinitionFormIndex.Node node, out bool inheritedSecret) &&
+               DefinitionSecretPolicy.IsSecret(node.Schema, inheritedSecret);
+    }
+
+    private bool IsProtectedPathForUndo(IReadOnlyList<string> path) =>
+        RequiresMaskingAt(path, literal: true) ||
+        (TryOrdinaryRootPath(path, out string[] ordinary) && RequiresMaskingAt(ordinary, literal: false));
 
     private readonly struct Mutation(DefinitionFormModel form) : IDisposable
     {

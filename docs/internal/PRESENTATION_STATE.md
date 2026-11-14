@@ -755,3 +755,15 @@ before allowing a different route to load public data. Cancellation preserves
 the editor and stale confirmations cannot discard a newer owner. Section and
 appearance changes remain presentation operations inside the pinned workspace;
 they do not introduce shared answer caches or target authority.
+
+## Memory-only undo and redo
+
+`DefinitionFormUndoHistory` retains at most 32 accepted-state transitions.
+Deliberate editing callers supply localized labels; the outer mutation captures
+before/after states and records only changes that publish an input revision.
+Undo/redo restores values, omissions, drafts, origins and logical row identities
+through the existing accepted-state owner, then advances the global revision.
+`SetSecretEntryEnabled(false)` synchronously purges secret history;
+`ClearPrivateState()` purges protected history; disposal retires both stacks.
+Clearing does not create a new undo entry. Managed strings and JSON allocations
+do not have a guaranteed memory-erasure contract.

@@ -105,7 +105,7 @@ public sealed partial class DefinitionFormModel
             cancellationToken.ThrowIfCancellationRequested();
             result = await Task.Run(() => SecretGenerator.Generate(specification, ownedInput), cancellationToken);
             if (cooperativeYield is not null) await cooperativeYield(cancellationToken);
-            using (BeginMutation())
+            using (BeginMutation(PresentationStrings.Get("UndoActionGenerateSecret", Locale)))
             {
                 if (cancellationToken.IsCancellationRequested) return Reject("secret-cancelled");
                 if (_disposed || generation != _secretGeneration || revision != InputRevision ||

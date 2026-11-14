@@ -35,7 +35,7 @@ public sealed partial class DefinitionFormModel
     {
         ArgumentNullException.ThrowIfNull(recipeId);
         ArgumentNullException.ThrowIfNull(scopeId);
-        using var mutation = BeginMutation();
+        using var mutation = BeginMutation(PresentationStrings.Get("UndoActionSelectContext", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (Definition.Deployment is not { } deployment || ConfigurationContext is null ||
             !deployment.Recipes.Any(recipe => recipe.Id == recipeId && recipe.Scopes.Any(scope => scope.Id == scopeId)))
