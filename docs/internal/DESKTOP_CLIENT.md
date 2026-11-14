@@ -192,7 +192,8 @@ private unknown key, raw exception or native input path belongs in feedback.
    * Wraps each snapshot DEK in the **OS Keyring** (DPAPI, macOS Keychain, `libsecret`) for convenient zero-touch `/diff` auto-matching, with an **Argon2id passphrase fallback slot** for cross-machine portability.
 3. **Secret Manager & PaaS Provisioning Bridge:**
    * Bridges native Desktop preparation to **Coolify** (`PATCH /api/v1/applications/{uuid}/envs/bulk`, `read` + `write` scopes, `is_shown_once: true` secrets) and enterprise vaults (**Infisical**, **Azure Key Vault**).
-   * Relies on local provider CLIs/REST tokens for machine credential delegation and `ISLAMU SecretKit` runtime models for disposable in-memory verification.
+   * Uses `ISLAMU SecretKit` in-process for every Infisical and Azure Key Vault operation: value-free inventory, reads through the target application's identity and reviewed writes with receipts. Vendor CLIs never handle secret values ([decision](adr/ADR-secret-store-integration-and-credential-sources.md)).
+   * Sign-in: Azure through Azure.Identity with the operator's own Entra client ID, or an explicitly chosen existing `az login` (`AzureCliCredential`) for tenants that have not approved a new application. Infisical uses a Universal Auth machine identity first; OIDC Auth is the documented expansion.
    * By default, zero network requests occur; pushing deltas or secrets is strictly operator-confirmed.
 
 For full strategic and architectural context, see [Product Vision](PRODUCT_VISION.md) and [Marketing & Adoption Strategy](MARKETING_AND_ADOPTION_STRATEGY.md).

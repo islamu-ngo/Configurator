@@ -150,7 +150,7 @@ Application maintainers can embed direct upgrade links in their release notes:
    - 🔴 **Newly Required Variables** that must be answered to avoid container boot crashes.
    - 🟡 **Renamed Variables** with automatic mapping suggested.
    - 🟢 **Deprecated / Obsolete Variables** safely removed.
-5. **Direct PaaS & Secret Vault Delta Sync *(Planned)*:** When configured with **Coolify** or secret managers (**Infisical** / **Azure Key Vault** via `ISLAMU SecretKit`), operators will be able to apply only reviewed upgrade deltas to **"Staging"** or **"Production"** directly from Desktop without reading back existing write-only secrets or manual copy-pasting.
+5. **Direct PaaS & Secret Vault Delta Sync *(Planned)*:** When configured with **Coolify** or secret managers (**Infisical** / **Azure Key Vault** via `ISLAMU SecretKit`), operators will be able to apply only reviewed upgrade deltas to **"Staging"** or **"Production"** directly from Desktop without reading back existing write-only secrets or manual copy-pasting. Vault changes run in native clients only, through SecretKit rather than vendor CLIs; the web route hands off to Desktop ([decision](../internal/adr/ADR-secret-store-integration-and-credential-sources.md)).
 
 For the detailed engineering architecture and distribution strategy, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
 

@@ -279,6 +279,14 @@ tokens retain `off` and acquisition/custom-field guidance. No fake username,
 submitting form or vendor vault API is introduced. Password managers have
 independent custody, outside workspace clearing.
 
+The Browser's exclusion from secret managers is **permanent**
+([secret-store decision](adr/ADR-secret-store-integration-and-credential-sources.md)):
+- no provider credentials, vault or secret-manager API, SecretKit dependency,
+  CLI integration or provider network request in Browser;
+- vault operations belong only to native clients;
+- a future launch route may hand vault work off through `configurator://` but
+  never performs it in the web origin.
+
 Each rendered scalar input callback captures its form, copied literal path and
 input revision. The same rendered handler advances its captured revision only
 after its own accepted event, so queued keystrokes do not discard one another.
@@ -383,6 +391,7 @@ and capabilities are generator-owned; see [Packaging](PACKAGING.md).
 2. **The Protocol Handshake (`configurator://`):**
    * Web launch routes present an interactive prompt: *"Open in Configurator Desktop or continue in Web?"*
    * Desktop launch passes parameters directly to native storage, auto-matching local profiles in `~/.config/islamu-configurator/profiles/<app-id>/`.
+   * This is also the only route from a web link to secret-manager work; the web client never performs vault operations itself.
 3. **Embeddable Documentation Widgets (`/embed`):**
    * Lightweight layout rendering inside sandboxed iframes (`sandbox="allow-scripts allow-downloads"`) on external project documentation pages.
 

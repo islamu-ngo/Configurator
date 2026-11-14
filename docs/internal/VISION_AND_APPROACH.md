@@ -74,10 +74,17 @@ not an approved layout or a promise of identical Browser interaction.
 
 ### Future native secret-store workflows
 
-The intended longer-term native direction includes explicit opt-in REST
-operations for Infisical and Azure Key Vault to configure, compare, update and
-verify secrets. This is not current provider support, dependency approval or
-write authority. The [existing provider backlog](../../dev/backlog/universal-configurator-followups.md#secret-store-inspection-and-completion)
+The intended longer-term native direction includes explicit opt-in operations
+for Infisical and Azure Key Vault to configure, compare, update and verify
+secrets. The [accepted transport decision](adr/ADR-secret-store-integration-and-credential-sources.md)
+(2026-11-14) routes all of them through ISLAMU SecretKit in-process:
+- **No CLI data path:** vendor CLIs never carry secret values; an operator may
+  only explicitly reuse an existing CLI sign-in as a credential source.
+- **Sign-in:** Azure uses the operator's own Entra client ID; Infisical starts
+  with Universal Auth, with OIDC Auth as the documented expansion.
+- **Browser:** permanently excluded.
+
+This is not current provider support, dependency approval or write authority. The [existing provider backlog](../../dev/backlog/universal-configurator-followups.md#secret-store-inspection-and-completion)
 requires one concrete pilot before abstractions, and separate connector/privacy
 design for credentials, permissions, inventory versus content validation,
 conflict-safe deliberate writes, partial outcomes, cancellation, redaction and

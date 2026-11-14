@@ -69,7 +69,7 @@ Whether you are launching your first Docker container or managing dozens of ente
   * **4 Unified Surfaces:** Seamlessly switch from the **Browser** to the keyboard-driven **Terminal TUI** (`Terminal.Gui`) over SSH, the native **Desktop GUI** (`Avalonia`), or the headless **Machine CLI** (`islamu-configurator`) for CI/CD pipelines.
   * **Eliminate Upgrade Paralysis (Day-2 Diffing):** Drop your existing `.env` into the Version Migration Engine to immediately see newly mandatory keys, auto-migrated renames, and retired variables before pulling new releases.
   * **Desktop Profile Vault:** Automatically manage configuration profiles across environments (`development`, `staging`, `production`) in `~/.config/islamu-configurator/profiles/<app-id>/`.
-  * **Direct Secret Vault Provisioning:** Optionally sync credentials directly into **Infisical** or **Azure Key Vault** on native Desktop/TUI surfaces via official provider CLIs and `ISLAMU SecretKit`—with zero network requests by default.
+  * **Direct Secret Vault Provisioning *(Planned)*:** Optionally apply reviewed changes to **Infisical** or **Azure Key Vault** from the native Desktop/TUI surfaces through `ISLAMU SecretKit`, with zero network requests by default. Secret values never pass through vendor CLIs; an existing `az` sign-in can optionally be reused for authentication only ([decision](docs/internal/adr/ADR-secret-store-integration-and-credential-sources.md)).
 
 ---
 
@@ -98,9 +98,9 @@ One declarative definition powers four purpose-built interfaces sharing the same
 
 | Interface | Best For | Platform Support | Secret Custody & Sync | Network / Offline Boundary | Step-by-Step Documentation |
 |---|---|---|---|---|---|
-| **Static Browser** | Zero-install onboarding, GitHub README deep links, doc widgets | Modern WebAssembly browsers | In-memory only; deliberate file download | 100% Client-side WASM; zero telemetry, zero network calls | 📖 **[Browser Hosting](docs/public/browser.md#self-hosting--deployment)** |
-| **Desktop GUI** | Full workstation workflow, multi-environment profiles (`dev`/`staging`/`prod`) | Linux (x64), macOS, Windows (Avalonia) | Protected Linux write (`0600`); direct sync to Infisical & Azure Key Vault | Fully offline; network only on explicit secret vault push | 📖 **[Desktop Guide](docs/public/desktop.md)** |
-| **Terminal TUI** | SSH sessions, headless servers, keyboard-driven power users | Linux, macOS, Windows (Terminal.Gui v2) | In-memory transient workspace; direct vault export sinks | Fully offline; zero background daemons | 📖 **[Terminal Guide](docs/public/terminal.md)** |
+| **Static Browser** | Zero-install onboarding, GitHub README deep links, doc widgets | Modern WebAssembly browsers | In-memory only; deliberate file download; never connects to secret managers | 100% Client-side WASM; zero telemetry, zero network calls | 📖 **[Browser Hosting](docs/public/browser.md#self-hosting--deployment)** |
+| **Desktop GUI** | Full workstation workflow, multi-environment profiles (`dev`/`staging`/`prod`) | Linux (x64), macOS, Windows (Avalonia) | Protected Linux write (`0600`); planned Infisical & Azure Key Vault apply through SecretKit | Fully offline; network only on explicit, confirmed secret vault action (planned) | 📖 **[Desktop Guide](docs/public/desktop.md)** |
+| **Terminal TUI** | SSH sessions, headless servers, keyboard-driven power users | Linux, macOS, Windows (Terminal.Gui v2) | In-memory transient workspace; planned vault apply through SecretKit | Fully offline; zero background daemons | 📖 **[Terminal Guide](docs/public/terminal.md)** |
 | **Machine CLI** | CI/CD automation, AI agent pipelines, headless verification | Linux (x64, arm64, musl), macOS, Windows | Stdin / files; masked diagnostics | Fully offline; native binary | 📖 **[CLI Guide](docs/public/cli.md)** |
 
 See [packaging](docs/public/packaging.md) for build instructions and platform limits. Protected native saving is currently verified on Linux; unsupported hosts refuse it. Browser downloads use the browser's ordinary download behavior. Offline browser use requires the app assets and a retained definition; answers are not restored between workspaces.
@@ -184,10 +184,11 @@ Yes. Supported local `.json`, `.yaml` and `.env` files can be assessed against a
 
 ### How does Configurator integrate with secret managers like Infisical or Azure Key Vault?
 
-Configurator coordinates with secret management through a clean separation of concerns:
-- **Runtime Secret Consumption:** Target applications (like ISLAMU Event) use the companion library `ISLAMU SecretKit` to borrow secrets at runtime inside scoped stack/span memory (`SecretMaterial.Use(...)`) with immediate zero-memory erasure.
-- **Setup & Provisioning:** On native Desktop and Terminal surfaces, Configurator provides optional export sinks to push validated credentials directly into Infisical or Azure Key Vault via official provider CLIs.
-- **Browser Boundary:** The WebAssembly browser client remains strictly air-gapped with zero network calls and zero vault synchronization.
+Secret-manager provisioning is **planned, not yet implemented**. The accepted design ([secret-store integration decision](docs/internal/adr/ADR-secret-store-integration-and-credential-sources.md)) separates concerns:
+- **Runtime Secret Consumption:** Target applications (like ISLAMU Event) use the companion library `ISLAMU SecretKit` to borrow secrets at runtime inside scoped callbacks (`SecretMaterial.Use(...)`) whose buffers are cleared afterwards.
+- **Setup & Provisioning:** On native Desktop, Terminal and CLI surfaces, Configurator will compare value-free key inventories and apply operator-confirmed changes to Infisical or Azure Key Vault **through SecretKit only**. Vendor CLIs never receive or print secret values.
+- **Sign-in:** Infisical starts with a Universal Auth machine identity (OIDC sign-in through your identity provider is a planned expansion). Azure uses your organization's own Entra client ID, or, if you explicitly choose it, your existing `az login` as a credential source.
+- **Browser Boundary:** The WebAssembly browser client permanently has zero network calls and no secret-manager access. Vault work hands off to a native client.
 
 ### Where can I learn more about the broader product vision and adoption strategy?
 

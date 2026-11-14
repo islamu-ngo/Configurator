@@ -6,6 +6,15 @@ Owners: Core, Artifacts/Security, Presentation, and native client maintainers.
 Technical anchors: [Core contract](../CORE_DEFINITION_CONTRACT.md), [Secret cryptography](../SECRET_CRYPTOGRAPHY.md), [Protected artifacts](../PROTECTED_ARTIFACTS.md), [Import/comparison](../IMPORT_COMPARISON.md), [Launch/custody](../LAUNCH_CONTRACT.md), [Desktop client](../DESKTOP_CLIENT.md).
 Backlog intake: [Configuration workflows beyond the offline MVP](../../../dev/backlog/universal-configurator-followups.md).
 
+The [secret-store integration ADR](ADR-secret-store-integration-and-credential-sources.md)
+(2026-11-14) decides the future Infisical and Azure Key Vault transport:
+- SecretKit only. The "official provider CLIs" option in historical section 6
+  below is superseded.
+- Vendor CLIs are at most explicit, opt-in credential sources.
+- The Browser never gains secret-store access.
+
+Remote target apply remains deferred and unimplemented.
+
 ## Context
 
 Operators currently prepare candidate configuration artifacts via `DefinitionArtifactComposer` / `DefinitionDraftArtifactComposer`, write native outputs via [`IProtectedArtifactWriter`](../PROTECTED_ARTIFACTS.md), or run read-only comparisons against ordinary exported `.env`, JSON, and YAML files via [`DefinitionImport`](../IMPORT_COMPARISON.md) ([evidence-aware import/comparison ADR](ADR-artifact-import-comparison.md)).
@@ -89,6 +98,7 @@ Direct target integration is **deferred** to a dedicated secret-management and P
    - **Delta Apply:** Push only added/changed variables (`is_shown_once: true` for secrets, `is_literal`, `is_multiline`, `is_buildtime`/`is_runtime` flags), leave existing write-only secrets untouched when upgrading from a `compare-only` snapshot, and require explicit operator confirmation before deleting deprecated keys.
 2. **Infisical and Azure Key Vault (`ISLAMU SecretKit`):**
    - Native sync via official provider CLIs (`infisical-cli`, `az`) or `SecretKit.Management` APIs, strictly operator-triggered and defaulting to zero network activity.
+   - *Superseded 2026-11-14:* SecretKit is the only transport; CLIs may only supply an explicit opt-in credential. See the [secret-store integration ADR](ADR-secret-store-integration-and-credential-sources.md).
 
 ## Consequences and Alternatives
 

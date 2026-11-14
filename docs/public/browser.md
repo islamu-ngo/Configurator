@@ -146,6 +146,8 @@ flowchart LR
 > **Browser Environment & Custody Considerations:**
 > While Blazor WebAssembly executes locally and sends no answer data to the web host, browser environments cannot enforce OS-level file permissions (such as Linux `0600`) or prevent malicious browser extensions from inspecting DOM memory. For high-value production secrets, prefer the native [Desktop](desktop.md), [Terminal](terminal.md), or [CLI](cli.md) clients on a trusted workstation.
 
+**No secret-manager access, permanently.** The Browser never connects to Infisical, Azure Key Vault or any other secret manager, and never holds their credentials. This is a permanent product boundary, not a missing feature. Planned vault operations run only in the native clients through ISLAMU SecretKit, and web links hand off to Desktop. See the [secret-store decision](../internal/adr/ADR-secret-store-integration-and-credential-sources.md).
+
 ---
 
 ## Why WebAssembly Interactivity

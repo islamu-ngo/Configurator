@@ -359,6 +359,16 @@ Configurator Desktop is designed to serve as an operator's local command center 
    * During the **Review outputs** stage, Desktop will provide optional authenticated export and upgrade-delta sinks to push configured settings directly into self-hosted **Coolify** instances or target vaults (**Infisical**, **Azure Key Vault**).
    * By default, zero network requests occur; vault or PaaS synchronization happens solely on explicit operator confirmation.
 
+When Infisical and Azure Key Vault support arrives, it will use ISLAMU SecretKit
+inside Desktop, not vendor CLIs, and secret values will never pass through a CLI.
+Planned sign-in options:
+- **Azure:** your organization's own Entra client ID, or an existing `az login`
+  that you explicitly choose to reuse. The latter helps when your tenant has not
+  yet approved a new application.
+- **Infisical:** a Universal Auth machine identity first.
+
+See the [secret-store decision](../internal/adr/ADR-secret-store-integration-and-credential-sources.md).
+
 For the underlying architecture and sovereign infrastructure vision, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
 
 ---

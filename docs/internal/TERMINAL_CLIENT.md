@@ -29,7 +29,7 @@ choice does not authorize an exact layout or imply delivered Browser parity.
 | Local files | Bounded import, comparison, deliberate Fill fields, preparation and create-only protected publication. | File pickers only select paths; they do not provide protected save. |
 | Developer editing | No full terminal document editor. | Reuse `DefinitionDocumentSession` for public-scope answer projections where applicable. This is not arbitrary definition/schema editing. |
 | Comparison | Imported configuration/artifact against the selected admitted definition and current workspace. | Schema-to-schema structural comparison and migration inference need separate design. |
-| Providers | No secret-store connector or network operation. | Eventual opt-in native Infisical/Azure Key Vault REST workflows require separate connector/privacy design and authority. |
+| Providers | No secret-store connector or network operation. | Eventual opt-in Infisical/Azure Key Vault workflows use ISLAMU SecretKit only, with vendor CLIs at most as explicit credential sources ([decision](adr/ADR-secret-store-integration-and-credential-sources.md)); connector/privacy design and authority remain separate. Over SSH, device-code sign-in avoids a remote browser. |
 
 Browser has richer renderer/density and developer-editor integration source;
 that observation does not complete its delivery qualification. Its shared

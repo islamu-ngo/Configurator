@@ -166,7 +166,7 @@ The value of Configurator extends far beyond the initial installation (`Day-1`).
      ```
    * **Desktop Surface *(Planned)*:** Automatically matches the operator's saved `.cfgvault` profile (`compare-only`, `import-upgrade-only`, or `inspectable-encrypted`) for that application via the OS keyring and displays the exact visual delta with zero manual input.
    * **Web Surface:** Prompts the operator with a drop zone: *"Drop your current `docker-compose.env` (or passphrase-encrypted `.cfgvault`) here to see your diff."*
-   * **Direct PaaS & Secret Vault Delta Update *(Planned)*:** If Coolify (`PATCH /envs/bulk` with `is_shown_once: true`), Infisical, or Azure Key Vault sync is enabled, the operator can apply only the reviewed breaking-change deltas to **"Staging"** or **"Production"** without reading back existing write-only secrets.
+   * **Direct PaaS & Secret Vault Delta Update *(Planned)*:** If Coolify (`PATCH /envs/bulk` with `is_shown_once: true`), Infisical, or Azure Key Vault sync is enabled, the operator can apply only the reviewed breaking-change deltas to **"Staging"** or **"Production"** without reading back existing write-only secrets. Infisical and Azure Key Vault changes go through `ISLAMU SecretKit` from native clients only ([decision](adr/ADR-secret-store-integration-and-credential-sources.md)).
    * **Eliminating Upgrade Paralysis:** Operators no longer fear running `docker compose pull && docker compose up -d`, because breaking configuration changes are identified, resolved, and verified before the container restarts.
 
 ---
@@ -174,17 +174,19 @@ The value of Configurator extends far beyond the initial installation (`Day-1`).
 ## 7. Secret Management & PaaS Integration: `ISLAMU SecretKit`, Coolify, and Vault Sinks *(Planned)*
 
 ### The Role of `ISLAMU SecretKit`
-`ISLAMU SecretKit` is an independent .NET 10 library suite developed under the ISLAMU non-profit umbrella. Its primary purpose is to provide **runtime secret consumption** for applications like ISLAMU Event:
-* It connects directly to enterprise secret managers—principally **Infisical** and **Azure Key Vault**, with **HashiCorp Vault** planned.
-* It provides explicit, disposable secret access in memory: secrets are borrowed inside scoped lambda callbacks (`SecretMaterial.Use(...)`) using stack/span memory that is wiped via `CryptographicOperations.ZeroMemory` immediately upon exit.
+`ISLAMU SecretKit` is an independent .NET 10 library suite developed under the ISLAMU non-profit umbrella. It provides **runtime secret consumption** for applications like ISLAMU Event, plus separately authorized typed administration:
+* It connects directly to **Infisical** and **Azure Key Vault**. A further self-hostable provider (for example OpenBao, the MPL-2.0 Vault fork) is a candidate for SecretKit's provider admission process with Configurator as the named consumer, not planned support.
+* It provides explicit, disposable secret access in memory: secrets are borrowed inside scoped callbacks (`SecretMaterial.Use(...)`) whose temporary buffer is cleared when the callback finishes.
 * It eliminates plaintext configuration strings from persistent application configuration models.
+* It never launches vendor CLIs; it accepts host-selected credentials such as an Azure `TokenCredential`.
 
 ### Configurator as the Provisioning & Delta-Apply Bridge *(Planned)*
 While SecretKit serves the **runtime consumption plane** inside the application, Configurator serves the **setup and provisioning plane** ([proposed target-apply design](adr/ADR-encrypted-local-profiles-and-target-apply.md)):
 * When an operator configures an application for **Infisical**, **Azure Key Vault**, or a self-hosted PaaS such as **Coolify**, Configurator will offer an **optional export/delta-apply sink** to push validated settings and secrets directly into the target environment.
 * **Coolify Write-Only Synergy:** Using Coolify's `read` + `write` API scopes (without requiring `read:sensitive`) and `is_shown_once: true` secrets alongside a local `compare-only` snapshot lets Configurator perform 3-way key existence checks and apply only schema-upgrade deltas via `PATCH /api/v1/applications/{uuid}/envs/bulk`.
-* **Native Runtime Boundary (Desktop, Terminal & CLI):** Vault and PaaS push functionality is strictly confined to native environments where local machine credentials and secure keyrings exist. The Browser WebAssembly client remains 100% offline, static, and air-gapped, retaining its strict zero-network promise.
-* **Implementation Strategy:** Configurator utilizes official provider CLIs (`infisical-cli`, `az`) or native REST/management APIs (`SecretKit.Management`, Coolify REST API) for authenticated diffing and writes.
+* **Native Runtime Boundary (Desktop, Terminal & CLI):** Vault and PaaS push functionality is strictly confined to native environments where local machine credentials and secure keyrings exist. The Browser WebAssembly client **permanently** remains offline, static and air-gapped, with no secret-manager access; vault work hands off to a native client.
+* **Implementation Strategy ([accepted 2026-11-14](adr/ADR-secret-store-integration-and-credential-sources.md)):** Infisical and Azure Key Vault diffing and writes use `ISLAMU SecretKit` in-process, never vendor CLIs. Coolify uses its REST API directly. Secret values, mutations and protected coordinates never pass through a CLI process.
+* **Enterprise Sign-In:** Azure uses the operator's own Entra client ID. An operator may explicitly choose their existing `az login` as a credential source (`AzureCliCredential`), which avoids waiting for tenant administrators to approve a new application. An ISLAMU-published multi-tenant application is a possible future expansion. Infisical starts with a Universal Auth machine identity, with OIDC Auth through the organization's identity provider as the documented expansion.
 * **Explicit Permission & Local Defaults:** By default, Configurator executes zero network requests. The connection to a secret vault or PaaS occurs solely when the operator explicitly confirms an action in the export/upgrade phase, providing full visibility and control.
 
 ---

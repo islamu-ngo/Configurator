@@ -72,7 +72,12 @@ Current comparison checks an imported local configuration against the selected
 definition and workspace. It does not compare arbitrary schemas or infer
 migrations. Local file import does not upload the file. Future opt-in native
 Infisical/Azure Key Vault operations require separate design and are not
-available in this client. Target validation and apply permission remain with
+available in this client. When they arrive, they will run through ISLAMU
+SecretKit, never through vendor CLIs. Over SSH, sign-in will use a device code
+instead of a remote browser. Azure may optionally reuse an existing `az login`
+as a credential source
+([decision](../internal/adr/ADR-secret-store-integration-and-credential-sources.md)).
+Target validation and apply permission remain with
 the application. See the [decision and tradeoffs](../internal/adr/ADR-terminal-framework-and-workbench.md)
 for the direction and its qualification boundaries.
 

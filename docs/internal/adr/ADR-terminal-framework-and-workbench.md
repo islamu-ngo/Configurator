@@ -146,6 +146,11 @@ The product-owner direction includes eventual opt-in native REST operations for
 secrets. These names record intent, not selected SDKs, implemented support or
 provider write authority. The offline/local engine remains the baseline.
 
+Later decision (2026-11-14): the [secret-store integration ADR](ADR-secret-store-integration-and-credential-sources.md)
+selects ISLAMU SecretKit as the only transport. Vendor CLIs are at most explicit
+credential sources. Over SSH, device-code sign-in replaces a remote browser.
+That decision still implements nothing and grants no write authority.
+
 Follow the existing [secret-store backlog](../../../dev/backlog/universal-configurator-followups.md#secret-store-inspection-and-completion).
 One concrete provider pilot precedes abstractions. Intake must separate value-free
 inventory from content validation and establish credential custody, authentication,
