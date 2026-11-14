@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Configurator.Browser\Configurator.Browser.csproj" />
+    <Compile Include="../../src/Configurator.Browser.Worker/Profiles/*.cs" Link="Profiles/Worker/%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

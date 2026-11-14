@@ -8,6 +8,26 @@
 > **Source Anchors:** `src/Configurator.Browser/`, `docs/internal/LAUNCH_CONTRACT.md`, `docs/internal/OPERATIONS.md`
 > **Review basis:** Source-owner reconciliation and scoped published direct-editing evidence; complete qualification remains separate
 
+## Dedicated profile worker protocol
+
+`ProfileWorkerClient` owns a host bridge and dedicated SDK Worker. It captures
+workspace ID, generation, answer revision and consent epoch from the caller's
+actual workspace. Opening first returns safe historical identity; only explicit
+caller admission permits the separate adoption command and public projection.
+The Worker owns retained plaintext and invokes Core planning and scoped
+composition. Retained-field retirement consumes the predecessor before ordinary
+replacement. Restricted output crosses only explicit download or inspect routes.
+Cancellation, revocation and disposal must synchronously retire the owned worker;
+late replies cannot restore authority. This is logical retirement, not proof of
+physical WebCrypto termination or complete memory erasure.
+
+The public cache admits only SDK-inventoried `profile-worker/` assets and the
+fixed host module. Missing assets fail readiness without network fallback.
+Protocol/client and host-channel tests exercise these first-party boundaries
+without providing UI workflow, SDK boot or actual-browser qualification. See
+[publication](PACKAGING.md#independent-profile-worker-publication) and the
+[public custody boundary](../public/browser.md#dedicated-profile-worker-assets).
+
 The static WebAssembly shell owns navigation and appearance. `Layout/MainLayout`
 provides skip navigation, the header, application navigation, main landmark and footer. Home,
 Store, Open configuration and Help are route destinations; the configuration

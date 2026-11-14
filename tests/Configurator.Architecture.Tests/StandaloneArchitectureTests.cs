@@ -53,6 +53,19 @@ public sealed class StandaloneArchitectureTests
     public async Task CompiledProductClosureHasNoEventOrTestDependency(string owner)
     {
         string path = Path.Combine(ReleaseTestPaths.Root, $"src/Configurator.{owner}/bin/Release/net10.0/Configurator.{owner}.dll");
+        if (owner == "Browser.Worker")
+        {
+            var browser = await ReleaseTestPaths.Run("dotnet", "msbuild",
+                "src/Configurator.Browser/Configurator.Browser.csproj", "-nologo", "-verbosity:quiet",
+                "-p:Configuration=Release", "-getProperty:ConfiguratorProfileWorkerArtifactsPath");
+            await Assert.That(browser.ExitCode).IsEqualTo(0).Because(browser.Output);
+            var worker = await ReleaseTestPaths.Run("dotnet", "msbuild",
+                "src/Configurator.Browser.Worker/Configurator.Browser.Worker.csproj", "-nologo", "-verbosity:quiet",
+                "-p:Configuration=Release", "-p:UseArtifactsOutput=true",
+                "-p:ArtifactsPath=" + browser.Output.Trim(), "-getProperty:TargetPath");
+            await Assert.That(worker.ExitCode).IsEqualTo(0).Because(worker.Output);
+            path = worker.Output.Trim();
+        }
         using var stream = File.OpenRead(path);
         using var pe = new PEReader(stream);
         MetadataReader metadata = pe.GetMetadataReader();
@@ -73,7 +86,7 @@ public sealed class StandaloneArchitectureTests
         if (owner == "Core")
             await Assert.That(references.Where(name => !name.StartsWith("System.", StringComparison.Ordinal)
                 && name is not ("System" or "netstandard" or "YamlDotNet" or "BouncyCastle.Cryptography"))).IsEmpty();
-        if (owner == "Browser")
+        if (owner is "Browser" or "Browser.Worker")
         {
             await Assert.That(references.Any(name => name.StartsWith("Avalonia", StringComparison.Ordinal)
                 || name is "Terminal.Gui" or "Spectre.Console")).IsFalse();
@@ -113,11 +126,26 @@ public sealed class StandaloneArchitectureTests
             .IsEquivalentTo([$"Configurator.{owner} -> {forbiddenAssembly} is forbidden"]);
     }
 
+    [Test]
+    public Task WorkerEvaluatedInputsRemainInsideConfigurator() =>
+        EvaluatedSourceAndProjectInputsRemainInsideConfigurator("Browser.Worker");
+
+    [Test]
+    public Task WorkerCompiledClosureContainsOnlyCore() =>
+        CompiledProductClosureHasNoEventOrTestDependency("Browser.Worker");
+
+    [Test]
+    [Arguments(typeof(PresentationWorkspace), "Configurator.Presentation")]
+    [Arguments(typeof(ProtectedArtifactWriter), "Configurator.Artifacts")]
+    public Task WorkerCompiledDependencyGuardRejectsForbiddenEdges(Type forbiddenDependency, string forbiddenAssembly) =>
+        CompiledDependencyGuardRejectsForbiddenLocalEdges("Browser.Worker", forbiddenDependency, forbiddenAssembly);
+
     private static string[] AllowedFirstPartyDependencies(string owner) => owner switch
     {
         "Core" or "Browser.Host" => [],
         "Artifacts" => ["Configurator.Core"],
         "Presentation" => ["Configurator.Core"],
+        "Browser.Worker" => ["Configurator.Core"],
         "Cli" => ["Configurator.Core", "Configurator.Artifacts"],
         "Terminal" => ["Configurator.Core", "Configurator.Artifacts", "Configurator.Presentation"],
         "Desktop" => ["Configurator.Core", "Configurator.Artifacts", "Configurator.Presentation"],

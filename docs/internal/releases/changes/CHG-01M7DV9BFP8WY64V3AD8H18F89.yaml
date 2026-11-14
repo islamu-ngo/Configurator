@@ -1,0 +1,29 @@
+Change-Id: CHG-01M7DV9BFP8WY64V3AD8H18F89
+Title: "Isolate portable Browser profile operations in a dedicated worker"
+Type: feat
+Scope: privacy
+Summary: "Ship the dedicated profile worker, authority-fenced client protocol and public runtime assets separately from the Browser answer workspace."
+Group: browser-profile-worker
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "The dedicated executable owns portable profile processing. The client fences results by workspace authority; worker assets are public runtime inputs and caches never contain profile answers or generated artifacts."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: documented
+    Detail: "Publish the worker separately and include its bounded public assets, original dependency license, pinned generation inputs and manifest checks."
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Static deployment must retain the dedicated worker directory and host module under the configured base path. Client controls and runtime qualification remain separate increments."

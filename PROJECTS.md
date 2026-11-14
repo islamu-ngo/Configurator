@@ -37,6 +37,7 @@ checkout, backend contracts or running service may be a build input.
 | Terminal.Gui client | `src/Configurator.Terminal` |
 | Avalonia Desktop client | `src/Configurator.Desktop` |
 | Static Blazor WASM with transient local configuration | `src/Configurator.Browser` |
+| Dedicated SDK WASM profile custody, Core only | `src/Configurator.Browser.Worker` |
 | Optional container transport serving only published public files | `src/Configurator.Browser.Host` |
 
 Corresponding focused suites live in `tests/Configurator.<owner>.Tests`.
@@ -46,6 +47,16 @@ and dependency probes.
 The static host has no product project references and processes no answers.
 Its HTTP behavior is qualified through the actual container; the existing
 Browser package suite continues to check the static publication independently.
+Browser publishes the independent Core-only Worker executable before assigning
+content paths and links its public files beneath `profile-worker/`. Shared wire
+records are linked source; the main runtime never references the Worker assembly.
+Focused protocol tests link the actual worker session and codec, substituting
+only external crypto and transport. Run the host boundary tests with
+`node --test tests/Configurator.Browser.Tests/Profiles/ProfileWorkerHostTests.mjs`.
+`eng/configurator/BuildBrowserProfileWorker.cs` owns the exact crypto bundle,
+manifest and original terms; its `--self-test` and offline `--check` modes are
+separate from SDK publication and actual-browser qualification. See
+[worker publication](docs/internal/PACKAGING.md#independent-profile-worker-publication).
 
 ### Engineering & Dependency Owners
 

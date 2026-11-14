@@ -19,11 +19,13 @@ COPY ["global.json", "Directory.Build.props", "Directory.Packages.props", "NuGet
 RUN dotnet workload install wasm-tools
 COPY ["src/Configurator.Core/Configurator.Core.csproj", "src/Configurator.Core/packages.lock.json", "src/Configurator.Core/"]
 COPY ["src/Configurator.Presentation/Configurator.Presentation.csproj", "src/Configurator.Presentation/packages.lock.json", "src/Configurator.Presentation/"]
+COPY ["src/Configurator.Browser.Worker/Configurator.Browser.Worker.csproj", "src/Configurator.Browser.Worker/packages.lock.json", "src/Configurator.Browser.Worker/"]
 COPY ["src/Configurator.Browser/Configurator.Browser.csproj", "src/Configurator.Browser/packages.lock.json", "src/Configurator.Browser/"]
 COPY ["src/Configurator.Browser.Host/Configurator.Browser.Host.csproj", "src/Configurator.Browser.Host/packages.lock.json", "src/Configurator.Browser.Host/"]
 # Razor presence enables the SDK's implicit assets package during locked restore.
 COPY ["src/Configurator.Browser/App.razor", "src/Configurator.Browser/"]
 RUN dotnet restore src/Configurator.Browser/Configurator.Browser.csproj --locked-mode
+RUN dotnet restore src/Configurator.Browser.Worker/Configurator.Browser.Worker.csproj --locked-mode
 RUN dotnet restore src/Configurator.Browser.Host/Configurator.Browser.Host.csproj --locked-mode
 COPY . .
 RUN dotnet build src/Configurator.Browser.Host/Configurator.Browser.Host.csproj \

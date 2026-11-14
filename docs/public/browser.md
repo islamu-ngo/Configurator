@@ -487,6 +487,19 @@ Keep the published directory layout intact: interop modules are under `js/`,
 while `pwa-lifecycle.js` and the service worker remain at the application root.
 Missing asset requests must return an error rather than the SPA fallback.
 
+### Dedicated profile worker assets
+
+The static package includes an independent profile worker runtime under
+`profile-worker/` and its original crypto license and manifest. Keep this
+directory intact when hosting at the origin root or a configured subpath.
+Only public app files enter the offline cache; profiles, passphrases, answers
+and prepared artifacts remain outside it. Missing runtime assets prevent
+readiness and never trigger a network fallback during answer custody.
+The worker protocol requires current workspace consent and explicit caller
+admission before adopting an opened profile. Download and inspect are deliberate
+disclosure boundaries. This infrastructure does not itself expose profile UI
+controls or establish actual-browser, recovery or physical-erasure qualification.
+
 ### Docker Container
 
 The Browser project includes a multi-stage `Dockerfile` serving static assets via an unprivileged .NET static server:

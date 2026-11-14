@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "name": "jose",
+  "version": "6.2.17",
+  "source": "https://registry.npmjs.org/jose/-/jose-6.2.17.tgz",
+  "integrity": "sha512-wOuK9V1yujQFH5S0ZWmLcDZN7\u002BIKh9bUCC2ZPCf2HDlol3WWHy\u002BPPyNjEI75FXRLMp3vDKQcupP59xhVU95hcg==",
+  "license": "MIT",
+  "licenseSha256": "8078b0829d6c3e9ecde2f003e1966e4cad3efc6e7a640efbab0313cc166b1af1",
+  "lockSha256": "e0cc75ea65cd7c27dbaeb048dc95a09ce01693f7eb4f175cc26a9f8faed507bb",
+  "toolchain": {
+    "node": "v26.13.0",
+    "npm": "12.2.2",
+    "bun": "1.4.2"
+  },
+  "inputs": {
+    "docs/internal/legal/dependencies/encrypted-local-profiles.md": "21baef32a22651b5cb1f86d00cda49906725c4fe905944e4f3ddd2bcde4c6533",
+    "eng/configurator/BuildBrowserProfileWorker.cs": "985f5fcd2531bda1771b5239b082f8f80df81880798e5b8423c8b1052419d27c",
+    "eng/configurator/profile-worker/package-lock.json": "e0cc75ea65cd7c27dbaeb048dc95a09ce01693f7eb4f175cc26a9f8faed507bb",
+    "eng/configurator/profile-worker/package.json": "64d6cf890040b33e521daeed26752f5ca812e7183cf8ced0db52747a39e8f778",
+    "eng/configurator/profile-worker/profile-crypto-entry.js": "7bce550362e245c72f1930dc8062155351af83746a3939f9cf3906719e1bf40d"
+  },
+  "outputs": {
+    "profile-crypto.js": {
+      "sha256": "68a0203263e0b7090745f55a1e7b95efccc9e565ed29ab26f665a9f972b84179",
+      "bytes": 30423
+    },
+    "profile-crypto.LICENSE.txt": {
+      "sha256": "8078b0829d6c3e9ecde2f003e1966e4cad3efc6e7a640efbab0313cc166b1af1",
+      "bytes": 1079
+    }
+  }
+}

@@ -113,6 +113,32 @@ build. SDK-generated Brotli/gzip sidecars are transport encodings of public asse
 the store package test requires each sidecar to decode to its exact canonical
 JSON bytes and rejects any other store file.
 
+### Independent profile worker publication
+
+Browser and Worker are separate SDK executables with Release AOT enabled.
+Worker references Core only. Browser links the shared protocol source and
+publishes Worker before `AssignTargetPaths`; only its public `wwwroot/` files
+become ordinary Browser Content under `profile-worker/`. No Worker project
+reference or runtime asset metadata enters the main Browser runtime graph.
+Ordinary builds use isolated compilation/AOT caches and fresh publication
+staging. Captured builds use `BuildCaptureTask` for the child publication and
+the `profile-worker` asset-check operation, retaining separate restore and
+execution graphs. Capture qualification requires actual recorded graphs.
+
+`eng/configurator/BuildBrowserProfileWorker.cs` owns the first-party crypto
+entry, pinned one-component npm closure, bundle, manifest and original MIT
+notice. Its offline `--check` verifies all input/output hashes, tool metadata,
+lock identity and original-license hash. The committed legal record is a
+hash-bound input and must remain unchanged. Regeneration uses `--write`; no
+generated bundle, manifest, license or lock is hand-edited.
+
+The Docker context admits these inputs and the independent SDK project/lock.
+The release target requires the published runtime, entry, bundle, manifest and
+original terms. SDK-manifest worker assets enter the existing cache-only public
+asset policy, including readiness completeness. Profiles, answers, credentials
+and restricted artifacts never enter that cache. See the
+[public guide](../public/browser.md#dedicated-profile-worker-assets).
+
 ### Local editor assets
 
 `eng/configurator/BuildBrowserEditor.cs` owns the local editor bundle. Its source

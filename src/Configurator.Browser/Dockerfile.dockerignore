@@ -18,12 +18,14 @@ src/**
 !src/Configurator.Presentation/
 !src/Configurator.Browser/
 !src/Configurator.Browser.Host/
+!src/Configurator.Browser.Worker/
 src/Configurator.Core/**
 src/Configurator.Artifacts/**
 src/Configurator.Cli/**
 src/Configurator.Presentation/**
 src/Configurator.Browser/**
 src/Configurator.Browser.Host/**
+src/Configurator.Browser.Worker/**
 # Open known source directories, then keep their contents denied by default.
 !src/Configurator.Core/Artifacts/
 src/Configurator.Core/Artifacts/*
@@ -41,6 +43,8 @@ src/Configurator.Core/Portability/*
 src/Configurator.Core/Secrets/*
 !src/Configurator.Core/Definitions/
 src/Configurator.Core/Definitions/*
+!src/Configurator.Core/Profiles/
+src/Configurator.Core/Profiles/*
 !src/Configurator.Core/Definitions/Authoring/
 src/Configurator.Core/Definitions/Authoring/*
 !src/Configurator.Cli/Commands/
@@ -73,6 +77,20 @@ src/Configurator.Presentation/Import/*
 src/Configurator.Presentation/Secrets/*
 !src/Configurator.Presentation/Resources/
 src/Configurator.Presentation/Resources/*
+!src/Configurator.Browser/Profiles/
+src/Configurator.Browser/Profiles/*
+!src/Configurator.Browser.Worker/Contracts/
+!src/Configurator.Browser.Worker/Profiles/
+!src/Configurator.Browser.Worker/Interop/
+!src/Configurator.Browser.Worker/wwwroot/
+!src/Configurator.Browser.Worker/wwwroot/vendor/
+!src/Configurator.Browser.Worker/**/*.cs
+!src/Configurator.Browser.Worker/Configurator.Browser.Worker.csproj
+!src/Configurator.Browser.Worker/packages.lock.json
+!src/Configurator.Browser.Worker/wwwroot/profile-worker.js
+!src/Configurator.Browser.Worker/wwwroot/vendor/profile-crypto.js
+!src/Configurator.Browser.Worker/wwwroot/vendor/profile-crypto.manifest.json
+!src/Configurator.Browser.Worker/wwwroot/vendor/profile-crypto.LICENSE.txt
 !src/Configurator.Browser/Pages/
 src/Configurator.Browser/Pages/*
 !src/Configurator.Browser/Shared/
@@ -149,6 +167,12 @@ eng/configurator/Configurator.BuildCapture/**
 eng/configurator/generated/*
 !eng/configurator/editor/
 eng/configurator/editor/*
+!eng/configurator/profile-worker/
+eng/configurator/profile-worker/*
+!eng/configurator/profile-worker/package.json
+!eng/configurator/profile-worker/package-lock.json
+!eng/configurator/profile-worker/profile-crypto-entry.js
+!eng/configurator/BuildBrowserProfileWorker.cs
 !eng/configurator/dependency-notices/
 eng/configurator/dependency-notices/*
 !eng/configurator/dependency-notices/terminal.gui/
@@ -195,6 +219,7 @@ docs/internal/legal/**
 !docs/internal/legal/dependencies/
 docs/internal/legal/dependencies/**
 !docs/internal/legal/dependencies/codemirror.md
+!docs/internal/legal/dependencies/encrypted-local-profiles.md
 
 !schemas/
 schemas/**

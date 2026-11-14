@@ -8,13 +8,13 @@ const publicAssets = new Set([
     'Configurator.Browser.styles.css', 'manifest.webmanifest',
     'pwa-lifecycle.js', 'js/browser-definition-source.js', 'js/browser-artifacts.js',
     'js/browser-appearance.js', 'js/workspace-interactions.js', 'js/configuration-rendering.js',
-    'js/configuration-developer.js', 'vendor/configuration-editor.js',
+    'js/configuration-developer.js', 'js/profile-worker-host.js', 'vendor/configuration-editor.js',
     'vendor/configuration-editor.manifest.json', 'vendor/configuration-editor.LICENSE.txt',
     '_content/MudBlazor/MudBlazor.min.css', '_content/MudBlazor/MudBlazor.min.js',
     'icons/configurator-192.svg', 'icons/configurator-512.svg'
 ]);
 const assets = self.assetsManifest.assets.filter(asset =>
-    asset.url.startsWith('_framework/') || publicAssets.has(asset.url));
+    asset.url.startsWith('_framework/') || asset.url.startsWith('profile-worker/') || publicAssets.has(asset.url));
 const requiredUrls = new Set(assets.map(asset => new URL(asset.url, scope).href));
 const appUrls = requiredUrls;
 const activeClients = new Set();

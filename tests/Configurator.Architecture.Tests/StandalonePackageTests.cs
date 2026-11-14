@@ -94,6 +94,7 @@ public sealed class StandalonePackageTests
             item.GetString()!.StartsWith("Microsoft.NETCore.App.Runtime.Mono.browser-wasm/", StringComparison.Ordinal))).IsTrue();
         await AssertTerminalDependencyNotices(directory, expected: false);
         await Assert.That(frameworkFiles.Where(path => Path.GetFileName(path).StartsWith("Configurator.Artifacts", StringComparison.Ordinal)
+            || Path.GetFileName(path).StartsWith("Configurator.Browser.Worker", StringComparison.Ordinal)
             || Path.GetFileName(path).StartsWith("Configurator.Cli", StringComparison.Ordinal)
             || Path.GetFileName(path).StartsWith("Configurator.Terminal", StringComparison.Ordinal)
             || Path.GetFileName(path).StartsWith("Configurator.Desktop", StringComparison.Ordinal)

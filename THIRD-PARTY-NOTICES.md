@@ -31,7 +31,13 @@ Native encrypted-profile operations use `jose-jwt` `5.3.0` under MIT, retaining
 Copyright (c) 2014-2024 dvsekhvalnov. The native notice generator retains its
 original `LICENSE` and package metadata with each consuming distribution.
 The [profile dependency record](docs/internal/legal/dependencies/encrypted-local-profiles.md)
-binds the reviewed archive, original terms and update ownership.
+binds the reviewed archive, original terms and update ownership. The isolated
+Browser profile worker uses `jose` `6.2.17` under MIT, retaining Copyright (c)
+2018 Filip Skokan. Its generated `profile-worker/vendor/profile-crypto.LICENSE.txt`
+preserves the complete original permission notice and warranty disclaimer.
+Keep it and the exact asset manifest with the worker bundle. The root MIT
+license does not replace these terms; no npm, Node or Bun executable ships
+in this static asset.
 
 Shared cryptographic operations use `BouncyCastle.Cryptography` `2.7.0` under
 MIT, copyright 2000–2026 The Legion of the Bouncy Castle Inc. Its original

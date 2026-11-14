@@ -1,0 +1,10 @@
+{
+  "name": "configurator-browser-profile-worker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "jose": "6.2.17"
+  }
+}

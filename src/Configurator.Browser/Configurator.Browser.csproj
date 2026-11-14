@@ -11,11 +11,14 @@
     <RunAOTCompilation Condition="'$(Configuration)' == 'Release'">true</RunAOTCompilation>
     <!-- Workspace locales can differ from the browser's startup culture without a reload. -->
     <BlazorWebAssemblyLoadAllGlobalizationData>true</BlazorWebAssemblyLoadAllGlobalizationData>
+    <ConfiguratorProfileWorkerArtifactsPath>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(BaseIntermediateOutputPath)', 'profile-worker-cache'))</ConfiguratorProfileWorkerArtifactsPath>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Configurator.Core\Configurator.Core.csproj" />
     <ProjectReference Include="..\Configurator.Presentation\Configurator.Presentation.csproj" />
+    <Compile Include="../Configurator.Browser.Worker/Contracts/ProfileWorkerContracts.cs"
+             Link="Profiles/ProfileWorkerContracts.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -38,10 +41,39 @@
                       LogicalName="Configurator.Browser.Definitions.islamu-event.public.json" />
   </ItemGroup>
 
+  <!-- Each executable owns its runtime graph. Only published public files cross this boundary. -->
+  <Target Name="PublishBrowserProfileWorker" BeforeTargets="AssignTargetPaths"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <_ConfiguratorProfileWorkerPublishDirectory>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)', '$(IntermediateOutputPath)', 'profile-worker-publish'))</_ConfiguratorProfileWorkerPublishDirectory>
+    </PropertyGroup>
+    <!-- Retire stale public files while retaining the SDK's compilation and AOT caches. -->
+    <RemoveDir Directories="$(_ConfiguratorProfileWorkerPublishDirectory)" />
+    <Exec Condition="'$(ConfiguratorCaptureSession)' == ''" WorkingDirectory="$(MSBuildProjectDirectory)/../.."
+      Command="dotnet publish &quot;$(MSBuildProjectDirectory)/../Configurator.Browser.Worker/Configurator.Browser.Worker.csproj&quot; --configuration &quot;$(Configuration)&quot; --output &quot;$(_ConfiguratorProfileWorkerPublishDirectory)&quot; --tl:off -p:UseArtifactsOutput=true -p:ArtifactsPath=&quot;$(ConfiguratorProfileWorkerArtifactsPath)&quot; -p:RestoreLockedMode=true" />
+    <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''" Session="$(ConfiguratorCaptureSession)"
+      Project="$(MSBuildProjectDirectory)/../Configurator.Browser.Worker/Configurator.Browser.Worker.csproj" Target="Publish"
+      Properties="Configuration=$(Configuration);PublishDir=$(_ConfiguratorProfileWorkerPublishDirectory);RestoreLockedMode=true" />
+    <Error Condition="!Exists('$(_ConfiguratorProfileWorkerPublishDirectory)wwwroot/profile-worker.js') or !Exists('$(_ConfiguratorProfileWorkerPublishDirectory)wwwroot/_framework/dotnet.js')"
+      Text="The independent profile worker publication is incomplete." />
+    <ItemGroup>
+      <_ConfiguratorProfileWorkerAsset Include="$(_ConfiguratorProfileWorkerPublishDirectory)wwwroot/**/*" />
+      <Content Include="@(_ConfiguratorProfileWorkerAsset)"
+               Link="wwwroot/profile-worker/%(_ConfiguratorProfileWorkerAsset.RecursiveDir)%(_ConfiguratorProfileWorkerAsset.Filename)%(_ConfiguratorProfileWorkerAsset.Extension)"
+               CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
   <Target Name="VerifyBrowserEditorAssets" BeforeTargets="PrepareForPublish">
     <Exec Condition="'$(ConfiguratorCaptureSession)' == ''" WorkingDirectory="$(MSBuildProjectDirectory)/../.."
           Command="dotnet run --file &quot;$(MSBuildProjectDirectory)/../../eng/configurator/BuildBrowserEditor.cs&quot; -- --check &quot;$(MSBuildProjectDirectory)/../..&quot;" />
     <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''" Session="$(ConfiguratorCaptureSession)"
       Project="$(MSBuildProjectFullPath)" Operation="editor" Arguments="--check;$(MSBuildProjectDirectory)/../.." />
+  </Target>
+  <Target Name="VerifyBrowserProfileAssets" BeforeTargets="PrepareForPublish">
+    <Exec Condition="'$(ConfiguratorCaptureSession)' == ''" WorkingDirectory="$(MSBuildProjectDirectory)/../.."
+          Command="dotnet run --file &quot;$(MSBuildProjectDirectory)/../../eng/configurator/BuildBrowserProfileWorker.cs&quot; -- --check &quot;$(MSBuildProjectDirectory)/../..&quot;" />
+    <BuildCaptureTask Condition="'$(ConfiguratorCaptureSession)' != ''" Session="$(ConfiguratorCaptureSession)"
+      Project="$(MSBuildProjectFullPath)" Operation="profile-worker" Arguments="--check;$(MSBuildProjectDirectory)/../.." />
   </Target>
 </Project>

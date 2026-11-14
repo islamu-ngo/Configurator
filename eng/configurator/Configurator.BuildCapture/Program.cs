@@ -586,11 +586,13 @@ public sealed class CaptureSession
             "ratchets" => ("eng/configurator/GenerateConfiguratorRatchets.cs", "Configurator.RatchetGenerator"),
             "store" => ("eng/configurator/BuildDefinitionStore.cs", "Configurator.DefinitionStoreBuilder"),
             "editor" => ("eng/configurator/BuildBrowserEditor.cs", "Configurator.BrowserEditorBuilder"),
+            "profile-worker" => ("eng/configurator/BuildBrowserProfileWorker.cs", "Configurator.BrowserProfileWorkerBuilder"),
             "notices" => (".ci/scripts/write-dependency-notices.cs", "Configurator.DependencyNotices"),
             "evidence" => (".ci/scripts/prepare-test-evidence.cs", "Configurator.TestEvidence"),
             _ => throw new CaptureException("CAPTURE_GENERATOR_UNSUPPORTED")
         };
         Require(operation != "editor" || arguments is ["--check", _], "CAPTURE_EDITOR_OPERATION_UNSUPPORTED");
+        Require(operation != "profile-worker" || arguments is ["--check", _], "CAPTURE_PROFILE_WORKER_OPERATION_UNSUPPORTED");
         Require(operation != "ratchets" || arguments is ["--check"], "CAPTURE_RATCHET_OPERATION_UNSUPPORTED");
         string directory = Path.Combine(Work, "artifacts/capture-tools", operation);
         Directory.CreateDirectory(directory);
