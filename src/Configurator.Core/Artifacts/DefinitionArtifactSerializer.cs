@@ -39,7 +39,7 @@ internal static class DefinitionArtifactSerializer
             {
                 foreach (JsonProperty property in node.EnumerateObject().OrderBy(item => item.Name, StringComparer.Ordinal))
                 {
-                    result.Append(' ', indent).Append(JsonSerializer.Serialize(property.Name)).Append(':');
+                    result.Append(' ', indent).Append(JsonSerializer.Serialize(property.Name, CoreJsonContext.Default.String)).Append(':');
                     Child(property.Value, indent);
                 }
             }

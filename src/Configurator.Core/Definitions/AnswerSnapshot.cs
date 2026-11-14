@@ -56,7 +56,7 @@ public sealed class AnswerSnapshot
                         Composition.CompositionKeyPolicy.Exact, initialDepth: 2, cancellationToken: cancellationToken);
                 try
                 {
-                    bytes += canonical.Length + JsonSerializer.SerializeToUtf8Bytes(key).Length + 2;
+                    bytes += canonical.Length + JsonSerializer.SerializeToUtf8Bytes(key, CoreJsonContext.Default.String).Length + 2;
                     if (bytes > Composition.CompositionLimits.DefaultAggregateSourceBytes)
                         throw new DefinitionException("answer-limit");
                     using JsonDocument parsed = JsonDocument.Parse(canonical);
@@ -72,7 +72,7 @@ public sealed class AnswerSnapshot
                     throw new DefinitionException("answer-limit");
                 ArgumentNullException.ThrowIfNull(path);
                 budget.Scalar(path.ToPointer());
-                bytes += JsonSerializer.SerializeToUtf8Bytes(path.ToPointer()).Length + 1;
+                bytes += JsonSerializer.SerializeToUtf8Bytes(path.ToPointer(), CoreJsonContext.Default.String).Length + 1;
                 if (bytes > Composition.CompositionLimits.DefaultAggregateSourceBytes)
                     throw new DefinitionException("answer-limit");
                 if (!suppressed.Add(path) || HasSuppliedValue(path))
