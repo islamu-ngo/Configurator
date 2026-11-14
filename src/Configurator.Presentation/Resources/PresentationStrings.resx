@@ -81,4 +81,5 @@
   <data name="UndoActionGenerateSecret" xml:space="preserve"><value>Apply generated secret</value></data>
   <data name="UndoActionDocument" xml:space="preserve"><value>Apply document</value></data>
   <data name="UndoActionImport" xml:space="preserve"><value>Import configuration</value></data>
+  <data name="UndoActionTransfer" xml:space="preserve"><value>Apply reviewed values</value></data>
 </root>

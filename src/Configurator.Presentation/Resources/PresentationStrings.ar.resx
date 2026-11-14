@@ -81,4 +81,5 @@
   <data name="UndoActionGenerateSecret" xml:space="preserve"><value>تطبيق السر المولّد</value></data>
   <data name="UndoActionDocument" xml:space="preserve"><value>تطبيق المستند</value></data>
   <data name="UndoActionImport" xml:space="preserve"><value>استيراد الإعدادات</value></data>
+  <data name="UndoActionTransfer" xml:space="preserve"><value>تطبيق القيم المراجعة</value></data>
 </root>

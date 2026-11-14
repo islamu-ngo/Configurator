@@ -85,8 +85,10 @@ public sealed partial class DefinitionFormModel
         }
         IReadOnlyList<JsonElement> allowed = !masking && schema.Keywords.TryGetProperty("enum", out var values)
             ? Array.AsReadOnly(values.EnumerateArray().Select(value => value.Clone()).ToArray()) : [];
-        bool suggestion = editable && !masking &&
-            schema.Keywords.TryGetProperty("x-configurator", out var extension) && extension.TryGetProperty("suggestedValue", out _);
+        // Dynamic eligibility and values are resolved only during explicit review/adoption, never while rendering.
+        bool suggestion = editable && (schema.PresentationMetadata.SuggestedSource is not null
+            || !masking && schema.Keywords.TryGetProperty("x-configurator", out var extension)
+                && extension.TryGetProperty("suggestedValue", out _));
         // Reset removes an override/omission; it never supplies an inactive value or seeds an absent container.
         bool arrayItem = node.Parent?.Schema.Type == DefinitionNodeType.Sequence;
         return new(editable, suggestion, editable && schema.IsNullable, writable && !arrayItem,

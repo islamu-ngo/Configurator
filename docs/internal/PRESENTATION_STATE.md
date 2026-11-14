@@ -841,3 +841,33 @@ Proposals evaluate admitted Core conditions against the current validation,
 order by priority then authored order, and localize numeric document paths.
 The projection contains no answer values or artifact bytes. Shared tests do
 not qualify client integration, browser download completion or native hosts.
+
+## Reviewed value transfer
+
+`DefinitionTransitionTransferPlan` is an immutable, value-free descriptor of one
+form-owned review. `ReviewOutputTransition` evaluates the target task on an
+isolated candidate answer tree; `ReviewSuggestion` evaluates one active target.
+Sources are read from supplied retained answers, independently of source-task
+activity. Core scalar validation, authored eligibility and effective custody
+still apply. No suggestion chain is evaluated.
+
+`ReadTransferPreview` checks current review identity, lifecycle, definition and
+revision before reading an unmasked source. Protected rows return no preview.
+Manual answers, explicit omissions and invalid drafts are represented only as
+presence facts and are unchecked by default. Rendering affordances do not
+retrieve dynamic source values.
+
+`ApplyTransfer` validates selected candidate identities and stages the selector
+and all selected values in one detached accepted state. It rechecks combined
+applicability and the answer budget before `_editing.Adopt`. One
+`OnInputChanged` call advances the global revision and records one undo entry.
+It preserves unselected values, drafts, omissions, origins and row identities.
+Overwriting a leaf cannot silently discard an ancestor's unrelated invalid
+draft. Stale, duplicate or unknown selections refuse without accepted-state
+mutation.
+
+All input edits and privacy/lifecycle retirement paths synchronously retire
+review authority. Undo/redo uses the existing secret-retiring history.
+Notifications occur after adoption and gate release. A throwing observer
+cannot convert a committed change into a rejection or roll back a newer
+reentrant edit; the result exposes `ObserverFailed` without exception text.

@@ -111,7 +111,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(value);
         DefinitionOutputSelector? selector = Definition.Presentation?.OutputSelector;
         return selector is not null && selector.Options.Any(option => option.Value == value)
-            && SetValue([DefinitionProfile.FieldId(selector.Location.Segments[0])], JsonSerializer.SerializeToElement(value));
+            && SetValue(selector.Location, JsonSerializer.SerializeToElement(value));
     }
 
     /// <summary>Changes public display metadata without changing answers or retiring prepared output.</summary>
@@ -357,6 +357,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 RetireProfileSession();
                 OnPropertyChanged(nameof(Profile));
                 RetireOutputWorkflow(clearHistory: true);
+                RetireTransferReviews();
                 RetireImportComparison();
                 RetireDocument();
                 Dictionary<string, JsonElement>? originalBranches = _index!.Root.HasVariants ? _editing.Root.ToDictionary() : null;
@@ -514,6 +515,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             {
                 _editing.Privacy = next;
                 RetireOutputWorkflow(clearHistory: true);
+                RetireTransferReviews();
                 if (!enabled)
                 {
                     RetireProfileSession();
@@ -697,6 +699,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     {
         using var mutation = BeginMutation(PresentationStrings.Get("UndoActionEdit", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (TryEditorMetadata(path, out DefinitionFormIndex.Node linked, out _)
+            && linked.Schema.PresentationMetadata.SuggestedSource is not null)
+        {
+            DefinitionTransitionTransferPlan review = ReviewSuggestion(path);
+            return review.Candidates.Count == 1 && ApplyTransfer(review, [review.Candidates[0].Id]).Succeeded;
+        }
         return TryEditorMetadata(path, out DefinitionFormIndex.Node node, out _) &&
             node.Metadata.TryGetProperty("x-configurator", out JsonElement metadata) &&
             metadata.TryGetProperty("suggestedValue", out JsonElement suggested) && SetValue(path, suggested);
@@ -1169,6 +1177,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         _promotionPending = true;
         _editing.AdvanceRevision();
         RetireOutputWorkflow(clearHistory: false);
+        RetireTransferReviews();
         OnPropertyChanged(nameof(InputRevision));
         OnPropertyChanged(nameof(HasInputErrors));
         OnPropertyChanged(nameof(HasAnswerBudgetError));
@@ -1198,6 +1207,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             _disposed = true;
             RetireProfileSession();
             RetireOutputWorkflow(clearHistory: true);
+            RetireTransferReviews();
             RetireSecretResult();
             RetireDocument();
             RetireImportComparison();
