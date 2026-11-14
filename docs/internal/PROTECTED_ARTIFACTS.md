@@ -114,6 +114,32 @@ not-installed result. A vault/comparison pair is not a transaction. Native owner
 regressions passed on the executing Linux host; this does not qualify Windows,
 macOS, every Linux filesystem, keyring recovery or actual release packages.
 
+## Exact-snapshot portable recovery
+
+`ProfileRecipientLifecycle` distinguishes device-bound-only creation from a
+configured portable recipient. Device-only creation requires acknowledgement
+bound to the profile ID. A configured device recipient occupies index zero
+and counts toward the same eight-recipient limit as explicit portable inputs.
+Core generates no snapshot identities; recipient changes require a fresh
+host-issued snapshot ID and fresh library encryption. Mode and target
+credentials remain unchanged.
+
+`ProfileRecoveryReference` holds the creation event's independently retained
+ciphertext digest, authenticated profile/snapshot IDs and intended recipient
+configuration. Recomputing that reference from an untrusted candidate file is
+not verification. `ProfileRecoveryVerifier` rereads the exact descriptor-backed
+file and uses a fresh native codec with no OS-keyring dependency to authenticate
+one explicitly selected portable recipient. Only matching digest and decrypted
+identities produce `VerifiedForSnapshot`. Native unlock, recipient labels and
+an earlier revision's successful test do not establish portable recovery for
+this file or for other recipients.
+
+There is no application master key, password reset, automatic OS-key deletion,
+history pruning or ordinary-save fallback. Resealing changes access to the new
+revision only; old files retain their original recipients. Keyring behavior on
+uninstall/reinstall, account reset, OS reinstall and device loss is host-specific
+and remains an actual-host qualification obligation.
+
 ## OS keyring ownership
 
 `IOsKeyringProvider` separates lookup from creation. `OsKeyringProvider` generates

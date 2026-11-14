@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7D1F5B9J0DX4FGB11GRR76R
+Title: "Verify portable recovery against the exact saved snapshot"
+Type: feat
+Scope: privacy
+Summary: "Require acknowledged device-only creation, fresh identities for resealing and independent portable authentication against a trusted exact-copy reference, without consulting device material."
+Group: profile-portable-recovery
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "Authenticate the exact descriptor-backed copy through a fresh native codec without a device lease, then match its independently retained ciphertext digest and authenticated identities. Device-only creation needs profile-bound acknowledgement; resealing requires a fresh snapshot identity. Recomputed untrusted references and native unlock do not verify portable recovery."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/import-and-compare.md
+    Disposition: documented
+    Detail: "Retain an independent portable credential and test the exact backup. Losing all recipients is unrecoverable; resealing does not revoke old copies or rotate target credentials. Actual OS keyring and uninstall behavior remain host qualification gates."

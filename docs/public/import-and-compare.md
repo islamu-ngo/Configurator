@@ -173,11 +173,6 @@ exact copy without the native device material. Losing all applicable credentials
 is unrecoverable; reinstalling the application cannot reconstruct them. Changing
 a passphrase affects new snapshots, not stolen or historical copies.
 
-Uninstall/reinstall does not
-promise either key retention or deletion; account reset, OS reinstall and
-device loss may remove access. Configurator has no master key or reset service
-that can recover a file after every recipient credential is lost.
-
 The profile boundary admits files up to 4 MiB and rejects unsupported formats,
 costs or ambiguous metadata. It never guesses another algorithm or recipient
 after a failed selected attempt. This limit is distinct from ordinary artifact
@@ -234,6 +229,28 @@ facts. A cancelled or uncertain operation may already have installed its file;
 keep the receipt and inspect that exact revision before retrying. Saving a vault
 and comparison file does not make them an atomic pair. A successful save alone
 does not verify portable recovery.
+
+### Test The Exact Backup
+
+Keep a portable passphrase and a copy of the encrypted revision independently
+of its device key. Recovery checking must open that exact copy with the
+portable recipient and no device-key lookup, then match the saved trusted
+digest and authenticated profile/snapshot IDs. A different revision, a newly
+computed digest of an unknown file or a successful device unlock does not
+prove that backup can recover.
+
+Device-only saving requires deliberate acknowledgement. Losing the only OS
+keyring entry can make those files unreadable. Uninstall/reinstall does not
+promise either key retention or deletion; account reset, OS reinstall and
+device loss may remove access. Configurator has no master key or reset service
+that can recover a file after every recipient credential is lost.
+
+After a lost credential, use another working recipient to create a new
+revision and test its recovery. After a compromised credential, also rotate
+the actual target application's exposed secrets through that application's
+authority. Replacing recipients affects only the new encrypted revision:
+previous copies and backups retain their old access. Deleting a key is not
+secure deletion of files and cannot revoke a passphrase known by someone else.
 
 ## Keep Private Input Local
 
