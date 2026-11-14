@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="ProfileReplace" xml:space="preserve"><value>Replace retained value</value></data>
   <data name="FieldRequired" xml:space="preserve"><value>Supply this required value.</value></data>
   <data name="FieldType" xml:space="preserve"><value>Enter a value of the declared type.</value></data>
   <data name="FieldConstraint" xml:space="preserve"><value>Correct the value to meet the declared requirements.</value></data>

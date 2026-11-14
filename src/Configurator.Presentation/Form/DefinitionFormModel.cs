@@ -354,6 +354,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             _privacyClearingActive = true;
             try
             {
+                RetireProfileSession();
+                OnPropertyChanged(nameof(Profile));
                 RetireImportComparison();
                 RetireDocument();
                 Dictionary<string, JsonElement>? originalBranches = _index!.Root.HasVariants ? _editing.Root.ToDictionary() : null;
@@ -512,6 +514,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 _editing.Privacy = next;
                 if (!enabled)
                 {
+                    RetireProfileSession();
+                    OnPropertyChanged(nameof(Profile));
                     foreach (DefinitionFieldInput field in Fields)
                     {
                         field.ClearDeniedDrafts(CanMutate);
@@ -560,9 +564,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     // Mutation custody remains independent of the current display affordance.
     private bool CanMutate(IReadOnlyList<string> path) =>
-        SessionPrivacy != DefinitionSessionPrivacy.BrowserNoSecrets ||
+        !ProfileBlocks(DataPath(path)) && (SessionPrivacy != DefinitionSessionPrivacy.BrowserNoSecrets ||
         TryMetadataNode(path, out DefinitionFormIndex.Node node, out bool inheritedSecret) &&
-            !DefinitionSecretPolicy.IsSecret(node.Schema, inheritedSecret);
+            !DefinitionSecretPolicy.IsSecret(node.Schema, inheritedSecret));
 
     public bool SetValue(IReadOnlyList<string> path, JsonElement? value) => ApplyValue(path, value, clearDrafts: true);
 
@@ -701,6 +705,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         using (BeginMutation(PresentationStrings.Get(value is null ? "UndoActionOmit" : "UndoActionEdit", Locale)))
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            if (ProfileBlocks(DataPath(path))) return false;
             if (IsRootLocation(path)) return ApplyRootValue(path, value, clearDrafts);
             if (path.Count == 0 || !TryMetadata(path, out _, out _) || value is not null && !CanMutate(path)) return false;
             DefinitionFieldInput field = Fields[_index!.FieldPositions[path[0]]];
@@ -907,6 +912,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private bool AllowsValue(FieldDefinition field, string text, JsonElement? candidate)
     {
+        if (ProfileBlocks(DefinitionPath.FromSegments([field.Name]))) return false;
         string fieldId = field.Id;
         DefinitionFieldInput input = Fields[_index!.FieldPositions[fieldId]];
         bool fitsBudget = text.Length <= 65_536;
@@ -1096,6 +1102,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 return new(false, null, "import-stale");
             if (!HasImportStorage(result.Answers!))
                 return new(false, null, "import-workspace-unsupported");
+            if (result.Answers!.Values.Keys.Any(name => ProfileBlocks(DefinitionPath.FromSegments([name])))
+                || result.Answers.Omitted.Any(ProfileBlocks))
+                return new(false, null, "profile-replacement-required");
             if (_editing.RootInput.InvalidPaths.Count > 0)
                 return new(false, null, "answer-conflict") { Diagnostic = new("answer-conflict", "") };
             DefinitionFieldInput? pendingDraft = Fields.FirstOrDefault(field =>
@@ -1143,6 +1152,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private void OnInputChanged()
     {
+        _discardBrowserProfileOutput?.Invoke();
+        RetireProfilePreparation();
         if (_undoBaseline is not null && !_undoReplayActive && !_privacyClearingActive)
             _inputChangedInUndoScope = true;
         RetireSecretResult();
@@ -1182,6 +1193,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             if (_disposed) return;
             _disposed = true;
+            RetireProfileSession();
             RetireSecretResult();
             RetireDocument();
             RetireImportComparison();

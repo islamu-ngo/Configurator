@@ -67,6 +67,7 @@ public sealed partial class DefinitionFormModel
         }
         writable &= SessionPrivacy != DefinitionSessionPrivacy.BrowserNoSecrets ||
             !DefinitionSecretPolicy.IsSecret(schema, inheritedSecret);
+        writable &= !ProfileBlocks(dataPath);
         editable &= writable;
         var reasons = new List<DefinitionFieldCorrectionReason>();
         if (state is { IsActive: true, IsRequired: true, IsMissing: true }) reasons.Add(DefinitionFieldCorrectionReason.Required);

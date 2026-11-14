@@ -8,6 +8,36 @@
 
 ## Recursive editing and localized display
 
+`DefinitionFormModel.OpenProfileAsync` transfers native encrypted-profile custody
+only after the existing import generation, input revision, form lifetime and
+cancellation checks still match. Browser forms never receive this native owner,
+including forms with ordinary secret entry enabled; portable Browser custody
+belongs in the dedicated worker. A losing unlocked owner is disposed.
+
+For blind profiles, `ProfileWorkspaceSession` retains the private Core owner.
+Only stripped public values enter the single accepted editing root. Ordinary
+snapshots, field text, undo and document output never contain retained values.
+`ProfileComparisonProjection` and `BlindSecretSlot` contain declared field
+coordinates and advisory eligibility, with no secret-bearing access capability.
+An explicitly confirmed replacement consumes and clears the old private owner,
+then installs an immutable successor without that whole retained field. Other
+retained fields remain available. Permanent root omissions prevent defaults or
+undo from restoring the retired value or binding it to a shifted collection row.
+
+Scoped preparation uses `ProfileCompositionInput` and `ProfileArtifactComposer`
+off the UI thread. Input changes synchronously dispose the old scope and its
+registered outputs. Completion must still match the form's captured generation,
+revision and exact scope before adoption. Restricted output has one deliberate
+native-save callback, separate from the ordinary preview/copy channel. The
+callback's copy clears on exit. Once a physical sink has started, later retirement
+does not undo installation; the native writer's receipt remains authoritative.
+Clearing private state, replacement and disposal retire the session itself.
+
+Owned byte buffers are cleared when their owners retire. Managed strings,
+validator JSON copies, interop allocations and crash dumps do not have a
+guaranteed erasure contract. Blind mode restricts disclosure after decryption;
+it does not mean that plaintext never exists in the process.
+
 Desktop's guided navigation consumes `DefinitionFormProjection.Sections`,
 `SectionProgress` and global `Progress`. Its section/page lists reference
 factory-owned native editor projections, while this shared form retains the

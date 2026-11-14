@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="ProfileReplace" xml:space="preserve"><value>استبدال القيمة المحتفظ بها</value></data>
   <data name="FieldRequired" xml:space="preserve"><value>أدخل هذه القيمة المطلوبة.</value></data>
   <data name="FieldType" xml:space="preserve"><value>أدخل قيمة من النوع المحدد.</value></data>
   <data name="FieldConstraint" xml:space="preserve"><value>صحح القيمة لتطابق المتطلبات المحددة.</value></data>

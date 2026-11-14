@@ -291,6 +291,7 @@ public sealed partial class DefinitionFormModel
     private bool ApplyRootValue(IReadOnlyList<string> path, JsonElement? value, bool clearDrafts,
         IReadOnlyCollection<DefinitionPath>? replacementOmissions = null)
     {
+        if (ProfileBlocks(DefinitionPath.FromSegments(path))) return false;
         if (!TryRootMetadata(path, out DefinitionFormIndex.Node metadata, out bool inheritedSecret) ||
             value is not null && SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets &&
                 DefinitionSecretPolicy.IsSecret(metadata.Schema, inheritedSecret)) return false;
@@ -367,6 +368,7 @@ public sealed partial class DefinitionFormModel
 
     private bool EditRootValue(IReadOnlyList<string> path, string? text)
     {
+        if (ProfileBlocks(DefinitionPath.FromSegments(path))) return false;
         if (!TryRootMetadata(path, out DefinitionFormIndex.Node node, out bool inheritedSecret) ||
             SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets &&
                 DefinitionSecretPolicy.IsSecret(node.Schema, inheritedSecret)) return false;

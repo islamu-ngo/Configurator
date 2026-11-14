@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7DTA524E9ZDEYV9PT6E38DE
+Title: "Keep retained profile values outside ordinary workspace answers"
+Type: feat
+Scope: privacy
+Summary: "Bind native and delegated Browser profile custody to immutable workspace generations, confirm irreversible retained-field replacement, and fence scoped preparation from ordinary previews and undo."
+Group: workspace-profile-custody
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Adopt custody only under the captured form generation, revision and lifetime. Native owners never enter Browser forms; Browser metadata delegates custody to its dedicated worker. Retained roots stay out of ordinary answers, fields, undo, previews and bulk import. Confirmed replacement consumes predecessor authority and cannot be undone."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/import-and-compare.md
+    Disposition: documented
+    Detail: "Restricted output remains an explicit sink separate from preview/copy. Input changes invalidate prepared results; clearing, replacement, revocation and disposal retire custody. Already entered physical sinks and managed copies retain their documented limits. Client controls remain separate."
