@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7E0GQEX8PHRJPZ5ER7BRP3R
+Title: "Acknowledge Terminal output after settled verified saving"
+Type: feat
+Scope: privacy
+Summary: "Carry captured output authority through Terminal preparation and publication, then acknowledge settled verified files without reviving retired answers."
+Group: terminal-output-acknowledgement
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: documented
+    Detail: "Receipt adoption checks settled attempt identity and preparation generation before recording verified artifact delivery against captured workspace authority."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Only verified native delivery proposes related tasks. Refused or retired publication cannot certify current delivery."

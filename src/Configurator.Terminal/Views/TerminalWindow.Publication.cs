@@ -106,6 +106,7 @@ internal sealed partial class TerminalWindow
         ProtectedArtifactPublicationReceipt? receipt = receipts.FirstOrDefault(item => item.AttemptId == _receipt?.AttemptId)
             ?? (receipts.Count == 0 ? null : receipts[^1]);
         if (receipt is null) return;
+        _operation.AcknowledgePublication(receipt);
         if (_receipt?.AttemptId != receipt.AttemptId) _outcomeIndex = 0;
         _receipt = receipt;
         ShowOutcome();

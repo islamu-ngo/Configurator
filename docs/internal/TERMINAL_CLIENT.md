@@ -508,3 +508,10 @@ review authority and retire with edits, replacement or window disposal.
 The dialog uses masked bounded passphrase buffers and native immutable vault
 operations. It retains saved reference identity separately from independent
 recovery checks and retires its buffers when the window or dialog closes.
+
+## Settled native output delivery
+
+`TerminalArtifactOperation` carries captured output context through preparation
+and publication. Receipt adoption checks attempt identity and generation before
+acknowledging verified artifacts. Partial and retired attempts cannot establish
+complete delivery for current answers or restore old task guidance.

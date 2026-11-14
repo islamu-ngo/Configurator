@@ -331,3 +331,9 @@ values remain masked and target saving remains a deliberate native action.
 Press Ctrl+P to open profile operations. Choose an immutable revision explicitly
 and check portable recovery for that exact revision. Retained values require
 deliberate retirement before replacement. Closing the dialog clears its buffers.
+
+## Related tasks after saving
+
+Verified native delivery can offer declared related tasks. Preparation or an
+unverified write does not establish delivery. Review proposed value transfers
+before adopting them; local save verification does not authorize target apply.

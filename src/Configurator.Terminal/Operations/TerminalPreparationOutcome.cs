@@ -11,4 +11,5 @@ internal enum TerminalPreparationCode
 
 internal sealed record TerminalPreparationOutcome(TerminalPreparationCode Code,
     long InputRevision = 0, long Generation = 0, int ArtifactCount = 0,
+    Configurator.Presentation.DefinitionOutputExportContext? ExportContext = null,
     CancellationToken CancellationToken = default);

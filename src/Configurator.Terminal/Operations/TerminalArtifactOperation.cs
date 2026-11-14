@@ -25,6 +25,9 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
     private string[] _eligibleArtifactIds;
     private bool _disposed;
     private long _preparationGeneration;
+    private DefinitionOutputExportContext? _publicationExportContext;
+    private Guid _exportAttemptId;
+    private long _exportGeneration;
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
     internal string? ProbeDirectory { get; set; }
 #endif
@@ -112,6 +115,8 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
         var snapshot = Form.Snapshot();
         var definition = Form.Definition;
         string[] selected = SelectedArtifactIds.ToArray();
+        DefinitionOutputExportContext exportContext = Form.CaptureOutputExportContext(snapshot.InputRevision,
+            EligibleArtifacts.Select(artifact => artifact.Id));
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
         Configurator.Engineering.MeasureNativePreparation.Mark("capture-end");
         Configurator.Engineering.MeasureNativePreparation.Mark("dispatch");
@@ -132,7 +137,7 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
                 return bundle.Succeeded ? bundle.Artifacts.Count : 0;
             }, cancellationToken).ConfigureAwait(false);
             return new(count > 0 ? TerminalPreparationCode.Ready : TerminalPreparationCode.Invalid,
-                snapshot.InputRevision, generation, count, cancellationToken);
+                snapshot.InputRevision, generation, count, exportContext, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -159,7 +164,7 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
             if (_disposed || _publishing || outcome.Generation != _preparationGeneration
                 || outcome.InputRevision != Form.InputRevision) return TerminalPreparationCode.Retired;
             _preparationGeneration++;
-            Preparation = new(outcome.InputRevision, outcome.ArtifactCount);
+            Preparation = new(outcome.InputRevision, outcome.ArtifactCount, outcome.ExportContext!);
             return TerminalPreparationCode.Ready;
         }
     }
@@ -173,6 +178,9 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_publishing) throw new InvalidOperationException("publication-still-running");
             _publishing = true;
+            _publicationExportContext = Preparation?.ExportContext;
+            _exportGeneration = _preparationGeneration;
+            _exportAttemptId = attemptId;
             _currentPublication = new(attemptId, selected.Select(id => new ProtectedArtifactBundleOutcome(id, null)), false);
         }
         try
@@ -251,6 +259,24 @@ internal sealed class TerminalArtifactOperation : IPresentationOperation, IDispo
 
     private static TerminalArtifactResult Outcome(IEnumerable<string> selected, ProtectedArtifactStatus status) =>
         new(selected.Select(id => new ProtectedArtifactBundleOutcome(id, ProtectedArtifactCommitResult.NotInstalled(status))));
+
+    /// <summary>Adopts settled physical facts on the Terminal owner without certifying retired answers.</summary>
+    internal void AcknowledgePublication(ProtectedArtifactPublicationReceipt receipt)
+    {
+        DefinitionOutputExportContext? context;
+        lock (_receiptGate)
+        {
+            if (!receipt.IsSettled || receipt.AttemptId != _exportAttemptId || _disposed
+                || _exportGeneration != _preparationGeneration) return;
+            context = _publicationExportContext;
+            _publicationExportContext = null;
+        }
+        if (context is null) return;
+        string[] verified = receipt.Outcomes.Where(outcome => outcome.Result is { VerificationSucceeded: true })
+            .Select(outcome => outcome.ArtifactId).ToArray();
+        if (verified.Length > 0)
+            Form.RecordOutputExport(context, verified, DefinitionOutputDeliveryKind.NativeSaveVerified);
+    }
 
     private void RecordOutcome(ProtectedArtifactBundleOutcome outcome)
     {
