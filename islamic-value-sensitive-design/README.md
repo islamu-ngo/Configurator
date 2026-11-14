@@ -75,8 +75,9 @@ disposition and replacement evidence.
 | [Avalonia desktop UI/UX redesign](workstreams/i-vsd-avalonia-desktop-ui-ux-redesign.md) | current / plan-aligned; implementation authorized; external qualification pending | 2026-11-06 |
 | [Definition schema, authoring compiler, and CLI redesign](workstreams/i-vsd-definition-schema-redesign.md) | current / plan-aligned; implementation completed on working tree | 2026-11-13 |
 | [Configuration workspace, rich schema widgets, and dual-UX redesign](workstreams/i-vsd-configuration-workspace-redesign.md) | current / plan-aligned; r3 revalidated & implementation authorized | 2026-11-13 |
-| [Output guidance and cross-form value transfer](workstreams/i-vsd-output-guidance-and-value-transfer.md) | current / plan-aligned; implementation awaiting approval | 2026-11-13 |
-| [Encrypted local configuration profiles and Day-2 schema comparison](workstreams/i-vsd-encrypted-local-profiles.md) | current / plan-aligned; awaiting implementation approval | 2026-11-13 |
+| [Output guidance and cross-form value transfer](workstreams/i-vsd-output-guidance-and-value-transfer.md) | exact-input freshness pending; historical R3 assessment and execution receipt retained | 2026-11-14 |
+| [Encrypted local configuration profiles and Day-2 schema comparison](workstreams/i-vsd-encrypted-local-profiles.md) | exact-input freshness pending; historical R8 assessment and qualification limits retained | 2026-11-14 |
+| [Configuration experience across Browser, Desktop and Terminal](workstreams/i-vsd-configuration-experience.md) | exact-input freshness pending; historical planning assessment retained | 2026-11-14 |
 
 For each assessment, read its reviewed input, claim boundary, validation gaps,
 finding and mitigation IDs, and lifecycle before reusing a conclusion. A

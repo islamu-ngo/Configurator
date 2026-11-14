@@ -1,6 +1,6 @@
 # Dev Journal
 
-Last Updated: 2026-11-01 Europe/Brussels
+Last Updated: 2026-11-13 Europe/Brussels
 
 ## Index & Recent
 
@@ -734,3 +734,66 @@ heading over revealing a hidden label in document flow.
 
 **Promotion Consideration**:
 - [x] Documented in `docs/internal/DESKTOP_CLIENT.md`.
+
+[2026-11-13 Europe/Brussels] - Oversized dialog fixtures can hide native footer clipping
+
+**Context**: Output-guidance implementation added a paged Terminal task chooser. Public canonical input admitted five tasks, and the 64-task headless traversal passed.
+
+**Symptom / Observation**: Actual 80x24 and 120x40 English/Arabic screens showed four tasks and a blank fifth row. Source, loaded binary identity and public CLI inspection ruled out an assumed four-option source; stale output was not established.
+
+**Root Cause**: The chooser used `AddButton` for a default-height Cancel control, which reserved a managed footer in its constructor-sized dialog. The traversal fixture forced height 20, concealing clipping at the real constructor size.
+
+**Resolution**: Use the existing review dialog's ordinary one-row, shadow-free Cancel control after the task/page rows, without increasing dialog height. Constructor-sized five/64-task and existing chooser cases passed with `dotnet run --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj -c Release --no-build -- --treenode-filter "/*/*/TerminalOutputGuidanceTests/(AllSixtyFourTasksStayVisibleWithinPagesAndLastTaskCanBeChosen)|(FiveTaskConstructorLayoutKeepsLastTaskAndCancelSeparate)|(KeyboardTaskChoiceOpensReviewWithoutChangingAnswers)" --minimum-expected-tests 10`. Four fresh native grids then showed all five tasks and separate Cancel; the fifth task opened review and cancellation left answers unchanged.
+
+**Why This Matters for Future Work**: Test the production constructor's geometry against host size. A larger test frame can prove navigation while missing real viewport clipping; native observation remains separate from headless coverage.
+
+**References**:
+- `src/Configurator.Terminal/Views/TerminalWindow.Editing.cs:555`
+- `tests/Configurator.Terminal.Tests/Workflow/TerminalOutputGuidanceTests.cs`
+- `docs/internal/TERMINAL_CLIENT.md`
+- `dev/active/output-guidance-and-value-transfer/output-guidance-and-value-transfer-context.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal only (native footer and fixture-geometry lesson).
+
+[2026-11-13 Europe/Brussels] - Modal dialog layout can retire its own scroll extent
+
+**Context**: Encrypted profile controls needed wrapping recovery guidance and keyboard access at the supported minimum Terminal size.
+
+**Symptom / Observation**: Three runtime assertions failed: focused commands were below the viewport despite successful focus events and an explicit content height. Actual TTY traversal reproduced the stationary viewport.
+
+**Root Cause**: Public `ContentSizeChanged` event traces showed `Dialog.OnViewportChanged` calling `SetContentSize` during `ScrollVertical`, replacing the larger content extent with the viewport dimensions. Repeating focus tracking after layout could not preserve an extent owned by modal layout.
+
+**Resolution**: Give an ordinary child `View` ownership of the scrolling content, its laid-out height and focus tracking. Keep the outer `Dialog` responsible for modal chrome. `dotnet build src/Configurator.Terminal/Configurator.Terminal.csproj -c Release --no-restore -v quiet` passed with zero warnings/errors; `dotnet test --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj -c Release -- --treenode-filter "/*/*/*TerminalProfileWorkflowTests/*"` passed all 11 cases. Real English/Arabic TTYs at 120x40 and 80x24 reached Cancel and returned to the workbench.
+
+**Why This Matters for Future Work**: A successful focus transition does not prove visibility. Assign scroll extent to a component whose layout contract permits it, and assert the focused control lies inside the actual viewport.
+
+**References**:
+- `src/Configurator.Terminal/Views/TerminalProfileDialog.cs:44`
+- `src/Configurator.Terminal/Views/TerminalProfileDialog.cs:132`
+- `tests/Configurator.Terminal.Tests/Profiles/TerminalProfileWorkflowTests.cs`
+- `docs/internal/TERMINAL_CLIENT.md`
+
+**Promotion Consideration**:
+- [x] Stays in journal only (pinned modal layout behavior).
+
+[2026-11-13 Europe/Brussels] - Independent WASM executables need independent runtime graphs
+
+**Context**: The encrypted profile worker introduced a second SDK WebAssembly executable alongside the Browser app.
+
+**Symptom / Observation**: Actual publication compiled both AOT runtimes but failed when the app merged duplicate runtime assets. A later ordinary-content import produced compatible duplicate routes even though the source files had different names.
+
+**Root Cause**: An executable project reference admitted the worker runtime into the app's asset graph. After removing that reference, unqualified item metadata in the content import inherited an existing Content item's filename rather than each newly staged asset's filename.
+
+**Resolution**: Publish the worker independently and import only its public output under `profile-worker/`. Qualify Link metadata with the staged source item name. The normal `dotnet msbuild eng/configurator/Configurator.Release.proj -nologo -verbosity:minimal -target:PublishConfiguratorBrowser` exited 0 with 22 worker and 69 app assemblies AOT compiled. Runtime custody and offline behavior remain separate checks.
+
+**Why This Matters for Future Work**: Building each executable alone does not qualify their assembled static package. Inspect evaluated item identities and execute the actual publication owner; retain the separate capture and public-cache contracts.
+
+**References**:
+- `src/Configurator.Browser/Configurator.Browser.csproj:45`
+- `src/Configurator.Browser/Configurator.Browser.csproj:60`
+- `eng/configurator/Configurator.Release.proj:108`
+- `docs/internal/PACKAGING.md`
+
+**Promotion Consideration**:
+- [x] Documented in the packaging owner; retain this diagnosis as evidence.

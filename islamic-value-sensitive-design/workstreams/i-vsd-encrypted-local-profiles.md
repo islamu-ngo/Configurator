@@ -1,232 +1,255 @@
-# Encrypted Local Configuration Profiles & Day-2 Schema Comparison — Provider-Responsibility Assessment
+# Encrypted Local Profiles and Day-2 Schema Comparison - Provider-Responsibility Assessment
 
 Last Updated: 2026-11-13
 
-## Review Metadata
+## Current freshness
+
+Current verification is pending as of 2026-11-14. The reviewed local plan and
+task files are no longer available in this checkout, so their exact current
+bytes cannot be checked against the recorded hashes. The historical assessment,
+all finding/mitigation pairs and receipts below are preserved. They do not
+establish renewed alignment for current inputs or authorize publication.
+
+## Historical Review Metadata
+
 - Mode: planning
-- Subject: Multi-mode local configuration persistence and Day-2 schema upgrade/diffing (`compare-only`, `import-upgrade-only`, `inspectable-encrypted`, alongside existing unencrypted exports), convenience-first multi-recipient DEK wrapping (OS keyring auto-unlock + Argon2id portable/recovery passphrase), immutable create-only `.cfgvault` storage, Browser WASM transient passphrase portability, and deferred remote Coolify/Secret-Manager apply boundaries
+- Subject: Four-mode local persistence, Day-2 upgrades, maintained JWE implementations, native/portable recovery and bounded dedicated-worker Browser custody
 - Workstream: encrypted-local-profiles
 - Report kind: implementation-planning assessment
-- Report revision: encrypted-profiles-ivsd-r1
+- Report revision: encrypted-profiles-ivsd-r8
 - Report status: current
 - Disposition: plan-aligned
 - Evidence cutoff: 2026-11-13
-- Reviewed input: Completed `dev/active/encrypted-local-profiles/{encrypted-local-profiles-plan,encrypted-local-profiles-context,encrypted-local-profiles-tasks}.md` (`rev-1`), [`ADR-encrypted-local-profiles-and-target-apply.md`](../../docs/internal/adr/ADR-encrypted-local-profiles-and-target-apply.md), repository codebase inspection, `.NET 10 browser-wasm` cryptography API boundaries, OWASP Password Storage / RFC 8439 / RFC 9106 / FreeDesktop Secret Service specifications
-- Supersedes: none (initial planning-aligned assessment)
+- Reviewed input: [implementation plan](../../dev/active/encrypted-local-profiles/encrypted-local-profiles-plan.md) and [tasks](../../dev/active/encrypted-local-profiles/encrypted-local-profiles-tasks.md), unchanged rev-7 behavior and updated execution evidence; E16 qualifies implementation and remaining gates
+- Plan SHA-256: `431827e8bddd950f7629083069379565bb3328ae8b3354f3b4f81778a65150af`
+- Tasks SHA-256: `d17503a1f53cf14227968d66b17e2db1f84d008781d9408196a233f2a6c7a466`
+- Context: [resume state](../../dev/active/encrypted-local-profiles/encrypted-local-profiles-context.md); not a substitute for the two reviewed inputs
+- Supersedes: r7 of this same report; preserve r1-r7 history and all six pairs
+- User authority: implementation in this checkout, maintained container alternatives, a reviewed single cipher/KDF profile, and bounded dedicated-worker custody are authorized. The implementation owner selected the exact packages; no user approval of their hashes is invented. This report supplies no release or external-review authority.
 
 ## Executive Summary
 
-Self-hosting administrators upgrading an application across breaking schema releases (`v1 -> v2`) often either re-type every secret and setting from scratch, keep plaintext `.env` backups scattered across developer disks, or inspect live production servers manually just to see what changed. Configurator can eliminate that friction by managing encrypted local configuration profiles (`.cfgvault`) alongside secret-free comparison snapshots, allowing Day-2 schema comparison (`compare-only`) and secret-blind upgrades (`import-upgrade-only`) as well as in-app encrypted editing (`inspectable-encrypted`).
+R8 revalidates all six pairs and unchanged thirteen-phase/S01-S22 mappings.
+Scoped four-client evidence supports authenticated modes, independent recovery,
+blind composition, confirmed permanent retirement and transient Browser custody.
+Disposition remains current / plan-aligned, without release readiness.
+E16 updates the preserved r7 implementation-evidence limits below; accepted
+findings remain accepted, not resolved. Supplied hashes are native identities
+from the parent, not recomputed here.
 
-That convenience introduces concentrated custodial obligations. Under **Amanah (trustworthy stewardship)**, **Sidq (truthfulness)**, **Bayan (clear disclosure)**, **La Darar (non-harm)**, and **Adl (equitable access)**, the provider controls the cryptographic envelope format, key-wrapping hierarchy, memory-clearing discipline, tamper resistance against mode downgrades, and whether the Browser client honors its zero-persistence promise. This assessment evaluates six ethical and architectural findings (`IVSD-F001` through `IVSD-F006`) and maps every mitigation (`IVSD-M001` through `IVSD-M006`) directly into the `encrypted-local-profiles` implementation plan and Red→Green task checklist.
+Rev-7 makes scoped composition in Phase 9 a prerequisite for blind CLI adoption
+in Phase 8. Existing composition accepts ordinary answer snapshots; the amended
+order closes that dependency without exporting retained plaintext. Explicit
+facade device routing exposes only an opaque ID; counts/indexing include that
+slot, acknowledgement binds the profile, and Core accepts host-issued IDs.
+Credentials stay owned, and routing grants no authentication or recovery proof.
 
-Crucially, `compare-only` is the only profile mode that guarantees **cryptographic unreadability** of secrets because secret plaintext is stripped prior to serialization. By contrast, `import-upgrade-only` hides secrets from casual in-app reveal, copy, and export surfaces during an upgrade session while an authorized operator holds the unlocked workspace key in memory; pretending UI hiding equals cryptographic isolation against a local debugger would deceive users (**Sidq**). Likewise, OS keyring auto-unlock (`Slot A`) maximizes daily Desktop convenience, yet without an optional portable Argon2id passphrase (`Slot B`), switching laptops or reinstalling an OS would lock administrators out of their own production secrets (**La Darar**). Remote Coolify and external secret-manager apply (`ISLAMU SecretKit`, Infisical, Azure Key Vault) remain explicitly out of scope and deferred to a subsequent workstream.
+The native library emits RFC 7516 flattened JSON for one recipient. Rev-6
+explicitly admits general and flattened JSON under the same fixed profile.
+Exact root shapes are classified before cryptography; mixed forms, compact
+serialization, additional headers and algorithm fallbacks reject. One selected
+recipient still means one derivation attempt. Libraries retain serialization
+and cryptographic ownership; Configurator neither rewrites envelopes nor adds
+dummy recipients.
 
-With the `encrypted-local-profiles` triad complete (`Report status: current`, `Disposition: plan-aligned`), every ethical safeguard traces to concrete Red-before-Green TUnit specs across Phases 1–7. Plan alignment confirms architectural and ethical coverage of the design; runtime proof remains pending execution once approved.
+All six pairs were re-evaluated against the exact rev-7 inputs. F001/M001 retains authenticated mode and admission; F002/M002 retains independent exact-snapshot recovery and acknowledgement; F003/M003 requires the custody bridge before CLI consumption; F004/M004 retains publication/cancellation limits; F005/M005 retains actual schema, unavailable comparisons and unchanged mappings; F006/M006 retains package stewardship and excludes quarantined research expression. The plan is aligned; no mitigation is resolved by prose. All thirteen phases, S01-S22 and release gates remain required.
+
+Retain existing Bouncy Castle uses. The selected RFC 7516 JSON JWE profile is A256GCM with PBES2-HS512+A256KW and exactly 600000 PBKDF2-HMAC-SHA512 iterations, implemented by native jose-jwt 5.3.0 and Browser jose 6.2.17. This reviewed CPU-hard trade-off is not Argon2 equivalence or a guarantee of passphrase entropy. Independent cross-decryption, negative/admission cases and published AOT worker execution passed within temporary-probe bounds.
+
+Core owns authenticated application payloads, upgrades and restricted composition behind one high-level codec facade. Artifacts supplies native cryptography; the dedicated .NET Browser worker calls the JS library through generated interop. Libraries own cryptographic composition. Recipient-set membership and routing labels are not authenticated authority; recovery requires independent exercise of the exact file. Blind upgrades decrypt within restricted ownership without exposing retained values to ordinary UI state.
+
+The former Bouncy Castle-only and DotNetPG failures remain historical evidence, not current constraints or general vulnerability findings. Prototype passes close provider/hosting feasibility only. Exact dependency/asset admission precedes consumption; E16 updates production evidence without qualifying actual keyring hosts. Neither this assessment nor the automated design review is an external audit.
 
 ## Scope
 
-- **In Scope:**
-  - `Configurator.Core`: `.cfgvault` binary/JSON AEAD envelope format (`ChaCha20-Poly1305` + `Argon2id` + `HKDF-SHA256` via `BouncyCastle.Cryptography` `2.7.0`), multi-recipient key slots, domain-separated keyed HMAC-SHA256 rotation commitments for `compare-only`, canonical `DefinitionSchemaDiff` and `ProfileUpgradePlanner` across definition revisions.
-  - `Configurator.Artifacts`: Immutable per-revision create-only profile persistence (`IProtectedArtifactWriter` semantics under OS user config paths), OS Keyring wrapping provider abstractions (`libsecret` on Linux Desktop with graceful headless fallback; DPAPI / Keychain platform adapters scoped accurately per `STATUS.md`).
-  - `Configurator.Presentation`: Immutable unlock/upgrade state fencing (`OperationGeneration`), `BlindSecretSlot` custody for `import-upgrade-only` forwarding without UI reveal/copy/export leakage, synchronous buffer zeroing on edit/cancel/revocation/disposal, and bilingual (`en`/`ar`) localized review models.
-  - `Configurator.Cli`, `Configurator.Desktop`, `Configurator.Terminal`, `Configurator.Browser`: CLI `profile` command family + `schemas/configurator-cli.schema.json` generation, Desktop & Terminal convenience unlock/save/upgrade flows, and Browser explicit passphrase-only portable `.cfgvault` import/export under `BrowserSecretsEnabled` consent with zero browser persistence.
-  - Documentation & release governance: paired public/internal documentation, `ADR` alignment, and future delta seams for Coolify / `ISLAMU SecretKit`.
-- **Explicitly Out of Scope (Deferred):**
-  - Network API calls, credential storage, or live apply against Coolify, `ISLAMU SecretKit`, Infisical, HashiCorp Vault, or Azure Key Vault.
-  - Telemetry, cloud account sync, automated backup uploads, or Event database/HAL/BFF persistence.
+Retain all four modes: compare-only, import-upgrade-only, inspectable-encrypted and existing deliberate unencrypted target output. Retain immutable restricted native revisions, native convenience recipient, portable passphrase recovery, optional keyed comparison commitments, admitted-schema upgrades, CLI, Desktop, Terminal, Browser, English/Arabic parity and all thirteen implementation phases.
+
+The revised authority permits the selected maintained JWE implementations while preserving every product outcome and bounded worker exception. Private persistence, answer-bearing requests, service/shared-worker secret messages and general secret RPC remain excluded. No custom container, KDF, wrapping protocol, algorithm fallback or compatibility loader fills a library gap.
+
+Remote Coolify/SecretKit/Infisical/Azure Key Vault apply, telemetry, cloud escrow, automatic backup upload, Event backend layers and new product implementation remain outside this update. No dependency or package version changes occur here.
 
 ## Claim Boundary
 
-This assessment relies strictly on static repository inspection (committed workspace files, `docs/internal/PROTECTED_ARTIFACTS.md`, `docs/internal/SECRET_CRYPTOGRAPHY.md`, `docs/internal/LAUNCH_CONTRACT.md`, `docs/internal/ADR-encrypted-local-profiles-and-target-apply.md`, `eng/configurator/Configurator.Release.proj`, `tests/Configurator.Architecture.Tests/StandaloneArchitectureTests.cs`) and public specification analysis (RFC 8439, RFC 9106, OWASP Password Storage Cheat Sheet, FreeDesktop Secret Service API, .NET 10 `browser-wasm` WebCrypto limitations). **No encryption codec, keyring P/Invoke, or client flow has been implemented or executed yet.** Nothing in this document claims runtime test proof, cross-OS native certification on Windows/macOS, or any religious-legal (fiqh) ruling.
+This is provider-responsibility reasoning from repository evidence, pinned public API documentation and official standards/vendor publications. It is not a religious ruling, scholarly endorsement, cryptographic certification or evidence that ethical outcomes have been achieved.
+
+Public XML comments alone are not an exhaustive inventory. A subsequent native probe inspected public signatures/visibility in the installed 2.7.0 assembly; it did not inspect implementation bodies or establish runtime security. Parser availability does not prove generation, primitive support does not prove password-recipient integration, and Java behavior cannot establish C# behavior. Microsoft worker documentation supports a hosting candidate, not a pinned SDK/product payload pass. External source/example exposures occurred and were quarantined (E15-E16); none is admitted as implementation input.
 
 ## Findings
 
-### IVSD-F001: Four-mode persistence boundaries and tamper-resistant AEAD purpose binding (`Sidq` & `Bayan`)
+### IVSD-F001: Honest modes require library-owned authentication and controlled disclosure
 
-An operator choosing to save a configuration for Day-2 maintenance needs distinct security guarantees: sharing a stripped schema-comparison baseline (`compare-only`), blindly carrying production secrets across a breaking upgrade (`import-upgrade-only`), opening an editable local working vault (`inspectable-encrypted`), or writing raw target deliverables (existing unencrypted export). If `compare-only` accidentally includes defaulted or inherited secret leaves, secrets leak permanently in plain text. Conversely, if a mutable unauthenticated JSON header field selects `purpose: "import-upgrade-only"`, anyone editing that plain string could relabel it `"inspectable-encrypted"` and bypass in-app reveal restrictions; and if UI copy claims `import-upgrade-only` is cryptographically unbreakable even while unlocked on an untrusted machine, it misleads operators about their threat model (**Sidq** and **Bayan**).
+An operator choosing a blind upgrade must not reveal production credentials because an unauthenticated mode label changed. An operator sharing compare-only data must understand that secret values are omitted, but remaining public answers and equality commitments can still expose operational information.
 
-- **Mechanism & Mitigation (`IVSD-M001`)**: Model `ProfileProtectionMode` (`CompareOnly`, `ImportUpgradeOnly`, `InspectableEncrypted`) as a closed Core contract with strict behavioral separation:
-  1. `CompareOnly` walks `DefinitionSensitivityPolicy` recursively across `AnswerSnapshot`, stripping every `Sensitive` and `Secret` leaf before JSON serialization (rejecting unencrypted export routes for raw secrets cleanly via diagnostic codes) and optionally recording non-reversible keyed HMAC-SHA256 secret commitments (`IVSD-F005`). It requires no AEAD secret payload or workspace secret consent in Browser unless HMAC key unlocking is explicitly requested.
-  2. `ImportUpgradeOnly` and `InspectableEncrypted` seal the full serialized `AnswerSnapshot` inside a `.cfgvault` envelope encrypted with 256-bit `ChaCha20-Poly1305` (`BouncyCastle.Cryptography`), binding the canonical header JSON (including `vaultContractVersion`, `purpose`, `profileId`, `definition.familyId`, `definition.revision`, `definition.digest`, `environment`, and wrapped `recipients[]`) verbatim as ChaCha20-Poly1305 Associated Authenticated Data (`AAD`) so any header or purpose modification invalidates authentication (`vault-tampered`).
-  3. Surface clear localized explanations (`en`/`ar`) stating what each mode guarantees: `compare-only` strips all secrets permanently; `import-upgrade-only` seals secrets from in-app reveal, copy, undo history, and plaintext inspection during upgrades while relying on local OS/session integrity during unlock; `inspectable-encrypted` permits full in-app edit when unlocked.
-- **Lifecycle / severity / claim type**: proposed / critical / truthfulness and cryptographic mode-integrity constraint
-- **Principles / domains**: Truthfulness (`Sidq`), Clear Disclosure (`Bayan`), Trust (`Amanah`) / Core cryptography, UI messaging
-- **Stakeholders**: Self-hosting operators, security auditors, maintenance engineers
-- **Controlled decision**: Closed `ProfileProtectionMode` semantics, header-as-AAD binding, and honest threat-model copy
-- **Evidence / validation**: `E01` (`DefinitionSecretPolicy.cs`, `ADR-encrypted-local-profiles-and-target-apply.md`); `E02` (RFC 8439 AEAD AAD binding)
-- **Linked mitigation**: `IVSD-M001`
-- **Owner / next validation**: Core & Presentation maintainers; Red invariant tests attempting `purpose` header tampering, sensitivity leakage into `CompareOnly`, and downgrade conversions
-- **Escalation**: Security review if non-AEAD or unauthenticated headers are ever proposed
+**IVSD-M001:** Select one supported authenticated-container API under GATE-0. Keep protection mode and other security-relevant product semantics inside authenticated content or a documented authenticated-attribute facility; never let external routing labels grant reveal authority. Enforce the selected format's actual recipient/algorithm guarantees and reject unsafe substitution before adoption. Use application policy to exclude protected values, defaults and private dynamic keys from comparisons. Import-upgrade-only restricts application reveal/copy/dump/undo/preview, while deliberate restricted target output remains possible.
 
-### IVSD-F002: Convenience-first multi-recipient DEK wrapping (`Slot A` OS Keyring + `Slot B` Argon2id Recovery) (`Amanah` & `La Darar`)
+- Lifecycle / severity / claim type: accepted / critical / authentication mitigation, implementation unverified
+- Principles / domain: Sidq, Bayan, Amanah / cryptographic integration and UX
+- Stakeholders / controlled decision: operators and delegated maintainers / selected format/API, mode admission, disclosure affordances
+- Evidence / validation: E01-E13; JWE provider negatives and independent decrypt passed; production authenticated-payload admission and disclosure remain unverified
+- Owner / next validation: Core/Presentation; GATE-0, TASK-1.1-1.3, TASK-2.1-2.3, TASK-9.1-9.3, TASK-10.1-12.3; S03-S05,S17
+- Escalation: exact format/API incompatibility requires a scoped design decision; no bespoke cryptographic substitute
 
-Operators asked for convenience on Desktop (`Auto-unlock` via OS keyring) rather than re-typing master passphrases on every open, upgrade, or comparison. However, tying `.cfgvault` decryption exclusively to an ephemeral OS keyring secret creates two ethical hazards (**La Darar** and **Amanah**): (a) hardware failure, VM rebuilds, SSH terminal workflows, or migrating a config to another server would permanently lock operators out of their own secrets; and (b) deriving a fallback key silently from static machine identifiers (`/etc/machine-id`, username, hostname) creates a false sense of encryption easily broken offline. Meanwhile, calling `.NET 10`'s `AesGcm` or `ChaCha20Poly1305` BCL wrappers fails with `PlatformNotSupportedException` inside Browser WASM (`E02`).
+### IVSD-F002: Convenience must not conceal irreversible loss or unsupported recovery
 
-- **Mechanism & Mitigation (`IVSD-M002`)**: Implement pure managed multi-recipient envelope encryption inside `Configurator.Core.Profiles` using already-pinned `BouncyCastle.Cryptography` `2.7.0`:
-  1. Generate a fresh 256-bit random Content/Data Encryption Key (`DEK`) per `.cfgvault` revision via `RandomNumberGenerator`.
-  2. Wrap the `DEK` independently for each configured recipient slot using `HKDF-SHA256` subkey derivation + `ChaCha20-Poly1305` bound to slot metadata + vault AAD:
-     - **Slot A (`os-keyring-wrap`):** Wraps the `DEK` under a user-scoped 256-bit `KEK-local` stored inside `IOsKeyringProvider` (`Configurator.Artifacts` — Linux `libsecret-1.so.0` D-Bus Secret Service on Desktop; native Windows DPAPI `crypt32.dll` / macOS `Security.framework` adapters where host-qualified; immediate fail-closed `KeyringUnavailable` when running headless/SSH or when daemon is locked, NEVER falling back to static host-ID deterministic keys or plaintext).
-     - **Slot B (`argon2id-passphrase`):** Wraps the same `DEK` using `Argon2BytesGenerator` (`Argon2id` v1.3, 128-bit random salt, minimum enforced floor `>= 19456 KiB`, `>= 2` iterations, `>= 1` parallelism per `SECRET_CRYPTOGRAPHY.md` and OWASP 2025, default `65536 KiB` / `3` iterations / `1` thread on Desktop/CLI and configurable within safe floor bounds for Browser responsive UX). Reject weak/empty passphrases when saving passphrase-protected profiles.
-  3. Surface a non-blocking `"Add recovery passphrase (Slot B) for machine portability"` prompt whenever an operator saves a Slot-A-only profile on Desktop, and allow non-destructive addition/rotation of slots on new snapshots.
-- **Lifecycle / severity / claim type**: proposed / critical / recoverability and cryptographic custody boundary
-- **Principles / domains**: Trust (`Amanah`), Non-Harm (`La Darar`) / key management, cross-platform cryptography
-- **Stakeholders**: Solo self-hosters, Desktop users, SSH Terminal admins, Browser air-gapped operators
-- **Controlled decision**: Multi-recipient DEK envelope, zero deterministic machine-ID fallback, pure BouncyCastle managed primitives
-- **Evidence / validation**: `E01` (`SECRET_CRYPTOGRAPHY.md`, `Directory.Packages.props`); `E02` (RFC 9106 Argon2id, .NET 10 WASM WebCrypto gap)
-- **Linked mitigation**: `IVSD-M002`
-- **Owner / next validation**: Core & Artifacts maintainers; Red tests verifying Slot A/Slot B cross-unlock, floor parameter rejection (`memory < 19456 KiB` / `iterations < 2`), fail-closed `KeyringUnavailable` without deterministic fallback, and WASM execution probe
-- **Escalation**: None unless hardware YubiKey/FIDO2 PRF WebAuthn wrapping is added later
+Auto-unlock reduces daily friction, but it can hide that a file depends on a device/account key. Losing every usable recipient can make the encrypted data unrecoverable through Configurator. Uninstall or reinstall must not be presented as guaranteed preservation or restoration of keys; host packaging can leave or remove data differently.
 
-### IVSD-F003: Blind secret forwarding custody (`BlindSecretSlot`) and synchronous buffer zeroing (`Amanah` & `Tajassus` avoidance)
+**IVSD-M002:** Delegate encryption and derivation to the selected JWE libraries with the exact policy. Preserve native and portable recovery, no deterministic fallback or embedded master key. Require informed acknowledgement for device-bound-only saving and distinguish `DeviceBoundOnly`, `ConfiguredUnverified` and `VerifiedForSnapshot`. Exercise the exact copied snapshot with native credentials unavailable; a digest is meaningful only with a trusted reference. Native unlock does not verify unused recovery membership. Explain total key loss, reset/uninstall uncertainty and historical access. Resealing creates a new snapshot; old copies and target credentials are not revoked.
 
-When upgrading via `import-upgrade-only`, Configurator holds sensitive strings (database passwords, API tokens, OIDC client secrets, signing keys) that the operator specifically chose NOT to read on screen. Any leaky abstraction—exposing a shared `FieldViewModel.Value` property, leaving reveal/copy buttons active, pushing secret values into `DefinitionFormUndoHistory`, echoing values in diagnostic error codes, or failing to clear arrays when a workspace changes or consent is revoked—breaks **Amanah** and **Tajassus avoidance** (preventing unnecessary exposure).
+- Lifecycle / severity / claim type: accepted / critical / recovery mitigation, implementation unverified
+- Principles / domain: Amanah, La Darar, Bayan / key custody, portability and operations
+- Stakeholders / controlled decision: native, SSH and Browser operators / recipient choices, KDF policy, acknowledgement and restore claims
+- Evidence / validation: E01-E13; one/two-recipient and Unicode interoperability passed; production restore, keyring and actual-host outcomes remain unverified
+- Owner / next validation: Core/Artifacts/client maintainers; GATE-0,GATE-2, TASK-1.1-1.3, TASK-5.1-7.3, TASK-8.1-8.3, TASK-10.1-12.3; S01,S02,S08,S18-S21
+- Escalation: material profile/cost/recovery changes require fresh review; no weakened cost, custom cancellable KDF or invented restore assurance
 
-- **Mechanism & Mitigation (`IVSD-M003`)**: Introduce an explicit **`BlindSecretSlot`** abstraction inside `Configurator.Presentation`:
-  1. When adopting an `import-upgrade-only` `.cfgvault`, compatible secret fields enter `DefinitionFormModel` as opaque `BlindSecretSlot` buffers rather than plaintext string properties on observable viewmodels.
-  2. Presentation/UI projections expose `IsBlindProtectedSecret == true` and blocked affordances: zero Reveal toggle, zero Copy-to-Clipboard command, zero plain export (`export` / `compare-only` strips them cleanly or preserves keyed commitments only), and zero entry in `DefinitionFormUndoHistory` plaintext value logs.
-  3. Editing or clicking `"Replace protected secret"` explicitly clears and zeroes the old `BlindSecretSlot`, requiring a deliberate user confirmation dialog before discarding a retained production secret (`La Darar`).
-  4. `CryptographicOperations.ZeroMemory` clears all temporary UTF-8 plaintext arrays, `DEK`, `KEK`, and `BlindSecretSlot` buffers synchronously inside `finally` blocks and on cancellation, workspace edit/replacement, `DisableSecretEntry()` (Browser consent revocation), and `Dispose()`. All diagnostics emit stable value-free codes (`vault-invalid-passphrase`, `vault-tampered`, `vault-keyring-unavailable`, `vault-stale`).
-- **Lifecycle / severity / claim type**: proposed / critical / runtime memory custody and anti-exfiltration boundary
-- **Principles / domains**: Trust (`Amanah`), Privacy / avoiding unnecessary exposure (`Tajassus`), Non-Harm (`La Darar`) / Presentation state, Desktop/Terminal/Browser UI
-- **Stakeholders**: Operators delegating upgrade prep, sysadmins sharing screens, privacy-sensitive environments
-- **Controlled decision**: Separate `BlindSecretSlot` custody in `DefinitionFormModel`, synchronous `ZeroMemory`, blocked UI reveal/copy/undo surfaces
-- **Evidence / validation**: `E01` (`DefinitionSessionPrivacy.cs`, `DefinitionFormModel.cs`, `privacy-and-pii.md`)
-- **Linked mitigation**: `IVSD-M003`
-- **Owner / next validation**: Presentation & Client maintainers; Red custody-breach tests proving zero plaintext bytes survive reveal/copy probes, diagnostics, undo history, or Browser `DisableSecretEntry()`
-- **Escalation**: None
+### IVSD-F003: A trusted library cannot enforce our workspace's secret custody
 
-### IVSD-F004: Immutable per-revision create-only storage vs. Browser zero-persistence portability (`Amanah` & `Sidq`)
+Encryption libraries cannot decide whether Configurator copies a retained secret into JSON, undo, accessibility text or a stale preview. Existing snapshots retain JSON and `SecretValue.CopyValue()` can create managed strings; disposing a separate buffer cannot erase those copies.
 
-Overwriting a single mutable `.cfgvault` file in place risks silent data loss during a failed upgrade, symlink/TOCTOU overwrite bugs, and stale index corruption. Meanwhile, Browser WASM (`Configurator.Browser`) operates under `AGENTS.md` Rule 4 (`persistence: false`, `answerPersistence: false`): saving encrypted vaults into `localStorage`, `IndexedDB`, or PWA CacheStorage—even encrypted—would blur Browser's zero-persistence guarantee and surprise operators sharing a browser profile.
+**IVSD-M003:** Keep scoped Core composition ownership and value-free projections. Bind retained secret use and worker replies to definition/workspace, revision, generation, consent epoch and stable collection identity. Require confirmed replacement and immediately retire old authority/output. The dedicated worker owns hidden retained secrets; ordinary results expose only safe projections and opaque references, never reveal/copy/dump/undo/preview values. Inspectable disclosure and deliberate restricted composition/sealing retain explicit mode/consent/action gates. Account for managed/interop copies, clear owned buffers and dispose documented owners without promising whole-process erasure. Terminate on revocation without awaiting a cancellation handler blocked by the KDF; late replies grant no authority.
 
-- **Mechanism & Mitigation (`IVSD-M004`)**:
-  1. **Native Profile Store (`Configurator.Artifacts.Profiles`):** Persist native saved profiles as **immutable per-revision `.cfgvault` files** (`rev-<revision>-<timestamp>-<shortDigest>.cfgvault`) inside `<XDG_CONFIG_HOME or ~/.config>/islamu-configurator/profiles/<safe-app-id>/<safe-env>/`, created strictly through `IProtectedArtifactWriter` (`UnixProtectedArtifactWriter` create-only `0600` files inside `0700` user-owned directories; existing conflicts never overwrite). Unsupported protected-save hosts (`!writer.IsAvailable`, i.e., non-Linux hosts while Windows/macOS protected writers remain `Planned`) fail closed with `ProtectedArtifactStatus.UnsupportedPlatform` and zero insecure plain-file fallback (`AGENTS.md` Rule 5). Discover saved profiles by reading bounded **public header bytes** directly from immutable `.cfgvault` files in the directory—avoiding any mutable sidecar index overwrite race!
-  2. **Browser Portable Vault (`Configurator.Browser`):** Offer `.cfgvault` solely as **in-memory file upload / deliberate file download** (`Passphrase Slot B` + `CompareOnly`). Opening a secret-bearing `.cfgvault` (`ImportUpgradeOnly` or `InspectableEncrypted`) requires explicit `BrowserSecretsEnabled` workspace consent first; revoking consent purges all unlocked secrets, blind slots, and loaded vault buffers immediately. Zero `localStorage`, `IndexedDB`, `CacheStorage`, `ServiceWorker` cache, or network requests ever touch `.cfgvault` bytes or passphrases. Keep `eng/configurator/generated/browser-release-capabilities.json` strictly `persistence: false` and `answerPersistence: false`.
-- **Lifecycle / severity / claim type**: proposed / critical / native atomic write safety and Browser zero-persistence invariant
-- **Principles / domains**: Trust (`Amanah`), Truthfulness (`Sidq`), Non-Harm (`La Darar`) / native I/O safety, WASM browser custody
-- **Stakeholders**: Linux Desktop/Terminal/CLI users, Browser WASM users, multi-user workstation operators
-- **Controlled decision**: Append-only immutable per-revision `.cfgvault` files via `IProtectedArtifactWriter`, header-scan discovery, Browser memory-only upload/download
-- **Evidence / validation**: `E01` (`ProtectedArtifactWriter.cs`, `UnixProtectedArtifactWriter.cs`, `browser-release-capabilities.json`, `blazor-client.md`)
-- **Linked mitigation**: `IVSD-M004`
-- **Owner / next validation**: Artifacts, Browser, & Architecture maintainers; real Linux `Artifacts.Tests` symlink/conflict/mode-0600 races, unsupported-host rejection checks, and bUnit/Browser storage isolation tests
-- **Escalation**: Revisit only when Windows/macOS `IProtectedArtifactWriter` implementations undergo native host qualification
+- Lifecycle / severity / claim type: accepted / critical / application custody mitigation, implementation unverified
+- Principles / domain: Amanah, privacy/Tajassus avoidance, Sidq / state, composition and disclosure
+- Stakeholders / controlled decision: administrators and people affected by exposed credentials / state ownership and every disclosure sink
+- Evidence / validation: E01,E03-E13; worker hosting and prototype revocation exercised; production state/disposal/fencing and all disclosure sinks remain unverified
+- Owner / next validation: Core/Presentation/clients; TASK-9.1-9.3, TASK-10.1-12.3; S05-S07,S11,S13,S22
+- Escalation: any broader erasure/isolation promise requires evidence and a fresh assessment
 
-### IVSD-F005: Honest Day-2 schema upgrade diffing, keyed HMAC rotation commitments, and Arabic (`ar`) RTL parity (`Sidq` & `Adl`)
+### IVSD-F004: Encrypted output still needs restricted publication and transient Browser custody
 
-When upgrading from definition `V_old` to `V_new`, a naive JSON diff either misses silent breaking changes (such as a secret field whose `minBytes` increased from `16` to `32`, a field whose `sensitivity` escalated from `public` to `secret`, or removed choices) or compares secrets in `compare-only` baselines using plain unsalted SHA-256 digests—enabling offline dictionary brute-forcing of weak shared secrets like `"changeme"` or common tokens. Additionally, English-only upgrade classifications and RTL-broken technical identifiers exclude Arabic-speaking self-hosters (**Adl**).
+A trusted container does not prevent an unsafe path, overwrite, stale save or browser cache. Operators can also be harmed if cancellation is described as rollback after a file was already installed, or if one successful file is described as a transaction over a vault and comparison pair.
 
-- **Mechanism & Mitigation (`IVSD-M005`)**:
-  1. Build deterministic `DefinitionSchemaDiff` and `ProfileUpgradePlanner` in `Configurator.Core.Profiles` comparing canonical field schemas across `Definition V_old` and `Definition V_new`: classify `AddedRequired`, `AddedOptional`, `Removed`, `TypeChanged`, `FormatOrRangeTightened`, `ChoicesChanged`, `SensitivityEscalated`, `SecretPolicyTightened`, and `ApplicabilityChanged`. Enforce fail-safe upgrade rules: whenever `SecretPolicyTightened` or `SensitivityEscalated` occurs, reject blind carry-forward (`BlindCarryRejected`) and require explicit regeneration or new input so weak legacy credentials never sneak into `V_new`.
-  2. For `compare-only` secret change detection, compute optional rotation commitments exclusively via **domain-separated keyed HMAC-SHA256** (`HMAC(commitmentKey, "islamu-cfg-commit-v1\0" || canonicalPath || "\0" || utf8Secret)`) using a per-profile random 256-bit `commitmentKey` stored inside the operator's protected key material (or OS keyring / local `.cfgvault` envelope)—never bare unsalted SHA-256 hashes! Where no `commitmentKey` is available during cross-host comparison, honestly report `SecretComparisonStatus.UnavailableWithoutKey` instead of pretending `"unchanged"` or `"changed"`.
-  3. Provide complete English (`en`, LTR) and Arabic (`ar`, RTL) resource strings across `PresentationStrings`, `DesktopStrings`, `TerminalStrings`, and `BrowserStrings`, wrapping digests, JSON Pointers, field wire names, and environment slugs with explicit LTR bidi isolation (`dir="ltr"` / `FlowDirection.LeftToRight`).
-- **Lifecycle / severity / claim type**: proposed / high / schema-upgrade correctness, offline dictionary resistance, and multilingual accessibility
-- **Principles / domains**: Truthfulness (`Sidq`), Justice (`Adl`), Non-Harm (`La Darar`) / schema diffing, cryptography, localization
-- **Stakeholders**: English and Arabic administrators managing version upgrades across revisions (`e.g. revision 3 -> 4+`), CLI automation engineers
-- **Controlled decision**: Fail-safe `SecretPolicyTightened` rejection on blind carry-forward, keyed HMAC-SHA256 commitments (zero bare hashes), complete `en`/`ar` RTL-isolated diff UI
-- **Evidence / validation**: `E01` (`DefinitionImport.cs`, `DefinitionSchema.cs`, `SecretGenerator.cs`); `E02` (NIST SP 800-107 / domain separation)
-- **Linked mitigation**: `IVSD-M005`
-- **Owner / next validation**: Core, Presentation, & all Client maintainers; Red dictionary-proof HMAC domain-separation tests, `SecretPolicyTightened` blind-block tests, and `en`/`ar` UI localization tests
-- **Escalation**: None
+**IVSD-M004:** Preserve Linux create-only owner-restricted publication, descriptor-relative bounded reads, opaque IDs, truthful installation/durability/cleanup receipts and immutable history; no custom crypto-header parser or mutable sidecar authority. Unsupported protected-save hosts fail closed. Browser permits only the dedicated profile worker's bounded consent-gated channel, with one admitted live KDF operation, captured operation identities, safe replies, immediate retirement and termination. No private storage/caches, answer-bearing requests or secret messages outside that channel; public runtime bootstrap remains existing public static-asset traffic. Test allowed and denied sinks with synthetic sentinels. Deliberate upload/download provides no native protected-file guarantee, and termination proves neither erasure nor universal resource-release timing.
 
-### IVSD-F006: Clean-room MIT dependency hygiene, workstream boundary respect, and deferred Coolify/SecretKit boundary (`Haqq al-'Ibad` & `Amanah`)
+- Lifecycle / severity / claim type: accepted / critical / native publication and Browser custody mitigation, implementation unverified
+- Principles / domain: Amanah, Sidq, La Darar / I/O, concurrency and Browser operations
+- Stakeholders / controlled decision: native/Browser users and shared-device operators / file authority, receipts, consent and persistence
+- Evidence / validation: E01,E03,E06-E13; scoped worker/AOT and sequential KDF receipts passed; existing writer evidence does not qualify the new store, product sinks or native hosts
+- Owner / next validation: Artifacts/Browser/Architecture; TASK-4.1-4.3, TASK-7.1-8.3, TASK-12.1-12.3; S09-S12,S19-S21
+- Escalation: actual-host qualification remains separate; Windows/macOS keyring implementation does not grant protected-save support
 
-Introducing third-party OS keyring NuGet libraries with mixed native binaries or incompatible licenses, mutating `store/islamu-event/releases/1..3.json`, colliding with active uncommitted work in `definition-schema-redesign` / queued `configuration-workspace-redesign`, or smuggling unapproved Coolify/SecretKit HTTP clients into offline Configurator would violate dependency provenance, IP stewardship (**Haqq al-'Ibad**), and explicit scope boundaries (`AGENTS.md` Rules 5, 10, 19).
+### IVSD-F005: Missing schema or comparison evidence must not become a false unchanged result
 
-- **Mechanism & Mitigation (`IVSD-M006`)**:
-  1. **Zero New Runtime NuGet Packages:** Implement all `.cfgvault` cryptography cleanly via already-pinned `BouncyCastle.Cryptography` `2.7.0` (`MIT`) and standard `.NET 10` BCL primitives, and implement native keyring calls via bounded `LibraryImport` P/Invoke against standard OS libraries (`libsecret-1.so.0` / `libglib-2.0.so.0`, Win32 `crypt32.dll` / `advapi32.dll`, macOS `Security.framework`) in `Configurator.Artifacts` (`AllowUnsafeBlocks` only where required by marshaling, zero copy-pasted third-party code). Verify `.ci/scripts/validate-dependency-license-policy.cs` and `Configurator.Architecture.Tests` at exit.
-  2. **Explicit Workstream Coordination:** Sequence `encrypted-local-profiles` cleanly alongside `definition-schema-redesign` (active in working tree) and `configuration-workspace-redesign` (`Workstream 2`): Core, Artifacts, and CLI profile phases touch zero active UI files, while Presentation/UI integration phases cleanly extend the finalized shell without breaking or duplicating workstream state.
-  3. **Strict Offline Apply Boundary:** Emit structured, secret-free delta payloads (`ProfileDeltaSummary` JSON via CLI `--json`) that a future `Coolify` / `ISLAMU SecretKit` / `Infisical` / `AKV` provider workstream can consume later, while maintaining zero HTTP/target-credential/apply code inside Configurator today (`targetApply: false` retained in `frozen-contract-baseline.json`).
-- **Lifecycle / severity / claim type**: proposed / high / licensing provenance, workstream coordination, and offline trust boundary
-- **Principles / domains**: Rights of Others (`Haqq al-'Ibad`), Trust (`Amanah`) / dependency closure, release architecture, future extensibility
-- **Stakeholders**: MIT downstreams, contributors on active workstreams, future target-apply integrators
-- **Controlled decision**: Zero added NuGet dependencies, bounded P/Invoke OS keyring adapters, `targetApply: false` maintained strictly
-- **Evidence / validation**: `E01` (`Directory.Packages.props`, `.ci/policy/dependency-licenses.json`, `StandaloneArchitectureTests.cs`, `frozen-contract-baseline.json`)
-- **Linked mitigation**: `IVSD-M006`
-- **Owner / next validation**: Architecture & Artifacts maintainers; `StandaloneArchitectureTests`, `PolicyGateTests`, `validate-dependency-license-policy.cs`, and `GenerateConfiguratorRatchets.cs --check`
-- **Escalation**: Legal/IP escalation only if any new NuGet package or third-party native blob were ever proposed
+A schema digest does not contain the old schema, and a missing commitment key cannot establish secret equality. Positional collection paths can also attach retained secrets to the wrong row. Misleading upgrade readiness would expose operators to broken or insecure target configurations.
+
+**IVSD-M005:** Admit actual old/target definition content and preserve canonical identity rules. Revalidate carry-forward against target type, activation, sensitivity and secret constraints; tightened/incompatible cases require replacement/regeneration. Missing evidence yields unavailable/revalidation-required. Use Bouncy Castle's HMAC implementation for optional context-bound commitments with independently protected keys; Configurator owns the application context and safe projection, not HMAC internals. Preserve full English/Arabic recovery, mode and upgrade guidance, keyboard access and bidi-isolated technical identifiers.
+
+- Lifecycle / severity / claim type: accepted / high / upgrade correctness, comparison privacy and accessibility mitigation
+- Principles / domain: Sidq, Adl, La Darar / schema evolution, evidence and localization
+- Stakeholders / controlled decision: English/Arabic administrators and automation users / validation, equality claims and usable guidance
+- Evidence / validation: E01-E03,E08,E10-E14; rev-6 preserves schema admission, unavailable outcomes, safe comparisons and client obligations; no product upgrade/localization or assistive-technology proof
+- Owner / next validation: Core/Presentation/clients; TASK-2.1-3.3, TASK-8.1-12.3; S04,S06,S15,S22
+- Escalation: any weakened carry-forward or new commitment disclosure changes provider responsibility
+
+### IVSD-F006: Retaining a maintained dependency does not remove maintenance or provenance duties
+
+Maintained dependencies do not remove Configurator's policy, provenance or update responsibilities. The authorized provider change resolves an evidenced API gap; it does not authorize a homegrown protocol or an arbitrary plugin surface.
+
+**IVSD-M006:** Retain existing Bouncy Castle uses and the selected single JWE profile. Bind both maintained packages to exact graphs, original MIT notices, hashes, generated locks/assets and update ownership before consumption. Do not invent user hash approval, copy implementation into first-party code, fork upstream or add custom crypto. Keep native bindings thin and separately host-qualified. Preserve shared work, all thirteen phases and `targetApply: false`; no signer, publication or remote authority follows.
+
+- Lifecycle / severity / claim type: accepted / high / dependency stewardship mitigation, implementation unverified
+- Principles / domain: Haqq al-'Ibad, Amanah, Sidq / provenance, maintenance and architecture
+- Stakeholders / controlled decision: downstream users, contributors and maintainers / API choice, update policy, dependency admission and offline boundary
+- Evidence / validation: E01,E03-E13; exact package/license and provider/prototype evidence reviewed; final dependency/asset closure and independent security approval remain unverified
+- Owner / next validation: Core/Architecture/Artifacts; GATE-0, all phase ownership gates, TASK-8.3, TASK-13.1-13.3; S16,S17
+- Escalation: proven library/API incompatibility or proposed new dependency requires a concrete decision and ordinary IP/security review
 
 ## Common Overlooked Failures And Outcomes
 
-1. **Silently Allowing `.cfgvault` Purpose Relabeling:** If `purpose` lives only in unauthenticated metadata outside AEAD `AAD`, an attacker with write access to disk can flip `import-upgrade-only` to `inspectable-encrypted` cleanly (`IVSD-M001` closes this by signing the canonical header as AEAD `AAD`).
-2. **Storing `AES-GCM` via BCL and Failing on Browser WASM:** `.NET 10` throws `PlatformNotSupportedException` for `System.Security.Cryptography.AesGcm` / `ChaCha20Poly1305` on `browser-wasm` (`IVSD-M002` uses pure managed `BouncyCastle.Cryptography` `2.7.0` everywhere so Browser AOT and Native binaries share identical bit-level vectors).
-3. **Blindly Forwarding Old Weak Secrets After Schema Tightening:** Carrying a legacy 8-char password or 128-bit secret silently into a `V_new` schema that now requires `32` bytes breaks production security (`IVSD-M005` rejects blind carry-forward on `SecretPolicyTightened` / `SensitivityEscalated`).
-4. **D-Bus Headless Linux Crash on Keyring Call:** Invoking `libsecret` without runtime `NativeLibrary.TryLoad` + missing-D-Bus handling crashes SSH/Docker Desktop sessions (`IVSD-M002` degrades cleanly to `KeyringUnavailable` + Slot B passphrase prompt).
-5. **Leaking Passphrases or Blind Secrets into `DefinitionFormUndoHistory` / Browser Storage:** Putting unlocked form states into Browser `IndexedDB` or naive undo snapshots subverts `DisableSecretEntry()` (`IVSD-M003`, `IVSD-M004` enforce synchronous zeroing and zero Browser persistence).
+- A parser or Argon2 primitive is mistaken for a complete authenticated-generation/password-recipient API. GATE-0 blocks that inference.
+- First-party AAD/key-wrap code is renamed an adapter. The withdrawn custom protocol remains forbidden regardless of class name.
+- A configured passphrase is called a tested backup, or reinstall is called recovery. Exact-snapshot independent restore and contextual disclosures prevent that promise.
+- Replacing a recipient is described as revoking old copied vaults. Immutable historical access remains explicit.
+- Library disposal is described as erasing every string or working buffer. The claim stays limited to actual owned/documented state.
+- Browser bUnit, a dependency probe or cross-compilation is presented as AOT performance or native-provider proof. Those evidence gates remain separate.
+- English-only or inaccessible warnings prevent an operator from making an informed choice. English/Arabic and keyboard/focus obligations remain assigned to the client phases.
 
 ## Recommendations
 
-1. **Adopt `ChaCha20-Poly1305` + `Argon2id` + `HKDF-SHA256` in `Configurator.Core` via `BouncyCastle.Cryptography` `2.7.0`:**
-   - *Rationale:* Bit-for-bit identical cross-platform execution across Linux, macOS, Windows, and Browser WASM AOT with zero new NuGet packages.
-   - *Rejected alternative:* BCL `AesGcm` (`PlatformNotSupportedException` on `browser-wasm`) or split crypto implementations per platform (maintenance risk and format drift).
-2. **Adopt Multi-Recipient DEK Slots (`Slot A` OS Keyring + `Slot B` Argon2id Recovery) Over Single-Key Schemes:**
-   - *Rationale:* Gives Desktop operators zero-prompt convenience (`Slot A`) while guaranteeing cross-machine portability, headless SSH/CLI usage, Browser upload/download, and disaster recovery (`Slot B`).
-   - *Rejected alternative:* Keyring-only (catastrophic data loss on machine loss / headless environments) or passphrase-only (high daily UX friction triggering insecure plaintext exports).
-3. **Use Immutable Per-Revision Create-Only `.cfgvault` Snapshots + Header Scanning Over Mutable Single-File Overwrites or Sidecar Indexes:**
-   - *Rationale:* Preserves existing `IProtectedArtifactWriter` `O_TMPFILE` + `linkat` create-only guarantees on Linux, maintains Day-2 rollback history automatically, and prevents mutable index race corruption.
-   - *Rejected alternative:* In-place overwrite (breaks `UnixProtectedArtifactWriter` contract and creates rollback risk) or separate JSON index file (sync drift with filesystem revisions).
-4. **Sequence Core + Artifacts + CLI cleanly as independent foundations, then wire Presentation Blind Custody & Desktop/Terminal/Browser UI cleanly behind Workstream 2 (`configuration-workspace-redesign`) UI shell completion:**
-   - *Rationale:* Prevents merge collisions in active working-tree files (`definition-schema-redesign`) and queued shell rewrites while allowing full test-driven progress.
+Proceed through all thirteen phases under the reviewed JWE ownership and dependency packets. Provider/prototype gates passed; exact dependency/legal/asset closure and phase-specific shared ownership still precede consumption. Preserve actual product admission, custody, recovery, AOT/package and host gates. Do not repeat supplied implementation or worker-permission questions.
+
+Rejected alternatives: custom envelopes or missing protocol implementations; Java-as-C# assumptions; unreviewed algorithm/cost changes; forcing custom interop for package-count targets; arbitrary private worker channels; transferable-buffer erasure claims; waiting for a busy KDF cancellation handler before retiring authority.
+
+The provider still owns consent, safe outputs, upgrade rules, recovery explanations and dependency maintenance. These application duties are not evidence of a failed offloading strategy; they define the product's own responsibilities.
 
 ## Stakeholders
 
-- **Self-Hosting Operators (Desktop & Terminal):** Gain zero-friction local encrypted saves (`Slot A`), safe Day-2 schema upgrade diffs without revealing production secrets (`import-upgrade-only`), editable in-app vaults (`inspectable-encrypted`), and Day-2 secret-free comparison baselines (`compare-only`).
-- **Headless / SSH / Automation Administrators (CLI):** Gain deterministic machine-readable `profile save|unlock|diff|upgrade-plan|slots` commands authenticated via explicit passphrase/file-descriptor input and secret-free delta JSON output ready for future PaaS pipelines.
-- **Air-Gapped & Browser WASM Operators:** Gain zero-persistence in-memory `.cfgvault` upload, passphrase unlock, upgrade planning, and deliberate encrypted file export under strict per-workspace secret consent.
-- **Arabic (`ar`) & Multilingual Administrators:** Gain full RTL-isolated, localized explanations of security modes, blind-secret status, recovery prompts, and schema breaking changes.
+Native/Desktop operators need convenient opening and recoverable immutable history. SSH/CLI operators need independent credentials and value-safe automation. Browser/shared-device users need transient local custody and truthful download limits. Arabic and keyboard/assistive-technology users need equally understandable controls. Maintainers and MIT downstreams need a sustainable dependency boundary, provenance and honest assurance claims. People whose services rely on these credentials bear the consequences of leakage or loss.
 
 ## I-VSD Principles And Domains
 
-- **Amanah (Trustworthy Stewardship):** Multi-recipient key wrapping (`DEK` + `Slot A`/`Slot B`), `BlindSecretSlot` isolation, synchronous `ZeroMemory`, immutable create-only native writes (`IVSD-F001`–`IVSD-F004`, `IVSD-F006`).
-- **Sidq (Truthfulness):** Honest distinction between cryptographic secret exclusion (`compare-only`) and runtime UI protection (`import-upgrade-only`), AEAD header-as-AAD tamper verification, keyed HMAC unavailability transparency, and `SecretPolicyTightened` blind rejection (`IVSD-F001`, `IVSD-F004`, `IVSD-F005`).
-- **Bayan (Clear Disclosure):** Explicit security-mode labels, Slot-B recovery nudges when relying on OS keyring alone, and unambiguous Browser temporary custody notices (`IVSD-F001`, `IVSD-F002`, `IVSD-F004`).
-- **La Darar (Non-Harm):** Mandatory portable recovery slot path (`Slot B`), replacement confirmation prompts before overwriting blind secrets, create-only no-clobber writes, and fail-closed unsupported-host handling (`IVSD-F002`–`IVSD-F004`).
-- **Adl (Justice & Equity):** Complete `en`/`ar` RTL localization and equivalent Day-2 upgrade clarity across Desktop, Terminal, CLI, and Browser (`IVSD-F005`).
-- **Haqq al-'Ibad (Rights of Others):** Clean-room first-party crypto/keyring code, zero unapproved third-party dependencies, preserved release history (`IVSD-F006`).
-- **Non-Applicable Domains:** Monetization, riba/commerce, user ranking/feeds, AI inference/moderation, server multi-tenancy, and cloud authentication do not apply to offline Configurator.
+Amanah applies to entrusted credentials and responsible dependency use; Sidq to actual format guarantees, memory limits and missing evidence; Bayan to key-loss, uninstall and mode explanations; La Darar to preventing disclosure, irreversible loss and unsafe upgrades; Adl to equivalent access and localization; Haqq al-'Ibad to third-party rights and contributor boundaries. Monetization, AI/ranking/moderation, server tenancy, riba/commerce and remote authentication are non-applicable here.
 
 ## Validation Gaps
 
-1. **Planning Phase Only (Zero Execution Yet):** All findings rest on static code review and standards analysis on `2026-11-13`. Cryptographic round-trips, AEAD tamper rejection, Argon2id memory/latency on Browser WASM AOT, Linux `libsecret` / create-only `0600` filesystem races, and blind-secret UI isolation remain unverified until Red/Green execution.
-2. **Non-Linux Protected-Save Hosts (`Windows`, `macOS`):** `ProtectedArtifactWriter.IsAvailable` is currently `true` only on Linux (`Configurator.Release.proj` `protectedExportHosts: ["linux"]`). Windows DPAPI / macOS Keychain adapters can be designed behind clean platform interfaces (`[SupportedOSPlatform]`), but real host qualification stays `Planned` until native CI/runners validate protected writes there.
+E16 supplies scoped product evidence. Actual keyring hosts, Windows/macOS protected-save, AT/cross-browser, physical erasure/crypto termination, physical network certification, external assurance and signing remain unqualified. Capture/provenance failures preclude release-readiness claims.
 
 ## Escalation Needed
 
-- **Scholarly escalation:** None required.
-- **Specialist security / release escalation:** Security review prior to release if (a) hardware FIDO2/WebAuthn PRF key slots are later added, (b) native Windows/macOS protected-artifact writers move from `Planned` to `Supported`, or (c) the future Coolify / `ISLAMU SecretKit` remote-apply workstream begins.
+No candidate or implementation-permission decision remains open. Escalate actual ambiguous rights, changed security requirements or unverifiable invariants; do not reopen settled selection or demand already-built product evidence as a provider prerequisite. Before release require independent library/custody review and actual package/host evidence. No scholarly ruling is sought or supplied.
 
 ## Evidence Reviewed
 
-- `E01` (Repository Contracts & Code): `AGENTS.md`, `PROJECTS.md`, `docs/internal/{QUICK_REFERENCE,PROTECTED_ARTIFACTS,SECRET_CRYPTOGRAPHY,LAUNCH_CONTRACT,STATUS,ARCHITECTURE,DESKTOP_CLIENT}.md`, `docs/internal/adr/ADR-encrypted-local-profiles-and-target-apply.md`, `src/Configurator.Core/{Definitions/AnswerSnapshot*,Definitions/Definition.cs,Secrets/Secret*}`, `src/Configurator.Artifacts/{ProtectedArtifactWriter,UnixProtectedArtifactWriter}.cs`, `src/Configurator.Presentation/{Secrets/DefinitionSessionPrivacy,Import/DefinitionImportState,Form/DefinitionFormModel}.cs`, `src/Configurator.Cli/Commands/{CliCommandSchemaMetadata,Artifacts/*,Secrets/*}.cs`, `eng/configurator/{Configurator.Release.proj,GenerateConfiguratorRatchets.cs}`, `tests/Configurator.Architecture.Tests/StandaloneArchitectureTests.cs`.
-- `E02` (External Specifications & Standards): RFC 8439 (`ChaCha20-Poly1305`), RFC 9106 (`Argon2id`), RFC 5869 (`HKDF`), NIST SP 800-107 (HMAC domain separation), OWASP Password Storage Cheat Sheet (`>= 19 MiB` / `>= 2` iterations floor), FreeDesktop Secret Service D-Bus / `libsecret` API, Windows `CryptProtectData` / Credential Manager API, Apple `Security.framework` Keychain API, `.NET 10 browser-wasm` cryptography `PlatformNotSupportedException` profile.
+- **E01 - preserved repository evidence:** `AGENTS.md`, `PROJECTS.md`, existing crypto/protected-output/launch/state contracts, the proposed profile ADR, Core snapshot/definition/secret APIs, Artifacts writer/preparation, Presentation import/generation/revocation and compiled dependency guards. Existing source facts are distinguished from future profile behavior.
+- **E02 - preserved standards evidence:** RFC 8439, RFC 9106, RFC 5869, HMAC guidance, OWASP Password Storage/Key Management/Cryptographic Storage, freedesktop Secret Service, Microsoft Credential Manager/DPAPI and Apple Keychain documentation. Earlier references do not certify a custom protocol or cross-platform execution.
+- **E03 - historical planning input:** rev-3 plan/tasks, with original hashes retained after Review Lifecycle, including GATE-0 through GATE-3, S01-S22, thirteen phases and every six-pair mapping. Rev-2 input hashes remain in plan/context history; E08 owns current inputs.
+- **E04 - pinned public API contracts:** `nuget:BouncyCastle.Cryptography@2.7.0/lib/net6.0/BouncyCastle.Cryptography.xml`; official equivalent `https://downloads.bouncycastle.org/csharp/2.7.0/net6.0/BouncyCastle.Cryptography.xml`. Inspected generator/recipient, authenticated-container model, AEAD and Argon2 parameter documentation only. Documented parameter copies/clearing do not prove complete working-memory erasure.
+- **E05 - official follow-up research, accessed 2026-11-13:** `https://www.bouncycastle.org/resources/new-release-bouncy-castle-c-2-7-0/`, `https://www.bouncycastle.org/download/bouncy-castle-c/`, `https://www.bouncycastle.org/documentation/documentation-c/interoperability`. Tavily MCP, Anysearch MCP, Firecrawl and Context7 confirmed the selected package/families and exposed limits in the claimed complete combination. Only source-free functional/API facts were retained.
+- **E06 - native public API inventory:** installed informational version `2.7.0+4007498b13`, DLL SHA-256 `ef92fc661e8d7ba8ec4d39a7cdfcdba41f14cb327f0d24fe79d0b5bb428899b5`; temporary native probe and exact command in tasks/context, exit `0`. OpenPGP generator lacks AEAD/Argon2 recipient parameters and a ChaCha enum choice; CMS authenticated-envelope generators are absent and its model nonpublic. Inventory success is not a product security Red/Green result.
+- **E07 - historical decisions, 2026-11-13:** user initially retained the exact contract and permitted bounded worker custody. The later maintained-provider authority supersedes the former restriction. Official worker references remain in plan Section 2.3; E11 owns subsequent runtime evidence.
+- **E08 - historical rev-4 input:** plan `3630997247c0310ede5a765e55018bd9f78d83d67bf94960694952dd1fe5766e`, tasks `abd29c9eef43ac56986ccd016db2d5e2d90e7fff289ddcbdf2f9852d6bcdee8b`; six pairs were checked against that retained contract. E10 supersedes this input.
+- **E09 - executed container qualification, 2026-11-13:** plan Section 2.5 records exact public CMS builder/generator signatures, full requirement matrix and native commands/results. Compiler-clean probe runs use pinned `2.7.0+4007498b13`; OpenSSL 4.1.0 confirms ordinary EnvelopedData/PBKDF2, while GnuPG 2.4.9 independently decrypts/matches the OpenPGP fixture and identifies S2K 3, AEAD 0 and MDC. Failed fixture preconditions and obsolete-call observations remain preserved and excluded. No required format was adopted, no weakened profile shipped, and no whole-process clearing guarantee follows.
+- **E10 - historical rev-5 input:** plan `e01239cef330ffec50b1056c0f46b4898e39e3a8a2e7eec867e4ea5784c35ad6`, tasks `808b51db14276164060334988783edbad81721e16d1ce98b28a4547ccc1d1511`. All six pairs were re-evaluated against that general-only profile. E14 supersedes these input identities.
+- **E11 - provider/prototype receipts:** plan Section 2.6 records native `native-3.txt`, `unicode-native-1.txt`, `policy-6.txt` and `browser-to-native-policy-1.txt`; Browser `unicode-runtime-receipts.txt`, `aot-runtime-receipts.txt` and `aot-kdf-budget-receipts.txt`. Independent one/two-recipient and Unicode recovery, negatives, strict credential-free admission, actual trimmed AOT interop and sequential creation KDF work passed. Earlier raw-byte credential, mapper, trimming and independent-reader failures remain excluded, preserved samples. Prototype retirement/stale rejection does not establish product sinks, memory erasure or universal timing.
+- **E12 - automated security review:** fixed-profile/two-implementation arrangement judged defensible subject to strict admission, stable local settings, exact UTF-8, independent interoperability, authenticated payload semantics, bounded owner work and production custody. Remaining conditions are explicit implementation/release obligations, not an external audit or religious ruling.
+- **E13 - original package/terms evidence:** official NuGet/npm archives and SHA-512 identities are in plan Section 2.6. Original native MIT notice names dvsekhvalnov; Browser notice names Filip Skokan. Exact notice hashes and qualified native DLL hash are retained there. Admitted package evidence comprises metadata, public contracts, original terms and independently designed probes; later exposures remain quarantined. Final generated closure/notice admission remains required.
+- **E14 - historical rev-6 input and serialization qualification:** plan `8068d16940cbab92c223cfbee3e7fd80da62b20b22232f4adc06677f1882e1ac`, tasks `578a54646996f5b04d1ce37c1f51b019d30affaff2e2427ed8be8efd91d14fa2`. Plan Section 2.7 retains public API, `native-flat-1.txt`, `flat-runtime-receipts.txt` and `browser-flat-to-native-1.txt`. Both flattened directions and wrong-password/tag negatives passed; general qualification remains. These are not external audit or release proof.
+- **E15 - exact rev-7 prerequisite/routing review:** original tasks SHA-256 `757cb5e7ae367a839d98f7c2bb2d64e54181d364d0a90f5e8e8ba5a2b33b5d06`; plan unchanged. `DefinitionArtifactComposer.Compose` and its CLI caller require ordinary snapshots, establishing the Phase 9-before-8 dependency. Explicit nullable device ID, total eight-recipient admission, selected index and profile-bound acknowledgement preserve one facade and no raw key export. Scoped six-phase tests do not qualify actual keyrings; classic macOS process interaction controls remain deprecated/host-qualified. The gated source exposure produced no repository edits and is quarantined; fresh implementation uses public facts/first-party structure. All six pairs, owners and mappings remain.
+- **E16 - r8 bounded revalidation:** reviewed plan Section 9, tasks Phases 12-13 and context anchors against parent-supplied receipts; no execution/private-input inspection here. F001/M001 retains fixed general/flattened JWE; F002/M002 exact-copy recovery; F003/M003 scoped blind composition/confirmed permanent retirement; F004/M004 immutable native files/transient Browser custody; F005/M005 schema/unavailable outcomes/EN-AR; F006/M006 dependency stewardship/quarantine. Owners and mappings unchanged.
+  Parent-run: Core 962, Presentation 482; keyring adapters 18/23/38, recovery 29, store checkpoint 125; CLI 42+31; Desktop D31-D33 EN/AR, 180+90 PNGs; Terminal 11/TTY EN/AR; Browser 48/privacy 8/JS 10. Root/subpath Release AOT ran; root exercised two-recipient save/exact-copy recovery, blind output, explicit inspection, revocation and active-WebCrypto logical cancellation. Observed 28 public-cache GETs, no private bodies/matches/storage, update waiting, HTTP-host-stopped warm reload; CDP navigator flag reset true on reload. Ten frames reviewed twice: low mobile word wrap only.
+  Three Linux native packages/Browser published. Independent native/Core/Browser custody source reviews: no supported findings; no external cryptographic audit. Architecture 301: 210 pass/91 fail; Host 22 recovered; CLI anyOf/else repair: 97 self-cases/seven cohorts/two failed Architecture cases green. Remaining 67 quarantined: capture 39/provenance 25 (initial fixture creation)/schema-refresh 3 (ten repository/five operator schemas). Apphost capture SDK unsupported; muxer aborts missing global workloadVersion; capture pin 10.0.301.1 versus installed workload 10.0.404. No policy/test weakening or captured-graph/provenance claim. Debug build green; MSB4057 publish unqualified. NativeHost 33: unrelated D27 failed, scoped three green. Legal record quarantines SDK research/generated-editor snippets; none admitted.
+
+  Status/evidence-only rebinding, 2026-11-13: parent reports TASK-13.3/VERIFY-13 executed with explicitly non-green release qualification; DOC_CHECK 19 files/205 links/0 errors, license check 101 pairs, and recorded whitespace limits. Local implementation is complete; unauthorized commits remain dormant and release gates remain open. Prior r8 tasks identity: `b525da719781d2ccf28aa38db86afd637366f22c9a6105186cccd35c26542c7d`. Plan unchanged; no behavior, mitigation, scope, owner or mapping changes. Integration-contract's nonmaterial status/evidence rule preserves the r8 review/disposition; this is no additional moral revalidation or independently rerun verification.
 
 ## Missing Evidence
 
-- Runtime TUnit pass logs for Core crypto/schema-diff tests, Linux `Artifacts.Tests` create-only & `libsecret` tests, `Presentation.Tests` blind-custody/undo-purge tests, CLI schema/ratchet freshness checks, Desktop headless/`NativeHost` checks, Terminal checks, and published Browser WASM AOT execution of Argon2id/ChaCha20-Poly1305.
+Remaining evidence is bounded by Validation Gaps/E16; product receipts do not establish stakeholder outcomes, external authority or complete release qualification.
 
 ## Context Inventory
 
-- Active checkout holds uncommitted working-tree edits from Workstream 1 (`dev/active/definition-schema-redesign/`) and queued UI plan `dev/active/configuration-workspace-redesign/` (`Workstream 2`).
-- This workstream (`encrypted-local-profiles`) coordinates cleanly with both: Core/Artifacts/CLI phases have zero overlap with Workstream 2 UI files, and Presentation/UI phases integrate into the completed Workstream 2 shell without reverting any Workstream 1 or Workstream 2 contracts.
+The user permits maintained alternatives and bounded worker custody. The implementation owner selected the reviewed JWE profile and packages; existing Bouncy Castle uses remain. New folders do not prove semantic isolation. The [context](../../dev/active/encrypted-local-profiles/encrypted-local-profiles-context.md) owns resume state, plan owns behavior and tasks owns execution. This report supplies no commit, publication or product assurance.
 
 ## Planning Handoff
-- Workstream: encrypted-local-profiles
-- Status: current
-- Reviewed input: `dev/active/encrypted-local-profiles/{encrypted-local-profiles-plan,encrypted-local-profiles-context,encrypted-local-profiles-tasks}.md` (`rev-1`, `2026-11-13`)
-- Findings and mitigations: `IVSD-F001 -> IVSD-M001`, `IVSD-F002 -> IVSD-M002`, `IVSD-F003 -> IVSD-M003`, `IVSD-F004 -> IVSD-M004`, `IVSD-F005 -> IVSD-M005`, `IVSD-F006 -> IVSD-M006`
-- Required plan mappings:
-  - `IVSD-F001 / IVSD-M001` -> Scenarios `S03`, `S04`, `S12`; Phases `1`, `5`, `6`, `7` (`TASK-1.1`–`TASK-1.4`, `TASK-5.1`, `TASK-6.1`–`TASK-6.4`, `TASK-7.1`–`TASK-7.2`)
-  - `IVSD-F002 / IVSD-M002` -> Scenarios `S01`, `S02`, `S08`; Phases `1`, `3`, `6`, `7` (`TASK-1.1`–`TASK-1.2`, `TASK-3.1`–`TASK-3.4`, `TASK-6.1`–`TASK-6.4`, `TASK-7.1`–`TASK-7.2`)
-  - `IVSD-F003 / IVSD-M003` -> Scenarios `S05`, `S07`, `S11`, `S13`; Phases `5`, `6`, `7` (`TASK-5.1`–`TASK-5.3`, `TASK-6.1`–`TASK-6.4`, `TASK-7.1`–`TASK-7.2`)
-  - `IVSD-F004 / IVSD-M004` -> Scenarios `S09`, `S10`, `S11`, `S12`; Phases `3`, `4`, `6`, `7` (`TASK-3.1`–`TASK-3.2`, `TASK-4.1`–`TASK-4.2`, `TASK-6.1`–`TASK-6.4`, `TASK-7.1`–`TASK-7.2`)
-  - `IVSD-F005 / IVSD-M005` -> Scenarios `S04`, `S06`, `S14`, `S15`; Phases `1`, `2`, `4`, `5`, `6` (`TASK-1.3`–`TASK-1.4`, `TASK-2.1`–`TASK-2.4`, `TASK-4.1`–`TASK-4.2`, `TASK-5.3`, `TASK-6.1`–`TASK-6.4`)
-  - `IVSD-F006 / IVSD-M006` -> Scenario `S16`; All Phases + Phase `4`, `7` (`TASK-4.3`, `TASK-7.3`, `TASK-7.4`, `VERIFY-1`–`VERIFY-7`)
-- Escalations required before: release (native Windows/macOS protected-save qualification remains `Planned`; remote Coolify/SecretKit apply remains deferred).
-- Refresh triggers: Any change that (1) weakens Argon2id floor parameters or omits header-as-AAD binding, (2) allows deterministic machine-ID fallback without explicit passphrase or OS keyring, (3) exposes `BlindSecretSlot` characters to UI reveal/copy/undo/diagnostics/Browser storage, (4) introduces non-create-only overwrites on native storage or persistence in Browser WASM, (5) allows blind secret carry-forward across tightened secret policies, or (6) adds network apply/telemetry or unapproved NuGet packages.
+
+- Workstream / status / disposition: `encrypted-local-profiles` / `current` / `plan-aligned`, r8; release gates remain open.
+- Reviewed input: exact supplied plan/tasks SHA-256 in Review Metadata; S01-S22 and all thirteen phases.
+- Findings/mitigations: IVSD-F001 -> IVSD-M001; IVSD-F002 -> IVSD-M002; IVSD-F003 -> IVSD-M003; IVSD-F004 -> IVSD-M004; IVSD-F005 -> IVSD-M005; IVSD-F006 -> IVSD-M006.
+- Required mappings: each finding's owner/next-validation field and plan Section 9 name its current scenarios, tasks and gates. No finding is removed, marked resolved by prose, or moved to backlog.
+- Before corresponding source consumption: exact dependency/legal/asset closure and phase-specific shared ownership. Provider/prototype gates and planning assessment passed. Before release: actual product, independent security, recovery, package and host evidence.
+- Refresh triggers: format/API or recipient/KDF/cipher policy, default/recovery/uninstall promise, state/disclosure/persistence boundary, dependency admission, stakeholder responsibility, task mapping or escalation changes. Recompute plan/tasks hashes after material input changes.
+- TASK-13.3/VERIFY-13 executed per parent; final supplied tasks identity is bound above. Local implementation completion does not close release gates or authorize dormant commits; r8 remains current / plan-aligned.
 
 ## Review Lifecycle
 
 | Date | Previous status | New status | Trigger | Evidence/replacement |
-| --- | --- | --- | --- | --- |
-| 2026-11-13 | `none` | `draft` (`awaiting-plan`, `r1`) | Initial planning intake from Turn 1–4 decisions and ADR | `E01`–`E02` static code and specification review |
-| 2026-11-13 | `draft` (`awaiting-plan`) | `current` (`plan-aligned`, `r1`) | Revalidated against completed `dev/active/encrypted-local-profiles/` triad (`rev-1`) | Scenarios `S01`–`S16` and `TASK-1.1`–`TASK-7.4` bound cleanly across Phases 1–7 |
+|---|---|---|---|---|
+| 2026-11-13 | none | draft, r1 | Original planning intake and ADR | E01-E02; six initial pairs |
+| 2026-11-13 | draft, r1 | current / plan-aligned, r1 | Original completed rev-1 triad | Historical S01-S16 and seven-phase mapping; not runtime proof |
+| 2026-11-13 | current, r1 | stale for rev-2 | CTO changes to suites, recovery, memory claims and mappings | Original r1 report SHA-256 `b7822b7e8beefece036b57d3d11fbe733dfc0f9cb28807dc1ccb51366311dd79`; rev-2 plan/tasks hashes remain in plan/context |
+| 2026-11-13 | stale, r1 | current / changes-required, r2 | User retains Bouncy Castle; re-evaluated every pair against library-first rev-3 and corrected earlier overclaims | Original r2 hashes retained below; E03-E05; GATE-0/GATE-2 remain unresolved |
+| 2026-11-13 | current / changes-required, r2 | stale / changes-required, r2 | Implementation authorized; execution ledger updated with pinned public-API incompatibility and pending container/Browser decisions | Original reviewed hashes and all six pairs preserved; fresh exact-input review required after decisions, before functional crypto |
+| 2026-11-13 | stale / changes-required, r2 | current / changes-required, r3 | User retains exact container contract and permits bounded dedicated-worker custody; all six pairs re-evaluated against rev-4 | Historical r3 hashes below; E06-E08; GATE-0 blocking and GATE-2 actual-payload qualification open |
+| 2026-11-13 | current / changes-required, r3 | current / changes-required, r4 | User requests GATE-0 qualification; native generation and independent OpenSSL/GnuPG observations strengthen the negative verdict without changing scope | Exact current hashes in metadata; E09; all six pairs preserved, GATE-0 remains unchecked |
+| 2026-11-13 | current / changes-required, r4 | stale, r4 | User permits a maintained alternative and reviewed single profile | Historical r4 input/report identities retained below; no inherited alignment |
+| 2026-11-13 | stale, r4 | current / plan-aligned, r5 | Re-evaluated every pair against final rev-5 JWE/worker ownership and passed provider/prototype evidence | E10-E13 and exact metadata hashes; all product/host/recovery/accessibility/security release gates remain |
+| 2026-11-13 | current / plan-aligned, r5 | stale / changes-required, r5 | Native single-recipient generation emits flattened JSON outside the reviewed general-only admission | Preserve r5 inputs above and prior report SHA-256 `f814125d58315b8babbe815ee1da2f791fefa1901f6165a3f298af5fd591c2df`; no current alignment until explicit shape review/qualification and exact-input refresh |
+| 2026-11-13 | stale / changes-required, r5 | current / plan-aligned, r6 | Explicit general/flattened admission reviewed with unchanged cipher/KDF and bidirectional independent qualification | E14 and exact metadata hashes; stale r5 report SHA-256 `e1b9cb5f8545bcf03587e7cf4548c948c3040d1867602a5b9a61e947233dac96`; all six pairs and release gates retained |
+| 2026-11-13 | current / plan-aligned, r6 | stale / changes-required, r6 | CLI blind adoption requires Phase 9 composition before Phase 8 closure; owned device routing needs explicit facade metadata | Historical r6 inputs above and report SHA-256 `eb32c24cc708226914c263dff77133a7e0dacfe16148b6e50173833fb20c0bad`; no inherited current alignment |
+| 2026-11-13 | stale / changes-required, r6 | current / plan-aligned, r7 | Re-evaluated all six pairs against composition-first dependency and explicit owned device routing | E15/exact metadata hashes; stale r6 report `01ef68c9dd1239194c4fc10176e173fface1cbe706262980b9d07438778bd413`; no release/native-host authority |
+| 2026-11-13 | current / plan-aligned, r7 | current / plan-aligned, r8 | Final bounded exact-input revalidation; scoped implementation evidence and open gates | E16; supplied previous r7 SHA-256 `cafe12eaac0260410025bd65735ca7ae33aa6be2fbf2daf892a653cd4561e523`; no release authority |
+
+R2's original reviewed plan SHA-256 was `101681198f404ff6073f815b9b70cf439022ef6107fdd4d345d0ccc185766468`; tasks SHA-256 was `3d04abbfa083578b7697defef89d56cb982ba0b9c46ce3aa079e8a1c90593178`. The current-r2 report identity before its stale transition was `799b30291e1153806f51e3ec04327db4879131ca341bdc470e6fbb0ed34e3999`. These remain historical, not current input identities.
+
+R3 reviewed plan SHA-256 `6c15d73fa649ee0b5c9358b37e6d8fc5dd8c698ea0e8b6805c48aef1b3170d05` and tasks SHA-256 `fe7edd1f70f7acb853c370ffcc7f5a42898af8108ad8dc14a36d5e09ca483b77`; its report SHA-256 was `acae40333c496545a6ab4e0be62e00b1d7e3a1875b93006f49a90c4801c3aba5`.
+
+R4 reviewed plan/tasks identities remain in E08. Its report SHA-256 before the stale transition was `3bac258d306aa0863e0205632571c4e3ae89a3a101888eb38503eff21797c6a2`; the preserved stale r4 input to this refresh was `06e3b4d4c84356cb3e557f5060f9556dcd96ae4d2847d1648a08c9fd3c853011`. These are historical receipts, not current input identities.
