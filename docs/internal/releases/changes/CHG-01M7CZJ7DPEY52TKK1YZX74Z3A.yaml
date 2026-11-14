@@ -1,0 +1,27 @@
+Change-Id: CHG-01M7CZJ7DPEY52TKK1YZX74Z3A
+Title: "Compare saved settings without recoverable secrets"
+Type: feat
+Scope: privacy
+Summary: "Project bounded public values and stripped structure, and disclose protected-value equality only with the separately held context-bound comparison key."
+Group: profile-comparison
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/SECRET_CRYPTOGRAPHY.md
+    Disposition: not-applicable
+  Security:
+    Reference: src/Configurator.Core/Profiles/CompareBaselineCodec.cs
+    Disposition: documented
+    Detail: "Strip nested protected values and dynamic private names; omit protected collections instead of binding secret commitments to row numbers. Equality requires the separately held key and matching profile, family, environment and fixed path. Public values and equality tags still disclose operational information and linkability."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/import-and-compare.md
+    Disposition: not-applicable
