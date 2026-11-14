@@ -31,6 +31,34 @@ are recorded in the
 The operator projection is
 [Import and compare](../public/import-and-compare.md).
 
+## Admitted Profile Planning Boundary
+
+Local profiles have a separate Core planning API from ordinary artifact
+inversion. `ProfileUpgradePlanner` and `DefinitionSchemaDiff` use actual admitted
+old/target definitions; `.cfgcompare.json` carries only a stripped projection,
+not the old schema. Its family/revision/digest must match supplied old content.
+Missing old content leaves structural comparisons unavailable, while complete
+public scalar observations can still compare. A projection with omitted dynamic
+entries never proves unchanged data. Complete public collections compare only
+with actual schemas establishing full projection coverage.
+
+Encrypted-profile planning validates retained values inside the scoped Core
+operation and publishes metadata only. Tightened or changed hidden policies
+require replacement; collection positions do not grant carry authority.
+`RequiresRevalidation` stays true. The actual composition/adoption owner must
+recheck current target validation, consent, definition/workspace identity,
+stable collection binding and operation generation. It must also enforce
+historical admission conflicts before invoking the stateless planner.
+
+CLI profile handlers, Desktop's profile manager and Terminal's profile dialog
+consume this planner through the shared custody session. Browser admits safe
+historical identity before the worker's separate adoption step and keeps
+retained values outside ordinary snapshots. Client/runtime evidence remains
+distinct from the Core contract. Existing ordinary import/adoption behavior
+below is unchanged. The public
+[profile comparison guidance](../public/import-and-compare.md#what-a-profile-comparison-can-retain)
+explains omissions, comparison keys and recovery limits.
+
 ## One Inverse And One Evaluator
 
 Core compiles the admitted output projection into bounded inverse instructions.

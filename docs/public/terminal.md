@@ -11,6 +11,23 @@ Changing the workspace language does not change the host's language. Save
 receipts distinguish file creation, immediate verification and cleanup; a
 created file's continued integrity is never guaranteed by the receipt.
 
+Use **Output tasks** to choose a task with Tab and Space. Task status and related
+tasks appear after an acknowledged, verified native save. An installed but
+unverified file remains in the receipt without enabling follow-up guidance.
+The chooser shows up to eight tasks per page. For longer lists, use
+**Next task page** and **Previous task page** to reach every task.
+Preparing a file alone does not complete a task, and saving never switches tasks.
+Answers stay in the local workspace for subsequent tasks. Use Clear private
+when finished; closing the workspace also retires private state.
+
+Choosing a task opens a value-transfer review. Use **Next suggested value** to inspect candidates
+and **Select / deselect value** to choose each value. Supplied destinations and
+omissions start unselected; selecting them explicitly authorizes replacement.
+Protected values remain masked. Apply the selected values and switch, switch
+without copying, or cancel. **Review suggested value** offers the same review
+for the current field. Changes to the workspace retire the review; open it again
+before applying. Transfers remain local and independently editable, with one undo.
+
 The [support index](../internal/STATUS.md) distinguishes actual Terminal process
 exercises from Desktop X11 scenarios and package admission.
 
@@ -53,37 +70,100 @@ Local definition files can contain either a compact maintainer source (`$schema:
 
 ## TUI Layout
 
-The current interface presents **one selected field at a time**. Its editor,
-help and applicable container/list/secret actions change with that selection.
-Use **Previous field** and **Next field** to move through the definition;
-artifact, import, preparation, save and status controls serve the workspace.
-Nested objects, lists, maps and variants use the same selected-field workflow.
+The workbench organizes setup into three responsive keyboard stages tailored for an `80×24` minimum terminal frame and wider consoles:
 
-### Direction and current limits
+1. **`1:Configure`** — Author answers in either **Guided** mode (single-field editor with rich metadata: descriptions, `Units`, `If omitted` guidance, deprecation guidance, inline validation, and `Ctrl+Z` undo) or **Compact** mode (a virtualized **Overview** table displaying statuses, origins, and masked private entries).
+2. **`2:Review & Import`** — Inspect readiness counts, jump to remaining issues or search via **Find…**, review selected output files, and compare or adopt local `.json`, `.yaml`, or `.env` exports.
+3. **`3:Files & Save`** — Validate, prepare output bundles, save create-only protected files, and inspect per-artifact save receipts and history.
 
-The terminal is intended to grow into a sustained configuration workbench for
-operators and developers. Richer navigation, compact/comfortable presentation,
-contextual comparison and developer text editing are future direction; there
-is no full terminal document editor today. The project has chosen to retain
-official Terminal.Gui for this work. Browser-first development also supports
-opening the static browser client from a project's README Configure link.
+When the viewport width is `100` columns or wider, a `32`-column **Sections** navigator stays docked on the left (focusable with `F2`); at `76–99` columns, **Sections…** (`F2`) opens the navigator as a centered modal dialog. Viewports narrower than `76×20` hide interactive controls and display a resize prompt.
 
-Current comparison checks an imported local configuration against the selected
-definition and workspace. It does not compare arbitrary schemas or infer
-migrations. Local file import does not upload the file. Future opt-in native
+Top utility controls switch between **Guided** / **Compact** views, toggle **Human** (humanized) and **Wire** (technical) naming, search settings and actions with **Find…** (`F3`), open the bounded public-scope **Doc…** editor (`Ctrl+E`, capped at `256 KiB` with pre-apply diff preview and stale-revision protection), and trigger **Undo** (`Ctrl+Z`). Nested objects, lists, maps, and variants share these same stages.
+
+### Direction and remaining scope
+
+The project retains official Terminal.Gui for the long-lived operator and
+developer workbench while browser-first development supports opening the static
+browser client from a project's README Configure link. Future opt-in native
 Infisical/Azure Key Vault operations require separate design and are not
 available in this client. When they arrive, they will run through ISLAMU
 SecretKit, never through vendor CLIs. Over SSH, sign-in will use a device code
 instead of a remote browser. Azure may optionally reuse an existing `az login`
 as a credential source
-([decision](../internal/adr/ADR-secret-store-integration-and-credential-sources.md)).
-Target validation and apply permission remain with
-the application. See the [decision and tradeoffs](../internal/adr/ADR-terminal-framework-and-workbench.md)
+([decision](../internal/adr/ADR-secret-store-integration-and-credential-sources.md)). Current comparison checks an imported local configuration
+against the selected definition and workspace; schema-to-schema migration inference
+is out of scope. Target validation and apply permission remain with the application.
+See the [decision and tradeoffs](../internal/adr/ADR-terminal-framework-and-workbench.md)
 for the direction and its qualification boundaries.
 
 ---
 
 ## Keyboard Shortcuts
+
+### Encrypted local profiles
+
+Press **Ctrl+P** to open the local profile commands. Tab and Shift+Tab move
+through the scrollable dialog; Enter activates a focused command. Select an
+absolute local store directory, run **List revisions**, and enter its zero-based
+revision index. Discovery names are unverified until authenticated opening.
+The recipient index is also zero-based.
+
+Enter the profile passphrase in its separate masked field, independently of
+target credentials. New saves require confirmation and at least 15 characters;
+length alone does not guarantee strength. **Save import/upgrade only** retains
+secrets for deliberate upgrade/output without revealing them. **Save inspectable
+encrypted** permits normal editable secret custody after unlock.
+**Save comparison only** strips recoverable secrets and cannot restore them;
+its remaining operational data can still be private.
+
+The dialog displays one reviewed JSON JWE policy: `A256GCM`,
+`PBES2-HS512+A256KW`, PBKDF2-HMAC-SHA512 with 600000 iterations. Unsupported
+algorithms are refused without trying alternatives. This is no FIPS claim.
+
+**Unlock profile** opens the selected revision into the shared workspace.
+**Compare schema** reports value-free schema and carry eligibility counts.
+**Upgrade snapshot** revalidates and seals a fresh immutable snapshot, preserving
+the opened protection mode and eligible held secrets. To replace a retained
+value, enter its field pointer and activate **Retire retained value** twice,
+then close the dialog and enter the replacement in Configure. Retirement
+survives undo. Held values have no reveal, copy or document-edit channel.
+
+**Unencrypted target: Files and Save** returns an ordinary workspace to the
+existing Prepare/Save controls. With a held profile, enter an artifact ID and
+an absolute target output file first: the command composes and directly saves
+the restricted artifact without previewing held secrets. Every native save is
+create-only; unsupported protected-save hosts refuse without ordinary-file
+fallback. Inspect the result for installation, verification and cleanup facts.
+
+Portable passphrase recovery is recommended. Toggle the device keyring option
+to add a native recipient. An empty passphrase makes saving device-only and
+requires explicit acceptance of permanent loss risk. Missing, locked or denied
+keyrings, including SSH sessions without the desktop service, produce safe
+status codes; choose a configured portable recipient explicitly to unlock.
+Failed lookup never creates a replacement key. Save receipts include the
+snapshot identity, trusted ciphertext digest, device recipient ID and initial
+recovery state. Retain those recovery facts independently of the file.
+
+To check recovery, copy the revision into another restricted store, select that
+store and revision, enter the trusted digest and optional device recipient ID
+from the original receipt, and supply only the portable passphrase. Use recipient
+0 for portable-only files or 1 when the native recipient precedes it.
+**Check portable recovery** uses a fresh codec without keyring access and reports
+verified-for-this-snapshot only after checking the exact ciphertext and identities.
+Configured-but-unverified and device-bound-only are distinct states.
+
+Losing every recipient makes recovery impossible; a vault copy alone is
+insufficient. Reinstallation and support cannot reconstruct keys. Uninstall or
+reset may leave files or keyring entries, but preservation is not guaranteed.
+New passphrases protect new snapshots; old copies retain old access and target
+credentials are not rotated. For headless recovery use the bounded
+[CLI profile commands](cli.md), with separate credential inputs.
+
+The profile workflow tests exercise save, unlock, upgrade and recovery with
+synthetic data. English and Arabic terminal sessions also verified Tab traversal
+through the scrolling commands and Cancel at 120 by 40 and 80 by 24 cells.
+Terminal-specific Arabic shaping and assistive-technology qualification remain
+separate host checks.
 
 The TUI is designed for swift, keyboard-driven navigation:
 
@@ -92,7 +172,11 @@ The TUI is designed for swift, keyboard-driven navigation:
 | `Tab` | Navigation | Move focus forward to the next field, control, or button |
 | `Shift + Tab` | Navigation | Move focus backward to the previous field, control, or button |
 | `Enter` | Actions | Activate the currently focused button or action |
-| `Space` | Inputs | Toggle boolean switches, radio buttons, or cycle enum choices |
+| `Space` | Inputs | Toggle choices or activate focused selector buttons |
+| `Ctrl + Z` | Editing | Undo the last committed public/workspace mutation |
+| `F2` | Sections | Focus the docked section navigator or open the modal section picker |
+| `F3` | Discovery | Open **Find…** to filter and jump to settings, errors, or actions |
+| `Ctrl + E` | Document | Open the public-scope document editor (`256 KiB` cap, diff preview) |
 | `Alt + <Letter>` | Global | Jump directly to buttons with underlined access keys |
 | `Left` / `Right` | Status & History | Pan through long status messages or history details |
 | `Home` / `End` | Status & History | Jump to the beginning or end of status text |
@@ -127,7 +211,7 @@ Move between fields using `Tab` and `Shift + Tab`, or use **Previous field** and
 
 Fields enforce strict typing based on the setup definition:
 - **Strings, Numbers, and Decimals:** Invariant decimal formatting is validated on commit.
-- **Booleans and Enums:** Use **Cycle choice** to advance choices sequentially. If an invalid draft is typed, correct it before cycling.
+- **Booleans and Enums:** Use **Toggle choice** to cycle sequentially or **Choices…** to pick from a centered dialog displaying translated display labels, copyable wire tokens, explanations, and deprecation notices (`booleanLabels` for booleans). If an invalid draft is typed, correct it before switching.
 - **Explicit Omission:** Use **Omit value** to remove an answer completely. Empty strings (`""`) and admitted empty enum options remain explicit values; omission is an independent action.
 - **Nullable values:** **Set null** supplies JSON null for a nullable location; it does not omit it. List-item null acts on the selected existing item.
 - **Reset and suggestions:** **Reset value** removes overrides and explicit omission, allowing eligible initialization again. **Apply suggestion** deliberately adopts the declared suggestion; neither navigation nor language selection applies suggestions.
@@ -136,9 +220,16 @@ Fields enforce strict typing based on the setup definition:
 Protected secrets are masked on screen. Secret draft buffers exist only while focused; navigating away flushes the transient editing buffer.
 
 For a field with an admitted local generation recipe, use **Generate** or
-**Regenerate**. The definition controls the algorithm and policy. Generation
-does not prove that a remote service accepts the value. Field help shows shared
-policy requirements and safe correction messages.
+**Regenerate** for immediate defaults, or activate **Options…** when customizable
+bounds are supported to open the centered secret-generator modal. Inside the modal,
+adjust length or byte count, character-class toggles (`a-z`, `A-Z`, `0-9`, `!@#`),
+and excluded characters while observing live entropy calculation and enforcement
+of the `128`-bit minimum floor. Generating a preview keeps the candidate strictly
+in a masked terminal buffer until you choose **Apply**; canceling, pressing `Esc`,
+or closing zeroes all working buffers without modifying draft answers.
+The definition controls the algorithm and policy; generation does not prove
+that a remote service accepts the value, and field help displays shared policy
+requirements and safe correction messages.
 
 **Show/Hide** controls visibility separately from generation. **Copy secret**
 deliberately transfers the value to the system clipboard; ordinary copy/cut
@@ -318,22 +409,3 @@ To protect sensitive configuration data:
 Deterministic adapter/control tests and actual interactive process qualification
 are separate evidence. A prepared configuration does not prove target acceptance,
 grant apply permission or qualify a new operating-system host.
-
-## Connected editing views
-
-Use the section navigator and guided, compact or document views to edit one
-local workspace. Discovery and command controls help reach settings. Preview
-document changes or suggested transfers before adopting them; private compact
-values remain masked and target saving remains a deliberate native action.
-
-## Local profiles
-
-Press Ctrl+P to open profile operations. Choose an immutable revision explicitly
-and check portable recovery for that exact revision. Retained values require
-deliberate retirement before replacement. Closing the dialog clears its buffers.
-
-## Related tasks after saving
-
-Verified native delivery can offer declared related tasks. Preparation or an
-unverified write does not establish delivery. Review proposed value transfers
-before adopting them; local save verification does not authorize target apply.

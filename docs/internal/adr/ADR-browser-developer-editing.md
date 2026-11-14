@@ -1,7 +1,7 @@
 # Public-scope document editing and one accepted-state commit
 
 > **Audience:** Contributors | Maintainers | AI agents
-> **Status:** Accepted design in approved browser-ux-simplification revision 3; shared runtime implemented; Browser integration and qualification pending
+> **Status:** Accepted design, integrated into Presentation and Browser; published-browser and assistive-technology qualification remain separate
 > **Owner:** Presentation / Browser
 > **Date:** 2026-10-31
 > **Source Anchors:** `DefinitionDocumentSession.cs`, `DefinitionDocumentEditing.cs`, `DefinitionEditingState.cs`
@@ -69,7 +69,8 @@ answer-bearing workers, remote services or arbitrary extensions.
 
 The shared implementation has runtime Red/Green cases for atomicity,
 presence/reset/omission, literal paths, protected/dormant state, scope, stale
-reads/candidates and notification behavior. Exact commands and counts belong
-to the [execution evidence](../reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md).
-Browser integration, complete nine-task comparison, physical-device,
-assistive-technology and offline/package qualification remain separate gates.
+reads/candidates and notification behavior, alongside Browser Developer / Compact /
+Undo integration (`BrowserDirectEditingTests`, `BrowserCompactTableTests`). Exact
+commands and counts belong to the [execution evidence](../reports/BROWSER_UX_SIMPLIFICATION_EXECUTION.md)
+and the [Browser contract](../BROWSER_UI.md). Physical-device, assistive-technology and
+offline/package checks remain separate release-gate evidence.

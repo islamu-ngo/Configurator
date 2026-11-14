@@ -162,6 +162,36 @@ Configurator uses standalone Blazor WebAssembly rather than Blazor Server:
 
 ## Using the Workspace
 
+### Related output tasks and reviewed values
+
+Definitions with several output tasks show an **Output task** selector in the
+workspace. A definition with one output, or several simultaneous files without
+task selection, gains no related-task prompts.
+
+Preparation alone does not trigger guidance. After an acknowledged copy or
+download request, the Files view can offer authored related tasks. Coverage
+remains partial until every eligible artifact has an acknowledged action.
+Clipboard copies and download requests remain distinct; a browser download
+request does not prove that a file was saved.
+
+Choosing a task never copies answers automatically. If eligible retained values
+exist, review the source/destination pairs first. Existing answers, explicit
+omissions and invalid drafts start unchecked. Select a row deliberately to
+replace that destination, or choose **Switch without copying**. Cancel preserves
+the current task and answers. Inline dynamic suggestions open the same review.
+
+Protected previews remain masked even with secret-entry consent. Public
+previews may be shortened for readability; applying a selected row uses its
+full validated value. An answer edit retires the review and stales earlier
+export evidence. Locale/view changes preserve export evidence. Revocation,
+workspace clearing and disposal retire held authority and transient history.
+Applying selected values and switching tasks is one accepted change and one
+undo entry.
+
+Related tasks are announced politely after export without moving focus.
+Deliberate review/navigation focuses its destination. English and Arabic use
+the same shared eligibility and masking rules.
+
 ### Loading Definitions
 
 Start at **Choose a project**. One search covers definitions available in the
@@ -195,14 +225,19 @@ Scalar controls remain in the document while the browser can defer their
 offscreen layout. Keyboard focus and browser search reveal those controls;
 this does not change which answers are required or ready.
 
-The workspace keeps output and language selectors in **Output task and language** after the active panel. Its three panels are
+The workspace keeps the **Output task** selector visible before the active panel.
+Definitions with multiple languages expose a separate **Language** disclosure
+after the panel. Its three panels are
 **Configure**, **Review** and **Files**. Only the current panel mounts interactive
 controls. Changing panels, sections or language preserves accepted answers,
 unfinished inputs, secret consent and the pinned definition. **Editor tools and detail**
-contains Form/Developer switching, profile and Comfortable/Compact density controls.
-Local Previous/Next actions move between sections; the final section leads to Review.
-Authored optional tuning starts collapsed, while required corrections remain
-reachable. Required text and choice controls expose the same requirement to
+contains Guided/Compact/Developer mode switching, Humanized/Technical field
+naming (`Ctrl + Shift + K`), profile and density controls, Undo/Redo (`Ctrl + Z`
+/ `Ctrl + Shift + Z` with transient feedback), and the `?` keyboard shortcuts dialog.
+Wide viewports (`>= 1280px`) show schema help in a docked inspector panel beside
+the editor instead of blocking modal overlays, while narrower screens use a drawer
+or dialog. Local Previous/Next actions move between sections; the final section leads to Review.
+Authored optional tuning and secondary groups stay collapsed by default, while groups containing active validation errors open automatically so missing or malformed settings remain reachable. Required text and choice controls expose the same requirement to
 assistive technology as their visible labels, including provider-dependent changes.
 **Show optional settings** opens the section's optional controls in
 one action; ordinary scalar answers do not need individual expansion.
@@ -245,6 +280,11 @@ Inputs dynamically adapt to their declared data types:
 - **Object Containers:** Click **Supply container** to explicitly include an object, even if empty (`{}`). Click **Clear container** to omit it completely.
 - **List Rows:** Use bounded row controls to add or remove list items. Removed rows are excluded from output bundles.
 - **Explicit Omission:** Use **Actions for...** to explicitly omit a setting without affecting sibling fields. Empty strings (`""`) and `false` are valid supplied values distinct from omission.
+
+### Compact Table Editing & Definition Explorer
+
+- **Compact Table View:** Switch to **Compact** in Configure to scan, filter (`All`, `Supplied`, `Required Missing`, `Errors`, `Changed`, `Private`, `Optional`), search (`150 ms` debounced), and inline-edit every active setting in a dense keyboard-accessible table (`role="table"`). Column sorting excludes secret/private columns, secret rows honor workspace consent locks without revealing masked values, and omitted optional or `DefaultText` fields remain omitted until explicitly edited. Choose **Guided** on any row to jump back and focus that field in the guided form.
+- **Definition Explorer (`/explore/{FamilyId}`):** Inspect catalog definitions, revisions, sections, fields, validation constraints, and declared output tasks in a read-only Explorer from the catalog or Open menu before starting a configuration workspace or entering answers.
 
 ### Developer Editing
 
@@ -341,7 +381,7 @@ counts required answers, optional settings without a value and deferred secrets.
 It does not display private answer values.
 
 - **Active Corrections:** Displays validation errors before output decisions, with direct links to jump to the affected field. Files uses the same corrections when preparation fails.
-- **Configuration Inventory:** Inspect active settings, authored-default origins, supplied/omitted states, deferred secrets and declared output bindings.
+- **Configuration Inventory:** Inspect active settings, filter by provenance **Origin** (`All`, `Explicit`, `Generated`, `Defaulted`, `Imported`), inspect authored-default origins, supplied/omitted states, deferred secrets and declared output bindings, and click any active row to jump straight back to that setting in Configure.
 - **Output Inspection:** Review the selected task's declared filenames, formats and restart guidance. Origins and output bindings are available in details. Preparation determines which conditional files are actually included.
 
 When ready, prepare complete files directly from the summary. If only secrets
@@ -357,6 +397,74 @@ those errors into success. Correction actions return to the actual input, and
 > Secret entry is disabled by default for every new workspace. You choose between two secure workflows:
 > - **Secret-Deferred Draft:** Keep secret entry disabled. Configurator produces a draft file with clear placeholders marking where secrets must be supplied locally after export.
 > - **Explicit Consent:** Voluntarily enable secret entry for this workspace. Inputs are masked, and password manager autofill is supported. Revoking consent synchronously denies further secret access, removes secret answers and retained comparisons, and invalidates staged outputs. Owned byte buffers are cleared; managed strings and browser/runtime copies cannot be guaranteed physically erased. Exported files, clipboard contents and password-manager storage remain outside workspace clearing.
+
+### Portable saved profiles
+
+Before answer entry, the published app prepares the reviewed profile worker host,
+runtime and crypto files in its public offline cache. Profile operations load
+those immutable app files from that cache, including when hosted under a subpath.
+An incomplete cache prevents readiness; there is no runtime network fallback.
+This preparation does not cache saved profiles or activate updates over a live
+workspace.
+
+Open **Portable saved profiles** inside the workspace. A stripped comparison
+file can be opened or downloaded without secret consent. It contains public
+values and structural metadata, never recoverable protected values or private
+dynamic keys. Public values may still disclose information about your setup.
+Protected equality is unavailable without its independently protected key;
+missing historical schema also limits structural comparison.
+
+For an encrypted `.cfgvault`, enable secret entry, choose the file, enter its
+passphrase and select one recipient index. Opening deliberately replaces
+editable answers with a public projection. Both encrypted modes initially keep
+retained values inside the dedicated worker; the ordinary form, undo, preview
+and clipboard do not receive them. Browser never consults an OS keyring or tries
+alternative recipients automatically. A native vault's portable recipient may
+be at index 1 when index 0 belongs to the device.
+
+The panel displays the single supported JWE profile: `A256GCM` with
+`PBES2-HS512+A256KW`, using exactly `600000` iterations. Unsupported profiles are
+rejected, with no alternative algorithm or adjustable cost setting.
+
+Review the value-free upgrade findings. To change a retained field, choose
+**Replace retained field**, then confirm retirement. The worker permanently
+retires the whole field before ordinary editing is enabled, including when the
+replacement is invalid or later undone. Enter the new value in the regular
+form. **Prepare and download private target file** revalidates the retained
+values and replacements together, then deliberately downloads the declared
+artifact without an ordinary preview or clipboard route. Browser downloads
+do not guarantee native owner-only permissions or target acceptance.
+
+An inspectable profile additionally offers an explicit disclosure confirmation
+and **Inspect in ordinary form**. This replaces the current editable projection
+with the profile's complete answers, ends worker custody and enables the normal
+consented editing, preview and copy flows. Import-and-upgrade-only profiles
+never offer inspection. A stripped profile cannot establish ordinary complete
+readiness, even after cancellation or consent revocation; reopen it for private
+composition, deliberately inspect an inspectable profile, or start fresh.
+
+**Download a new encrypted snapshot** uses confirmed passphrases of at least
+15 Unicode characters and at most 1024 UTF-8 bytes. An optional different
+recovery passphrase supplies an independent recipient. Existing profiles keep
+their protection mode. A new snapshot does not revoke old copies or rotate
+the target application's credentials.
+
+After saving, choose the exact downloaded copy under **Verify the saved
+snapshot** and enter one portable passphrase. A fresh worker verifies its
+identity and ciphertext digest against the independently held save reference,
+without revealing or adopting answers. Recovery stays configured-but-unverified
+until that check succeeds. Recipient labels and the presence of a recovery slot
+do not prove it works; verification covers only that snapshot and recipient.
+Keep the passphrase separately and retain keys needed by older copies. If all
+recipients are lost, reinstalling the app or contacting support cannot recover
+the vault. Uninstall or reset does not guarantee preservation of files or keys.
+
+Edits close private output and invalidate pending operations. Cancel, revoke,
+workspace replacement and disposal retire the owned worker and reject late
+results. Application-owned input buffers are cleared after use; managed
+strings, interop copies and browser memory have no guaranteed physical-erasure
+contract. No profile, answer, passphrase or artifact is stored automatically,
+sent over the network, or placed in a public asset/definition cache.
 
 ### Generate and inspect local secrets
 
@@ -435,6 +543,7 @@ network requests.
 
 Once answers are validated, choose **Prepare complete configuration** or **Prepare draft**:
 
+- **Browser Custody Notice:** Files clearly notes that accepted answers remain transient inside browser memory, nothing is saved to disk or transmitted externally, and secrets are omitted unless explicitly included in a prepared download/copy action.
 - **Hidden Staging:** Output is not inserted into the private preview until you deliberately choose **Reveal**. **Hide** clears that preview again. The file's visibility notice follows the preview state in English and Arabic; revealing it does not make the output public.
 - **Export Actions:** Use **Copy** to copy contents to the clipboard, or **Download** to trigger a browser file download via short-lived Blob URLs.
 - **File-local Recovery:** Copy or download feedback belongs to its file. If clipboard access fails, **Download** remains immediately available; no answer or artifact contents appear in the error.
@@ -489,19 +598,6 @@ Keep the published directory layout intact: interop modules are under `js/`,
 while `pwa-lifecycle.js` and the service worker remain at the application root.
 Missing asset requests must return an error rather than the SPA fallback.
 
-### Dedicated profile worker assets
-
-The static package includes an independent profile worker runtime under
-`profile-worker/` and its original crypto license and manifest. Keep this
-directory intact when hosting at the origin root or a configured subpath.
-Only public app files enter the offline cache; profiles, passphrases, answers
-and prepared artifacts remain outside it. Missing runtime assets prevent
-readiness and never trigger a network fallback during answer custody.
-The worker protocol requires current workspace consent and explicit caller
-admission before adopting an opened profile. Download and inspect are deliberate
-disclosure boundaries. This infrastructure does not itself expose profile UI
-controls or establish actual-browser, recovery or physical-erasure qualification.
-
 ### Docker Container
 
 The Browser project includes a multi-stage `Dockerfile` serving static assets via an unprivileged .NET static server:
@@ -537,39 +633,3 @@ Deploy Configurator Browser as a Docker service in Coolify with these settings:
 | **Domain & HTTPS** | Configure your custom domain in Coolify |
 
 For advanced integration details, see the [launch integration guide](launch-integration.md) and [packaging guide](packaging.md).
-
-## Density and naming
-
-Appearance settings offer Spacious, Comfortable, Compact and Dense spacing,
-plus Humanized and Technical naming. These local view preferences accompany
-theme and direction; they contain no configuration answers and do not change
-the accepted answer revision.
-
-## Portable profile controls
-
-The local profile panel offers comparison, encrypted opening, deliberate
-retained-field replacement, private output download, resealing and exact-copy
-recovery checks. Secret operations require workspace consent. Retained values
-stay outside ordinary fields and preparation readiness until explicitly
-disclosed in an allowed mode or composed inside the worker. Downloads do not
-provide native file protection or establish target acceptance.
-
-## Explore before configuring
-
-Choose Explore schema from the catalogue, local opening result or store page
-to inspect public sections, settings and declared artifacts. The explorer is
-read-only; opening a configuration session remains a separate action.
-
-## Connected editing views
-
-Use Guided for schema-aware fields or Compact for a searchable settings table.
-The section rail, inspector, shortcuts, naming and density controls share one
-local answer workspace. Review and Files remain part of that workspace; local
-document and secret generation changes are adopted only through their controls.
-
-## Related tasks after export
-
-After a successful copy or requested download, declared related tasks can appear
-in Files. Review suggested answer transfers before applying them or switch
-without copying. Protected candidates stay masked. Editing or revoking consent
-retires old confirmations; download acknowledgement does not prove host acceptance.

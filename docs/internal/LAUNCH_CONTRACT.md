@@ -368,6 +368,16 @@ eight canonical documents and re-admits/checks each digest on read. Updates wait
 and cannot reload an active workspace. Browser-managed worker update checks
 remain a platform limitation; physical disconnection provides stronger silence.
 
+Portable profile operations require the reviewed `js/profile-worker-host.js`
+and published `profile-worker/` runtime and crypto assets to join that preparation
+before answer entry. Only files in the SDK asset manifest are admitted, with
+their manifest integrity and credential-free install requests preserved. Status
+includes their scope-relative cache URLs so the page guard permits loading them
+during custody at root or subpath deployments. Missing cached runtime files
+prevent readiness; runtime fetch remains cache-only. These public files contain
+no profiles, answers, passphrases or prepared artifacts, and their inclusion
+does not permit worker activation over a live workspace.
+
 The public lifecycle module subscribes to browser online/offline events and
 notifies `BrowserOfflinePolicy` with a boolean only. Subscription immediately
 resamples connectivity after cached initialization; queued callbacks cannot
@@ -377,11 +387,20 @@ overrides live workspace custody. Browser online status is eligibility, not proo
 that a remote host is reachable; normal bounded-fetch diagnostics still apply.
 
 Serve the entire published `wwwroot` via a secure context, with SPA fallback
-for `/launch/*`, `/open`, `/diff` and `/embed`, correct WASM MIME types and asset failures distinct
+for `/launch/*`, `/open`, `/explore/*`, `/diff` and `/embed`, correct WASM MIME types and asset failures distinct
 from HTML navigation. Base path, worker scope and manifest must agree. CSP
 allows reviewed WASM boot/same-origin assets and the bounded HTTPS source path;
 it is not target authentication or a network-isolation certificate. Packaging
 and capabilities are generator-owned; see [Packaging](PACKAGING.md).
+
+## Read-only Definition Explorer (`/explore/{FamilyId}`)
+
+`/explore/{FamilyId}` renders a read-only inspection view backed solely by
+`BrowserDefinitionRegistry` and `IDefinitionStoreProvider`. It projects admitted
+schema sections, field descriptions, choices, sensitivity and declared artifacts
+without instantiating `DefinitionFormModel` or referencing
+`Configurator.Artifacts`, preserving clean entry into `/store` or `/open` when the
+operator chooses to start configuring.
 
 ## Extended launch routes and protocol handshake
 

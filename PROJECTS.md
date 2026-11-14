@@ -41,22 +41,29 @@ checkout, backend contracts or running service may be a build input.
 | Optional container transport serving only published public files | `src/Configurator.Browser.Host` |
 
 Corresponding focused suites live in `tests/Configurator.<owner>.Tests`.
-`Configurator.slnx` registers all seven product owners and their suites, the
+`Configurator.slnx` registers the product owners and their suites, the
 optional static host, architecture suite, engineering tools, schema generators
 and dependency probes.
 The static host has no product project references and processes no answers.
 Its HTTP behavior is qualified through the actual container; the existing
 Browser package suite continues to check the static publication independently.
-Browser publishes the independent Core-only Worker executable before assigning
-content paths and links its public files beneath `profile-worker/`. Shared wire
-records are linked source; the main runtime never references the Worker assembly.
-Focused protocol tests link the actual worker session and codec, substituting
-only external crypto and transport. Run the host boundary tests with
+The profile worker is an independently published SDK executable. Browser
+references only Core and Presentation; Worker references only Core. Before
+assigning content paths, ordinary Browser builds and publications publish Worker
+to fresh intermediate staging and link only its public `wwwroot/` files beneath
+`profile-worker/` as ordinary Browser Content. SDK compilation/AOT caches survive
+under Browser's `obj/profile-worker-cache/`; stale staged files do not survive.
+Captured builds use `BuildCaptureTask` for the child publication and retain its
+separate restore/execution graphs and isolated intermediates. The main runtime
+never references or packages the worker assembly in its own `_framework/`.
+Shared wire records are linked first-party source. Focused Browser tests link the actual worker session
+and codec, substituting only the external crypto/transport boundary; they do not
+qualify SDK boot, WebCrypto, trimmed AOT, physical termination or memory erasure.
+Run the authored host-channel boundary tests with the installed Node tool:
 `node --test tests/Configurator.Browser.Tests/Profiles/ProfileWorkerHostTests.mjs`.
-`eng/configurator/BuildBrowserProfileWorker.cs` owns the exact crypto bundle,
-manifest and original terms; its `--self-test` and offline `--check` modes are
-separate from SDK publication and actual-browser qualification. See
-[worker publication](docs/internal/PACKAGING.md#independent-profile-worker-publication).
+These execute the shipped host module with only the Worker and DOM boundaries
+substituted; actual Browser requests, caches, responsiveness and SDK execution
+remain separate qualification.
 
 ### Engineering & Dependency Owners
 
@@ -73,6 +80,7 @@ separate from SDK publication and actual-browser qualification. See
 | `eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj` | Definition schema generation and freshness checks. |
 | `eng/configurator/Configurator.CommandSchemaGenerator/Configurator.CommandSchemaGenerator.csproj` | Generic machine command schema generation and freshness checks. |
 | `eng/configurator/Configurator.BuildCapture/Configurator.BuildCapture.csproj` | SDK-bound evaluated-input and controlled-check capture. References the pinned SDK's MSBuild assemblies only; no runtime project references it. A successful project build does not establish graph completeness, consumption-time identity or package qualification; its Architecture capture regressions and actual graph checks own those claims. |
+| `eng/configurator/BuildBrowserProfileWorker.cs` (file-based tool) | Exact one-component jose archive/lock/license admission and native generation of worker ESM assets, manifest and original MIT notice. Supports `--self-test`, `--review-closure directory output`, `--write root` and `--check root`; product worker publication and actual-host checks remain separate. |
 | `eng/configurator/probes/communitytoolkit/Configurator.DependencyProbes.CommunityToolkit.csproj` | Approved MVVM dependency closure. |
 | `eng/configurator/probes/dependency-injection/Configurator.DependencyProbes.DependencyInjection.csproj` | Approved DI dependency closure. |
 | `eng/configurator/probes/yamldotnet/Configurator.DependencyProbes.YamlDotNet.csproj` | Approved YAML dependency closure. |
@@ -202,6 +210,11 @@ Browser Release publication uses AOT and requires the `wasm-tools` workload
 selected by `global.json`, plus Python 3 on Linux builders. See the
 [Browser hosting guide](docs/public/browser.md) for setup. Debug remains
 interpreted; the SDK performs AOT compilation during publication.
+Browser builds also publish the independent profile worker in the selected
+configuration, so a direct development build includes runnable worker assets.
+Release builds therefore require the worker's AOT toolchain as well.
+See [worker publication verification](docs/internal/PACKAGING.md#independent-profile-worker-publication)
+for source-ready checks and the remaining actual-browser gates.
 
 ```bash
 dotnet build src/Configurator.Core/Configurator.Core.csproj --configuration Release --verbosity quiet
@@ -258,7 +271,7 @@ Desktop native qualification runs separately from MTP/headless tests:
 
 ```bash
 dotnet build tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --verbosity quiet
-dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 30
+dotnet run --project tests/Configurator.Desktop.NativeHost/Configurator.Desktop.NativeHost.csproj --configuration Release --no-build -- --expected-rid linux-x64 --minimum-expected-checks 33
 ```
 
 Its exact thirty-name set preserves the original twenty-four guards, including

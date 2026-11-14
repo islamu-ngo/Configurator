@@ -8,25 +8,78 @@
 > **Source Anchors:** `src/Configurator.Browser/`, `docs/internal/LAUNCH_CONTRACT.md`, `docs/internal/OPERATIONS.md`
 > **Review basis:** Source-owner reconciliation and scoped published direct-editing evidence; complete qualification remains separate
 
-## Dedicated profile worker protocol
+## Portable profile integration
 
-`ProfileWorkerClient` owns a host bridge and dedicated SDK Worker. It captures
-workspace ID, generation, answer revision and consent epoch from the caller's
-actual workspace. Opening first returns safe historical identity; only explicit
-caller admission permits the separate adoption command and public projection.
-The Worker owns retained plaintext and invokes Core planning and scoped
-composition. Retained-field retirement consumes the predecessor before ordinary
-replacement. Restricted output crosses only explicit download or inspect routes.
-Cancellation, revocation and disposal must synchronously retire the owned worker;
-late replies cannot restore authority. This is logical retirement, not proof of
-physical WebCrypto termination or complete memory erasure.
+`ConfigurationVaultPanel` owns the deliberate upload, unlock, public comparison,
+private download, new-snapshot and exact-copy recovery interactions. It remains
+mounted across Configure/Review/Prepare stages. Its English/Arabic resource pair
+labels modes, the single reviewed algorithm, recipient selection, recovery limits
+and value-free findings; declared paths and protocol identifiers use bidi isolation.
 
-The public cache admits only SDK-inventoried `profile-worker/` assets and the
-fixed host module. Missing assets fail readiness without network fallback.
-Protocol/client and host-channel tests exercise these first-party boundaries
-without providing UI workflow, SDK boot or actual-browser qualification. See
-[publication](PACKAGING.md#independent-profile-worker-publication) and the
-[public custody boundary](../public/browser.md#dedicated-profile-worker-assets).
+`ConfigurationEditor.Profiles.cs` captures the existing editor workspace identity,
+operation generation, current form revision and consent epoch for
+`ProfileWorkerClient`. The panel adds no editable answer tree or scheduler.
+Every asynchronous action captures that authority; input changes, cancellation,
+revocation and disposal reject stale results and close reachable output. The
+worker remains the only retained-value owner. File acquisition is bounded to
+4 MiB; passphrases use strict UTF-8 with the shared 1024-byte limit. Owned input
+arrays clear on every exit, without claiming managed-string or runtime erasure.
+
+`BrowserDefinitionRegistry` owns one history of family/revision/digest identities
+shared by catalogue admission and profile candidates. Removed identities remain
+reserved, conflicts reject before worker adoption, and the 4096-identity budget
+counts current and removed identities together. A catalogue replacement first
+checks its complete additions, so refusal does not partially change history.
+An authenticated profile identity is not publisher authentication.
+
+The shared `DefinitionFormModel.BrowserProfiles.cs` admits only the worker's
+safe public projection and root-level retained-path metadata. It additionally
+strips values protected by the current target. `ProfileBlocks` applies to common
+editing and import/document gates. Confirmed replacement awaits
+`RetireAsync(reference, path, token)` before releasing a retained path for
+ordinary edits; captured form authority must still match. A rejected replacement
+or Undo cannot restore worker custody. Explicit `InspectableEncrypted` disclosure
+is the sole path from `InspectAsync` to ordinary consented answers, and only
+after current adoption does the form retire the worker.
+
+The persistent stripped-profile flag blocks ordinary preparation and its
+complete-readiness claim, including after cancellation or revocation. Private
+artifact download and sealing use worker composition with the current ordinary
+snapshot. Inspection clears that flag after complete answer adoption. Comparison
+files never become restore inputs, and the UI reports protected equality as
+unavailable without an independently held key.
+
+Saving retains only a safe `ProfileRecoveryReference`; verification opens the
+operator-selected exact copy in a fresh worker with one portable recipient.
+It cannot infer recovery from unauthenticated recipient labels or independently
+establish that a person has preserved a backup. Profile output uses the dedicated
+client's deliberate download route; comparison downloads reuse
+`BrowserArtifactExport` and its synchronous invalidation.
+
+The imported host module exposes `createBridge()`: each client owns its bridge
+and worker independently, while the managed static admission gate still permits
+one active profile operation. Recovery can therefore use fresh custody without
+retiring an idle opened profile. Cancellation preserves the cancellation token
+when worker termination rejects the transport promise. Profile inputs reuse
+`form-control`; retained ordinary fields explain profile custody rather than
+asking for consent that is already granted. None of these UI affordances changes
+the shared form's edit or disclosure authority.
+
+`BrowserProfileVaultTests` covers safe adoption, edit blocking, asynchronous
+replacement fencing, mode-specific disclosure, revocation, stripped readiness,
+public comparison and the shared history budget. The final focused cohort passes
+48 cases, with eight ordinary-field privacy cases retained. Actual Release/AOT
+root and configured-subpath workers opened profiles and composed restricted
+output. Root observations additionally exercised two-recipient save, fresh
+exact-copy recovery, explicit inspectable disclosure, revocation, active-KDF
+cancellation, cached operation without the HTTP host, and update waiting.
+Ten English/Arabic desktop/mobile frames were inspected; mobile comparison
+words can wrap within a column. These scoped observations establish no physical
+WebCrypto termination, memory erasure, AT/WCAG or cross-browser certification.
+The [packaging evidence and limits](PACKAGING.md#independent-profile-worker-publication)
+separate ordinary publication from unresolved assurance gates. Local execution
+records are not distributed with the public source. See the
+[public profile workflow](../public/browser.md#portable-saved-profiles).
 
 The static WebAssembly shell owns navigation and appearance. `Layout/MainLayout`
 provides skip navigation, the header, application navigation, main landmark and footer. Home,
@@ -85,6 +138,40 @@ Published-browser keyboard, zoom/reflow, theme, RTL, offline and CSP evidence
 is separate from component-test evidence.
 
 ## Synthetic interaction evidence
+
+### Captured output workflow and transfer review
+
+`ConfigurationEditor.Publication` captures one
+`DefinitionOutputExportContext` after successful preparation using the captured
+input revision and complete eligible artifact set. Each per-file or aggregate
+callback retains that exact context across interop. Existing form/view,
+prepared-artifact membership and operation-generation checks run before
+`RecordOutputExport`. Only acknowledged copy/download requests record the exact
+successful IDs; reveal and preparation do not. Output invalidation clears the
+held context synchronously before asynchronous private capability retirement.
+
+`ConfigurationEditor.Workflow` owns the current value-free review descriptor.
+The visible task selector and next-action controls resolve any pending
+Developer document before asking the shared form for review. Confirmation
+passes selected IDs and the captured review, never a freshly read substitute.
+The parent callback checks both its rendered owner/view and review identity.
+`RetireView` clears held UI review state on edits, replacement, locale/view
+retirement and disposal. Shared generation/revision/custody checks remain the
+final authority.
+
+`ConfigurationNextActionsPanel` renders public metadata, selection IDs and
+bounded public previews. Protected rows do not call the preview accessor.
+It stores no answer values. Its polite region is mounted for multi-task
+workspaces before export, while its visible related-task section requires
+qualifying proposals. No related-task region exists for definitions without
+multiple selector options. Review focus is requested only by explicit user
+actions. Inline fields use the scoped suggestion-review callback and preserve
+their existing exact action guards.
+
+The shared implementation and accepted-state mechanisms remain in the
+[Presentation contract](PRESENTATION_STATE.md#reviewed-value-transfer).
+Browser downloads retain deliberate-request semantics and do not acquire native
+protected-save guarantees.
 
 `eng/configurator/MeasureInteractiveWork.cs` validates supplied synthetic timing
 records; it neither drives the Browser nor authenticates their producer.
@@ -590,7 +677,9 @@ search reachable during deep editing. Its global shortcut yields to an active
 dialog rather than escaping modal focus custody.
 
 `ConfigurationReview` projects shared diagnostics into value-free explanations
-and correction buttons before output decisions. Files reuses the same diagnostic
+and correction buttons before output decisions. It exposes **Origin** filter chips
+(`All`, `Explicit`, `Generated`, `Defaulted`, `Imported`) and `[data-action="review-focus-row"]`
+navigation buttons to jump back to Configure for any inspected setting. Files reuses the same diagnostic
 component and revision-bound correction callbacks after failed preparation;
 answers and input drafts survive while previous export eligibility is retired.
 Review lists the current output selector's artifact set, retaining the declared
@@ -606,7 +695,28 @@ receiving off-screen focus. Secret recovery also covers required secret
 descendants inside optional supplied objects. Draft and complete preparation
 remain distinct; filenames and completion locations come from shared artifacts.
 Reveal, copy and download remain deliberate operations owned by
-`BrowserArtifactExport`, and edits, revocation and disposal invalidate output.
+`BrowserArtifactExport`, while `ConfigurationFilesPanel` renders `[data-custody-disclosure]`
+explaining browser-local transient custody and edits, revocation and disposal invalidate output.
+
+`ConfigurationCompactTable` implements the dense **Compact** editing mode inside
+`ConfigurationConfigurePanel`: it renders an accessible `role="table"` over
+`DefinitionFormModel.GetCompactRows`, filters with `DefinitionDiscoveryFilter` chips
+and `TimeProvider`-backed `150 ms` debounced search, sorts only non-private columns,
+enforces `IsSecretLocked` without granting consent, edits through
+`DefinitionFormModel.EditCompactValue` without materializing omitted/`DefaultText` fields,
+and maps row identity via `EditorIdentity` for private dynamic map entries so private
+keys are never exposed in DOM attributes. Up to 40 visible rows render directly for
+deterministic virtualization-free focus/testing, switching to `<Virtualize>` above 40 rows.
+
+Supporting workspace surfaces cover `ConfigurationInspectorPane` (docked inspector at
+`>= 1280px` with dialog fallback below), `ConfigurationSecretGeneratorDialog` (modal recipe
+generator keeping revealed plaintext passwords outside prepared output),
+`KeyboardShortcutsDialog` (`?` reference dialog), `ISnackbar` Undo/Redo notifications
+(`Ctrl+Z`/`Ctrl+Shift+Z` via `DefinitionFormUndoHistory` with synchronous secret purge on
+consent revocation), collapsible groups auto-expanding on validation errors, and the
+read-only `/explore/{FamilyId}` route (`Pages.Explore`) consuming
+`BrowserDefinitionRegistry` and `IDefinitionStoreProvider` with zero `DefinitionFormModel`
+or `Configurator.Artifacts` dependencies.
 
 `BrowserNavigationState` and `WorkspaceNavigationGuard` confirm route departure.
 Cancellation keeps the workspace. Confirmation invalidates current operations
@@ -619,43 +729,3 @@ late decisions. `NavigationLock` retains browser-managed external unload prompts
 See [Presentation state](PRESENTATION_STATE.md) for generation ownership and
 [Operations](OPERATIONS.md#browser-custody-and-offline-verification) for actual
 published-browser evidence.
-
-## Bounded appearance preferences
-
-`AppearanceState` admits only theme, direction, density and naming mode within
-256 UTF-8 bytes. `AppearanceThemeService` synchronizes the existing JS module
-and local controls. The public preference contains no answers or output.
-Four density presets map to shared workspace presentation options; humanized
-and technical naming remain view choices. Theme surfaces, density tokens and
-the named controls are checked independently of profile/workspace integration.
-
-## Consent-bound portable profile controls
-
-`ConfigurationVaultPanel` delegates portable profile operations to
-`ProfileWorkerClient`. The editor captures workspace lifetime, generation,
-answer revision and consent epoch. Retained fields explain their custody and
-cannot certify ordinary preparation readiness. `BrowserDefinitionRegistry`
-shares bounded digest-only revision history with authenticated candidates,
-including identities removed from the visible catalogue. Deliberate download
-remains a Browser custody transfer, separate from native protected saving.
-
-## Read-only definition exploration
-
-`Pages/Explore.razor` resolves public definitions from the local registry or
-admitted store provider and renders schema metadata, section inventory and
-declared artifacts. It does not mount `ConfigurationEditor`, collect answers,
-request secret consent or prepare output.
-
-## Connected workspace editing
-
-The startup gate, header, section navigation, guided fields, compact table,
-inspector and keyboard commands consume the shared workspace projection.
-Local density/naming changes preserve accepted-answer revisions. Document
-editing and local secret options use explicit adoption; private compact rows
-remain masked. The shell/search adapter retains workspace and view generations.
-`ConfigurationEditor.Workflow` captures output authority and retains immutable
-transfer reviews. Publication records only acknowledged copy/download results;
-edits, revocation and replacement retire stale authority. The next-actions panel
-renders related tasks only after acknowledged delivery and masks protected
-candidate previews. Confirming selected candidates adopts one atomic transfer;
-cancellation and old captured delegates cannot overwrite current answers.

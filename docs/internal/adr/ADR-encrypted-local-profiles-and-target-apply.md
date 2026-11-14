@@ -1,10 +1,73 @@
 # ADR: Encrypted Local Profiles, Upgrade Modes, and Target Delta Apply
 
-Status: Proposed; future design plan for encrypted local profiles, Day-2 upgrade diff modes, and secret-manager/PaaS (Coolify) delta apply — not implemented.
+Status: Accepted and implemented local profile design; scoped qualification executed, broader release gates remain open. Remote target apply remains proposed and unimplemented.
 Date: 2026-11-12
+Updated: 2026-11-13
 Owners: Core, Artifacts/Security, Presentation, and native client maintainers.
 Technical anchors: [Core contract](../CORE_DEFINITION_CONTRACT.md), [Secret cryptography](../SECRET_CRYPTOGRAPHY.md), [Protected artifacts](../PROTECTED_ARTIFACTS.md), [Import/comparison](../IMPORT_COMPARISON.md), [Launch/custody](../LAUNCH_CONTRACT.md), [Desktop client](../DESKTOP_CLIENT.md).
 Backlog intake: [Configuration workflows beyond the offline MVP](../../../dev/backlog/universal-configurator-followups.md).
+
+## Current Decision
+
+The authorized encrypted-local-profiles revision 7 replaces the original
+cryptographic proposal below. The historical proposal remains as decision
+history, not an alternative supported format or implementation requirement.
+The [cryptography contract](../SECRET_CRYPTOGRAPHY.md) owns the exact current
+policy; [delivery and qualification status](../STATUS.md#implemented-scope)
+distinguishes implemented source, executed checks and remaining qualification.
+
+Use library-owned RFC 7516 JSON JWE, admitting its general and flattened forms
+under one bounded policy: A256GCM, PBES2-HS512+A256KW and exactly 600000
+PBKDF2-HMAC-SHA512 iterations. Native jose-jwt 5.3.0 and Browser jose 6.2.17
+own serialization, derivation, wrapping and authenticated encryption. Existing
+Bouncy Castle uses remain. This replaces the proposed custom split envelope,
+dual-cipher selection, mandatory Argon2id and zero-new-package constraint.
+It is a CPU-hard password policy, not Argon2 equivalence or a FIPS claim.
+
+The authenticated application payload carries mode, schema identity and answer
+scope. Core admits bounded content before adoption and retains historical
+family/revision/digest conflicts. Compare-only files omit protected values and
+private dynamic keys. Optional equality commitments require an independently
+protected comparison key; a stripped file cannot recover omitted secrets.
+Incomplete historical schema produces unavailable comparisons rather than an
+invented unchanged result.
+
+Import/upgrade-only custody uses scoped composition through Core and
+Presentation. Ordinary snapshots, undo, reveal, copy, comparison and preview do
+not contain retained secrets. Confirmed replacement consumes the predecessor
+and permanently excludes the retained root. Inspectable mode requires an
+explicit disclosure flow. Target artifacts enter a deliberate restricted sink;
+preparation never grants target acceptance, apply or administration.
+
+Native revisions are immutable and use the verified protected writer.
+OS convenience recipients use Windows Credential Manager, macOS Keychain
+Services or Linux libsecret, with no fallback key file. A native successful
+unlock does not establish unused portable recovery. Independent restore checks
+bind the exact ciphertext digest and snapshot IDs, select one portable recipient
+and use a fresh codec without native lookup. Resealing makes a fresh snapshot;
+old copies retain old access. Actual OS-provider host qualification remains
+separate from injected-boundary tests and Linux filesystem evidence.
+
+The Browser owns an independent dedicated .NET worker executable over Core.
+Its high-level interop calls the reviewed JS library; no native adapter or
+second editable answer tree crosses into it. Public worker runtime files are
+published separately from the app runtime and admitted through the immutable
+offline asset policy. Consent gates private transfer; revocation terminates the
+owned worker synchronously and rejects stale replies. Browser uploads and
+downloads remain deliberate, transient operations, without native protected-save
+guarantees or whole-process memory-erasure claims.
+
+The existing native release owner publishes all three Linux surfaces and the
+Browser. Source-generated JSON metadata and local ActivitySource notifications
+keep the actual trimmed/AOT closure valid without warning suppression. Product
+worker execution, live-custody cache/update behavior and each host's native
+capabilities require their own evidence. Library selection and an automated
+independent review are not external cryptographic certification.
+
+Artifacts and Browser maintainers own exact-package advisory review and renewed
+qualification after changes to versions, policy or dependency closure, as
+recorded in the [dependency decision](../legal/dependencies/encrypted-local-profiles.md).
+No release signer, production trust or remote apply authority is established.
 
 The [secret-store integration ADR](ADR-secret-store-integration-and-credential-sources.md)
 (2026-11-14) decides the future Infisical and Azure Key Vault transport:
@@ -15,7 +78,7 @@ The [secret-store integration ADR](ADR-secret-store-integration-and-credential-s
 
 Remote target apply remains deferred and unimplemented.
 
-## Context
+## Historical Proposal Context (2026-11-12)
 
 Operators currently prepare candidate configuration artifacts via `DefinitionArtifactComposer` / `DefinitionDraftArtifactComposer`, write native outputs via [`IProtectedArtifactWriter`](../PROTECTED_ARTIFACTS.md), or run read-only comparisons against ordinary exported `.env`, JSON, and YAML files via [`DefinitionImport`](../IMPORT_COMPARISON.md) ([evidence-aware import/comparison ADR](ADR-artifact-import-comparison.md)).
 
@@ -31,7 +94,7 @@ When upgrading self-hosted software across breaking schema releases—or managin
 
 At the same time, Browser WebAssembly (`Configurator.Browser`) must preserve its strict zero-persistence custody guarantee ([`LAUNCH_CONTRACT.md`](../LAUNCH_CONTRACT.md#transient-answer-and-output-boundary))—never caching answers or encrypted snapshots in `localStorage`, `IndexedDB`, `OPFS`, or service workers.
 
-## Decision (Future Plan)
+## Historical Proposal (Superseded for Local Profiles)
 
 ### 1. Support Four Explicit Persistence and Export Tiers
 
@@ -100,7 +163,7 @@ Direct target integration is **deferred** to a dedicated secret-management and P
    - Native sync via official provider CLIs (`infisical-cli`, `az`) or `SecretKit.Management` APIs, strictly operator-triggered and defaulting to zero network activity.
    - *Superseded 2026-11-14:* SecretKit is the only transport; CLIs may only supply an explicit opt-in credential. See the [secret-store integration ADR](ADR-secret-store-integration-and-credential-sources.md).
 
-## Consequences and Alternatives
+## Historical Consequences and Alternatives
 
 - **Single encrypted format without `compare-only` rejected:** Storing encrypted secrets everywhere prevents cryptographic non-readability when operators already keep secrets in Coolify (`is_shown_once`) or Infisical and only need local schema diffing.
 - **In-place mutable vault file rejected:** Overwriting one `answers.vault` file violates `IProtectedArtifactWriter`'s create-only safety posture and destroys rollback history on interrupted upgrades.
@@ -108,9 +171,11 @@ Direct target integration is **deferred** to a dedicated secret-management and P
 - **Honest security communication (*Bayan* / *Sidq*):** UI copy and docs must clearly state that `import-upgrade-only` hides plaintext in UI/exports and tamper-locks file `purpose`, whereas `compare-only` is the only local mode with **zero stored secret bytes**.
 - **Cross-platform keyring qualification:** Windows DPAPI, macOS Keychain, Linux `libsecret`, and `systemd-creds` adapters will require separate per-host native verification per [`STATUS.md`](../STATUS.md#protected-save) before claiming host support.
 
-## Verification Before Acceptance
+## Historical Acceptance Criteria
 
-Before promoting this record from `Proposed` in its future implementation workstream:
+These criteria belonged to the superseded proposal. Current local qualification
+follows the execution record linked above; live target integration remains a
+separate future workstream:
 
 1. Require failing invariant tests proving `compare-only` envelopes contain zero secret plaintext bytes, even for dynamically authored maps or failed secret policies.
 2. Prove AEAD `AAD` verification rejects `.cfgvault` files whose `purpose` or `definition.digest` header is modified on disk.

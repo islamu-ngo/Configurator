@@ -30,6 +30,25 @@ and conformance obligations. Complete sources live in the
 [Grafana example](../../examples/grafana-13.2.2/README.md); this page deliberately
 does not duplicate their full configurations.
 
+## Export evidence in a workspace
+
+The shared form keeps transient export evidence for the answers used to prepare
+an output. Preparation alone does not count as export. An adapter reports an
+acknowledged clipboard copy, a requested browser download, or a verified native
+save. A requested download does not prove that the browser saved a file.
+Client integration and platform qualification are tracked separately.
+
+When an output task contains several eligible artifacts, one successful action
+records partial coverage. Complete coverage means every eligible artifact has
+an acknowledged action; mixed delivery kinds remain visible separately.
+Every answer edit, including task selection, import and undo, makes earlier
+evidence stale. Locale and view changes preserve it.
+
+Authored follow-up actions become eligible only after an acknowledged action for
+the current task and answers. They never navigate or copy values automatically.
+Secret-consent revocation, private-state clearing and workspace disposal retire
+the transient history and held export authority.
+
 ## Anatomy of a Definition
 
 The shared workspace supports typed maps and discriminated variants at the

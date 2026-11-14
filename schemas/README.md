@@ -11,6 +11,15 @@ projects public command metadata and declared bounds from the 0.0.1 receipt sche
 The [CLI guide](../docs/public/cli.md) owns usage and meaning; schema freshness
 must pass before [reference freshness](../eng/knowledge/README.md#generated-command-reference).
 
+The Core schema owner admits bounded output-option descriptions and closed
+`nextActions` with target IDs, text, priorities and predicates. Authoring permits
+named predicates; runtime permits lowered ASTs only. Semantic admission verifies
+targets and recomputes `presentation.next-actions` for nonempty action lists.
+Localization uses numeric option/action positions. Generated definition and CLI
+capability schemas must be refreshed together through the owners below before
+distribution. The definition, command, frozen-contract and command-reference
+owners were regenerated and their freshness checks passed with this implementation.
+
 | Schema File | Purpose | Primary Consumer | Authoring Format |
 |---|---|---|---|
 | [`configurator-authoring.schema.json`](configurator-authoring.schema.json) | Describes current compact maintainer source (`configurator.yaml` or `configurator.json`). | Tool authors, IDE validation, compiler preflight. | YAML / JSON |

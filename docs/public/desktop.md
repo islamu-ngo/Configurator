@@ -49,8 +49,8 @@ after cancellation or workspace replacement cannot change the new workspace.
 
 The workspace has four top-level stages accessible from the fixed header bar:
 **Open** admits a definition from the bundled catalog, local file, or public HTTPS link.
-**Configure** shows its authored sections and the current section's editors.
-**Review outputs** contains preparation and deliberate protected saving.
+**Configure** hosts three workspace views — **Guided** (sectioned cards), **Compact** (dense virtualized table of active leaf settings with quick filtering/sorting and masked secret custody), and **Document** (generation-fenced canonical JSON/YAML source view with pre-apply diff preview) — plus a metadata-only **Inspector** pane showing schema path, wire key, validation bounds, controller impact, output bindings, and static guidance links without ever displaying supplied answers or secrets.
+**Review outputs** separates step **1. Review & prepare outputs** from step **2. Deliberate create-only save**.
 **Settings** provides a dedicated left-sidebar workspace organized into sections
 (**Appearance**, **Language & layout**, **Keyboard & dialogs**, and
 **Privacy & host output**) for session display preferences, keyboard shortcuts,
@@ -67,10 +67,7 @@ Paging changes the displayed editors while the workspace retains their drafts
 and identities. Definitions whose root is a map or a variant have a neutral
 Configure section so their recursive editor remains reachable.
 
-Small windows use a section picker. Wider workspaces show a fixed left section
-rail that scrolls independently when a definition has more sections than fit in
-the viewport, while the editing body scrolls separately within an 800-unit
-reading width. Resizing rearranges the existing editing surface rather than
+Small windows use a section picker and an overlay drawer when the Contextual Inspector is open. Wider workspaces (`>= 1200` logical units) can dock the `320`-unit **Inspector** alongside the optional left section rail, while the active workspace body scrolls independently within its reading container (`<= 800` units in Guided mode, expanding cleanly for Compact tables and Document diff reviews). Resizing rearranges the existing editing surface rather than
 replacing an in-progress text input.
 
 Appearance offers **System**, **Light** (Latte), and **Dark** (Macchiato).
@@ -79,6 +76,31 @@ Native high contrast takes priority, and turning it off restores your chosen
 ordinary appearance. Appearance changes do not alter answers or preparation.
 
 ---
+
+## Output tasks and reviewed value reuse
+
+Definitions with several output tasks expose an **Output task** selector in
+Configure. It selects the configuration task; **Choose folder** in Review
+outputs still selects the local destination directory.
+
+After a verified native save, Review outputs shows task progress and any
+authored next tasks. A partial bundle records only the files whose installation
+was verified. Physical receipts separately retain failed, unverified and unknown
+outcomes, even if answers changed or another definition replaced the workspace.
+A single task or simultaneous outputs do not create companion-task prompts.
+
+Choosing a task with reusable values opens a checklist before changing answers.
+Existing destination values, including omissions and unfinished input, start
+unchecked. Select an overwrite explicitly, then choose **Apply and switch**.
+**Switch without copying** preserves independent values; **Cancel** preserves
+the current task. A field's linked suggestion opens the same review for inline
+adoption. Private previews stay masked. Editing, cancellation, private-state
+clearing or workspace replacement retires the review; review the current values
+again before applying. Copied values remain independently editable.
+
+Controls follow the workspace's English or Arabic locale and direction. Status
+updates do not move focus; deliberate task navigation reveals the destination.
+These preparation and save facts do not establish target application acceptance.
 
 ## Keyboard Shortcuts
 
@@ -89,8 +111,11 @@ Navigate quickly using native keyboard controls:
 | `Tab` | Move focus forward to the next field, control, or button |
 | `Shift + Tab` | Move focus backward to the previous field, control, or button |
 | `Ctrl + O` | Focus the definition file path input |
+| `Ctrl + K` | Focus search & open the Workspace command palette |
+| `Ctrl + Shift + E` | Switch to **Configure → Document** view |
+| `F2` | Toggle the metadata-only **Inspector** drawer/pane |
 | `Ctrl + Enter` | Open Review and prepare the selected outputs; saving remains separate |
-| `Escape` | Dismiss the active popup first; otherwise cancel work or discard preparation |
+| `Escape` | Dismiss the command palette or active dialog first; otherwise cancel work or discard preparation |
 | `Alt + <Letter>` | Activate button matching the underlined access key |
 | Direction controls | Follow the definition locale's direction, or explicitly override left-to-right/right-to-left layout |
 
@@ -130,7 +155,7 @@ Fields dynamically render native controls matching their admitted types:
 ### Find settings and correct errors
 
 **Find settings** searches admitted titles, descriptions, schema metadata and
-public facets. It never indexes answers, secrets, private map entry names or
+public facets, and includes filter chips (**All**, **Issues**, **Missing required**, **Modified**, **Deferred secrets**) plus a **`Ctrl+K` Workspace commands** palette for quick stage/view navigation. It never indexes answers, secrets, private map entry names or
 prepared file content. Queries accept at most 256 characters and 16 terms;
 limit feedback leaves the accepted search unchanged. Results show a total,
 active/inactive status and pages of 25. Include inactive settings explicitly
@@ -159,9 +184,13 @@ PEM private-key fields accept multiple lines, preserving the original key envelo
 when pasted or copied. Visibility remains a deliberate Show/Hide action.
 
 For a field with an admitted local generation recipe, choose **Generate** to
-create a value using its declared policy. **Regenerate** deliberately replaces
-the current value. Existing or issuer-supplied credentials remain manual input;
-Configurator does not contact the issuer or prove that a target accepts a key.
+create a value immediately using its declared policy, or **Generator options…**
+to open the modal configurator (choosing character length or byte length within
+schema bounds, allowed character classes, and excluded characters with live
+`128`-bit entropy evaluation and an explicit preview before applying). **Regenerate**
+deliberately replaces the current value. Existing or issuer-supplied credentials
+remain manual input; Configurator does not contact the issuer or prove that a
+target accepts a key.
 
 Secret fields start masked. **Show/Hide** changes visibility, and editing or
 closing the workspace hides the value again. **Copy value** deliberately sends
@@ -341,23 +370,75 @@ again using fresh destinations.
 
 ---
 
-## Managed Local Profile Store & Protocol Handshake
+## Local Profiles And Key Custody
 
 > [!NOTE]
-> **Planned feature:** Managed encrypted local profile storage, `configurator://` deep-link matching, and direct PaaS/secret-manager delta sync are on the future roadmap ([proposed design decision](../internal/adr/ADR-encrypted-local-profiles-and-target-apply.md)). Current Desktop builds support stateless configuration editing, comparing ordinary files, and create-only Linux protected output.
+The **Local profiles and recovery** disclosure is available in Open, Review and
+Settings under Privacy &amp; host output. Enter an absolute private profile
+directory and list its immutable revisions. Discovery is unverified; opening
+authenticates the selected encrypted revision against the currently admitted
+definition. Choose one recipient index for each attempt. Enable the configured
+OS keyring recipient explicitly, or enter the portable passphrase with device
+access disabled. A failed lookup never creates a key or tries another recipient.
 
-Configurator Desktop is designed to serve as an operator's local command center for managing applications across multiple deployment environments:
+For a fresh workspace, choose one of the four modes. Confirm a new portable
+passphrase exactly; it needs at least 15 Unicode characters. Creating a device
+recipient is a separate explicit action. Saving with only that recipient requires
+the displayed loss acknowledgement. An opened encrypted profile preserves its
+mode when saved with fresh encryption and a new snapshot identity.
 
-1. **Protocol Handshake (`configurator://`):**
-   * Registered as a native desktop URI scheme on Linux, macOS, and Windows.
-   * When operators click "Configure Visually" or release notes upgrade links, the desktop application can open directly, bypassing browser download steps.
-2. **Encrypted Local Profile Store (`~/.config/islamu-configurator/profiles/<app-id>/<env>/`):**
-   * Stores **immutable per-revision encrypted snapshots** per application and deployment environment (`development`, `staging`, `production`) so previous working revisions remain intact for Day-2 rollback.
-   * Planned persistence tiers match your security preference: **Compare-only** (stores no secret values at all—only non-secret settings and policy metadata for schema-upgrade diffing), **Import for upgrade only** (encrypts secrets on disk and carries them forward silently into new versions without revealing plaintext), **Inspectable encrypted** (encrypted on disk, viewable inside the unlocked Desktop app), alongside existing **Unencrypted export**.
-   * Convenience-first unlocking uses your OS keyring automatically on your machine, paired with an optional passphrase backup slot for portability.
-3. **Native Secret Manager & PaaS Sync (Coolify, Infisical & Azure Key Vault):**
-   * During the **Review outputs** stage, Desktop will provide optional authenticated export and upgrade-delta sinks to push configured settings directly into self-hosted **Coolify** instances or target vaults (**Infisical**, **Azure Key Vault**).
-   * By default, zero network requests occur; vault or PaaS synchronization happens solely on explicit operator confirmation.
+Blind retained fields show only coordinates and eligibility. Confirm retirement
+of a selected field before entering its replacement in Configure; undo cannot
+recover the retired value. Review shows advisory field and schema changes.
+To produce an upgraded target file, select the artifact and destination in Review,
+then use **Compose retained values and save selected target output directly**.
+This route uses the restricted native writer without an ordinary preview or copy.
+Ordinary unencrypted target output continues through Review's existing actions.
+
+After saving, list and select that exact revision and check its portable recipient
+alone. Verification uses no device key and covers only the saved ciphertext
+reference held in this session. A historical opened file without that reference
+remains unverified. Comparison baselines report public equality only when the
+definition digest matches; secret equality without a held comparison key is
+unavailable. A baseline cannot restore answers. Creating a baseline from an
+already opened profile is refused rather than serializing an incomplete snapshot.
+
+The affected builds, profile workflow regressions and scoped English/Arabic
+native profile checks passed with synthetic data. Visual checks covered three
+sizes and three themes, including corrected left-to-right directory paths within
+Arabic layouts. Actual OS keyring and assistive-technology qualification remain
+separate; these checks do not certify the entire Desktop application.
+
+Profiles distinguish compare-only, import-upgrade-only, inspectable-encrypted
+and existing deliberate unencrypted target output. The native store uses opaque
+profile/snapshot filenames under an adapter-selected private root. Application
+or environment labels never select filesystem authority.
+
+Convenience keys belong to the current user's OS keyring. A missing lookup never
+generates a replacement. Locked, denied and unavailable services remain distinct
+from a missing key. Linux creation may require an OS prompt; cancellation does
+not guarantee that native work has stopped or that no entry was created.
+Windows credentials persist for the same user on that computer; fresh IDs avoid
+intentional replacement of an existing credential. These adapters' tests do not
+qualify actual keyrings on every host, and Windows key storage does not enable
+protected Windows file saving.
+macOS uses the user's default file keychain. Its classic interaction policy is
+temporarily disabled and restored around each operation; this does not qualify
+actual prompt behavior or unsigned packages. Keychain storage also does not
+enable protected macOS file saving.
+
+Keep an independent portable recovery credential and test the exact copied
+snapshot before relying on it. Device/account reset or loss of all usable keys
+can make snapshots unrecoverable. Reinstallation cannot reconstruct them.
+Uninstall may preserve or remove files/OS entries depending on packaging; neither
+survival nor destruction is guaranteed. Disposal does not delete keyring entries,
+and changing new snapshots does not revoke old copies or rotate target secrets.
+
+`configurator://` registration and remote PaaS/secret-manager synchronization
+remain separate future work under the
+[proposed design decision](../internal/adr/ADR-encrypted-local-profiles-and-target-apply.md).
+No target authentication, remote apply or network authority follows from local
+profile preparation.
 
 When Infisical and Azure Key Vault support arrives, it will use ISLAMU SecretKit
 inside Desktop, not vendor CLIs, and secret values will never pass through a CLI.
@@ -368,8 +449,6 @@ Planned sign-in options:
 - **Infisical:** a Universal Auth machine identity first.
 
 See the [secret-store decision](../internal/adr/ADR-secret-store-integration-and-credential-sources.md).
-
-For the underlying architecture and sovereign infrastructure vision, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
 
 ---
 
@@ -393,37 +472,3 @@ Phase 10 typed v2 control documentation does not qualify a physical native host
 or installed package. Headless window/control tests cannot establish those
 properties, native assistive-technology behavior or translation quality.
 Definition-standard-redesign Phase 12 qualification remains separate.
-
-## Appearance resources
-
-Desktop supports light, dark and high-contrast palettes. Its four density
-presets change control spacing and row sizes while preserving text scaling.
-Host and assistive-technology qualification remain separate checks.
-
-## Local profiles and recovery
-
-Open Local profiles and recovery in preparation or privacy settings. Choose a
-protection mode and deliberately save a new immutable revision. Keep its saved
-reference separately, then select that exact revision to check portable recovery.
-Retiring a retained field requires confirmation. Old encrypted copies retain
-their original access, and rekeying a profile does not rotate target credentials.
-
-## Generator options
-
-Choose Generator options beside a locally generated secret to review bounded
-length and character choices. Generate a masked preview, then choose Apply
-secret to adopt it. Cancel closes the preview without changing the answer.
-
-## Connected editing views
-
-Choose Guided, Compact or Document for the same local answer workspace.
-Use section navigation, search, the metadata inspector and keyboard shortcuts
-to reach settings. Naming and density choices change presentation. Document
-previews and suggested transfers require deliberate application; Review still
-separates preparing output from create-only saving.
-
-## Related tasks after verified saving
-
-Declared related tasks can appear after native saving verifies installation.
-Preparation alone does not establish delivery. Review copied candidates before
-switching tasks; verified local saving does not grant target apply permission.

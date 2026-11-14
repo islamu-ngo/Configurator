@@ -2,9 +2,9 @@
 
 > **Audience:** Contributors | Integrators | AI agents
 > **Kind:** Living contract
-> **Status:** Typed offline adapter with shared secret operations; local Linux process qualification recorded below
+> **Status:** Typed 3-stage offline workbench with shared secret-generator modal, Compact table, Discovery, and bounded Document editing
 > **Owner:** Terminal
-> **Last Verified:** 2026-11-04
+> **Last Verified:** 2026-11-13
 > **Source Anchors:** `src/Configurator.Terminal/`, `src/Configurator.Presentation/`
 > **Review basis:** Source and direction review at `97c5a1789545b73a9536a4b9d4fa934976afb16c`; deployment-scope Release tests and Linux PTY qualification on 2026-11-04, recorded below.
 
@@ -24,10 +24,10 @@ choice does not authorize an exact layout or imply delivered Browser parity.
 
 | Area | Current adapter | Planned direction or limit |
 |---|---|---|
-| Form workspace | One selected field editor, typed nested containers/maps/variants, help and correction navigation. | Evaluate richer navigation, field-specific controls, density and contextual panes while preserving keyboard reachability. |
-| Secret custody | Shared generation/derivation, masked buffers, guarded reveal/copy and explicit clearing. | Preserve these controls through every editor; immutable strings and clipboard history cannot be universally erased. |
+| Form workspace | Responsive `80×24` 3-stage workbench (`1:Configure`, `2:Review & Import`, `3:Files & Save`), `Width=32` `TerminalSectionNavigator` sidebar at `>= 100` cols (`Sections…` modal at `76–99` cols), `ITableSource` `TerminalCompactTableView`, `TerminalDiscoveryDialog` (`F3`), localized `TerminalChoiceDialog`, rich metadata (`Units`, `DefaultText`, `DeprecationGuidance`), `Ctrl+Z` undo, and public trimmed `MapKey` / `ItemTitlePointer` titles while masking private maps. | Screen reader, braille, and complete platform accessibility qualification remain separate evidence. |
+| Secret custody | Shared generation/derivation, quick generate, modal `TerminalSecretGeneratorDialog` (`Pos.Center()`, backed by `DefinitionSecretGeneratorSession`, `128`-bit entropy floor, masked preview in `TerminalSecretBuffer`, synchronous zeroing on `Esc`/Cancel/Apply/Dispose), masked buffers, guarded reveal/copy without OSC52 fallbacks, and explicit clearing. | Managed strings and external OS clipboard history cannot be universally erased. |
 | Local files | Bounded import, comparison, deliberate Fill fields, preparation and create-only protected publication. | File pickers only select paths; they do not provide protected save. |
-| Developer editing | No full terminal document editor. | Reuse `DefinitionDocumentSession` for public-scope answer projections where applicable. This is not arbitrary definition/schema editing. |
+| Developer editing | Centered `TerminalDocumentDialog` (`Ctrl+E`) backed by `DefinitionDocumentSession` enforcing a `256 KiB` interactive limit, pre-apply `DefinitionDocumentChange` diff summary, `document-stale` revision fencing, and `CryptographicOperations.ZeroMemory` clearing (canonical public-scope envelope, secret branches excluded). | Schema authoring and unconstrained whole-definition editing remain out of scope; changes never mutate an active session's frozen identity. |
 | Comparison | Imported configuration/artifact against the selected admitted definition and current workspace. | Schema-to-schema structural comparison and migration inference need separate design. |
 | Providers | No secret-store connector or network operation. | Eventual opt-in Infisical/Azure Key Vault workflows use ISLAMU SecretKit only, with vendor CLIs at most as explicit credential sources ([decision](adr/ADR-secret-store-integration-and-credential-sources.md)); connector/privacy design and authority remain separate. Over SSH, device-code sign-in avoids a remote browser. |
 
@@ -46,6 +46,90 @@ starting with one concrete pilot. No HTTP/native authority enters Core or Browse
 the offline baseline and target acceptance/apply boundaries remain intact.
 
 ## Data and control flow
+
+### Encrypted profile commands
+
+`TerminalWindow.Profiles` opens `TerminalProfileDialog` with Ctrl+P after
+committing the active editor. The dialog owns separate bounded masked passphrase
+and confirmation buffers, cancellation, native store selection and keyboard
+commands. English/Arabic resources cover the fixed reviewed JWE policy, four
+modes, permanent key-loss warning and deliberate device-only acknowledgement.
+The scrollable controls use Tab/Shift+Tab/Enter; closing restores window focus.
+`TerminalProfileDialog.Body` owns the scrolling content separately from the
+modal dialog chrome. Its laid-out content height and focus tracking keep every
+command reachable when recovery guidance wraps at 80 by 24 cells.
+
+Fresh encrypted saves serialize/admit the ordinary form snapshot through
+`ProfilePayloadCodec`, then call `ProfileRecipientLifecycle.SealAsync`.
+After opening, `DefinitionFormModel.OpenProfileAsync` owns decrypted custody
+and comparison projection; upgrades use `SealProfileAsync`, preserving mode
+and held values rather than serializing a stripped ordinary snapshot.
+Retirement requires two activations and calls `ReplaceRetainedProfileValue`;
+Presentation owns permanent exclusion and undo restrictions.
+
+`LocalProfileVaultStore` lists unverified descriptors and publishes immutable
+revisions through the protected writer. `NativeProfileContainerCodec` selects
+one explicit recipient; native opening performs lookup only. Device creation
+is an explicit save choice. No crypto implementation, shared profile manager,
+machine-derived fallback or independent retained-secret state machine is added.
+Comparison files use `CompareBaselineCodec` and cannot unlock.
+
+Ordinary unencrypted target output stays on the existing Files and Save flow.
+Held target output calls `PrepareProfileOutputAsync` and
+`WriteProfileOutputToNativeSaveAsync` directly into a protected preparation and
+commit, using the operator's artifact ID and absolute destination. No preview
+receives the held artifact. Unsupported native publication remains refused.
+Physical installation receipts are distinct from continuing workspace authority.
+
+`ProfileRecoveryVerifier` checks a selected revision with a fresh portable-only
+codec against an independently retained trusted digest and routing reference.
+Save receipts initially report configured-unverified or device-bound-only.
+Verification concerns one exact snapshot and grants no backup retention or
+target authority. Uninstall/reinstall cannot promise key preservation or
+reconstruction; old snapshots keep their old recipients.
+
+`TerminalProfileWorkflowTests` exercises the actual dialog command handlers
+and native store/codec with synthetic inputs, including EN/AR, portable
+save/unlock/compare/upgrade/recovery, SSH keyring absence, acknowledgement,
+confirmation mismatch, unsupported algorithms and comparison-only refusal.
+On 2026-11-14 the exact staged source passed a Release build with no warnings or
+errors and all 11 `TerminalProfileWorkflowTests` cases. The connected workbench
+also passed its 203-case owner suite before the profile increment. These checks
+do not establish assistive-technology conformance or all-host qualification.
+The focused owner commands are:
+
+```bash
+TMPDIR="$HOME/.cache/agent-tmp" dotnet build tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release --verbosity quiet
+TMPDIR="$HOME/.cache/agent-tmp" dotnet test --project tests/Configurator.Terminal.Tests/Configurator.Terminal.Tests.csproj --configuration Release -- --treenode-filter "/*/*/*TerminalProfileWorkflowTests/*"
+```
+
+### Output guidance and reviewed value transfer
+
+`TerminalArtifactOperation.PrepareAsync` captures the shared export context once
+for the actual preparation and complete eligible artifact set. Owner adoption
+retains it with the preparation. Publication keeps its physical receipt
+independently; `TerminalWindow.UpdatePublication` acknowledges only settled,
+verified successes through `AcknowledgePublication`. Revision and operation
+generation checks reject retired acknowledgements without deleting native facts.
+Partial coverage remains partial in the shared workflow.
+
+The keyboard-accessible Output tasks control reads `OutputWorkflow.Tasks` and
+the common localized output status. Files and Save reads `ProposedNextActions`;
+there is no adapter eligibility cache. `TerminalTransferReviewDialog` retains
+only the shared value-free review and selected candidate IDs. Public previews
+are read on display; protected previews remain masked. Supplied destinations
+start unselected. Apply delegates to the atomic shared transfer API, including
+switch without copying. Input changes clear the preview and close the review;
+stale apply is rejected by Presentation. Inline suggested-source actions use
+the same review. English and Arabic labels follow the workspace locale.
+
+`TerminalOutputTasksDialog` bounds visible task controls to eight rows. Longer
+lists expose localized previous/next page buttons; hidden task rows leave the
+focus sequence, and paging focuses the first task on the new page. The dialog
+stays bounded for all 64 admitted options at narrow and wide terminal sizes.
+
+Headless behavior checks do not qualify screen readers, braille, RTL shaping,
+managed-heap erasure or every native host.
 
 ### Deployment context and eligible destinations
 
@@ -101,7 +185,12 @@ their existing blocked behavior.
 ### Schema-driven secret actions
 
 `TerminalWindow.Secrets` delegates generation and derivation to
-`DefinitionFormModel.GenerateSecretAsync`, capturing the selected leaf path.
+`DefinitionFormModel.GenerateSecretAsync`, capturing the selected leaf path, and
+opens `TerminalSecretGeneratorDialog` (`Pos.Center()`) backed by
+`DefinitionSecretGeneratorSession` when configurable bounds or custom options apply.
+The dialog enforces the shared `128`-bit entropy floor, holds preview candidates
+strictly in a dedicated `TerminalSecretBuffer`, commits only on explicit `Apply`,
+and synchronously zeroes all working buffers on `Esc`, `Cancel`, failure, or disposal.
 Presentation owns eligibility, revision/editor identity fencing, cancellation
 and application; the terminal never implements a cryptographic profile. Field
 help uses `GetSecretValidation` for the same safe policy messages as other
@@ -150,8 +239,11 @@ workspace. `TerminalFieldEditor` exposes object/list/map/variant slots,
 expands selected object properties and typed map values into scalar leaves, and
 edits scalar lists one item at a time. Each mutation uses a literal shared form
 path through `EditValue`, `SelectChoice`, `SetValue` or the shared container
-operations; there is no separately serialized adapter answer tree. It is not a raw
-definition or whole-answer JSON editor. Visibility, effective sensitivity,
+operations; there is no separately serialized adapter answer tree. `TerminalDocumentDialog`
+provides a bounded `DefinitionDocumentSession` editor (`256 KiB` limit, pre-apply
+`DefinitionDocumentChange` diff summary, `document-stale` fence, secret branches
+excluded, and `CryptographicOperations.ZeroMemory` clearing); it is not a raw
+definition or schema editor. Visibility, effective sensitivity,
 snapshots, input revisions, activation and validation remain parent-owned.
 Nested leaves use the strongest parent sensitivity to prevent disclosure.
 
@@ -493,25 +585,3 @@ qualification. Those obligations remain in the Terminal hardening follow-up.
 Safe synthetic evidence is retained at
 `.tmp/cross-platform-quality-terminal-drafts/qualification.json`; the parent
 workstream still owns solution-wide and additional-host assurance.
-
-## Connected Terminal editing
-
-The Terminal window coordinates section navigation, guided fields, compact
-settings and explicit document editing over one shared form. Choice and
-discovery dialogs consume bounded schema metadata; local secret options use
-the transient shared generator session. Task-transfer dialogs retain captured
-review authority and retire with edits, replacement or window disposal.
-
-## Explicit profile dialog
-
-`TerminalWindow.Profiles` owns a deliberate `TerminalProfileDialog` lifetime.
-The dialog uses masked bounded passphrase buffers and native immutable vault
-operations. It retains saved reference identity separately from independent
-recovery checks and retires its buffers when the window or dialog closes.
-
-## Settled native output delivery
-
-`TerminalArtifactOperation` carries captured output context through preparation
-and publication. Receipt adoption checks attempt identity and generation before
-acknowledging verified artifacts. Partial and retired attempts cannot establish
-complete delivery for current answers or restore old task guidance.

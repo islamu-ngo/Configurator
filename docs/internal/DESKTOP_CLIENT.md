@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Integrators | AI agents
 > **Status:** Definition and deployment adapters; published-package and manual qualification remain separate
 > **Owner:** Desktop
-> **Last Verified:** 2026-11-11
+> **Last Verified:** 2026-11-13
 > **Source Anchors:** `src/Configurator.Desktop/`, `src/Configurator.Presentation/`
 
 Desktop remains on the centrally pinned Avalonia 12.1.6 packages. It references
@@ -13,6 +13,52 @@ hosts avoid native GTK/DBus portal `libEGL` crashes; Avalonia 12.1.6 ships
 managed dialogs inside the existing `Avalonia` package without adding another
 NuGet dependency.
 It has no target-specific DTO, catalogue, manifest, or identity workflow.
+
+## Encrypted local profile adapter
+
+`DesktopShellViewModel.Profiles` owns one `ProfileManagerViewModel`, shared by
+`ProfileWorkspaceView` disclosures in Open, Review and Privacy settings. The
+manager retains only safe projections, selected revision metadata and a trusted
+recovery reference from successful installation. `DefinitionFormModel` remains
+the sole retained-profile custodian. English/Arabic resources describe all four
+modes, device loss, exact-revision recovery and immutable rekey semantics;
+technical suite identifiers use Unicode direction isolation and native LTR
+containers. Passphrase controls are masked, bounded and cleared when submitted.
+Managed strings still have no guaranteed erasure.
+
+Fresh saves use `Snapshot`, `ProfilePayloadCodec.Serialize`/`Admit` and
+`ProfileRecipientLifecycle.SealAsync`; fresh comparison saves use
+`CompareBaselineCodec`. Once a profile is open, only the form's
+`SealProfileAsync` may reseal it. The adapter never serializes a blind form's
+incomplete ordinary snapshot as a complete profile. Mode changes are disabled
+for opened profiles, and blind baseline creation is explicitly refused.
+`OpenProfileAsync` transfers native codec custody into the shared form.
+`ReplaceRetainedProfileValue` permanently retires confirmed roots.
+`PrepareProfileOutputAsync` and `WriteProfileOutputToNativeSaveAsync` compose
+directly to the protected native writer, outside ordinary preview and clipboard.
+
+Operations join the shell's `DesktopOperation` lifetime so cancellation,
+replacement and close track physical settlement. The native store supplies
+create-only publication facts; installation, verification and cleanup are
+reported separately. Key lookup never invokes creation. Recovery uses
+`ProfileRecoveryVerifier` with a locally trusted saved reference and a fresh
+codec without the OS lease. An unauthenticated discovery descriptor never
+creates that trust. Rekey creates a new file; historical recipients and target
+credentials remain unchanged.
+
+`DesktopProfileWorkflowTests` exercises native save/open,
+blind absence, confirmed retirement, comparison, exact-revision recovery,
+historical access after rekey, unsupported algorithms and rendered EN/AR
+controls. Initial workflows were written before execution; later admitted runtime
+Reds exposed stale authenticated mode display and Arabic technical-path direction.
+The affected Release builds and regression cases pass without suppressions.
+Scoped NativeHost guards D31-D33 passed in English and Arabic, exercising the
+real routed Open action, credential retirement and protected output. The 180-frame
+visual matrix plus 90 refreshed Arabic frames cover three sizes and themes; the
+refresh corrects directory direction while retaining surrounding Arabic layout.
+Top/end captures do not cover every intermediate scroll position. Full NativeHost
+qualification remains blocked by the unrelated D27 text-scaling failure; actual
+keyring hosts and assistive technology remain separate gates.
 
 ## Guided workspace composition
 
@@ -53,6 +99,45 @@ native high contrast overrides them until disabled. Static startup Fluent
 palettes and dynamic resource consumers avoid rebuilding the workspace when
 appearance changes. These adapter contracts do not establish actual-host
 accessibility or package qualification.
+
+## Output guidance and transfer ownership
+
+`FormWorkspaceViewModel.OutputTasks` and `OutputTask` project the admitted output
+selector separately from the publisher's directory selection (`SelectOutput`).
+The workspace reads `OutputWorkflow.Tasks` through
+`PresentationStrings.OutputStatus` and exposes authored `ProposedNextActions`.
+Shared-form property notifications refresh guidance on the captured UI context;
+replacement and disposal detach that subscription with the existing input/view
+subscriptions.
+
+Successful preparation captures `CaptureOutputExportContext` for the prepared
+revision and complete eligible artifact set, even when the operator selects a
+subset to publish. The publisher consumes preparation but retains that context
+for the save. Its existing operation completion dispatch records exact
+installation-established, verification-succeeded artifact IDs through
+`RecordOutputExport(..., NativeSaveVerified)`, fenced by the captured form and
+operation generation. Invalidation retires pending export authority.
+`DesktopPublicationOperation` independently retains physical receipts, including
+partial, unverified and unknown results; rejected workflow adoption never
+rewrites those facts.
+
+Task changes and linked field suggestions use `ReviewOutputTransition` and
+`ReviewSuggestion`. `DesktopTransferCandidateViewModel` retains candidate IDs
+and checkbox choices, not answers. Its preview accessor calls
+`ReadTransferPreview` only for the active review; protected candidates display
+the shared masked label. Supplied destinations remain unchecked until explicit
+overwrite selection. Apply passes exactly those IDs to `ApplyTransfer`;
+switch without copying and cancel remain separate actions. Input invalidation,
+clear, replacement and disposal retire the local review and its preview access.
+Static authored suggestions retain their existing explicit field action.
+
+Review outputs offers next-task buttons; deliberate transfer review reveals
+Guided Configure with native checkboxes and buttons, including when invoked
+from Compact mode. Controls use English/Arabic resources and inherited flow direction. Completion refreshes do
+not request focus; accepted deliberate navigation uses the existing editor
+reveal/focus path. `DesktopOutputGuidanceTests` covers the adapter and
+instantiated headless controls. Actual-host screenshots, screen-reader behavior,
+keyboard qualification and packaged platform gates remain separate evidence.
 
 ## Entry and adapter API
 
@@ -204,10 +289,16 @@ For full strategic and architectural context, see [Product Vision](PRODUCT_VISIO
 recipe/scope pairs, localized through the shared form metadata. The native
 `ConfigurationContext` ComboBox appears before the field list and binds its
 selection to `DefinitionFormModel.SelectConfigurationContext`; Presentation
-owns the single accepted mutation and revision. The two selector fields are
-represented by this picker rather than duplicate ordinary editors. Unsupported
-pairs do not change accepted answers. Desktop has no Developer document editor
-or separate pending document draft to resolve.
+owns the single accepted mutation and revision. The two selector fields are represented by this picker rather than duplicate ordinary editors. Unsupported pairs do not change accepted answers.
+
+In **Configure**, operators can switch among three Presentation-backed views:
+- **Guided** (`ConfigurationWorkspaceView` / `FormWorkspaceViewModel`): card-based section/page editors.
+- **Compact** (`CompactSettingsTableView` / `CompactSettingsTableViewModel`): searchable, sortable table over `DefinitionFormModel.GetCompactRows`, keeping sensitive inputs masked and editing leaf scalars/omissions through `EditCompactValue` with explicit focus transfer back to Guided mode for structured or sensitive edits.
+- **Document** (`DocumentEditorView` / `DocumentEditorViewModel`): generation-fenced canonical JSON/YAML source view (`DefinitionDocumentSession`) requiring an explicit pre-apply diff preview (`PreviewChanges`) before `ApplyPreview`; background `InputRevision` or definition-pin changes fence stale pending buffers with `"document-stale"`.
+
+The companion metadata-only **Inspector** (`DesktopInspectorView` / `DesktopInspectorViewModel`, toggled via `F2`) displays schema path, wire key, validation constraints, controller dependencies, artifact output bindings, and static guidance links via `DefinitionFormModel.GetFieldMetadata` and `GetEditorPresentation`, while deliberately withholding `AnswerSnapshot` or draft values. Local secret generation offers both quick `GenerateCommand` and modal `SecretGeneratorDialog` (`SecretGeneratorDialogViewModel` backed by `DefinitionSecretGeneratorSession` and `ISecretGeneratorDialogService`) with explicit preview custody and `128`-bit entropy gating.
+
+In **Review outputs** (`ArtifactPublicationView`), `ReviewPrepareCard` separates validation, readiness, and preparation (`PrepareSelection`) from `CreateOnlySaveCard` (`SaveSelection`) so create-only native writes cannot be conflated with bundle staging.
 
 `ArtifactPublisherViewModel.Artifacts` uses the form's current eligible outputs.
 Input changes reconcile single and bundle selections before their next use,
@@ -566,12 +657,17 @@ history, and immutable strings cannot promise complete memory erasure.
 
 ## Native qualification
 
-The current executable requires twenty-four distinct names: the twenty-two
-guards below plus `D23-root-map-literal-controls` and
-`D24-root-variant-retirement`. The root map guard exercises literal keys, exact
+The current executable requires thirty distinct names (`D01` through `D30`): the twenty-two
+guards below plus `D23-root-map-literal-controls`,
+`D24-root-variant-retirement`, `D25-appearance-preference-contrast`,
+`D26-guided-root-correction`, `D27-responsive-scale-focus`,
+`D28-collection-page-identity`, `D29-private-metadata-discovery`, and
+`D30-selected-output-review`. The root map guard exercises literal keys, exact
 typed integer/null output, create-only protected publication, reset, comparison
 and deliberate import through the rendered controls. The branch guard checks
-replacement, retired callbacks, masking and correction focus.
+replacement, retired callbacks, masking and correction focus; `D25`–`D30` cover
+appearance contrast transitions, root correction focus, responsive layout scale,
+collection paging identity, private metadata exclusion, and selected-output review.
 
 On 2026-11-05 the Release NativeHost build and all 24 guards passed separately
 in English and Arabic on Linux x64/X11 after the import-review extraction.
@@ -714,42 +810,3 @@ startup/locale/keyboard/close behavior; the attempted native file dialog could
 not be qualified because the isolated GNOME portal lacked desktop services.
 Screen-reader speech, other scales/platforms and a complete manual picker flow
 remain separate evidence requirements.
-
-## Shared density resources
-
-`DesktopDensity` maps the four shared density presets to control height,
-spacing, card padding and table row resources. `DesktopTheme` applies these
-on the UI thread alongside the existing light/dark/high-contrast palette.
-Density changes do not replace font-size resources. Settings and workspace
-controls consume this resource mechanism in their own integration.
-
-## Native profile controls
-
-`ProfileManagerViewModel` connects the shared profile session, immutable native
-vault, selected OS recipient and independent recovery verifier. Its shell-owned
-lifetime retires retained slots with the workspace. `ProfileWorkspaceView`
-clears passphrase entry after deliberate actions and exposes saved reference
-identities separately from recovery status. Target output uses protected saving.
-
-## Dedicated secret options
-
-`AvaloniaSecretGeneratorDialogService` owns the modal and its shared
-`DefinitionSecretGeneratorSession`. The field factory carries the optional
-service to secret fields; the dialog view model validates options, manages
-transient previews and applies only through the current session authority.
-
-## Connected native editing views
-
-The shell coordinates section navigation, compact settings, document editing
-and a metadata-only inspector over one shared form. Field projections consume
-typed widget hints and declared ordering. Workspace commands preserve accepted
-answer authority; document application and task transfers require explicit
-adoption. Definition exploration reads public schema metadata before editing.
-Native delivery acknowledgements are recorded by the publisher integration.
-
-## Verified native delivery acknowledgements
-
-`ArtifactPublisherViewModel` captures output context with prepared answers and
-records only installed, verified files after native save settlement. Bundle
-results acknowledge individual verified artifacts. Replacement and invalidation
-retire old contexts before they can create current related-task guidance.

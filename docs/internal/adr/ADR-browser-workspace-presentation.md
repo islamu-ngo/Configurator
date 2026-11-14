@@ -109,11 +109,17 @@ Do not replace those measurements with component counts, relax feedback
 budgets or claim speech, physical-device or browser-zoom qualification from
 emulated screenshots.
 
-This decision delivers editor foundations, not the entire redesign. Journeys,
-table editing, expanded appearance customization, review/export/departure and
-entry/help/offline composition remain mandatory separate slices in the
-[follow-up backlog](../../../dev/backlog/browser-ui-ux-redesign-followups.md).
-They need their own current plans and final surface evidence.
+This decision established editor foundations, subsequently completed by the
+configuration workspace redesign (`rev-3`): Material 3 surface tokens and 4-step
+density scale, Guided / Compact (`ConfigurationCompactTable`) / Developer modes,
+Humanized / Technical field naming (`Ctrl+Shift+K`), collapsible error-opening
+groups, docked/dialog schema inspector (`ConfigurationInspectorPane`), modal
+secret generator (`ConfigurationSecretGeneratorDialog`), Undo/Redo history with
+consent-revocation secret purge, Review origin filter chips and click-to-focus,
+Files custody disclosure, keyboard shortcut help (`?`), and read-only
+`/explore/{FamilyId}` (`Pages.Explore`). Remaining published-browser visual and
+assistive-technology gates require current evidence under the
+[Browser contract](../BROWSER_UI.md); implementation does not close them.
 
 See [Browser ownership](../BROWSER_UI.md#guided-workspace),
 [Presentation state](../PRESENTATION_STATE.md),

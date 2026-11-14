@@ -115,29 +115,91 @@ JSON bytes and rejects any other store file.
 
 ### Independent profile worker publication
 
-Browser and Worker are separate SDK executables with Release AOT enabled.
-Worker references Core only. Browser links the shared protocol source and
-publishes Worker before `AssignTargetPaths`; only its public `wwwroot/` files
-become ordinary Browser Content under `profile-worker/`. No Worker project
-reference or runtime asset metadata enters the main Browser runtime graph.
-Ordinary builds use isolated compilation/AOT caches and fresh publication
-staging. Captured builds use `BuildCaptureTask` for the child publication and
-the `profile-worker` asset-check operation, retaining separate restore and
-execution graphs. Capture qualification requires actual recorded graphs.
+`Configurator.Browser` and `Configurator.Browser.Worker` are separate SDK
+executables with Release AOT enabled. Browser references Core and Presentation;
+Worker references Core. A project reference with `ReferenceOutputAssembly=false`
+still exposed both applications' runtime-classified static assets to Browser's
+boot generation. A URL prefix did not separate those runtime graphs.
 
-`eng/configurator/BuildBrowserProfileWorker.cs` owns the first-party crypto
-entry, pinned one-component npm closure, bundle, manifest and original MIT
-notice. Its offline `--check` verifies all input/output hashes, tool metadata,
-lock identity and original-license hash. The committed legal record is a
-hash-bound input and must remain unchanged. Regeneration uses `--write`; no
-generated bundle, manifest, license or lock is hand-edited.
+Browser's `PublishBrowserProfileWorker` target runs before `AssignTargetPaths`,
+including ordinary development builds. It invokes native `dotnet publish` in a
+separate process, so restore completes before publication evaluation and Browser
+publication properties do not become Worker globals. `UseArtifactsOutput` keeps
+native incremental build/AOT caches under Browser's
+`obj/profile-worker-cache/`, separate from normal project builds. Each invocation
+replaces only its `profile-worker-publish/` staging directory under the selected
+Browser intermediate output. Worker publishes as a root application; Browser
+adds only that publication's `wwwroot/**/*` as Content linked beneath
+`wwwroot/profile-worker/` before static-asset discovery. No worker runtime asset
+metadata crosses into Browser's runtime graph. The SDK discovers and hashes the
+public files for Browser's PWA inventory; original crypto assets and MIT terms
+remain byte-preserved.
 
-The Docker context admits these inputs and the independent SDK project/lock.
-The release target requires the published runtime, entry, bundle, manifest and
-original terms. SDK-manifest worker assets enter the existing cache-only public
-asset policy, including readiness completeness. Profiles, answers, credentials
-and restricted artifacts never enter that cache. See the
-[public guide](../public/browser.md#dedicated-profile-worker-assets).
+`PublishConfiguratorBrowser` continues to enter Browser through the existing
+`BuildCaptureTask` when capturing. Browser uses the same task for Worker child
+publication. `CaptureSession.Build` already supplies a distinct intermediate and
+output base, restores the child, and records its execution graph. The ordinary
+SDK cache override is not passed into that captured path. There is no second
+uncaptured worker publication during capture.
+
+After the parent regenerates affected locks natively, run these checks from the
+repository root. These are required verification commands, not evidence that
+the source change has passed:
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+dotnet build src/Configurator.Browser/Configurator.Browser.csproj --configuration Debug --verbosity quiet
+dotnet build src/Configurator.Browser/Configurator.Browser.csproj --configuration Release --verbosity quiet
+dotnet msbuild eng/configurator/Configurator.Release.proj -target:PublishConfiguratorBrowser -verbosity:quiet
+dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release -- --treenode-filter '/*/*/BrowserProfileWorkerArchitectureTests/*' --minimum-expected-tests 5
+dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release --no-build -- --treenode-filter '/*/*/StandaloneArchitectureTests/Worker*' --minimum-expected-tests 4
+dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release --no-build -- --treenode-filter '/*/*/StandalonePackageTests/BrowserPackageIsCompleteStaticWasmWithoutNativeOrTestAssemblies' --minimum-expected-tests 1
+dotnet test --project tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj --configuration Release --no-build -- --treenode-filter '/*/*/ProfilePackageTests/PublishedBrowserProfilesRetainWorkerCryptoAndTransientCustodyContract' --minimum-expected-tests 1
+```
+
+The independent publication retains SDK compilation/AOT caches while replacing
+its public staging directory. The architecture checks require ordinary Release
+build outputs and an actual packaged Browser.
+They check separate evaluated dependencies, ordinary static-asset classification,
+worker PWA hashes, worker-only Core closure and absence of Worker from the main
+framework directory. Existing profile package checks retain original asset and
+license hashes and exclude native adapters.
+
+Capture qualification additionally requires a fresh external session. Invoke the
+tool through the .NET muxer, as its SDK check resolves the SDK beside the muxer:
+
+```bash
+CAPTURE_SESSION="$HOME/.cache/configurator-worker-capture-$(date -u +%Y%m%dT%H%M%SZ)"
+dotnet build eng/configurator/Configurator.BuildCapture/Configurator.BuildCapture.csproj --configuration Release
+dotnet eng/configurator/Configurator.BuildCapture/bin/Release/net10.0/Configurator.BuildCapture.dll --capture "$PWD" eng/configurator/Configurator.Release.proj PublishConfiguratorBrowser "$CAPTURE_SESSION"
+dotnet eng/configurator/Configurator.BuildCapture/bin/Release/net10.0/Configurator.BuildCapture.dll --verify "$CAPTURE_SESSION"
+```
+
+If required first-party inputs are still untracked, explicitly admit their exact
+repository paths with the capture owner's `--admit-new` option. Inspect the
+recorded Worker Restore/Publish graphs and consumed public files; ordinary
+package checks do not prove captured execution.
+
+The 2026-11-13 profile qualification exposed a separate existing capture baseline
+conflict: `global.json` has no `workloadVersion`, while the capture owner requires
+`10.0.301.1` and this workstation reports workload `10.0.404`. The muxer-hosted
+attempt stops at that missing property before evaluating the product. No captured
+Worker graph is qualified by the successful ordinary AOT publication.
+
+Actual-browser qualification is separate from publication and package checks.
+The 2026-11-13 profile execution exercised Release/AOT workers at root and a
+configured `/profile-test/` deployment. The latter was published from a
+source-only fixture with its HTML base configured before SDK manifest generation;
+no generated integrity entry was edited. Direct Debug build passed. A separate
+Debug-publication probe failed `MSB4057` for `ResolveWasmOutputs` and supplies no
+interpreted-runtime qualification.
+
+The execution record retains cached operation with the HTTP host stopped,
+update waiting over a live workspace, active-KDF logical retirement and a local
+control repaint while work remained busy. CDP's offline navigator flag reset on
+reload; server-unavailable reload is not a physical-network certificate. Source
+review or a successful package build alone cannot establish these outcomes or
+close the independent capture/provenance gates.
 
 ### Local editor assets
 

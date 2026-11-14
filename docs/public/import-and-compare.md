@@ -134,7 +134,7 @@ and [shared import contract](../internal/IMPORT_COMPARISON.md).
 ## The Release Notes 1-Click Upgrade Diff Workflow
 
 > [!NOTE]
-> **Planned automation:** Manual file comparison against a selected definition is available today across Browser, Desktop, Terminal, and CLI. Automatic `configurator://` profile matching, encrypted snapshot loading, and direct Coolify/vault delta apply are planned future capabilities ([proposed design decision](../internal/adr/ADR-encrypted-local-profiles-and-target-apply.md)).
+> **Planned automation:** Manual artifact comparison and explicit local profile save/open/upgrade are implemented across Browser, Desktop, Terminal and CLI. Automatic `configurator://` profile matching and direct Coolify/vault delta apply remain future capabilities ([design decision](../internal/adr/ADR-encrypted-local-profiles-and-target-apply.md)). The release-link flow below is a proposal, not a supported automatic route.
 
 Application maintainers can embed direct upgrade links in their release notes:
 
@@ -145,16 +145,20 @@ Application maintainers can embed direct upgrade links in their release notes:
 
 1. **Protocol Handshake (`configurator://`):** Visitors to the link are greeted with a prompt: *"Open in Configurator Desktop or continue in Web?"* (matching Microsoft Teams, VS Code, and Slack UX patterns).
 2. **Desktop Automation *(Planned)*:** The Desktop application checks its managed local store (`~/.config/islamu-configurator/profiles/<app-id>/<env>/`), identifies the latest immutable `.cfgvault` snapshot (`compare-only`, `import-upgrade-only`, or `inspectable-encrypted`) for the target environment (`development`, `staging`, `production`), unlocks it via the OS keyring, and loads the comparison report instantly.
-3. **Web Drop-Zone:** In the Web client, operators simply drop their existing `.env` or `answers.json` file (or, once supported, a passphrase-encrypted `.cfgvault` snapshot) into the page to view the diff.
-4. **Actionable Delta:** The report immediately flags:
-   - 🔴 **Newly Required Variables** that must be answered to avoid container boot crashes.
-   - 🟡 **Renamed Variables** with automatic mapping suggested.
-   - 🟢 **Deprecated / Obsolete Variables** safely removed.
+3. **Web association:** Manual configuration-file import and portable `.cfgvault` opening are available through their explicit controls. Automatically associating a selected file with a release link remains part of this proposed flow.
+4. **Reviewed delta:** A future combined report must distinguish newly required settings, removed declarations and explicit rename hints. A hint or omitted comparison never authorizes moving a retained secret or deleting a target setting.
 5. **Direct PaaS & Secret Vault Delta Sync *(Planned)*:** When configured with **Coolify** or secret managers (**Infisical** / **Azure Key Vault** via `ISLAMU SecretKit`), operators will be able to apply only reviewed upgrade deltas to **"Staging"** or **"Production"** directly from Desktop without reading back existing write-only secrets or manual copy-pasting. Vault changes run in native clients only, through SecretKit rather than vendor CLIs; the web route hands off to Desktop ([decision](../internal/adr/ADR-secret-store-integration-and-credential-sources.md)).
 
 For the detailed engineering architecture and distribution strategy, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
 
 ## Encrypted Local Profile Contract
+
+Local profiles use a separate admitted-schema and custody flow from ordinary
+artifact comparison. Native clients delegate storage, unlocking and exact-copy
+recovery to the shared native adapters; Browser uses a dedicated worker and
+deliberate file uploads/downloads. The client guides describe the available
+controls. Actual OS keyring hosts, unsupported protected-save hosts and release
+assurance remain separate qualification boundaries.
 
 The selected format is JSON Web Encryption with AES-256-GCM and a fixed
 PBKDF2-HMAC-SHA512 password profile. Algorithms and costs are not user-selectable.
@@ -272,7 +276,10 @@ contain old credentials.
 
 Browser inspection requires the workspace's custody acknowledgment and consent
 before consuming the file. Configuration bytes and reports stay local and must
-not enter public caches, telemetry, URLs, storage or worker messages. Revocation
+not enter public caches, telemetry, URLs or storage. Ordinary artifact comparison
+uses no private worker messages. The encrypted-profile design permits only its
+bounded consent-gated dedicated-worker channel; no general secret messaging is
+authorized. Revocation
 denies access, retires retained work and clears owned byte buffers; it does not
 promise physical erasure of every managed runtime copy.
 

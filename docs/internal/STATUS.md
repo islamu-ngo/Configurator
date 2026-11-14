@@ -21,6 +21,7 @@ Use the [knowledge map](KNOWLEDGE_MAP.md) for document lifecycle and the
 | Ordinary configuration import and comparison | [Import/comparison](IMPORT_COMPARISON.md); implementation in progress, client/package qualification pending | [Accepted assessment design](adr/ADR-artifact-import-comparison.md) is not delivery or actual-client evidence |
 | Machine CLI | [CLI contract](CLI_CONTRACT.md); current 0.0.1 machine format includes explicit local secret operations | Authoring/runtime, answers and command formats share the fixed development baseline; historical evidence does not qualify a changed payload |
 | Schema-driven secret policies and operations | [Cryptography contract](SECRET_CRYPTOGRAPHY.md), [shared workspace](PRESENTATION_STATE.md), [synthetic example](../../examples/secret-generation/README.md) | Source and unit checks, published AOT execution, native clipboard checks and target acceptance require separate evidence; prior package observations do not qualify these additions |
+| Encrypted local profiles and schema upgrades | [Cryptography](SECRET_CRYPTOGRAPHY.md), [schema planning](CORE_DEFINITION_CONTRACT.md#admitted-profile-schema-planning), [restricted store/keyrings](PROTECTED_ARTIFACTS.md#os-keyring-ownership), [decision](adr/ADR-encrypted-local-profiles-and-target-apply.md); Core, native adapters and all four client integrations implemented | [Packaging evidence and limits](PACKAGING.md#independent-profile-worker-publication) separates ordinary publication from injected keyring tests, unqualified hosts/AT and unresolved capture/provenance qualification |
 
 ## Package admission
 
@@ -75,6 +76,9 @@ Linux evidence. Other hosts require their own
 [host evidence](../../dev/backlog/configurator-native-host-evidence.md).
 Deliberate Browser copy/download is not protected native save, and cancellation
 does not retract an established installation.
+Implemented Windows Credential Manager and macOS Keychain storage are separate
+key-custody capabilities; protected Windows/macOS saving remains unsupported/planned pending
+its own implementation and host evidence.
 
 ## Accessibility
 
