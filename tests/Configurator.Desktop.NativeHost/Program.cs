@@ -33,8 +33,13 @@ using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Desktop.Views;
 
-internal static class Program
+internal static partial class Program
 {
+    private static readonly string[] ProfileChecks =
+    [
+        "D31-profile-library-custody", "D32-profile-controls-focus",
+        "D33-profile-protected-target"
+    ];
     private static readonly string[] RequiredChecks =
     [
         "D01-offline-intake", "D02-typed-controls", "D03-activation-disclosure",
@@ -51,7 +56,8 @@ internal static class Program
         "D23-root-map-literal-controls", "D24-root-variant-retirement",
         "D25-appearance-preference-contrast", "D26-guided-root-correction",
         "D27-responsive-scale-focus", "D28-collection-page-identity",
-        "D29-private-metadata-discovery", "D30-selected-output-review"
+        "D29-private-metadata-discovery", "D30-selected-output-review",
+        .. ProfileChecks
     ];
     private static readonly HashSet<string> Completed = new(StringComparer.Ordinal);
     private static string _currentCheck = "native-startup";
@@ -61,16 +67,20 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        if (args.Length is not (4 or 6) || args[0] != "--expected-rid" || args[1] != "linux-x64" ||
+        bool profilesOnly = args.Length >= 5 && args[4] == "--profiles-only";
+        int optionOffset = profilesOnly ? 5 : 4;
+        string[] requiredChecks = profilesOnly ? ProfileChecks : RequiredChecks;
+        if ((args.Length != optionOffset && args.Length != optionOffset + 2) ||
+            args[0] != "--expected-rid" || args[1] != "linux-x64" ||
             args[2] != "--minimum-expected-checks" ||
             !int.TryParse(args[3], NumberStyles.None, CultureInfo.InvariantCulture, out int minimum) ||
-            minimum != 30 || RequiredChecks.Length != 30)
+            minimum != requiredChecks.Length || RequiredChecks.Length != 33 || ProfileChecks.Length != 3)
             return Reject("arguments-invalid");
-        if (args.Length == 6)
+        if (args.Length == optionOffset + 2)
         {
-            if (args[4] != "--capture-directory" || !Path.IsPathFullyQualified(args[5]))
+            if (args[optionOffset] != "--capture-directory" || !Path.IsPathFullyQualified(args[optionOffset + 1]))
                 return Reject("arguments-invalid");
-            _captureDirectory = args[5];
+            _captureDirectory = args[optionOffset + 1];
             Directory.CreateDirectory(_captureDirectory);
         }
         if (!OperatingSystem.IsLinux() || RuntimeInformation.ProcessArchitecture != Architecture.X64)
@@ -104,8 +114,8 @@ internal static class Program
                 try
                 {
                     Require(window.TryGetPlatformHandle() is { Handle: not 0 }, "native-window-missing");
-                    await RunAsync(window, shell);
-                    Require(Completed.SetEquals(RequiredChecks) && Completed.Count >= minimum, "checks-incomplete");
+                    await RunAsync(window, shell, profilesOnly);
+                    Require(Completed.SetEquals(requiredChecks) && Completed.Count >= minimum, "checks-incomplete");
                     if (_captureDirectory is not null)
                         File.WriteAllText(Path.Combine(_captureDirectory, "qualification.json"), JsonSerializer.Serialize(new
                         {
@@ -115,11 +125,12 @@ internal static class Program
                             uiCulture = CultureInfo.CurrentUICulture.Name,
                             runtime = RuntimeInformation.FrameworkDescription,
                             durationMilliseconds = elapsed.Elapsed.TotalMilliseconds,
-                            requiredChecks = RequiredChecks,
+                            requiredChecks,
                             completedChecks = Completed.Order(StringComparer.Ordinal).ToArray(),
                             payloadAssemblies = PayloadIdentities()
                         }));
-                    Console.WriteLine($"native-qualification:passed:{Completed.Count}:linux-x64:X11");
+                    Console.WriteLine($"native-qualification:passed:{Completed.Count}:linux-x64:X11" +
+                        (profilesOnly ? ":profiles-only" : ""));
                     Console.WriteLine("qualification-limits:manual-dialogs-keyboard-rtl-scaling-assistive-technology-and-published-payload-required");
                     code = 0;
                 }
@@ -203,13 +214,18 @@ internal static class Program
         await CaptureAsync(window, "deployment-context");
     }
 
-    private static async Task RunAsync(MainWindow window, DesktopShellViewModel shell)
+    private static async Task RunAsync(MainWindow window, DesktopShellViewModel shell, bool profilesOnly)
     {
         FormWorkspaceViewModel workspace = shell.Workspace;
         ArtifactPublisherViewModel publisher = shell.Publisher;
         string directory = Directory.CreateTempSubdirectory("configurator-native-").FullName;
         try
         {
+            if (profilesOnly)
+            {
+                await ProfilesAsync(window, shell, directory);
+                return;
+            }
             await CaptureAsync(window, "open");
             _currentCheck = "D01-offline-intake";
             Require(workspace.Form is null && !publisher.CanPrepare && !publisher.CanSave, "default-target");
@@ -434,6 +450,7 @@ internal static class Program
             Pass();
 
             await RedesignAsync(window, shell, directory);
+            await ProfilesAsync(window, shell, directory);
 
             for (int count = 1; count <= 3; count++)
             {
@@ -568,6 +585,9 @@ internal static class Program
                 await ResizeAsync(window, size);
                 Require(ReferenceEquals(editor, Input<TextBox>(window, "Service name")) &&
                     editor.FontSize == editorFontSize * 2, "responsive-editor-text-scale");
+                foreach (var item in textSizes.Where(item => item.control.FontSize != item.size * 2).Take(10))
+                    Console.Error.WriteLine(FormattableString.Invariant(
+                        $"native-text-scale:{item.control.GetType().Name}:{string.Join('/', item.control.GetLogicalAncestors().OfType<Control>().Take(10).Select(control => control.GetType().Name))}:{item.size}:{item.control.FontSize}"));
                 Require(textSizes.Length > 0 && textSizes.All(item =>
                     item.control.FontSize == item.size * 2), "responsive-all-text-scale");
                 Require(editor.Focus(), "responsive-focus");
