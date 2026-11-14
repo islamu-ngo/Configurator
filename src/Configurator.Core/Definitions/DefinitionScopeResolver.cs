@@ -15,19 +15,19 @@ public static class DefinitionScopeResolver
         ArgumentNullException.ThrowIfNull(answers);
         cancellationToken.ThrowIfCancellationRequested();
         if (definition.Deployment is null) return null;
-        try { return Resolve(definition, answers, new(CompositionLimits.Default), cancellationToken); }
+        try { return Resolve(definition, new DefinitionEvaluationInput(answers), new(CompositionLimits.Default), cancellationToken); }
         catch (CompositionException) { throw new DefinitionException("validation-limit"); }
         catch (DefinitionException exception) when (exception.Code == "path-limit")
         { throw new DefinitionException("validation-limit"); }
     }
 
-    internal static DefinitionConfigurationContext? Resolve(Definition definition, AnswerSnapshot answers,
+    internal static DefinitionConfigurationContext? Resolve(Definition definition, DefinitionEvaluationInput answers,
         CompositionBudget budget, CancellationToken cancellationToken)
     {
         return definition.Deployment is { } deployment ? new Evaluation(definition, answers, budget, cancellationToken).Resolve(deployment) : null;
     }
 
-    private sealed class Evaluation(Definition definition, AnswerSnapshot answers, CompositionBudget budget, CancellationToken cancellationToken)
+    private sealed class Evaluation(Definition definition, DefinitionEvaluationInput answers, CompositionBudget budget, CancellationToken cancellationToken)
     {
         private readonly Dictionary<DefinitionPath, DefinitionNode> _schemas = [];
         private readonly Dictionary<DefinitionPath, JsonElement> _values = [];

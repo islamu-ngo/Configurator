@@ -75,6 +75,36 @@ requirements still determine eligibility. Presentation adds the workspace's
 consent, revision, logical-identity and operation-generation fences before
 adopting generated output.
 
+## Admitted profile schema planning
+
+`DefinitionSchemaDiff.Compare` compares actual admitted source and target
+definitions, rejects family mismatch and jointly checks revision/digest
+conflicts through `DefinitionRegistry`. It emits deterministic structural schema
+coordinates and change categories, including required/optional additions,
+removal, type, constraints, activation, sensitivity and secret policy. Renames
+remain removal/addition. Deltas contain no defaults, examples, answers or
+answer-derived map keys. A digest does not substitute for source content.
+
+`ProfileUpgradePlanner.Plan(UnlockedProfile, target)` reads the authenticated
+owner within scoped Core processing, calls the existing target validator and
+returns only immutable eligibility and schema facts. Changed hidden secret
+policies require replacement even when the retained value incidentally meets
+the new constraint. Collections, variants and dynamic maps grant no carry
+authority from row ordinals. The result always requires validation again at
+actual composition; it grants neither readiness nor target acceptance.
+Owned payload/encoded-answer copies clear, liveness is checked before result
+publication, and transient managed JSON retains the documented erasure limit.
+
+A compare-only baseline requires a matching independently admitted old
+definition for structural planning. Without it, structural results are
+unavailable; complete public scalar observations can still compare. Whole
+public collections can compare with both actual schemas and complete
+projections. Omitted dynamic entries cannot establish unchanged values.
+Protected equality additionally requires the held matching commitment key and
+context. The caller's admission owner must enforce all previously admitted
+revision/digest bindings before planning/adoption; the stateless planner cannot
+infer history omitted by its caller.
+
 ## Definition JSON
 
 The codec decodes and canonicalizes source before `DefinitionAdmission` checks

@@ -48,6 +48,10 @@ public sealed class DefinitionValidationResult
     /// </summary>
     internal IReadOnlySet<string> UndecidedRoots { get; }
     internal IReadOnlySet<DefinitionPath> UndecidedLocations { get; }
+
+    /// <summary>Indicates whether any field or deferred secret dependency has not yet resolved.</summary>
+    public bool HasUndecidedDependencies => UndecidedRoots.Count > 0 || UndecidedLocations.Count > 0;
+
     /// <summary>Explicitly reads a resolved private value; serialized validation facts remain value-free.</summary>
     public bool TryGetEffectiveValue(DefinitionPath location, out JsonElement value)
     {

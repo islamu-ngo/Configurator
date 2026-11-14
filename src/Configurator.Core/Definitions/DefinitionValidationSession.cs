@@ -9,9 +9,30 @@ using Configurator.Core.Secrets;
 
 using static Configurator.Core.Definitions.DefinitionValidator;
 
+/// <summary>
+/// Borrows values for one private evaluation. Restricted callers own their lifetime; this bridge never
+/// publishes an ordinary answer snapshot or validation result containing retained profile values.
+/// </summary>
+internal sealed record DefinitionEvaluationInput(long InputRevision,
+    IReadOnlyDictionary<string, JsonElement> Values, IReadOnlySet<DefinitionPath> Omitted)
+{
+    internal DefinitionEvaluationInput(AnswerSnapshot answers) : this(
+        answers.InputRevision, answers.Values, answers.Omitted) { }
+}
+
 internal static class DefinitionValidationSession
 {
-    internal static async ValueTask<DefinitionValidationResult> RunAsync(Definition definition, AnswerSnapshot answers,
+    internal static ValueTask<DefinitionValidationResult> RunAsync(Definition definition, AnswerSnapshot answers,
+        bool draft, CancellationToken cancellationToken, DefinitionImportEvidence? observations = null,
+        DefinitionImportWork? work = null, Func<DefinitionDiagnostic, ValueTask>? diagnosticObserved = null,
+        DefinitionConfigurationContext? scopeObservation = null, CompositionBudget? sharedBudget = null)
+    {
+        ArgumentNullException.ThrowIfNull(answers);
+        return RunAsync(definition, new DefinitionEvaluationInput(answers), draft, cancellationToken,
+            observations, work, diagnosticObserved, scopeObservation, sharedBudget);
+    }
+
+    internal static async ValueTask<DefinitionValidationResult> RunAsync(Definition definition, DefinitionEvaluationInput answers,
         bool draft, CancellationToken cancellationToken, DefinitionImportEvidence? observations = null,
         DefinitionImportWork? work = null, Func<DefinitionDiagnostic, ValueTask>? diagnosticObserved = null,
         DefinitionConfigurationContext? scopeObservation = null, CompositionBudget? sharedBudget = null)

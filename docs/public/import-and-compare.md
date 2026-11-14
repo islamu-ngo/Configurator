@@ -154,6 +154,20 @@ Application maintainers can embed direct upgrade links in their release notes:
 
 For the detailed engineering architecture and distribution strategy, see [Product Vision](../internal/PRODUCT_VISION.md) and [Marketing & Adoption Strategy](../internal/MARKETING_AND_ADOPTION_STRATEGY.md).
 
+### Upgrade Against Real Definitions
+
+Upgrade planning checks the actual old and target definitions, rather than
+guessing a schema from a filename or digest. Renaming a setting appears as a
+removal and an addition. A hidden secret whose policy changes needs replacement
+or regeneration, even if its old value might satisfy a new length limit.
+Collection row numbers alone cannot identify a secret to carry forward.
+
+Plans contain findings and eligibility, never retained secret values. Eligible
+settings still need validation under the current workspace when output is
+prepared. Missing old definitions or incomplete comparison data must show
+unavailable results, not an unchanged or ready configuration. Target application
+validation and authorization remain separate.
+
 ## Keep Private Input Local
 
 Treat every configuration file as potentially secret-bearing, even when its

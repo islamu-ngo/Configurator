@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7D07V3SP5JAE4HTTV5MA06B
+Title: "Plan saved profile upgrades against admitted schemas"
+Type: feat
+Scope: privacy
+Summary: "Compare actual admitted source and target definitions, validate retained values in a private evaluation scope, and publish conservative eligibility without exposing retained secrets or granting target acceptance."
+Group: profile-upgrade-planning
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Compare admitted source content and validate retained candidates inside Core; plans expose schema facts and conservative eligibility only. Changed hidden policies require replacement. Caller-owned historical admission, consent, stable identities and current validation still govern actual adoption."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/import-and-compare.md
+    Disposition: documented
+    Detail: "Missing historical schemas and incomplete comparisons remain unavailable rather than unchanged or ready; a plan grants no target acceptance or apply authority."

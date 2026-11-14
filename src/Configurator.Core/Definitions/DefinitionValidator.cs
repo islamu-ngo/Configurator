@@ -14,6 +14,10 @@ public static class DefinitionValidator
         CancellationToken cancellationToken = default) =>
         DefinitionImportWork.CompleteSynchronously(DefinitionValidationSession.RunAsync(definition, answers, false, cancellationToken));
 
+    internal static DefinitionValidationResult Validate(Definition definition, DefinitionEvaluationInput answers,
+        CancellationToken cancellationToken = default) =>
+        DefinitionImportWork.CompleteSynchronously(DefinitionValidationSession.RunAsync(definition, answers, false, cancellationToken));
+
     /// <summary>Defers missing secret leaves only. Supplied invalid values remain blocking.</summary>
     public static DefinitionValidationResult ValidateDraft(Definition definition, AnswerSnapshot answers,
         CancellationToken cancellationToken = default) =>
@@ -29,7 +33,7 @@ public static class DefinitionValidator
         DefinitionValidationSession.RunAsync(definition, answers, false, cancellationToken, work: work);
 
     /// <summary>Resolves only scope-control observations through the ordinary effective-value kernel and shared operation budget.</summary>
-    internal static DefinitionValidationResult ObserveScope(Definition definition, AnswerSnapshot answers,
+    internal static DefinitionValidationResult ObserveScope(Definition definition, DefinitionEvaluationInput answers,
         IEnumerable<DefinitionPath> locations, CompositionBudget budget, CancellationToken cancellationToken)
     {
         var observation = new DefinitionConfigurationContext(null, null, true, [], locations);
