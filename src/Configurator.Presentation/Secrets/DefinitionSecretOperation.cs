@@ -22,8 +22,58 @@ public sealed partial class DefinitionFormModel
     private bool _secretRunning;
     private SecretGenerationResult? _secretResult;
     private DefinitionSecretOperation _secretOperation = new(false, "secret-idle", false);
+    private readonly List<DefinitionSecretGeneratorSession> _secretSessions = [];
+
+    internal object SyncGate => _gate;
+    internal long CurrentSecretGeneration => _secretGeneration;
+    internal void NotifyAfterMutation(Action notification) => Notify(notification);
 
     public DefinitionSecretOperation SecretOperation { get { lock (_gate) return _secretOperation; } }
+
+    public DefinitionSecretGeneratorSession? CreateSecretGeneratorSession(IReadOnlyList<string> path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return CreateSecretGeneratorSession(DataPath(path));
+        }
+    }
+
+    public DefinitionSecretGeneratorSession? CreateSecretGeneratorSession(DefinitionPath path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!TryRootMetadata(path.Segments, out DefinitionFormIndex.Node node, out _) ||
+                node.Schema.Secret is not { } specification ||
+                Facts.EditorState(path)?.IsActive != true)
+            {
+                return null;
+            }
+
+            SecretGenerationBounds bounds = SecretGenerationBounds.From(specification);
+            if (!bounds.SupportsOptions && bounds.ExactByteCount == 0)
+                return null;
+
+            string identity = GetEditorIdentity(path);
+            var session = new DefinitionSecretGeneratorSession(this, path, identity, specification, bounds);
+            _secretSessions.Add(session);
+            return session;
+        }
+    }
+
+    internal bool CanGenerateSecretFromSession(DefinitionPath path) => !_disposed && !_secretRunning && SecretEligible(path);
+
+    internal void UnregisterSecretSession(DefinitionSecretGeneratorSession session) => _secretSessions.Remove(session);
+
+    private void NotifySecretSessions(bool consentChanged, bool formDisposed)
+    {
+        if (_secretSessions.Count == 0) return;
+        foreach (DefinitionSecretGeneratorSession session in _secretSessions.ToArray())
+            session.RetireFromForm(consentChanged, formDisposed);
+    }
 
     public bool CanGenerateSecret(IReadOnlyList<string> path)
     {
@@ -111,26 +161,9 @@ public sealed partial class DefinitionFormModel
                 if (_disposed || generation != _secretGeneration || revision != InputRevision ||
                     !SecretEligible(location) || GetEditorIdentity(location) != identity)
                     return Reject("secret-stale");
-                if (!result.Succeeded) return Reject(result.ErrorCode ?? "secret-generation-failed");
-                JsonElement value = JsonSerializer.SerializeToElement(result.Output!.CopyValue());
-                if (!DefinitionValidator.ValueValid(GetEditorSchema(location)!, value))
-                    return Reject("secret-generated-value-invalid");
-                AnswerSnapshot candidate = DefinitionSecretOperations.Replace(Snapshot(), Facts.Validation, location, value);
-                DefinitionValidationResult candidateValidation = DefinitionValidator.Validate(Definition, candidate, cancellationToken);
-                if (DefinitionSecretOperations.Resolve(Definition, candidate.Omitted, candidateValidation, location, out _) is null)
-                    return Reject("secret-generated-value-invalid");
-                if (!SetValue(location, value))
-                    return Reject("secret-apply-failed");
-                if (TryOrdinaryRootPath(location.Segments, out string[] ordinary))
-                    Fields[_index!.FieldPositions[ordinary[0]]].RecordOrigin(ordinary, DefinitionAnswerOrigin.Generated);
-                else RecordRootOrigin(location.Segments, DefinitionAnswerOrigin.Generated);
-                _facts = null;
-                _secretResult = result;
-                result = null;
-                _secretOperation = new(false, "secret-generated", _secretResult.GeneratedPassword is not null, identity);
-                committed = new(true, "secret-generated", _secretOperation.HasGeneratedPassword);
-                OnPropertyChanged(nameof(SecretOperation));
-                OnViewChanged();
+                committed = CommitGeneratedSecretResult(location, identity, ref result, cancellationToken);
+                if (!committed.Succeeded)
+                    terminalCode = committed.Code;
                 return committed;
             }
         }
@@ -181,12 +214,44 @@ public sealed partial class DefinitionFormModel
         }
     }
 
+    internal DefinitionSecretOperationResult CommitGeneratedSecretResult(DefinitionPath location, string identity,
+        ref SecretGenerationResult? result, CancellationToken cancellationToken)
+    {
+        if (result is null || !result.Succeeded || result.Output is null)
+            return new(false, result?.ErrorCode ?? "secret-generation-failed");
+        JsonElement value = JsonSerializer.SerializeToElement(result.Output.CopyValue());
+        DefinitionNode? schema = GetEditorSchema(location.Segments);
+        if (schema is null || !DefinitionValidator.ValueValid(schema, value))
+            return new(false, "secret-generated-value-invalid");
+        AnswerSnapshot candidate = DefinitionSecretOperations.Replace(Snapshot(), Facts.Validation, location, value);
+        DefinitionValidationResult candidateValidation = DefinitionValidator.Validate(Definition, candidate, cancellationToken);
+        if (DefinitionSecretOperations.Resolve(Definition, candidate.Omitted, candidateValidation, location, out _) is null)
+            return new(false, "secret-generated-value-invalid");
+        if (!SetValue(location, value))
+            return new(false, "secret-apply-failed");
+        if (TryOrdinaryRootPath(location.Segments, out string[] ordinary))
+            Fields[_index!.FieldPositions[ordinary[0]]].RecordOrigin(ordinary, DefinitionAnswerOrigin.Generated);
+        else RecordRootOrigin(location.Segments, DefinitionAnswerOrigin.Generated);
+        _facts = null;
+        bool hasGeneratedPassword = result.GeneratedPassword is not null;
+        if (hasGeneratedPassword)
+            _secretResult = result;
+        else
+            result.Dispose();
+        result = null;
+        _secretOperation = new(false, "secret-generated", hasGeneratedPassword, identity);
+        OnPropertyChanged(nameof(SecretOperation));
+        OnViewChanged();
+        return new(true, "secret-generated", hasGeneratedPassword);
+    }
+
     private void RetireSecretResult()
     {
         _secretGeneration = checked(_secretGeneration + 1);
         _secretResult?.Dispose();
         _secretResult = null;
         _secretOperation = new(_secretRunning, "secret-retired", false);
+        NotifySecretSessions(consentChanged: false, formDisposed: false);
         OnPropertyChanged(nameof(SecretOperation));
     }
 }

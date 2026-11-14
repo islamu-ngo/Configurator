@@ -427,6 +427,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 _undoHistory.PurgeProtected(Definition, Fields, IsProtectedPathForUndo);
                 NotifyUndoPropertiesChanged();
                 if (hasProtectedRoots) OnInputChanged();
+                else NotifySecretSessions(consentChanged: true, formDisposed: false);
                 return hasProtectedRoots;
             }
             finally { _privacyClearingActive = false; }
@@ -537,6 +538,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                 }
                 OnPropertyChanged(nameof(SessionPrivacy));
                 OnInputChanged();
+                NotifySecretSessions(consentChanged: true, formDisposed: false);
             }
             finally { _privacyClearingActive = false; }
         }
@@ -1186,6 +1188,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             _undoHistory.Clear();
             _undoBaseline?.Retire();
             _undoBaseline = null;
+            NotifySecretSessions(consentChanged: true, formDisposed: true);
             _editing.Clear();
             Omitted.Clear();
             _facts = null;
@@ -1214,7 +1217,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         else notification();
     }
 
-    private Mutation BeginMutation(string? undoLabel = null)
+    internal Mutation BeginMutation(string? undoLabel = null)
     {
         Monitor.Enter(_gate);
         if (++_mutationDepth == 1 && undoLabel is not null && !_disposed && !_undoReplayActive && !_privacyClearingActive)
@@ -1359,7 +1362,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         RequiresMaskingAt(path, literal: true) ||
         (TryOrdinaryRootPath(path, out string[] ordinary) && RequiresMaskingAt(ordinary, literal: false));
 
-    private readonly struct Mutation(DefinitionFormModel form) : IDisposable
+    internal readonly struct Mutation(DefinitionFormModel form) : IDisposable
     {
         public void Dispose() => form.EndMutation();
     }

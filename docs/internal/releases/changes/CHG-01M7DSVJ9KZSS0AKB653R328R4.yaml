@@ -1,0 +1,27 @@
+Change-Id: CHG-01M7DSVJ9KZSS0AKB653R328R4
+Title: "Preview generated secrets before explicit workspace adoption"
+Type: feat
+Scope: privacy
+Summary: "Bind policy-constrained transient previews to the current form, consent, revision and exact editor identity, and retire candidates synchronously when that authority changes."
+Group: secret-generator-sessions
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: documented
+    Detail: "Preview generation does not mutate answers or history. Apply rechecks form lifetime, consent, revision, operation generation and exact editor identity, then validates the candidate before adoption. Input changes, consent transitions, private clearing and disposal retire candidate authority synchronously. Deliberate copied strings and managed allocations retain their erasure limits."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable

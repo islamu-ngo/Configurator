@@ -767,3 +767,20 @@ through the existing accepted-state owner, then advances the global revision.
 `ClearPrivateState()` purges protected history; disposal retires both stacks.
 Clearing does not create a new undo entry. Managed strings and JSON allocations
 do not have a guaranteed memory-erasure contract.
+
+## Secret generator sessions
+
+`DefinitionSecretGeneratorSession` validates `SecretGenerator` character/byte
+bounds (`ExactByteCount` and range constraints) in memory and commits generated
+values to `DefinitionFormModel` only through explicit session adoption before
+clearing temporary preview state.
+
+Sessions register with their form and share its mutation gate, input revision,
+secret-operation generation and exact editor identity. Preview generation does
+not write answers or create undo entries. Apply rechecks current eligibility,
+validates the generated value and complete candidate snapshot, and records the
+generated origin through the same adoption helper as existing quick generation.
+Input invalidation retires candidates; consent transitions, private clearing
+and disposal synchronously retire their authority and owned candidate buffers.
+`CopyPreview` deliberately transfers a string to the caller; managed strings,
+JSON allocations and caller-owned copies have no guaranteed erasure contract.
