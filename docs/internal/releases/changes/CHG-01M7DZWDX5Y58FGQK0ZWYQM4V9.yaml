@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7DZWDX5Y58FGQK0ZWYQM4V9
+Title: "Review local secret generation options in a Desktop dialog"
+Type: feat
+Scope: privacy
+Summary: "Wire a dedicated Desktop modal to the shared bounded secret-generator session, with deliberate adoption, cancellation and clipboard controls."
+Group: desktop-secret-options
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Bounded generator sessions keep previews transient and require explicit adoption; cancellation and disposal retire the modal-owned state."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Generator options expose policy-bounded length and character choices, masked preview, deliberate clipboard copy and explicit application."

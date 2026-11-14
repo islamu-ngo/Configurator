@@ -35,10 +35,13 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
     private bool _followLocaleDirection = true;
     partial void OnIsRightToLeftChanged(bool value) => FollowLocaleDirection = false;
 
-    public FormWorkspaceViewModel(IMessenger messenger, ISecretClipboardService? clipboard = null)
+    public FormWorkspaceViewModel(
+        IMessenger messenger,
+        ISecretClipboardService? clipboard = null,
+        ISecretGeneratorDialogService? secretGeneratorDialog = null)
     {
         _messenger = messenger;
-        _factory = new FormFieldFactory(clipboard);
+        _factory = new FormFieldFactory(clipboard, secretGeneratorDialog);
         ValidateCommand = new RelayCommand(() => Validate(), () => CanValidate);
         messenger.Register<FormWorkspaceViewModel, DefinitionClearedMessage>(this,
             static (workspace, _) => workspace.Replace(null));

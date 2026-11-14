@@ -20,7 +20,7 @@ internal static class DesktopTestContext
         Func<string, Stream>? openDefinition = null, Func<string, Stream>? openImport = null,
         TimeProvider? timeProvider = null, Func<CancellationToken, ValueTask>? cooperativeYield = null,
         IMessenger? messenger = null, IDefinitionRemoteFetcher? remoteFetcher = null,
-        IDefinitionStoreProvider? storeProvider = null)
+        IDefinitionStoreProvider? storeProvider = null, ISecretGeneratorDialogService? secretGeneratorDialog = null)
     {
         messenger ??= new WeakReferenceMessenger();
         var dialogs = new Dialogs(select ?? ((_, _) => Task.FromResult<Uri?>(null)));
@@ -32,7 +32,7 @@ internal static class DesktopTestContext
         try
         {
             loader = Loader(messenger, dialogs, openDefinition, remoteFetcher, storeProvider);
-            workspace = new FormWorkspaceViewModel(messenger);
+            workspace = new FormWorkspaceViewModel(messenger, secretGeneratorDialog: secretGeneratorDialog);
             if (save is null && protectedOutputAvailable is null && publishBundle is null && openImport is null)
             {
                 publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter());

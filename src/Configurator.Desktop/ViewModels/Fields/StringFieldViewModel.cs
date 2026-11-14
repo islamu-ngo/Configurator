@@ -18,6 +18,8 @@ public sealed class StringFieldViewModel : FieldViewModel
         : base(schema, name, required, parent, listItem, inheritedMasking)
     {
         GenerateCommand = new AsyncRelayCommand(GenerateAsync, () => !IsDisposed && Form.CanGenerateSecret(FullPath()));
+        OpenGeneratorCommand = new AsyncRelayCommand(OpenGeneratorAsync,
+            () => !IsDisposed && Form.CanGenerateSecret(FullPath()));
         CancelGenerationCommand = new RelayCommand(() => GenerateCommand.Cancel());
         RevealCommand = new RelayCommand(() => { if (IsDisposed) return; _isRevealed = !_isRevealed; NotifySecretState(); },
             () => !IsDisposed && RequiresMasking && Text.Length > 0);
@@ -55,7 +57,9 @@ public sealed class StringFieldViewModel : FieldViewModel
     public string OperationStatus => _operationStatus;
     public string OperationMessage => Strings.SecretOperationMessage(_operationStatus);
     public string CancelGenerationLabel => Strings.CancelGenerationLabel;
+    public string OpenGeneratorLabel => Strings["OpenGeneratorLabel"];
     public string GenerateName => $"{GenerateLabel}: {Title}";
+    public string OpenGeneratorName => $"{OpenGeneratorLabel}: {Title}";
     public string RevealName => $"{RevealLabel}: {Title}";
     public string CopyName => $"{CopyLabel}: {Title}";
     public string CopyGeneratedPasswordName => $"{CopyGeneratedPasswordLabel}: {Title}";
@@ -81,6 +85,7 @@ public sealed class StringFieldViewModel : FieldViewModel
         set { if (!IsDisposed) SetProperty(ref _secretInput, value ?? string.Empty); }
     }
     public IAsyncRelayCommand GenerateCommand { get; }
+    public IAsyncRelayCommand OpenGeneratorCommand { get; }
     public IRelayCommand CancelGenerationCommand { get; }
     public IRelayCommand RevealCommand { get; }
     public IAsyncRelayCommand CopyCommand { get; }
@@ -166,7 +171,10 @@ public sealed class StringFieldViewModel : FieldViewModel
         OnPropertyChanged(nameof(CopyGeneratedPasswordName));
         OnPropertyChanged(nameof(RevealGeneratedPasswordName));
         OnPropertyChanged(nameof(DismissSecretResultName));
+        OnPropertyChanged(nameof(OpenGeneratorLabel));
+        OnPropertyChanged(nameof(OpenGeneratorName));
         GenerateCommand.NotifyCanExecuteChanged();
+        OpenGeneratorCommand.NotifyCanExecuteChanged();
         RevealCommand.NotifyCanExecuteChanged();
         CopyCommand.NotifyCanExecuteChanged();
         CopyGeneratedPasswordCommand.NotifyCanExecuteChanged();
@@ -176,11 +184,28 @@ public sealed class StringFieldViewModel : FieldViewModel
     public override void Dispose()
     {
         GenerateCommand.Cancel();
+        OpenGeneratorCommand.Cancel();
         SecretInput = string.Empty;
         _isRevealed = false;
         _passwordRevealed = false;
         base.Dispose();
         OnPropertyChanged(nameof(Text));
         NotifySecretState();
+    }
+
+    private async Task OpenGeneratorAsync(CancellationToken cancellationToken)
+    {
+        if (IsDisposed || SecretGeneratorDialogService is null || !Form.CanGenerateSecret(FullPath()))
+            return;
+        _isRevealed = false;
+        _passwordRevealed = false;
+        _operationStatus = string.Empty;
+        Configurator.Presentation.DefinitionSecretOperationResult? result = await SecretGeneratorDialogService.OpenAsync(
+            Form, FullPath(), Strings, SecretClipboard, cancellationToken);
+        if (!IsDisposed && result is not null)
+        {
+            _operationStatus = result.Code;
+            NotifySecretState();
+        }
     }
 }

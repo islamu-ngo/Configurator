@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="OpenGeneratorLabel" xml:space="preserve"><value>خيارات المولّد…</value></data>
+  <data name="SecretGeneratorTitle" xml:space="preserve"><value>مولّد الأسرار المحلي</value></data>
+  <data name="SecretGeneratorPrivacyNote" xml:space="preserve"><value>تبقى القيم المولّدة محلية في مساحة العمل هذه ولا تُطبَّق إلا عند اختيار تطبيق.</value></data>
+  <data name="SecretLengthLabel" xml:space="preserve"><value>الطول</value></data>
+  <data name="SecretByteLengthLabel" xml:space="preserve"><value>الطول بالبايت</value></data>
+  <data name="SecretIncludeLowercase" xml:space="preserve"><value>أحرف صغيرة (a–z)</value></data>
+  <data name="SecretIncludeUppercase" xml:space="preserve"><value>أحرف كبيرة (A–Z)</value></data>
+  <data name="SecretIncludeDigits" xml:space="preserve"><value>أرقام (0–9)</value></data>
+  <data name="SecretIncludeSymbols" xml:space="preserve"><value>رموز</value></data>
+  <data name="SecretForbiddenCharsLabel" xml:space="preserve"><value>أحرف إضافية مستبعدة</value></data>
+  <data name="SecretEntropyLabel" xml:space="preserve"><value>الإنتروبيا المقدّرة: {0:F0} بت (الحد الأدنى: 128 بت)</value></data>
+  <data name="SecretGeneratePreview" xml:space="preserve"><value>توليد معاينة</value></data>
+  <data name="SecretPreviewLabel" xml:space="preserve"><value>المعاينة المولّدة</value></data>
+  <data name="SecretApplyGenerated" xml:space="preserve"><value>تطبيق السر</value></data>
+  <data name="SecretDialogCancelLabel" xml:space="preserve"><value>إلغاء</value></data>
   <data name="ProfileTitle" xml:space="preserve"><value>الملفات المحلية والاسترداد</value></data>
   <data name="ProfileRevisionHelp" xml:space="preserve"><value>تعرض كل نسخة محفوظة معرف الملف ومعرف النسخة ونوعها. تظل القائمة غير موثقة حتى الفتح الموثق.</value></data>
   <data name="ProfileModeLabel" xml:space="preserve"><value>وضع الحماية</value></data>

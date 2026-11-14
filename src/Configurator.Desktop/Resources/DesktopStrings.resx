@@ -1,5 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="OpenGeneratorLabel" xml:space="preserve"><value>Generator options…</value></data>
+  <data name="SecretGeneratorTitle" xml:space="preserve"><value>Local secret generator</value></data>
+  <data name="SecretGeneratorPrivacyNote" xml:space="preserve"><value>Generated values remain local to this workspace and are applied only when you choose Apply.</value></data>
+  <data name="SecretLengthLabel" xml:space="preserve"><value>Length</value></data>
+  <data name="SecretByteLengthLabel" xml:space="preserve"><value>Byte length</value></data>
+  <data name="SecretIncludeLowercase" xml:space="preserve"><value>Lowercase (a–z)</value></data>
+  <data name="SecretIncludeUppercase" xml:space="preserve"><value>Uppercase (A–Z)</value></data>
+  <data name="SecretIncludeDigits" xml:space="preserve"><value>Digits (0–9)</value></data>
+  <data name="SecretIncludeSymbols" xml:space="preserve"><value>Symbols</value></data>
+  <data name="SecretForbiddenCharsLabel" xml:space="preserve"><value>Additional excluded characters</value></data>
+  <data name="SecretEntropyLabel" xml:space="preserve"><value>Estimated entropy: {0:F0} bits (floor: 128 bits)</value></data>
+  <data name="SecretGeneratePreview" xml:space="preserve"><value>Generate preview</value></data>
+  <data name="SecretPreviewLabel" xml:space="preserve"><value>Generated preview</value></data>
+  <data name="SecretApplyGenerated" xml:space="preserve"><value>Apply secret</value></data>
+  <data name="SecretDialogCancelLabel" xml:space="preserve"><value>Cancel</value></data>
   <data name="ProfileTitle" xml:space="preserve"><value>Local profiles and recovery</value></data>
   <data name="ProfileRevisionHelp" xml:space="preserve"><value>Each saved revision shows its profile ID, snapshot ID and file kind. Listings remain unverified until authenticated opening.</value></data>
   <data name="ProfileModeLabel" xml:space="preserve"><value>Protection mode</value></data>

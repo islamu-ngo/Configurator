@@ -730,3 +730,10 @@ vault, selected OS recipient and independent recovery verifier. Its shell-owned
 lifetime retires retained slots with the workspace. `ProfileWorkspaceView`
 clears passphrase entry after deliberate actions and exposes saved reference
 identities separately from recovery status. Target output uses protected saving.
+
+## Dedicated secret options
+
+`AvaloniaSecretGeneratorDialogService` owns the modal and its shared
+`DefinitionSecretGeneratorSession`. The field factory carries the optional
+service to secret fields; the dialog view model validates options, manages
+transient previews and applies only through the current session authority.

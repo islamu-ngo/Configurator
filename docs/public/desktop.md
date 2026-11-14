@@ -407,3 +407,9 @@ protection mode and deliberately save a new immutable revision. Keep its saved
 reference separately, then select that exact revision to check portable recovery.
 Retiring a retained field requires confirmation. Old encrypted copies retain
 their original access, and rekeying a profile does not rotate target credentials.
+
+## Generator options
+
+Choose Generator options beside a locally generated secret to review bounded
+length and character choices. Generate a masked preview, then choose Apply
+secret to adopt it. Cancel closes the preview without changing the answer.

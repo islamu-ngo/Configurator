@@ -77,7 +77,9 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     protected DefinitionFormModel Form => Root._form!;
     public DesktopStrings Strings => new(Root._form?.Locale);
     internal ISecretClipboardService? Clipboard { get; set; }
+    internal ISecretGeneratorDialogService? SecretGeneratorDialog { get; set; }
     protected ISecretClipboardService? SecretClipboard => Root.Clipboard;
+    protected ISecretGeneratorDialogService? SecretGeneratorDialogService => Root.SecretGeneratorDialog;
     internal virtual IEnumerable<FieldViewModel> Descendants => [];
     internal string EditorIdentity { get; set; } = string.Empty;
     internal DefinitionPath EditorPath => FullPath();

@@ -35,6 +35,9 @@ public sealed partial class App : Application, IDisposable
                     () => provider.GetRequiredService<FormWorkspaceViewModel>().Form?.Locale));
             services.AddSingleton<ISecretClipboardService>(provider =>
                 new AvaloniaSecretClipboardService(() => provider.GetRequiredService<MainWindow>().Clipboard));
+            services.AddSingleton<ISecretGeneratorDialogService>(provider =>
+                new AvaloniaSecretGeneratorDialogService(() => provider.GetRequiredService<MainWindow>(),
+                    provider.GetService<ISecretClipboardService>()));
             services.AddSingleton<IDefinitionRemoteFetcher, DefinitionRemoteFetcher>();
             services.AddSingleton<IDefinitionStoreProvider, EmbeddedDefinitionStoreProvider>();
             services.AddSingleton<DefinitionLoaderViewModel>();

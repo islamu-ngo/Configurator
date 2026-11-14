@@ -5,7 +5,9 @@ using Configurator.Desktop.Services;
 using Configurator.Presentation;
 
 /// <summary>Owns one workspace's binding projections and its single shared-form refresh subscription.</summary>
-public sealed class FormFieldFactory(ISecretClipboardService? clipboard = null) : IDisposable
+public sealed class FormFieldFactory(
+    ISecretClipboardService? clipboard = null,
+    ISecretGeneratorDialogService? secretGeneratorDialog = null) : IDisposable
 {
     private DefinitionFormModel? _form;
     private IReadOnlyList<FieldViewModel> _fields = [];
@@ -21,6 +23,7 @@ public sealed class FormFieldFactory(ISecretClipboardService? clipboard = null) 
             var root = new RootFieldViewModel(schema, form.Definition.Title);
             root.AttachRoot(form);
             root.Clipboard = clipboard;
+            root.SecretGeneratorDialog = secretGeneratorDialog;
             _fields = Array.AsReadOnly<FieldViewModel>([root]);
         }
         else
@@ -32,6 +35,7 @@ public sealed class FormFieldFactory(ISecretClipboardService? clipboard = null) 
                     null, false, configurationProtected);
                 field.Attach(form, input);
                 field.Clipboard = clipboard;
+                field.SecretGeneratorDialog = secretGeneratorDialog;
                 return field;
             }).ToArray());
         }
