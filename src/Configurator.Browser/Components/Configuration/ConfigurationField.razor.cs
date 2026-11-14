@@ -20,6 +20,7 @@ public partial class ConfigurationField
     [Parameter, EditorRequired] public long MountRevision { get; set; } = -1;
     [Parameter, EditorRequired] public IReadOnlyList<string> Path { get; set; } = [];
     [Parameter] public bool LiteralPath { get; set; }
+    [CascadingParameter(Name = "OnFieldFocused")] private Action<DefinitionPath>? OnFieldFocused { get; set; }
     [Parameter] public DefinitionValidationResult? Validation { get; set; }
     [Parameter] public EventCallback<(string Id, string FieldId, bool Invalid)> ValidationChanged { get; set; }
     [Parameter] public bool InheritedSecret { get; set; }
@@ -184,7 +185,127 @@ public partial class ConfigurationField
     }
     private bool HasChoices => Schema.Keywords.TryGetProperty("enum", out _);
     private JsonElement Choices => Schema.Keywords.GetProperty("enum");
-    private bool UseRadios => !IsMasked && !HasChoices && Type == "boolean";
+    private bool UseSwitch => !IsMasked && !HasChoices && Type == "boolean"
+        && _presentation?.Widget == DefinitionFieldWidget.Switch;
+    private bool UseRadios => !IsMasked && (
+        (!HasChoices && Type == "boolean" && _presentation?.Widget != DefinitionFieldWidget.Switch) ||
+        (HasChoices && _presentation?.Widget == DefinitionFieldWidget.Radio));
+    private bool UseSlider => !IsMasked && Type is "integer" or "number"
+        && _presentation?.Widget == DefinitionFieldWidget.Slider && TryGetSliderBounds(out _, out _, out _);
+    private bool IsMultilineWidget => !IsMasked && Type == "string"
+        && _presentation?.Widget is DefinitionFieldWidget.MultiLine or DefinitionFieldWidget.Markdown or DefinitionFieldWidget.Code;
+    private int ResolvedRows => _presentation?.Rows is > 0 and <= 64 ? _presentation.Rows.Value : 8;
+    private bool IsDynamicPrivateMapEntry => IsSecret && Path.Count > 1 && Form.GetEditorSchema(EditorPath)?.Keywords is not null &&
+        _presentation?.HasCopyableWireToken == false && Path[^1] == TitleOverride;
+    private string SwitchAriaChecked => Value switch
+    {
+        { ValueKind: JsonValueKind.True } => "true",
+        { ValueKind: JsonValueKind.False } => "false",
+        _ => "mixed"
+    };
+    private string SwitchLabelText => Value switch
+    {
+        { ValueKind: JsonValueKind.True } => _presentation?.BooleanLabels?.TrueLabel ?? Ui("Yes"),
+        { ValueKind: JsonValueKind.False } => _presentation?.BooleanLabels?.FalseLabel ?? Ui("No"),
+        _ => Ui("SwitchUnset")
+    };
+    private bool TryGetSliderBounds(out double min, out double max, out double step)
+    {
+        min = 0; max = 100; step = Type == "integer" ? 1 : 0.1;
+        bool hasMin = Schema.Keywords.TryGetProperty("minimum", out var minEl) && minEl.TryGetDouble(out min);
+        bool hasMax = Schema.Keywords.TryGetProperty("maximum", out var maxEl) && maxEl.TryGetDouble(out max);
+        if (!hasMin || !hasMax || max <= min) return false;
+        if (Schema.Keywords.TryGetProperty("multipleOf", out var stepEl) && stepEl.TryGetDouble(out double declared) && declared > 0)
+            step = declared;
+        return true;
+    }
+    private string? ArrayItemTitle(int index)
+    {
+        if (_presentation?.ItemTitlePointer is not { } pointer) return null;
+        if (Value is not { ValueKind: JsonValueKind.Array } array || index < 0 || index >= array.GetArrayLength()) return null;
+        JsonElement current = array[index];
+        foreach (string segment in DefinitionPath.Parse(pointer).Segments)
+        {
+            if (current.ValueKind != JsonValueKind.Object || !current.TryGetProperty(segment, out JsonElement next)) return null;
+            current = next;
+        }
+        if (current.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined or JsonValueKind.Object or JsonValueKind.Array) return null;
+        string text = Display(current);
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+    private bool IsDuplicateArrayItem(int row)
+    {
+        if (_presentation?.UniqueBy is not { Count: > 0 } keys) return false;
+        if (Value is not { ValueKind: JsonValueKind.Array } array) return false;
+        int len = array.GetArrayLength();
+        if (row < 0 || row >= len) return false;
+        string? KeyFor(int idx)
+        {
+            JsonElement item = array[idx];
+            if (item.ValueKind != JsonValueKind.Object) return null;
+            var parts = new string[keys.Count];
+            for (int k = 0; k < keys.Count; k++)
+            {
+                JsonElement cur = item;
+                foreach (string seg in keys[k].Segments)
+                {
+                    if (cur.ValueKind != JsonValueKind.Object || !cur.TryGetProperty(seg, out JsonElement nxt)) return null;
+                    cur = nxt;
+                }
+                if (cur.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined) return null;
+                parts[k] = cur.ValueKind == JsonValueKind.String ? cur.GetString()! : cur.GetRawText();
+            }
+            return string.Join('\u001F', parts);
+        }
+        string? target = KeyFor(row);
+        if (target is null) return false;
+        int matches = 0;
+        for (int i = 0; i < len; i++)
+            if (string.Equals(KeyFor(i), target, StringComparison.Ordinal) && ++matches > 1) return true;
+        return false;
+    }
+    private void NotifyFocused() => OnFieldFocused?.Invoke(EditorPath);
+    private Dictionary<string, object> BuildInputAttributes(bool canEdit, bool hasError)
+    {
+        var attributes = new Dictionary<string, object>
+        {
+            ["name"] = ControlId,
+            ["autocomplete"] = Autocomplete(canEdit),
+            ["spellcheck"] = "false",
+            ["aria-invalid"] = hasError.ToString().ToLowerInvariant(),
+            ["aria-describedby"] = ControlId + "-help " + ControlId + "-error" + (Schema.Secret is null ? "" : " " + ControlId + "-rules")
+        };
+        if (!IsMasked && !string.IsNullOrWhiteSpace(_presentation?.Placeholder))
+            attributes["placeholder"] = _presentation.Placeholder;
+        if (!IsMasked && _presentation?.Widget is DefinitionFieldWidget.MultiLine or DefinitionFieldWidget.Markdown or DefinitionFieldWidget.Code)
+        {
+            attributes["data-widget"] = _presentation.Widget switch
+            {
+                DefinitionFieldWidget.MultiLine => "multiline",
+                DefinitionFieldWidget.Markdown => "markdown",
+                DefinitionFieldWidget.Code => "code",
+                _ => "auto"
+            };
+            if (_presentation.Widget == DefinitionFieldWidget.Code && !string.IsNullOrWhiteSpace(_presentation.Syntax))
+                attributes["data-syntax"] = _presentation.Syntax;
+        }
+        return attributes;
+    }
+    private async Task CopyWireKeyAsync()
+    {
+        if (_disposed || _presentation is not { HasCopyableWireToken: true } presentation) return;
+        await using var export = new Configurator.Browser.Services.BrowserArtifactExport(Javascript);
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(presentation.WireToken);
+        try
+        {
+            export.SetOutput(bytes);
+            await export.CopyAsync();
+        }
+        finally
+        {
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(bytes);
+        }
+    }
     private static string ChoiceIdentity(int index) => index.ToString(System.Globalization.CultureInfo.InvariantCulture);
     private string ChoiceLabel(int index, JsonElement value)
     {

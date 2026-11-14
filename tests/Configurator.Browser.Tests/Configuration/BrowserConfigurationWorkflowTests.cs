@@ -215,7 +215,7 @@ public sealed class BrowserConfigurationWorkflowTests
         await component.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
 
         await Assert.That(confirmation.Count).IsEqualTo(0);
-        await component.Find(".configuration-editor > button").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-action='start-workspace']").ClickAsync(new MouseEventArgs());
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -236,7 +236,8 @@ public sealed class BrowserConfigurationWorkflowTests
         await confirmed.WaitAsync(TimeSpan.FromSeconds(5));
 
         await Assert.That(confirmation.Count).IsEqualTo(2);
-        await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsTrue();
+        await Assert.That(component.Find("[data-startup-state]").GetAttribute("data-startup-state")).IsEqualTo("before-entry");
+        await Assert.That(component.FindAll("input, select, textarea, .configuration-editor__controls")).IsEmpty();
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
     }
 

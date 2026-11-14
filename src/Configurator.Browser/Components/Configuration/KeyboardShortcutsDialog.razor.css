@@ -1,0 +1,5 @@
+.keyboard-shortcuts h2 { font-size: var(--isl-typography-h4-size); margin-block: 0 var(--isl-space-3); }
+.keyboard-shortcuts__list { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--isl-space-2) var(--isl-space-4); align-items: center; margin: 0; }
+.keyboard-shortcuts__list dt { margin: 0; }
+.keyboard-shortcuts__list dd { margin: 0; color: var(--isl-color-text-secondary); font-size: .875rem; }
+.keyboard-shortcuts__list kbd { display: inline-block; padding: 2px 6px; border: 1px solid var(--isl-color-border); border-radius: 4px; background: var(--isl-surface-container); font-family: var(--isl-font-family-mono); font-size: .75rem; }

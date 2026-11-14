@@ -249,6 +249,42 @@ public sealed class BrowserConfigurationReviewTests
         await Assert.That(input.Position).IsEqualTo(0);
     }
 
+    [Test]
+    public async Task ReviewFiltersByOriginAndFocusesTargetAndFilesDisclosesBrowserCustody()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+
+        await component.Find("[data-field='note'] input").InputAsync(new ChangeEventArgs { Value = "explicit note value" });
+        long revision = form.InputRevision;
+
+        await BrowserFixture.SelectPanelAsync(component, "review");
+
+        await Assert.That(component.FindAll("[data-review-origin-filter='Explicit']").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-review-origin-filter='Defaulted']").Count).IsEqualTo(1);
+
+        await component.Find("[data-review-origin-filter='Explicit']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-review-path='note']").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-review-path='name']")).IsEmpty();
+
+        await component.Find("[data-review-origin-filter='Defaulted']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-review-path='name']").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-review-path='note']")).IsEmpty();
+
+        await component.Find("[data-review-origin-filter='All']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-review-path='note']").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-review-path='name']").Count).IsEqualTo(1);
+
+        // Click row focus action navigates back without mutating answers.
+        await component.Find("[data-review-path='note'] [data-action='review-focus-row']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-field='note'] input").Count).IsEqualTo(1);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+
+        await BrowserFixture.SelectPanelAsync(component, "prepare");
+        await Assert.That(component.FindAll("[data-custody-disclosure]").Count).IsEqualTo(1);
+    }
+
     private static Definition Definition()
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();

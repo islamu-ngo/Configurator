@@ -10,13 +10,16 @@
     <MudDialogProvider />
     <MudSnackbarProvider />
     <WorkspaceNavigationGuard />
-    <div class="main-layout" lang="@NavigationState.Culture.Locale" dir="@(IsRtl ? "rtl" : "ltr")">
+    <div class="main-layout @(NavigationState.IsActive ? "main-layout--workspace" : "")" lang="@NavigationState.Culture.Locale" dir="@(IsRtl ? "rtl" : "ltr")">
         <a class="main-layout__skip-link" href="#main-content" @onclick="SkipToContentAsync" @onclick:preventDefault>@BrowserStrings.Get("SkipToContent", NavigationState.Culture.Locale)</a>
         <NavMenu />
         <main @ref="_mainContent" id="main-content" class="main-layout__main" tabindex="-1">@Body</main>
-        <div class="main-layout__footer">
-            <Footer />
-        </div>
+        @if (!NavigationState.IsActive)
+        {
+            <div class="main-layout__footer">
+                <Footer />
+            </div>
+        }
     </div>
 </MudRTLProvider>
 </CascadingValue>

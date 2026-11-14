@@ -1,0 +1,32 @@
+.configuration-compact { display: flex; flex-direction: column; gap: var(--isl-space-3); min-inline-size: 0; }
+.configuration-compact__toolbar { display: flex; flex-direction: column; gap: var(--isl-space-2); padding: var(--isl-space-3); border: 1px solid var(--isl-outline-variant); border-radius: var(--isl-radius-md, 10px); background: var(--isl-surface-container-low); }
+.configuration-compact__heading { margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--isl-color-text); }
+.configuration-compact__controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--isl-space-2); }
+.configuration-compact__search-box { flex: 1 1 16rem; min-inline-size: 0; }
+.configuration-compact__search { inline-size: 100%; }
+.configuration-compact__filters { display: flex; flex-wrap: wrap; gap: var(--isl-space-1); }
+.configuration-compact__chip { min-block-size: 2.25rem; font-size: .8125rem; padding-inline: .65rem; }
+.configuration-compact__chip--active { background: var(--isl-primary-container); color: var(--isl-on-primary-container); border-color: var(--isl-color-primary); }
+.configuration-compact__toggle { display: inline-flex; align-items: center; gap: .375rem; font-size: .875rem; color: var(--isl-color-text-secondary); min-block-size: 2.25rem; }
+.configuration-compact__count { font-size: .8125rem; color: var(--isl-color-text-secondary); margin-inline-start: auto; }
+.configuration-compact__empty { padding: var(--isl-space-4); border: 1px dashed var(--isl-outline-variant); border-radius: var(--isl-radius-md, 8px); color: var(--isl-color-text-secondary); }
+.configuration-compact__table { border: 1px solid var(--isl-outline-variant); border-radius: var(--isl-radius-md, 10px); overflow: hidden; background: var(--isl-surface-container-lowest); }
+.configuration-compact__header, .configuration-compact__row { display: grid; grid-template-columns: minmax(7rem, 0.9fr) minmax(11rem, 1.4fr) minmax(12rem, 1.5fr) minmax(5rem, 0.7fr) minmax(6rem, 0.8fr); gap: var(--isl-space-2); align-items: center; padding-inline: var(--isl-space-3); padding-block: var(--isl-space-2); }
+.configuration-compact__header { background: var(--isl-surface-container-high); border-block-end: 1px solid var(--isl-outline-variant); font-size: .8125rem; font-weight: 600; color: var(--isl-color-text-secondary); }
+.configuration-compact__body { max-block-size: 34rem; overflow-y: auto; }
+.configuration-compact__row { min-block-size: 3.25rem; border-block-end: 1px solid var(--isl-outline-variant); font-size: .875rem; }
+.configuration-compact__row--active { background: var(--isl-surface-container); outline: 2px solid var(--isl-color-primary); outline-offset: -2px; }
+.configuration-compact__row--error { border-inline-start: 3px solid var(--isl-color-error); }
+.configuration-compact__sort { background: transparent; border: 0; color: inherit; font: inherit; font-weight: 600; padding: 0; text-align: start; cursor: pointer; min-block-size: 2rem; }
+.configuration-compact__cell { min-inline-size: 0; display: flex; flex-direction: column; gap: .15rem; }
+.configuration-compact__title { font-weight: 600; color: var(--isl-color-text); display: inline-flex; flex-wrap: wrap; gap: .375rem; align-items: baseline; }
+.configuration-compact__units, .configuration-compact__meta { font-size: .75rem; color: var(--isl-color-text-secondary); }
+.configuration-compact__wire { font-size: .75rem; color: var(--isl-color-text-secondary); }
+.configuration-compact__badge--deprecated { font-size: .75rem; padding-inline: .35rem; border-radius: .25rem; background: var(--isl-error-container); color: var(--isl-on-error-container); }
+.configuration-compact__input { inline-size: 100%; min-block-size: 2.35rem; }
+.configuration-compact__locked, .configuration-compact__masked, .configuration-compact__composite { display: flex; flex-wrap: wrap; align-items: center; gap: var(--isl-space-2); font-size: .8125rem; color: var(--isl-color-text-secondary); }
+@media (max-width: 640px) {
+    .configuration-compact__header { display: none; }
+    .configuration-compact__row { grid-template-columns: 1fr; align-items: stretch; min-block-size: auto; padding-block: var(--isl-space-3); }
+    .configuration-compact__row .button, .configuration-compact__input { min-block-size: 2.75rem; }
+}

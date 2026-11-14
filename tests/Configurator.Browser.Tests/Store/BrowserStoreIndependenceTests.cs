@@ -248,6 +248,22 @@ public sealed class BrowserStoreIndependenceTests
         await Assert.That(navigation.Uri).Contains("digest=");
     }
 
+    [Test]
+    public async Task CatalogueAndStoreProjectExposeReadOnlyExploreLinksAndBrowserExcludesArtifacts()
+    {
+        await using var context = BrowserFixture.Context();
+
+        var catalogue = context.Render<Pages.Catalogue>();
+        await Assert.That(catalogue.FindAll("[data-action='explore-definition']").Count).IsGreaterThan(0);
+        await Assert.That(catalogue.Find("[data-action='explore-definition']").GetAttribute("href")).StartsWith("explore/");
+
+        var projectPage = context.Render<Pages.StoreProject>(parameters => parameters.Add(page => page.ProjectId, "minimal-self-hosted"));
+        await Assert.That(projectPage.FindAll("[data-action='explore-definition']").Count).IsEqualTo(1);
+
+        var referenced = typeof(ConfigurationEditor).Assembly.GetReferencedAssemblies().Select(name => name.Name);
+        await Assert.That(referenced.Any(name => string.Equals(name, "Configurator.Artifacts", StringComparison.Ordinal))).IsFalse();
+    }
+
     private static Definition Revision(Definition source, long revision)
     {
         JsonNode node = JsonNode.Parse(source.CanonicalBytes.Span)!;

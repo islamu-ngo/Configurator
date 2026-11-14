@@ -2,7 +2,9 @@
 @using System.Globalization
 @using System.Text.Json
 
-<div class="configuration-field @(Type is "object" or "array" ? "configuration-field--group" : "")" data-field="@string.Join('.', Path)">
+<div class="configuration-field @(Type is "object" or "array" ? "configuration-field--group" : "")"
+     data-field="@string.Join('.', Path)"
+     @onfocusin="NotifyFocused" @onfocusin:stopPropagation="true">
     @if (!IsVisible)
     {
         <div class="configuration-field__collapsed">
@@ -39,7 +41,8 @@
     bool required = Required;
     bool isSecret = IsSecret;
     bool isMasked = correctionFacts.RequiresMasking;
-    bool useRadios = !isMasked && !HasChoices && type == "boolean";
+    bool useSwitch = UseSwitch;
+    bool useRadios = UseRadios;
     @if (type is "object" or "array")
     {
         <fieldset @ref="_group" tabindex="-1" aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
@@ -137,7 +140,16 @@
                     int row = int.Parse(childMount.Location.Segments[^1], CultureInfo.InvariantCulture);
                     @if (childMount.Admitted)
                     {
-                    <div class="configuration-field__row" @key="childMount.Identity">
+                    <div class="configuration-field__row" data-list-item-index="@row" @key="childMount.Identity">
+                        @{
+                            string? dynamicTitle = ArrayItemTitle(row);
+                            bool duplicateRow = IsDuplicateArrayItem(row);
+                        }
+                        <p class="configuration-field__item-heading"><strong data-item-title>@(dynamicTitle ?? (UiFormat("FieldListItem", Title) + " " + (row + 1)))</strong></p>
+                        @if (duplicateRow)
+                        {
+                            <p class="configuration-field__duplicate" role="status" data-duplicate-key>@Ui("DuplicateUniqueKey")</p>
+                        }
                         <ConfigurationField Form="Form" Schema="ItemSchema" Path="@Path.Append(row.ToString(CultureInfo.InvariantCulture)).ToArray()" LiteralPath="LiteralPath" MountNode="childMount" MountRevision="MountRevision" Validation="Validation" ValidationChanged="ValidationChanged"
                                             TitleOverride="@UiFormat("FieldListItem", Title)" RequiredOverride="true"
                                             InheritedSecret="isSecret" FocusFirstControl="@(row == _focusNewRow || FocusFirstControl && (FocusPath.Count > Path.Count ? FocusPath[Path.Count] == row.ToString(CultureInfo.InvariantCulture) : row == (FocusRow >= 0 ? FocusRow : 0)))" FocusGeneration="FocusGeneration" FocusPath="@(row == _focusNewRow ? PendingFocusPath : FocusPath)" />
@@ -185,13 +197,35 @@
             <div class="configuration-field__identity">
                 @if (useRadios)
                 {
-                    <span id="@(ControlId + "-label")" class="configuration-field__label">@Title <span class="configuration-field__requirement">@Ui(required ? "Required" : "Optional")</span></span>
+                    <span id="@(ControlId + "-label")" class="configuration-field__label">@Title
+                        <span class="configuration-field__requirement">@Ui(required ? "Required" : "Optional")</span>
+                        @if (!string.IsNullOrWhiteSpace(_presentation?.Units)) { <span class="configuration-field__units" data-field-units>@_presentation.Units</span> }
+                        @if (_presentation?.IsDeprecated == true) { <span class="configuration-field__badge configuration-field__badge--deprecated" data-field-deprecated>@Ui("FieldDeprecated")</span> }
+                        @if (_presentation?.IsController == true) { <span class="configuration-field__badge configuration-field__badge--controller" data-controller-impact>@_presentation.ControllerImpactSummary</span> }
+                    </span>
                 }
                 else
                 {
-                    <label id="@(ControlId + "-label")" for="@ControlId" @onclick="() => FocusScalarAsync()">@Title <span class="configuration-field__requirement">@Ui(required ? "Required" : "Optional")</span></label>
+                    <label id="@(ControlId + "-label")" for="@ControlId" @onclick="() => FocusScalarAsync()">@Title
+                        <span class="configuration-field__requirement">@Ui(required ? "Required" : "Optional")</span>
+                        @if (!string.IsNullOrWhiteSpace(_presentation?.Units)) { <span class="configuration-field__units" data-field-units>@_presentation.Units</span> }
+                        @if (_presentation?.IsDeprecated == true) { <span class="configuration-field__badge configuration-field__badge--deprecated" data-field-deprecated>@Ui("FieldDeprecated")</span> }
+                        @if (_presentation?.IsController == true) { <span class="configuration-field__badge configuration-field__badge--controller" data-controller-impact>@_presentation.ControllerImpactSummary</span> }
+                    </label>
                 }
-                @if (Title != Path[^1])
+                @if (_presentation is { HasCopyableWireToken: true })
+                {
+                    <span class="configuration-field__key-row">
+                        @if (Title != _presentation.WireToken || _presentation.SecondaryLabel is not null)
+                        {
+                            <code class="configuration-field__key" dir="ltr" data-wire-key>@_presentation.WireToken</code>
+                        }
+                        <button type="button" class="configuration-field__copy-key" data-action="copy-wire-key"
+                                aria-label="@UiFormat("WireKeyCopyTitle", _presentation.WireToken)"
+                                @onclick="CopyWireKeyAsync">@Ui("CopyWireKey")</button>
+                    </span>
+                }
+                else if (!IsDynamicPrivateMapEntry && Title != Path[^1])
                 {
                     <code class="configuration-field__key" dir="ltr">@Path[^1]</code>
                 }
@@ -204,13 +238,29 @@
                                        OnNull="@(() => SupplyNull(actionForm, actionPath, actionRevision, actionGeneration))"
                                        GetBindings="InspectorBindings" />
         </div>
+        @if (!string.IsNullOrWhiteSpace(_presentation?.DeprecationGuidance))
+        {
+            <p class="configuration-field__help" data-deprecation-guidance>@_presentation.DeprecationGuidance</p>
+        }
         @if (HasChoices || type == "boolean" && !isMasked)
         {
             var editForm = Form;
             var editPath = Path.ToArray();
             long editRevision = Form.InputRevision;
             long editControlGeneration = _controlGeneration;
-            @if (useRadios)
+            @if (useSwitch)
+            {
+                <label class="configuration-field__switch">
+                    <input id="@ControlId" type="checkbox" role="switch" aria-checked="@SwitchAriaChecked"
+                           aria-labelledby="@(ControlId + "-label")"
+                           aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
+                           checked="@(Value is { ValueKind: JsonValueKind.True })"
+                           disabled="@(!canEdit)"
+                           @onchange="@(args => { string next = args.Value is true ? "true" : "false"; if (Edit(new ChangeEventArgs { Value = next }, editForm, editPath, editRevision, editControlGeneration)) editRevision = editForm.InputRevision; })" />
+                    <span>@SwitchLabelText</span>
+                </label>
+            }
+            else if (useRadios && !HasChoices)
             {
                 <div class="configuration-field__radios" @ref="_radioGroup">
                     <MudRadioGroup T="string" Name="@ControlId" Value="@Selection" Disabled="@(!canEdit)"
@@ -220,12 +270,35 @@
                         <MudRadio T="string" Value="@string.Empty" AriaLabel="@Ui("NotSupplied")">
                             <span id="@(ControlId + "-absence-label")">@Ui("NotSupplied")</span>
                         </MudRadio>
-                        <MudRadio T="string" Value="@("true")" AriaLabel="@Ui("Yes")">
-                            <span id="@(ControlId + "-yes-label")">@Ui("Yes")</span>
+                        <MudRadio T="string" Value="@("true")" AriaLabel="@(_presentation?.BooleanLabels?.TrueLabel ?? Ui("Yes"))">
+                            <span id="@(ControlId + "-yes-label")">@(_presentation?.BooleanLabels?.TrueLabel ?? Ui("Yes"))</span>
                         </MudRadio>
-                        <MudRadio T="string" Value="@("false")" AriaLabel="@Ui("No")">
-                            <span id="@(ControlId + "-no-label")">@Ui("No")</span>
+                        <MudRadio T="string" Value="@("false")" AriaLabel="@(_presentation?.BooleanLabels?.FalseLabel ?? Ui("No"))">
+                            <span id="@(ControlId + "-no-label")">@(_presentation?.BooleanLabels?.FalseLabel ?? Ui("No"))</span>
                         </MudRadio>
+                    </MudRadioGroup>
+                </div>
+            }
+            else if (useRadios)
+            {
+                <div class="configuration-field__radios" @ref="_radioGroup">
+                    <MudRadioGroup T="string" Name="@ControlId" Value="@Selection" Disabled="@(!canEdit)"
+                                   Required="@required" aria-invalid="@((_invalid || error.Length > 0).ToString().ToLowerInvariant())"
+                                   aria-labelledby="@(ControlId + "-label")" aria-describedby="@(ControlId + "-help " + ControlId + "-error")"
+                                   ValueChanged="value => { if (Edit(new ChangeEventArgs { Value = value }, editForm, editPath, editRevision, editControlGeneration)) editRevision = editForm.InputRevision; }">
+                        @{ int enumIndex = 0; }
+                        @foreach (JsonElement choice in Choices.EnumerateArray())
+                        {
+                            int index = enumIndex++;
+                            var choiceMeta = _presentation?.Choices.ElementAtOrDefault(index);
+                            <MudRadio T="string" Value="@ChoiceIdentity(index)" AriaLabel="@ChoiceLabel(index, choice)">
+                                <span>@ChoiceLabel(index, choice)</span>
+                                @if (!string.IsNullOrWhiteSpace(choiceMeta?.Explanation))
+                                {
+                                    <span class="configuration-field__help" data-choice-explanation="@choiceMeta.Value"> — @choiceMeta.Explanation</span>
+                                }
+                            </MudRadio>
+                        }
                     </MudRadioGroup>
                 </div>
             }
@@ -250,7 +323,46 @@
                 }
             </AppSelectField>
             </div>
+            @if (!isMasked && _presentation?.Choices.Any(choice => !string.IsNullOrWhiteSpace(choice.Explanation) || !string.IsNullOrWhiteSpace(choice.DeprecationGuidance)) == true)
+            {
+                <div class="configuration-field__choice-explanations">
+                    @foreach (var choice in _presentation.Choices.Where(c => !string.IsNullOrWhiteSpace(c.Explanation) || !string.IsNullOrWhiteSpace(c.DeprecationGuidance)))
+                    {
+                        <p data-choice-explanation="@choice.Value">
+                            <strong>@choice.DisplayLabel:</strong> @choice.Explanation
+                            @if (!string.IsNullOrWhiteSpace(choice.DeprecationGuidance)) { <span> @choice.DeprecationGuidance</span> }
+                        </p>
+                    }
+                </div>
             }
+            }
+        }
+        else if (UseSlider && TryGetSliderBounds(out double sliderMin, out double sliderMax, out double sliderStep))
+        {
+            var editForm = Form;
+            var editPath = Path.ToArray();
+            long editRevision = Form.InputRevision;
+            long editControlGeneration = _controlGeneration;
+            <div class="configuration-field__slider-pair" data-widget="slider">
+                <input type="range" class="configuration-field__slider-range"
+                       min="@sliderMin.ToString(CultureInfo.InvariantCulture)"
+                       max="@sliderMax.ToString(CultureInfo.InvariantCulture)"
+                       step="@sliderStep.ToString(CultureInfo.InvariantCulture)"
+                       value="@TextFor(canEdit)"
+                       disabled="@(!canEdit)"
+                       aria-labelledby="@(ControlId + "-label")"
+                       @oninput="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, editControlGeneration)) editRevision = editForm.InputRevision; }"
+                       @onchange="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, editControlGeneration, changeOnly: true)) editRevision = editForm.InputRevision; }" />
+                <div class="configuration-field__input"
+                     @oninput="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, editControlGeneration)) editRevision = editForm.InputRevision; }"
+                     @onchange="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, editControlGeneration, changeOnly: true)) editRevision = editForm.InputRevision; }">
+                    <AppTextField @ref="_textControl" InputId="@ControlId" Value="@TextFor(canEdit)" Masked="false"
+                                  Multiline="false" InputMode="@(type == "integer" ? InputMode.numeric : InputMode.@decimal)"
+                                  Disabled="@(!canEdit)" Required="@required" Error="@(_invalid || error.Length > 0)"
+                                  InputAttributes="@BuildInputAttributes(canEdit, _invalid || error.Length > 0)"
+                                  ErrorText="@(_invalid ? Ui("FieldInputTypeInvalid") : error)" />
+                </div>
+            </div>
         }
         else
         {
@@ -261,14 +373,11 @@
             <div class="configuration-field__input" @oninput="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, editControlGeneration)) editRevision = editForm.InputRevision; }"
                  @onchange="args => { if (EditText(args.Value?.ToString(), editForm, editPath, editRevision, editControlGeneration, changeOnly: true)) editRevision = editForm.InputRevision; }">
                 <AppTextField @ref="_textControl" InputId="@ControlId" Value="@TextFor(canEdit)" Masked="@(isMasked && !_secretRevealed)"
-                              Multiline="@IsMultilineSecret" ReadOnly="@(IsMultilineSecret && !_secretRevealed)"
+                              Multiline="@(IsMultilineSecret || IsMultilineWidget)" Rows="@ResolvedRows" ReadOnly="@(IsMultilineSecret && !_secretRevealed)"
                               InputMode="@(type == "integer" ? InputMode.numeric : type == "number" ? InputMode.@decimal : InputMode.text)"
-                              Disabled="@(!canEdit)" Required="@required" Error="@(_invalid || error.Length > 0)" InputAttributes="@(new Dictionary<string, object>
-                              {
-                                  ["name"] = ControlId, ["autocomplete"] = Autocomplete(canEdit), ["spellcheck"] = "false",
-                                  ["aria-invalid"] = (_invalid || error.Length > 0).ToString().ToLowerInvariant(),
-                                  ["aria-describedby"] = ControlId + "-help " + ControlId + "-error" + (Schema.Secret is null ? "" : " " + ControlId + "-rules")
-                              })" ErrorText="@(_invalid ? Ui("FieldInputTypeInvalid") : error)" />
+                              Disabled="@(!canEdit)" Required="@required" Error="@(_invalid || error.Length > 0)"
+                              InputAttributes="@BuildInputAttributes(canEdit, _invalid || error.Length > 0)"
+                              ErrorText="@(_invalid ? Ui("FieldInputTypeInvalid") : error)" />
             </div>
             @if (isSecret && canEdit && type == "string")
             {
@@ -283,6 +392,10 @@
         @if (InputPurposeHelp is { } purposeHelp) { <span>@purposeHelp</span> }
         @if (IsMultilineSecret) { <span>@Ui("SecretMultilineHelp")</span> }
     </p>
+    @if (!string.IsNullOrWhiteSpace(_presentation?.IfOmittedDisplay))
+    {
+        <p class="configuration-field__help" data-if-omitted>@_presentation.IfOmittedDisplay</p>
+    }
     @if (Schema.Secret is not null && canEdit)
     {
         <ul class="configuration-field__help" id="@(ControlId + "-rules")">

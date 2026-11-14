@@ -1,0 +1,29 @@
+Change-Id: CHG-01M7DYYYY3EWVSQE75JT59K6F8
+Title: "Connect Browser guided and compact workspace editing"
+Type: feat
+Scope: self-hosting
+Summary: "Integrate the shared workspace projection with startup, guided and compact editing, rich fields, navigation, inspector, document controls, local secret options and keyboard commands while preserving workspace ownership."
+Group: browser-workbench-integration
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "The connected editor preserves workspace generations, local consent, masked compact projections and stale-operation rejection. Document and secret option controls retain their existing explicit adoption boundaries."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Guided and compact views share the accepted workspace, section navigation, inspector, local naming/density choices and keyboard commands."
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Startup, review and files remain connected to one answer workspace. Browser output stays transient with deliberate copy/download custody."

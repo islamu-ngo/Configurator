@@ -1,13 +1,47 @@
-<nav class="configuration-navigation" aria-label="@T("Sections")">
+@using System.Globalization
+@using Configurator.Presentation
+
+<nav class="configuration-navigation" aria-label="@T("Sections")" data-navigation-mode="@NormalizedMode">
+    @if (NormalizedMode == "wizard" && Navigation is { WizardStepCount: > 0 } wizard)
+    {
+        <div class="configuration-navigation__wizard" role="group" aria-label="@T("Sections")">
+            <span class="configuration-navigation__step-counter">
+                @string.Format(CultureInfo.GetCultureInfo(Locale), T("WizardStepCounter"), wizard.WizardStepIndex + 1, wizard.WizardStepCount)
+            </span>
+            <div class="configuration-navigation__wizard-actions">
+                <button type="button" class="configuration-navigation__wizard-btn" data-action="wizard-back"
+                        disabled="@(!wizard.CanMoveBackWizardStep || wizard.PreviousStepSectionId is null)"
+                        @onclick="() => SelectIfPresentAsync(wizard.PreviousStepSectionId)">
+                    @T("BackStep")
+                </button>
+                <button type="button" class="configuration-navigation__wizard-btn" data-action="wizard-next"
+                        disabled="@(!wizard.CanAdvanceWizardStep || wizard.NextStepSectionId is null)"
+                        @onclick="() => SelectIfPresentAsync(wizard.NextStepSectionId)">
+                    @T("NextStep")
+                </button>
+                <button type="button" class="configuration-navigation__wizard-btn configuration-navigation__wizard-btn--accent" data-action="jump-next-required"
+                        disabled="@(wizard.NextRequiredSectionId is null)"
+                        @onclick="() => SelectIfPresentAsync(wizard.NextRequiredSectionId)">
+                    @T("JumpToNextRequired")
+                </button>
+            </div>
+        </div>
+    }
     <ul>
         @foreach (var section in Sections)
         {
-            <li class="@(Selected == section.Id ? "configuration-navigation__item configuration-navigation__item--current" : "configuration-navigation__item")"><button type="button" class="configuration-navigation__button" data-section="@section.Id"
+            var status = section.Status;
+            bool outsideScope = status?.ConfigurationStatus == SectionConfigurationStatus.OutsideSelectedScope;
+            <li class="@(Selected == section.Id ? "configuration-navigation__item configuration-navigation__item--current" : "configuration-navigation__item") @(outsideScope ? "configuration-navigation__item--muted" : "")"><button type="button" class="configuration-navigation__button" data-section="@section.Id"
                            aria-current="@(Selected == section.Id ? "true" : null)" @onclick="() => SelectedChanged.InvokeAsync(section.Id)">
                 <span class="configuration-navigation__entry">
                     <span>@section.Title</span>
                     <span class="configuration-navigation__count">
-                        @if (section.Progress.Required > 0)
+                        @if (outsideScope)
+                        {
+                            <span>@T("StatusOutsideScope")</span>
+                        }
+                        else if (section.Progress.Required > 0)
                         {
                             <span>@T("Ready"): @section.Progress.Ready / @section.Progress.Required @T("Required")</span>
                         }
@@ -15,9 +49,17 @@
                         {
                             <span>@T("Optional")</span>
                         }
-                        @if (section.Progress.Missing + section.Progress.Invalid > 0)
+                        @if (!outsideScope && section.Progress.Missing + section.Progress.Invalid > 0)
                         {
                             <span>@T("NeedsAttention"): @(section.Progress.Missing + section.Progress.Invalid)</span>
+                        }
+                        @if (status is not null)
+                        {
+                            <span class="configuration-navigation__status" data-review-state="@ReviewStateToken(status.Coverage)">@T(ReviewStateKey(status.Coverage))</span>
+                            @if (status.HasHiddenOptional)
+                            {
+                                <span class="configuration-navigation__badge" data-wizard-optional-available="@section.Id">@T("OptionalFieldsAvailable")</span>
+                            }
                         }
                     </span>
                 </span>
@@ -31,5 +73,29 @@
     [Parameter] public string? Selected { get; set; }
     [Parameter] public EventCallback<string> SelectedChanged { get; set; }
     [Parameter] public string Locale { get; set; } = "en";
+    [Parameter] public string NavigationMode { get; set; } = "sections";
+    [Parameter] public WorkspaceNavigationProjection? Navigation { get; set; }
+
+    private string NormalizedMode => string.Equals(NavigationMode, "wizard", StringComparison.OrdinalIgnoreCase)
+        ? "wizard"
+        : "sections";
+
     private string T(string key) => BrowserStrings.Get(key, Locale);
+
+    private Task SelectIfPresentAsync(string? sectionId) =>
+        string.IsNullOrEmpty(sectionId) ? Task.CompletedTask : SelectedChanged.InvokeAsync(sectionId);
+
+    private static string ReviewStateToken(SectionReviewCoverage coverage) => coverage switch
+    {
+        SectionReviewCoverage.Reviewed => "reviewed",
+        SectionReviewCoverage.Opened => "opened",
+        _ => "not-visited"
+    };
+
+    private static string ReviewStateKey(SectionReviewCoverage coverage) => coverage switch
+    {
+        SectionReviewCoverage.Reviewed => "StatusReviewed",
+        SectionReviewCoverage.Opened => "StatusOpened",
+        _ => "StatusNotVisited"
+    };
 }

@@ -4,7 +4,7 @@
 @using Configurator.Browser.Resources
 @using System.Globalization
 
-<section class="configuration-review-panel" aria-labelledby="configuration-review-stage-heading">
+<section class="configuration-review-panel" data-workflow-panel="review" aria-labelledby="configuration-review-stage-heading">
     <h3 @ref="_heading" class="configuration-review-panel__heading" id="configuration-review-stage-heading" tabindex="-1">@BrowserStrings.Get("ReviewTitle", Form.Locale)</h3>
     <p class="form-help">@BrowserStrings.Get("ReviewHelp", Form.Locale)</p>
     <section class="configuration-review-panel__summary" data-review-readiness="@Readiness" aria-labelledby="review-summary-heading">

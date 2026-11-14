@@ -1,0 +1,108 @@
+@using System.Text.Json
+@using Configurator.Core.Definitions
+@using Configurator.Presentation
+
+@{
+    string locale = Form.Locale;
+    bool rtl = PresentationStrings.Culture(locale).TextInfo.IsRightToLeft;
+    DefinitionEditorPresentation? presentation = InspectedPath is null ? null : Form.GetEditorPresentation(InspectedPath);
+    var state = InspectedPath is null ? null : Form.GetEditorState(InspectedPath);
+    DefinitionDiscoveryEntry? entry = state is null
+        ? null
+        : Form.Projection.Entries.FirstOrDefault(item => item.FieldId == state.FieldId && item.RelativePath.SequenceEqual(state.RelativePath));
+    JsonElement schema = presentation?.Schema.Keywords ?? default;
+    string fieldPath = InspectedPath is null ? string.Empty : string.Join('.', InspectedPath.Segments);
+}
+
+<aside class="configuration-inspector-pane" data-inspector-pane aria-label="@T("InspectorPaneLabel", locale)" lang="@locale" dir="@(rtl ? "rtl" : "ltr")">
+    <div class="configuration-inspector-pane__header">
+        <h3>@T("InspectorPaneLabel", locale)</h3>
+        <AppButton Variant="Variant.Text" OnClick="CloseRequested" data-action="close-inspector-pane" aria-label="@T("InspectorCloseHelp", locale)">@T("Close", locale)</AppButton>
+    </div>
+    @if (presentation is null || InspectedPath is null)
+    {
+        <p class="configuration-inspector-pane__empty">@T("InspectorPaneEmpty", locale)</p>
+    }
+    else
+    {
+        <p data-help-title><strong>@presentation.Title</strong></p>
+        @if (!string.IsNullOrWhiteSpace(presentation.Description))
+        {
+            <p data-help-description>@presentation.Description</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(presentation.Instructions))
+        {
+            <p data-help-instructions>@presentation.Instructions</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(presentation.DeprecationGuidance))
+        {
+            <p data-deprecation-guidance>@presentation.DeprecationGuidance</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(presentation.ControllerImpactSummary))
+        {
+            <p data-controller-impact>@presentation.ControllerImpactSummary</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(presentation.IfOmittedDisplay))
+        {
+            <p data-if-omitted>@presentation.IfOmittedDisplay</p>
+        }
+        @if (presentation.Links.Count > 0)
+        {
+            <ul>
+                @foreach (var link in presentation.Links)
+                {
+                    <li><a href="@link.Url" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">@link.Title<span class="sr-only"> @T("NewTab", locale)</span></a></li>
+                }
+            </ul>
+        }
+        @if (presentation.Choices.Any(choice => !string.IsNullOrWhiteSpace(choice.Explanation)))
+        {
+            <dl data-choice-explanations>
+                @foreach (var choice in presentation.Choices.Where(choice => !string.IsNullOrWhiteSpace(choice.Explanation)))
+                {
+                    <dt>@choice.Label</dt><dd>@choice.Explanation</dd>
+                }
+            </dl>
+        }
+        <dl class="configuration-inspector-pane__facts">
+            <dt>@T("InspectorDefinitionPath", locale)</dt><dd><code dir="ltr" data-definition-path>@fieldPath</code></dd>
+            @if (schema.ValueKind == JsonValueKind.Object && schema.TryGetProperty("type", out var typeProp))
+            {
+                <dt>@T("InspectorDeclaredType", locale)</dt><dd><bdi dir="ltr">@(typeProp.ValueKind == JsonValueKind.Array ? string.Join(" / ", typeProp.EnumerateArray().Select(item => item.GetString())) : typeProp.GetString())</bdi></dd>
+            }
+            @if (!string.IsNullOrWhiteSpace(presentation.Units))
+            {
+                <dt>@T("InspectorUnits", locale)</dt><dd data-help-units>@presentation.Units</dd>
+            }
+            @if (state is not null)
+            {
+                <dt>@T("InspectorSensitivity", locale)</dt><dd><bdi dir="ltr">@state.Sensitivity.ToString().ToLowerInvariant()</bdi></dd>
+            }
+        </dl>
+        @if (entry is { OutputArtifactIds.Count: > 0 })
+        {
+            <section aria-label="@T("InspectorOutputBindings", locale)">
+                <h4>@T("InspectorOutputBindings", locale)</h4>
+                <p>@T("InspectorArtifactIds", locale) <code dir="ltr">@string.Join(", ", entry.OutputArtifactIds)</code></p>
+                <ul>
+                    @foreach (string key in entry.BindingKeys)
+                    {
+                        <li><code dir="ltr" data-output-key>@key</code></li>
+                    }
+                </ul>
+                <p class="form-help">@T("InspectorBindingsBoundary", locale)</p>
+            </section>
+        }
+        <p class="form-help">@T("InspectorPublicBoundary", locale)</p>
+    }
+</aside>
+
+@code {
+    [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
+    [Parameter] public DefinitionPath? InspectedPath { get; set; }
+    [Parameter] public long ProjectionRevision { get; set; }
+    [Parameter] public string Locale { get; set; } = "en";
+    [Parameter] public EventCallback CloseRequested { get; set; }
+
+    private static string T(string key, string locale) => BrowserStrings.Get(key, locale);
+}

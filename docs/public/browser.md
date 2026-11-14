@@ -559,3 +559,10 @@ provide native file protection or establish target acceptance.
 Choose Explore schema from the catalogue, local opening result or store page
 to inspect public sections, settings and declared artifacts. The explorer is
 read-only; opening a configuration session remains a separate action.
+
+## Connected editing views
+
+Use Guided for schema-aware fields or Compact for a searchable settings table.
+The section rail, inspector, shortcuts, naming and density controls share one
+local answer workspace. Review and Files remain part of that workspace; local
+document and secret generation changes are adopted only through their controls.

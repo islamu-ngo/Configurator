@@ -19,6 +19,12 @@ public partial class ConfigurationEditor
     private async Task PrepareAsync(bool draft)
     {
         if (_disposed || !_ready) return;
+        if (_form!.RequiresBrowserProfileComposition)
+        {
+            SetStatus("ProfilePrivateOutputRequired");
+            _statusCode = "profile-private-output-required";
+            return;
+        }
         if (_activeWorkflowStage != WorkflowStage.Prepare) SelectWorkflowStage(WorkflowStage.Prepare);
         DefinitionFormModel form = _form!;
         long generation = _generation + 1;

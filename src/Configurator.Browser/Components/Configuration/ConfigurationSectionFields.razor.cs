@@ -10,6 +10,8 @@ public partial class ConfigurationSectionFields
 {
     [Inject] private IJSRuntime Javascript { get; set; } = null!;
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
+    [Parameter] public string? SectionId { get; set; }
+    [Parameter] public IReadOnlyList<DefinitionFormSectionGroup> Groups { get; set; } = [];
     [Parameter] public IReadOnlyList<FieldState> Fields { get; set; } = [];
     [Parameter] public bool LiteralRoot { get; set; }
     [Parameter] public CancellationToken MountCancellation { get; set; }

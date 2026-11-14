@@ -139,14 +139,18 @@ public sealed class BrowserIncrementalMountTests
         {
             await AssertStartupPendingAsync(host);
             await StartAsync(host, frames);
-            await CompleteAsync(host, frames);
             if (transition == "replacement")
+            {
+                await CompleteAsync(host, frames);
                 await Assert.That(host.FindAll("[data-field^='setting']")).IsEmpty();
+            }
             else
             {
                 await Assert.That(context.Services.GetRequiredService<BrowserOfflinePolicy>().IsWorkspaceActive).IsFalse();
-                await Assert.That(host.Find(".configuration-editor__controls").HasAttribute("disabled")).IsTrue();
+                await Assert.That(host.Find("[data-startup-state]").GetAttribute("data-startup-state")).IsEqualTo("before-entry");
+                await Assert.That(host.FindAll("input, select, textarea, .configuration-editor__controls, [data-configuration-mount]")).IsEmpty();
                 await host.InvokeAsync(editor.BeginAsync);
+                await CompleteAsync(host, frames);
                 await Assert.That(context.Services.GetRequiredService<BrowserOfflinePolicy>().IsWorkspaceActive).IsTrue();
             }
         }
@@ -190,10 +194,19 @@ public sealed class BrowserIncrementalMountTests
         else
         {
             await StartAsync(host, frames);
-            await CompleteAsync(host, frames);
             await Assert.That(frames.StartupRequests).IsEqualTo(1);
             if (transition == "replacement")
+            {
+                await CompleteAsync(host, frames);
                 await Assert.That(host.FindAll("[data-field^='setting']")).IsEmpty();
+            }
+            else
+            {
+                await Assert.That(host.Find("[data-startup-state]").GetAttribute("data-startup-state")).IsEqualTo("before-entry");
+                await Assert.That(host.FindAll("[data-configuration-mount], input")).IsEmpty();
+                await host.InvokeAsync(editor.BeginAsync);
+                await CompleteAsync(host, frames);
+            }
         }
     }
 
@@ -214,9 +227,12 @@ public sealed class BrowserIncrementalMountTests
         await AssertStartupPendingAsync(component);
         await Assert.That(component.Markup).DoesNotContain("retired-answer");
         await StartAsync(component, frames);
+        await Assert.That(component.Find("[data-startup-state]").GetAttribute("data-startup-state")).IsEqualTo("before-entry");
+        await Assert.That(component.FindAll("[data-configuration-mount], input")).IsEmpty();
+        await Assert.That(context.Services.GetRequiredService<BrowserOfflinePolicy>().IsWorkspaceActive).IsFalse();
+        await component.Find("[data-action='start-workspace']").ClickAsync(new MouseEventArgs());
         await CompleteAsync(component, frames);
         await Assert.That(component.FindComponents<ConfigurationField>()[0].Instance.Form.Snapshot().Values).IsEmpty();
-        await Assert.That(context.Services.GetRequiredService<BrowserOfflinePolicy>().IsWorkspaceActive).IsFalse();
     }
 
     [Test]

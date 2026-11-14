@@ -1,10 +1,14 @@
 namespace Configurator.Browser.Tests;
 
+using System.Reflection;
+using System.Text;
+using System.Text.Json.Nodes;
 using Bunit;
 using Configurator.Browser.Components.Configuration;
 using Configurator.Browser.Layout;
 using Configurator.Browser.Pages;
 using Configurator.Browser.Services;
+using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
@@ -318,5 +322,72 @@ public sealed class BrowserShellTests
         await Assert.That(exports.Invocations.Count(call => call.Identifier == "copy")).IsEqualTo(2);
         await Assert.That(exports.Invocations.Any(call => call.Identifier == "invalidate")).IsFalse();
         await Assert.That(context.JSInterop.Invocations.Any(call => call.Identifier == "Blazor._internal.domWrapper.focus")).IsTrue();
+    }
+
+    [Test]
+    public async Task ActiveWorkspaceOmitsFooterAndRendersConnectedWorkspaceHeader()
+    {
+        await using var context = BrowserFixture.Context();
+        context.Services.GetRequiredService<NavigationManager>()
+            .NavigateTo($"launch/{BrowserFixture.Family}?digest={BrowserFixture.Definition.Digest.Value}");
+        var component = context.Render<App>();
+
+        await Assert.That(component.FindAll("footer")).IsEmpty();
+        await Assert.That(component.FindComponents<WorkspaceHeader>()).Count().IsEqualTo(1);
+        await Assert.That(component.Find("[data-workspace-consent-chip]")).IsNotNull();
+        await Assert.That(component.Find("[data-action='toggle-naming-mode']")).IsNotNull();
+        string[] densities = component.FindAll("#configuration-density option").Select(item => item.GetAttribute("value") ?? "").ToArray();
+        await Assert.That(densities).IsEquivalentTo(["spacious", "comfortable", "compact", "dense"]);
+        string[] layoutModes = component.FindAll("[data-layout-mode]").Select(item => item.GetAttribute("data-layout-mode") ?? "").ToArray();
+        await Assert.That(layoutModes).IsEquivalentTo(["guided", "compact", "review", "files"]);
+
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        long revision = form.InputRevision;
+        await component.Find("[data-action='toggle-naming-mode']").ClickAsync(new MouseEventArgs());
+        await Assert.That(form.WorkspaceNamingMode).IsEqualTo(WorkspaceNamingMode.Technical);
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await Assert.That(component.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("true");
+    }
+
+    [Test]
+    public async Task ConfigurationDiagnosticTextRetiresAdHocTitleHelper()
+    {
+        Type? helper = typeof(ConfigurationEditor).Assembly
+            .GetType("Configurator.Browser.Components.Configuration.ConfigurationDiagnosticText", throwOnError: false);
+        await Assert.That(helper).IsNotNull();
+        MethodInfo[] leftoverTitles = helper!
+            .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance)
+            .Where(method => method.Name == "Title")
+            .ToArray();
+        await Assert.That(leftoverTitles).IsEmpty();
+    }
+
+    [Test]
+    public async Task ArabicRtlWorkspaceIsolatesWireIdentifiersAndPathsInLtr()
+    {
+        JsonNode document = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        document["locales"] = new JsonArray("ar", "en");
+        document["localization"] = JsonNode.Parse("""
+            {"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}
+            """);
+        BrowserFixture.WithField(document, "HTTPServer_URL", """
+            {"type":"string","x-configurator":{"sensitivity":"public","detail":"standard"}}
+            """);
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
+        {
+            builder.OpenComponent<ConfigurationEditor>(0);
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
+            builder.AddAttribute(2, nameof(ConfigurationEditor.InitialLocale), "ar");
+            builder.CloseComponent();
+        }));
+
+        await Assert.That(component.Find(".configuration-editor").GetAttribute("dir")).IsEqualTo("rtl");
+        await Assert.That(component.Find("[data-field='HTTPServer_URL'] .configuration-field__key").GetAttribute("dir")).IsEqualTo("ltr");
+        await component.Find("[data-field='HTTPServer_URL'] [data-action='field-help']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-definition-path]").GetAttribute("dir")).IsEqualTo("ltr");
     }
 }

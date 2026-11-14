@@ -14,6 +14,13 @@ public sealed class WorkspaceSearchState
     public RenderFragment? Content { get; private set; }
     public event EventHandler? Changed;
     public event EventHandler? Navigated;
+    public event EventHandler? OpenRequested;
+
+    public void RequestOpen(object owner, long generation)
+    {
+        if (ReferenceEquals(owner, _owner) && generation == Generation)
+            OpenRequested?.Invoke(this, EventArgs.Empty);
+    }
 
     public void CompleteNavigation(object owner, long generation)
     {

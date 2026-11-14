@@ -6,7 +6,7 @@
 
 <section class="configuration-files" aria-labelledby="@("artifact-" + Metadata.ArtifactId)"
          data-prepared-file="@Metadata.ArtifactId" data-readiness="@(Metadata.IsDraft ? "draft" : "complete")">
-    <h4 id="@("artifact-" + Metadata.ArtifactId)" class="configuration-files__heading">@Metadata.FileName</h4>
+    <h4 id="@("artifact-" + Metadata.ArtifactId)" class="configuration-files__heading"><bdi dir="ltr">@Metadata.FileName</bdi></h4>
     @if (Destination is { } destination)
     {
         @if (destination.Title != destination.Id) { <p>@DestinationText("title", destination.Title)</p> }
@@ -29,7 +29,7 @@
                     <strong>@(entry?.Title ?? Text("FilesDeferredSecret"))</strong>
                     <span>@Text(entry is null ? "FilesDeferredUnknown" : entry.IsRequired ? "FilesDeferredRequired" : "FilesDeferredOptional")</span>
                     <details><summary>@Text("ReviewDetails")</summary>
-                        <code>@item.FieldPath</code> <span aria-hidden="true">&rarr;</span> <code>@item.OutputPath</code>
+                        <code dir="ltr">@item.FieldPath</code> <span aria-hidden="true">&rarr;</span> <code dir="ltr">@item.OutputPath</code>
                     </details>
                 </li>
             }

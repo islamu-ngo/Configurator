@@ -1,6 +1,7 @@
 namespace Configurator.Presentation;
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Configurator.Core.Definitions;
 
 public sealed partial class DefinitionFormModel
@@ -41,35 +42,54 @@ public sealed partial class DefinitionFormModel
             !deployment.Recipes.Any(recipe => recipe.Id == recipeId && recipe.Scopes.Any(scope => scope.Id == scopeId)))
             return false;
 
-        string recipeName = DefinitionPath.Parse(deployment.RecipePointer).Segments[0];
-        string scopeName = DefinitionPath.Parse(deployment.ScopePointer).Segments[0];
+        DefinitionPath recipePath = DefinitionPath.Parse(deployment.RecipePointer);
+        DefinitionPath scopePath = DefinitionPath.Parse(deployment.ScopePointer);
+        if (recipePath.Segments.Count == 0 || scopePath.Segments.Count == 0) return false;
+
         AnswerSnapshot original = Snapshot();
         var values = original.Values.ToDictionary();
-        values[recipeName] = JsonSerializer.SerializeToElement(recipeId);
-        values[scopeName] = JsonSerializer.SerializeToElement(scopeId);
+        if (!TryWriteContextScalar(values, recipePath, recipeId) ||
+            !TryWriteContextScalar(values, scopePath, scopeId))
+            return false;
+
         try
         {
             var candidate = new AnswerSnapshot(InputRevision, values,
-                original.Omitted.Where(path => path.Segments[0] != recipeName && path.Segments[0] != scopeName));
+                original.Omitted.Where(path => !IsContextPrefix(path, recipePath) && !IsContextPrefix(path, scopePath)));
             if (DefinitionScopeResolver.Resolve(Definition, candidate) is not { IsReady: true }) return false;
         }
         catch (DefinitionException) { return false; }
 
         DefinitionAcceptedEditingState replacement = _editing.Capture();
         var changed = new List<int>(2);
-        for (int index = 0; index < Fields.Count; index++)
+        string[] targetRoots = new[] { recipePath.Segments[0], scopePath.Segments[0] }
+            .Distinct(StringComparer.Ordinal).ToArray();
+        foreach (string rootName in targetRoots)
         {
-            FieldDefinition field = Fields[index].Definition;
-            if (field.Name != recipeName && field.Name != scopeName)
-                continue;
+            int index = -1;
+            for (int candidateIndex = 0; candidateIndex < Fields.Count; candidateIndex++)
+            {
+                if (Fields[candidateIndex].Definition.Name == rootName)
+                {
+                    index = candidateIndex;
+                    break;
+                }
+            }
+            if (index < 0) continue;
+
             changed.Add(index);
+            DefinitionFieldInput field = Fields[index];
             DefinitionFieldState input = replacement.Inputs[index];
             input.Retire();
-            input.Value = values[field.Name];
-            input.Text = values[field.Name].GetString()!;
-            input.Origin = DefinitionAnswerOrigin.Explicit;
-            input.Origins.Add(([field.Id], DefinitionAnswerOrigin.Explicit));
-            replacement.Omitted.RemoveWhere(path => path.Segments[0] == field.Name);
+            JsonElement updatedRoot = values[rootName].Clone();
+            input.Value = updatedRoot;
+            input.Text = updatedRoot.ValueKind == JsonValueKind.String ? updatedRoot.GetString()! : updatedRoot.GetRawText();
+
+            if (recipePath.Segments[0] == rootName)
+                RecordContextSelectionOrigin(input, field.Definition.Id, recipePath);
+            if (scopePath.Segments[0] == rootName)
+                RecordContextSelectionOrigin(input, field.Definition.Id, scopePath);
+            replacement.Omitted.RemoveWhere(path => IsContextPrefix(path, recipePath) || IsContextPrefix(path, scopePath));
         }
         DefinitionFieldState[] retired = changed.Select(_editing.Input).ToArray();
         _editing.Adopt(replacement);
@@ -77,6 +97,55 @@ public sealed partial class DefinitionFormModel
         OnInputChanged();
         foreach (int index in changed) Fields[index].NotifyDocumentChanged();
         return true;
+    }
+
+    private static bool TryWriteContextScalar(Dictionary<string, JsonElement> values, DefinitionPath path, string scalarValue)
+    {
+        if (path.Segments.Count == 1)
+        {
+            values[path.Segments[0]] = JsonSerializer.SerializeToElement(scalarValue);
+            return true;
+        }
+
+        string rootName = path.Segments[0];
+        JsonObject rootObject = values.TryGetValue(rootName, out JsonElement existing) && existing.ValueKind == JsonValueKind.Object
+            ? JsonNode.Parse(existing.GetRawText()) as JsonObject ?? new JsonObject()
+            : new JsonObject();
+
+        JsonObject cursor = rootObject;
+        for (int index = 1; index < path.Segments.Count - 1; index++)
+        {
+            string segment = path.Segments[index];
+            if (cursor[segment] is not JsonObject next)
+            {
+                next = new JsonObject();
+                cursor[segment] = next;
+            }
+            cursor = next;
+        }
+        cursor[path.Segments[^1]] = scalarValue;
+        values[rootName] = JsonSerializer.SerializeToElement(rootObject);
+        return true;
+    }
+
+    private static bool IsContextPrefix(DefinitionPath omitted, DefinitionPath target) =>
+        omitted.Segments.Count <= target.Segments.Count &&
+        omitted.Segments.SequenceEqual(target.Segments.Take(omitted.Segments.Count));
+
+    private static void RecordContextSelectionOrigin(DefinitionFieldState input, string fieldId, DefinitionPath target)
+    {
+        if (input.Origin == DefinitionAnswerOrigin.Omitted || target.Segments.Count == 1)
+            input.Origin = DefinitionAnswerOrigin.Explicit;
+        string[] originPath = target.Segments.Count == 1
+            ? [fieldId]
+            : new[] { fieldId }.Concat(target.Segments.Skip(1)).ToArray();
+        input.Origins.RemoveAll(existing => existing.Path.SequenceEqual(originPath));
+        input.Origins.Add((originPath, DefinitionAnswerOrigin.Explicit));
+        if (target.Segments.Count > 1)
+        {
+            input.Origins.RemoveAll(existing => existing.Path.SequenceEqual([fieldId]));
+            input.Origins.Add(([fieldId], DefinitionAnswerOrigin.Explicit));
+        }
     }
 
     internal bool IsConfigurationSelector(IReadOnlyList<string> path, DefinitionValidationResult? validation = null)

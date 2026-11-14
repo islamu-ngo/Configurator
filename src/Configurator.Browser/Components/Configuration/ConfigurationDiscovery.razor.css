@@ -1,4 +1,13 @@
 .configuration-discovery { padding-block: var(--isl-space-2); }
+.configuration-discovery__status-chips { display: flex; flex-wrap: wrap; gap: var(--isl-space-2); margin-block-end: var(--isl-space-3); }
+.configuration-discovery__filter-chip[aria-pressed="true"] { border-color: var(--isl-color-primary); background: var(--isl-surface-container); font-weight: 600; }
+.configuration-discovery__commands { margin-block-end: var(--isl-space-3); padding: var(--isl-space-2) var(--isl-space-3); border: var(--isl-card-border); border-radius: var(--isl-radius-sm); background: var(--isl-surface-container-low); }
+.configuration-discovery__commands-heading { display: block; font-size: .75rem; color: var(--isl-color-text-secondary); margin-block-end: var(--isl-space-2); }
+.configuration-discovery__command-list { display: grid; gap: var(--isl-space-1); list-style: none; padding: 0; margin: 0; }
+.configuration-discovery__command-btn { display: flex; align-items: center; justify-content: space-between; gap: var(--isl-space-2); inline-size: 100%; min-block-size: var(--isl-target-min); padding: var(--isl-space-1) var(--isl-space-2); border: 1px solid transparent; border-radius: var(--isl-radius-sm); background: transparent; color: var(--isl-color-text); font: inherit; font-size: .8125rem; text-align: start; cursor: pointer; }
+.configuration-discovery__command-btn:hover:not(:disabled) { background: var(--isl-surface-container); border-color: var(--isl-color-border); }
+.configuration-discovery__command-btn:disabled { opacity: .5; cursor: not-allowed; }
+.configuration-discovery__command-btn kbd { font-family: var(--isl-font-family-mono); font-size: .75rem; color: var(--isl-color-text-secondary); }
 .configuration-discovery__option { display: flex; align-items: center; gap: var(--isl-space-3); min-block-size: var(--isl-target-min); cursor: pointer; overflow-wrap: anywhere; }
 .configuration-discovery__option input { flex-shrink: 0; inline-size: 1.125rem; block-size: 1.125rem; }
 .configuration-discovery__count { font-variant-numeric: tabular-nums; color: var(--isl-color-text-secondary); }

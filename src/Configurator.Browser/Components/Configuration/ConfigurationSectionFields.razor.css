@@ -1,4 +1,33 @@
 .configuration-section-fields__slot { min-inline-size: 0; }
+.configuration-section-fields__groups { display: grid; gap: var(--isl-space-4); }
+.configuration-section-group {
+    border: var(--isl-card-border);
+    border-radius: var(--isl-radius-card);
+    background: var(--isl-surface-container-low);
+    padding: var(--isl-space-3) var(--isl-space-4);
+}
+.configuration-section-group__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--isl-space-2);
+    inline-size: 100%;
+    min-block-size: var(--isl-target-min);
+    padding: var(--isl-space-1) 0;
+    border: 0;
+    background: transparent;
+    color: var(--isl-color-text);
+    font: inherit;
+    font-weight: 600;
+    text-align: start;
+    cursor: pointer;
+}
+.configuration-section-group__description {
+    margin-block: var(--isl-space-1) var(--isl-space-3);
+    font-size: .8125rem;
+    color: var(--isl-color-text-secondary);
+}
+.configuration-section-group__fields { margin-block-start: var(--isl-space-2); }
 .configuration-section-fields__placeholder {
     min-block-size: calc(var(--isl-field-control-height) + var(--isl-target-min));
     margin-block-end: var(--isl-field-gap);

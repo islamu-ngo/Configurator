@@ -73,14 +73,21 @@ No route/hash navigation, docking framework or second answer model is involved.
 ## 5. Reusable primitives and states
 
 Workspace detail is Essential, Standard or All active in the selected profile,
-with an explicit Follow experience choice. Comfortable/Compact is session-only
-CSS presentation: field/group gaps and control height change, never font size,
-answers or validation. Coarse-pointer controls retain 44px targets. The toolbar
-keeps authored experience, detail, density and consent distinct. Declared-output
-explanations live in the existing privacy disclosure so the first short-fixture
-question is reachable without scrolling at 1440x900. Optional field omission
-moves into a named row-action menu; omitting a container explicitly names its
-nested answers and remains distinct from collapsing optional detail.
+with an explicit Follow experience choice. Density supports the 4-step workspace
+density scale (with Comfortable/Compact in the editor toolbar); CSS variables
+change field/group gaps and control height, never font size, answers or
+validation. Coarse-pointer controls retain 44px targets. The toolbar keeps
+authored experience, Guided/Compact/Developer mode switching, Humanized/Technical
+naming (`Ctrl+Shift+K`), Undo/Redo (`Ctrl+Z`/`Ctrl+Shift+Z` with secret purge on
+consent revocation + `ISnackbar` confirmation), `?` keyboard shortcut dialog,
+detail, density and consent distinct. Declared-output explanations live in the
+existing privacy disclosure and `Files` browser-custody notice so the first
+short-fixture question is reachable without scrolling at 1440x900. Optional
+field omission moves into a named row-action menu; omitting a container
+explicitly names its nested answers and remains distinct from collapsing
+optional detail. Wide viewports (`>= 1280px`) render schema inspection in a
+docked `ConfigurationInspectorPane`, while secret generation uses the modal
+`ConfigurationSecretGeneratorDialog` with explicit plaintext password dismissal.
 
 - **AppButton:** existing Mud wrapper, explicit button type, filled primary,
   outlined secondary and text navigation variants. One dominant action per

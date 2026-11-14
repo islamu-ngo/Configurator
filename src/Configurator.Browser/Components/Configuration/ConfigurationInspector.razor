@@ -16,6 +16,18 @@
             {
                 <p data-help-instructions>@Instructions</p>
             }
+            @if (!string.IsNullOrWhiteSpace(Presentation?.DeprecationGuidance))
+            {
+                <p data-deprecation-guidance>@Presentation.DeprecationGuidance</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(Presentation?.ControllerImpactSummary))
+            {
+                <p data-controller-impact>@Presentation.ControllerImpactSummary</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(Presentation?.IfOmittedDisplay))
+            {
+                <p data-if-omitted>@Presentation.IfOmittedDisplay</p>
+            }
             @if (Links.Count > 0)
             {
                     <ul>
@@ -36,17 +48,17 @@
                 </dl>
             }
             <dl>
-                <dt>@Ui("InspectorDefinitionPath")</dt><dd><code data-definition-path>@FieldPath</code></dd>
-                <dt>@Ui("InspectorDeclaredType")</dt><dd>@(PublicSchema.GetProperty("type").ValueKind == JsonValueKind.Array
+                <dt>@Ui("InspectorDefinitionPath")</dt><dd><code dir="ltr" data-definition-path>@FieldPath</code></dd>
+                <dt>@Ui("InspectorDeclaredType")</dt><dd><bdi dir="ltr">@(PublicSchema.GetProperty("type").ValueKind == JsonValueKind.Array
                     ? string.Join(" / ", PublicSchema.GetProperty("type").EnumerateArray().Select(item => item.GetString()))
-                    : PublicSchema.GetProperty("type").GetString())</dd>
+                    : PublicSchema.GetProperty("type").GetString())</bdi></dd>
                 @if (!string.IsNullOrWhiteSpace(Units))
                 {
                     <dt>@Ui("InspectorUnits")</dt><dd data-help-units>@Units</dd>
                 }
                 @if (Metadata.ValueKind == JsonValueKind.Object && Metadata.TryGetProperty("sensitivity", out var sensitivity))
                 {
-                    <dt>@Ui("InspectorSensitivity")</dt><dd>@sensitivity.GetString()</dd>
+                    <dt>@Ui("InspectorSensitivity")</dt><dd><bdi dir="ltr">@sensitivity.GetString()</bdi></dd>
                 }
             </dl>
             }
@@ -58,9 +70,9 @@
             {
                 <section aria-label="@Ui("InspectorOutputBindings")">
                     <h3>@Ui("InspectorOutputBindings")</h3>
-                    <p>@Ui("InspectorArtifactIds") <code>@string.Join(", ", OutputArtifactIds)</code></p>
+                    <p>@Ui("InspectorArtifactIds") <code dir="ltr">@string.Join(", ", OutputArtifactIds)</code></p>
                     <ul>
-                        @foreach (string key in BindingKeys) { <li><code data-output-key>@key</code></li> }
+                        @foreach (string key in BindingKeys) { <li><code dir="ltr" data-output-key>@key</code></li> }
                     </ul>
                     <p class="form-help">@Ui("InspectorBindingsBoundary")</p>
                 </section>

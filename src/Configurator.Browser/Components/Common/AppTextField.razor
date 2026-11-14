@@ -2,7 +2,7 @@
     @if (Multiline && !Masked)
     {
         <textarea @ref="_textarea" id="@InputId" class="app-text-field__textarea" value="@Value" dir="ltr"
-                  disabled="@Disabled" readonly="@ReadOnly" required="@Required" rows="8" @attributes="InputAttributes"></textarea>
+                  disabled="@Disabled" readonly="@ReadOnly" required="@Required" rows="@(Rows > 0 ? Rows : 8)" @attributes="InputAttributes"></textarea>
     }
     else
     {
@@ -20,6 +20,7 @@
     [Parameter, EditorRequired] public string InputId { get; set; } = string.Empty;
     [Parameter] public bool Masked { get; set; }
     [Parameter] public bool Multiline { get; set; }
+    [Parameter] public int Rows { get; set; } = 8;
     [Parameter] public bool ReadOnly { get; set; }
     [Parameter] public InputMode InputMode { get; set; } = InputMode.text;
     [Parameter] public bool Disabled { get; set; }
@@ -48,6 +49,7 @@
             || Changed(nameof(InputId), InputId)
             || Changed(nameof(Masked), Masked)
             || Changed(nameof(Multiline), Multiline)
+            || Changed(nameof(Rows), Rows)
             || Changed(nameof(ReadOnly), ReadOnly)
             || Changed(nameof(InputMode), InputMode)
             || Changed(nameof(Disabled), Disabled)

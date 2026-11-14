@@ -2,6 +2,34 @@
 @using Configurator.Core.Definitions
 
 <div class="configuration-discovery">
+    <div class="configuration-discovery__status-chips" role="group" aria-label="@T("DiscoveryFilters")">
+        @foreach ((DefinitionDiscoveryFilter filter, string token, string labelKey) in StatusFilterChips)
+        {
+            bool pressed = Form.DiscoverySelection.Filter == filter;
+            <button type="button" class="button button--secondary configuration-discovery__filter-chip"
+                    data-discovery-filter="@token" aria-pressed="@(pressed ? "true" : "false")"
+                    @onclick="() => SelectStatusFilter(filter)">@T(labelKey)</button>
+        }
+    </div>
+    @{ var commands = Form.GetAvailableCommands(Form.DiscoveryQuery); }
+    @if (commands.Count > 0)
+    {
+        <div class="configuration-discovery__commands">
+            <strong class="configuration-discovery__commands-heading">@T("CommandsHeading")</strong>
+            <ul class="configuration-discovery__command-list">
+                @foreach (var command in commands)
+                {
+                    <li @key="command.Id">
+                        <button type="button" class="configuration-discovery__command-btn" data-command-id="@command.Id"
+                                disabled="@(!command.IsEnabled)" @onclick="() => CommandSelected.InvokeAsync(command)">
+                            <span>@command.Title</span>
+                            <kbd dir="ltr">@command.ShortcutHint</kbd>
+                        </button>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
     <div class="configuration-discovery__matches">
     <p aria-live="polite" aria-atomic="true" data-discovery-count="@Form.Projection.Discovery.TotalCount">
         @string.Format(System.Globalization.CultureInfo.GetCultureInfo(Form.Locale), T("DiscoveryMatches"), Form.Projection.Discovery.TotalCount)
@@ -34,7 +62,7 @@
                     <p>@T("DiscoveryInactiveHelp")</p>
                 }
                 <details><summary>@T("DiscoveryMatchDetails")</summary>
-                    <code>@string.Join(" / ", new[] { entry.FieldId }.Concat(entry.RelativePath))</code>
+                    <code dir="ltr">@string.Join(" / ", new[] { entry.FieldId }.Concat(entry.RelativePath))</code>
                     <p>@T("DiscoveryMatchReason"): @MatchTitle(match.MatchReason).</p>
                     @if (entry.ActiveControllerFields.Count > 0)
                     {
@@ -106,6 +134,15 @@
 @code {
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter] public EventCallback<DefinitionDiagnostic> Navigate { get; set; }
+    [Parameter] public EventCallback<WorkspaceCommandDescriptor> CommandSelected { get; set; }
+    private static readonly (DefinitionDiscoveryFilter Filter, string Token, string LabelKey)[] StatusFilterChips =
+    [
+        (DefinitionDiscoveryFilter.All, "all", "FilterAll"),
+        (DefinitionDiscoveryFilter.Invalid, "invalid", "FilterInvalid"),
+        (DefinitionDiscoveryFilter.MissingRequired, "missing-required", "FilterMissingRequired"),
+        (DefinitionDiscoveryFilter.Modified, "modified", "FilterModified"),
+        (DefinitionDiscoveryFilter.DeferredSecret, "deferred-secret", "FilterDeferredSecret")
+    ];
     private string T(string key) => BrowserStrings.Get(key, Form.Locale);
     private const int PageSize = 50;
     private DefinitionFormModel? _observedForm;
@@ -128,10 +165,15 @@
     }
     private void ClearQuery() { _page = 0; Form.ClearDiscoveryQuery(); }
     private void ClearFilters() { _page = 0; Form.ClearDiscoveryFilters(); }
+    private void SelectStatusFilter(DefinitionDiscoveryFilter filter)
+    {
+        _page = 0;
+        Form.SetDiscoverySelection(new(Form.DiscoveryQuery, Form.DiscoverySelection.IncludeInactive, Form.DiscoverySelection.Facets, filter));
+    }
     private void IncludeInactive(ChangeEventArgs args)
     {
         _page = 0;
-        Form.SetDiscoverySelection(new(Form.DiscoveryQuery, args.Value is true, Form.DiscoverySelection.Facets));
+        Form.SetDiscoverySelection(new(Form.DiscoveryQuery, args.Value is true, Form.DiscoverySelection.Facets, Form.DiscoverySelection.Filter));
     }
     private bool Selected(DefinitionDiscoveryFacet facet, string value) =>
         Form.DiscoverySelection.Facets.TryGetValue(facet, out var values) && values.Contains(value);
@@ -144,7 +186,7 @@
         if (values.Count == 0) facets.Remove(facet);
         else facets[facet] = values.AsReadOnly();
         _page = 0;
-        Form.SetDiscoverySelection(new(Form.DiscoveryQuery, Form.DiscoverySelection.IncludeInactive, facets));
+        Form.SetDiscoverySelection(new(Form.DiscoveryQuery, Form.DiscoverySelection.IncludeInactive, facets, Form.DiscoverySelection.Filter));
     }
     private string FacetTitle(DefinitionDiscoveryFacet facet) => T(facet switch
     {

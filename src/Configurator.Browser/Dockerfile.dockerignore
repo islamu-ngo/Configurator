@@ -77,6 +77,8 @@ src/Configurator.Presentation/Import/*
 src/Configurator.Presentation/Secrets/*
 !src/Configurator.Presentation/Resources/
 src/Configurator.Presentation/Resources/*
+!src/Configurator.Presentation/Profiles/
+src/Configurator.Presentation/Profiles/*
 !src/Configurator.Browser/Profiles/
 src/Configurator.Browser/Profiles/*
 !src/Configurator.Browser.Worker/Contracts/

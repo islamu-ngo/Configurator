@@ -67,7 +67,7 @@
     gap: var(--isl-space-1);
     min-inline-size: 0;
     padding: var(--isl-space-4) var(--isl-space-3);
-    background: var(--isl-color-surface);
+    background: var(--isl-surface-container-low);
     border-inline-end: var(--isl-card-border);
 }
 

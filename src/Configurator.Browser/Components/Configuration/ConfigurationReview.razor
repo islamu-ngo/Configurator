@@ -46,12 +46,27 @@
         <ul class="configuration-review__outputs">
             @foreach (var artifact in SelectedArtifacts())
             {
-                <li data-review-output="@artifact.Id"><strong>@artifact.FileName</strong> · @artifact.Format.ToToken() · @artifact.ApplySemantics.ToToken() · @UiFormat("ReviewRestart", artifact.Restart.ToToken())</li>
+                <li data-review-output="@artifact.Id"><strong><bdi dir="ltr">@artifact.FileName</bdi></strong> · <bdi dir="ltr">@artifact.Format.ToToken()</bdi> · <bdi dir="ltr">@artifact.ApplySemantics.ToToken()</bdi> · @UiFormat("ReviewRestart", artifact.Restart.ToToken())</li>
             }
         </ul>
         <div class="actions">
             <label><input id="review-include-omitted" type="checkbox" checked="@_includeOmitted" @onchange="IncludeOmitted" /> @Ui("ReviewInspectOmitted")</label>
             <label><input id="review-include-inactive" type="checkbox" checked="@_includeInactive" @onchange="IncludeInactive" /> @Ui("ReviewInspectInactive")</label>
+        </div>
+        <div class="configuration-review__origin-filters" role="group" aria-label="@Ui("ReviewOriginFilterLabel")">
+            <button type="button"
+                    class="button button--secondary configuration-review__filter-chip @(_originFilter is null ? "configuration-review__filter-chip--active" : "")"
+                    data-review-origin-filter="All"
+                    aria-pressed="@(_originFilter is null ? "true" : "false")"
+                    @onclick="() => SetOriginFilter(null)">@Ui("ReviewOriginAll")</button>
+            @foreach (DefinitionAnswerOrigin origin in OriginFilters)
+            {
+                <button type="button"
+                        class="button button--secondary configuration-review__filter-chip @(_originFilter == origin ? "configuration-review__filter-chip--active" : "")"
+                        data-review-origin-filter="@origin.ToString()"
+                        aria-pressed="@(_originFilter == origin ? "true" : "false")"
+                        @onclick="() => SetOriginFilter(origin)">@OriginText(origin)</button>
+            }
         </div>
         <p data-review-count="@_entries.Count">@UiFormat("ReviewSettingsCount", _entries.Count)</p>
         <ul class="configuration-review__answers">
@@ -65,7 +80,7 @@
                         <strong>@FieldTitle(diagnostic)</strong>
                         @if (entry.IsActive)
                         {
-                            <button type="button" class="button button--secondary" @onclick="() => ChangeField.InvokeAsync(diagnostic)"
+                            <button type="button" class="button button--secondary" data-action="review-focus-row" @onclick="() => ChangeField.InvokeAsync(diagnostic)"
                                     aria-label="@UiFormat("ReviewChangeField", FieldTitle(diagnostic))">@Ui("ReviewChange")</button>
                         }
                     </div>
@@ -78,8 +93,8 @@
                     {
                         <details><summary>@Ui("ReviewBindings")</summary>
                             <p>@OriginText(entry.Origin)</p>
-                            <p>@string.Join(", ", entry.OutputArtifactIds)</p>
-                            <p>@string.Join(", ", entry.BindingKeys)</p>
+                            <p><bdi dir="ltr">@string.Join(", ", entry.OutputArtifactIds)</bdi></p>
+                            <p><code dir="ltr">@string.Join(", ", entry.BindingKeys)</code></p>
                             <p>@Ui("ReviewBindingsHelp")</p>
                         </details>
                     }
@@ -111,12 +126,20 @@
     [Parameter] public EventCallback<DefinitionDiagnostic> CorrectField { get; set; }
     [Parameter] public EventCallback EnableSecrets { get; set; }
     private const int PageSize = 50;
+    private static readonly DefinitionAnswerOrigin[] OriginFilters =
+    [
+        DefinitionAnswerOrigin.Explicit,
+        DefinitionAnswerOrigin.Generated,
+        DefinitionAnswerOrigin.Defaulted,
+        DefinitionAnswerOrigin.Imported
+    ];
     private DefinitionFormModel? _observedForm;
     private Definition? _observedDefinition;
     private IReadOnlyDictionary<string, FieldDefinition> _fieldsById = new Dictionary<string, FieldDefinition>();
     private string? _observedExperience;
     private bool _includeOmitted;
     private bool _includeInactive;
+    private DefinitionAnswerOrigin? _originFilter;
     private int _page;
     private IReadOnlyList<DefinitionDiscoveryEntry> _entries = [];
     private int PageCount => Math.Max(1, (_entries.Count + PageSize - 1) / PageSize);
@@ -132,6 +155,7 @@
             _observedForm = Form;
             _includeOmitted = false;
             _includeInactive = false;
+            _originFilter = null;
             _page = 0;
         }
         if (_observedExperience != Form?.SelectedExperienceId) _page = 0;
@@ -150,6 +174,13 @@
         _page = 0;
         SelectEntries();
     }
+    private void SetOriginFilter(DefinitionAnswerOrigin? origin)
+    {
+        if (_originFilter == origin) return;
+        _originFilter = origin;
+        _page = 0;
+        SelectEntries();
+    }
     private void SelectEntries()
     {
         if (ShowEffects && Form is not null)
@@ -158,8 +189,9 @@
             var relevant = projection.RelevantEntries.ToHashSet();
             string? selectorField = Definition.Presentation?.OutputSelector is { } selector
                 ? DefinitionProfile.FieldId(selector.Location.Segments[0]) : null;
-            _entries = projection.Entries.Where(entry => (relevant.Contains(entry) && entry.FieldId != selectorField) ||
-                (entry.IsActive ? _includeOmitted : _includeInactive)).ToArray();
+            _entries = projection.Entries.Where(entry =>
+                ((relevant.Contains(entry) && entry.FieldId != selectorField) || (entry.IsActive ? _includeOmitted : _includeInactive))
+                && (_originFilter is null || entry.Origin == _originFilter.Value)).ToArray();
         }
         else _entries = [];
         _page = Math.Min(_page, PageCount - 1);
@@ -195,7 +227,7 @@
             entry.RelativePath.SequenceEqual(diagnostic.RelativePath));
         if (entry is not null) return entry.Title;
         if (!_fieldsById.TryGetValue(diagnostic.FieldId, out var field)) return Ui("ReviewPreparation");
-        var titles = new List<string> { ConfigurationDiagnosticText.Title(field) };
+        var titles = new List<string> { Form?.GetEditorPresentation([diagnostic.FieldId])?.Title ?? DefinitionDisplayText.Resolve(field.Title, field.Name) };
         DefinitionNode node = field.Node;
         foreach (string segment in diagnostic.RelativePath)
         {

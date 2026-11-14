@@ -1,0 +1,26 @@
+.configuration-inspector-pane {
+    padding: var(--isl-space-4);
+    border: var(--isl-card-border);
+    border-radius: var(--isl-radius-card);
+    background: var(--isl-surface-container-low);
+    overflow-wrap: anywhere;
+}
+.configuration-inspector-pane__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--isl-space-2);
+    margin-block-end: var(--isl-space-3);
+}
+.configuration-inspector-pane__header h3 { font-size: var(--isl-typography-h5-size); margin: 0; }
+.configuration-inspector-pane__empty { color: var(--isl-color-text-secondary); font-size: .875rem; margin: 0; }
+.configuration-inspector-pane__facts {
+    display: grid;
+    grid-template-columns: minmax(6rem, 1fr) minmax(0, 1.5fr);
+    gap: var(--isl-space-2) var(--isl-space-3);
+    margin-block: var(--isl-space-3);
+    font-size: .8125rem;
+}
+.configuration-inspector-pane__facts dt { color: var(--isl-color-text-secondary); font-weight: 500; margin: 0; }
+.configuration-inspector-pane__facts dd { margin: 0; }
+.configuration-inspector-pane code { font-family: var(--isl-font-family-mono); font-size: .75rem; }

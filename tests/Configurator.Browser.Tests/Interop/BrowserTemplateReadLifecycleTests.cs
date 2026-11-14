@@ -18,10 +18,10 @@ public sealed class BrowserTemplateReadLifecycleTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        var input = component.FindComponent<InputFile>();
+        var input = component.FindComponents<InputFile>().Single(file => file.Instance.AdditionalAttributes?["id"] as string == "artifact-import");
         InputFile selected = input.Instance;
         await component.InvokeAsync(() => input.UploadFiles(InputFileContent.CreateFromBinary("invalid"u8.ToArray(), "invalid.json", contentType: "application/json")));
-        await Assert.That(ReferenceEquals(selected, component.FindComponent<InputFile>().Instance)).IsFalse();
+        await Assert.That(ReferenceEquals(selected, component.FindComponents<InputFile>().Single(file => file.Instance.AdditionalAttributes?["id"] as string == "artifact-import").Instance)).IsFalse();
         await BrowserFixture.SelectPanelAsync(component, "prepare");
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
     }
@@ -79,6 +79,12 @@ public sealed class BrowserTemplateReadLifecycleTests
         }
         finally { older.Release.TrySetResult(); }
         await pending.WaitAsync(TimeSpan.FromSeconds(5));
+        if (transition == "clear")
+        {
+            await Assert.That(component.Find("[data-startup-state]").GetAttribute("data-startup-state")).IsEqualTo("before-entry");
+            await Assert.That(component.FindAll("input, select, textarea, .configuration-editor__controls")).IsEmpty();
+            await component.Find("[data-action='start-workspace']").ClickAsync(new MouseEventArgs());
+        }
         await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo(transition == "edit" ? "retained.test" : "");
         await Assert.That(older.CapturedBuffer.ToArray().All(value => value == 0)).IsTrue();
     }

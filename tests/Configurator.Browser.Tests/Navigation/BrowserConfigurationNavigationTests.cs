@@ -242,4 +242,43 @@ public sealed class BrowserConfigurationNavigationTests
             """);
         return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
     }
+
+    [Test]
+    public async Task WizardNavigationSupportsBackNextJumpToRequiredAndOptionalMarkerWithoutMutatingAnswers()
+    {
+        JsonNode document = JsonNode.Parse(GroupedDefinition().CanonicalBytes.Span)!;
+        BrowserFixture.WithField(document, "optional_note", """
+            {"type":"string","title":"Optional note","x-configurator":{"sensitivity":"public","detail":"advanced"}}
+            """);
+        document["presentation"]!["sections"]![0]!["pointers"]!.AsArray().Add("/optional_note");
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
+
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        var navigation = BrowserFixture.SectionNavigation(context, component);
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        long revision = form.InputRevision;
+
+        await Assert.That(navigation.FindAll("[data-navigation-mode='wizard']")).Count().IsEqualTo(1);
+        await Assert.That(navigation.FindAll("[data-wizard-optional-available='connection']")).Count().IsEqualTo(1);
+        await Assert.That(navigation.Find("[data-action='wizard-back']").HasAttribute("disabled")).IsTrue();
+
+        await navigation.Find("[data-action='wizard-next']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-section-panel='credentials']")).IsNotNull();
+        await Assert.That(navigation.Find("[data-action='wizard-back']").HasAttribute("disabled")).IsFalse();
+
+        // Jump to next required section from a section when another required section needs work.
+        await navigation.Find("[data-action='jump-next-required']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-section-panel='connection']")).IsNotNull();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+
+        // Switching to sections overview omits wizard chrome and preserves independent section progress + review status.
+        JsonNode sectionsDoc = JsonNode.Parse(definition.CanonicalBytes.Span)!;
+        sectionsDoc["presentation"]!["navigation"] = "sections";
+        Definition sectionsDefinition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(sectionsDoc.ToJsonString()));
+        var sectionsComponent = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, sectionsDefinition));
+        var overviewNav = BrowserFixture.SectionNavigation(context, sectionsComponent);
+        await Assert.That(overviewNav.FindAll("[data-navigation-mode='sections']")).Count().IsEqualTo(1);
+        await Assert.That(overviewNav.Find("[data-section='credentials'] [data-review-state]").GetAttribute("data-review-state")).IsEqualTo("not-visited");
+    }
 }

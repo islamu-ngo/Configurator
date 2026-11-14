@@ -284,11 +284,11 @@ public sealed class BrowserImportComparisonTests
             FailDisposal = true
         };
         var file = new LocalFile(stream);
-        await component.InvokeAsync(() => component.FindComponent<InputFile>().Instance.OnChange
+        await component.InvokeAsync(() => component.FindComponents<InputFile>().Single(input => input.Instance.AdditionalAttributes?["id"] as string == "artifact-import").Instance.OnChange
             .InvokeAsync(new InputFileChangeEventArgs([file])));
         await Assert.That(file.Opened).IsFalse();
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
-        await component.InvokeAsync(() => component.FindComponent<InputFile>().Instance.OnChange
+        await component.InvokeAsync(() => component.FindComponents<InputFile>().Single(input => input.Instance.AdditionalAttributes?["id"] as string == "artifact-import").Instance.OnChange
             .InvokeAsync(new InputFileChangeEventArgs([file])));
         var form = component.FindComponent<ConfigurationImportReview>().Instance.Form;
         await Assert.That(file.Opened).IsTrue();

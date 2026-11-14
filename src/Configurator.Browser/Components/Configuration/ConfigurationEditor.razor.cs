@@ -12,12 +12,14 @@ using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 
 public partial class ConfigurationEditor : IBrowserPendingChanges
 {
     [Inject] private IJSRuntime Javascript { get; set; } = null!;
     [Inject] private MudBlazor.IDialogService Dialogs { get; set; } = null!;
+    [Inject] private MudBlazor.ISnackbar Snackbar { get; set; } = null!;
     private Task<IJSObjectReference>? _comparisonRendering;
     [Inject] private BrowserOfflinePolicy Offline { get; set; } = null!;
     [Inject] private IServiceProvider Services { get; set; } = null!;
@@ -48,6 +50,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private ConfigurationFilesPanel? _filesPanel;
     private ConfigurationDeveloper? _developerPanel;
     private bool _developerMode;
+    private bool _contextOpen;
     private bool _consentOpen;
     private bool _taskToolsOpen;
     private EventCallback _consentAction;
@@ -68,10 +71,34 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private string? _sectionLocale;
     private string DisplayDirection => Appearance.Current.Direction == "auto"
         ? _form?.Direction ?? _startup!.Direction : Appearance.Current.Direction;
+    private WorkspaceLayoutMode LayoutMode => _form?.WorkspaceLayoutMode ?? WorkspaceLayoutMode.Guided;
+    private WorkspaceDensity Density => _form?.WorkspaceDensity ?? Appearance.Current.ToWorkspaceDensity();
+    private WorkspaceNamingMode NamingMode => _form?.WorkspaceNamingMode ?? Appearance.Current.ToWorkspaceNamingMode();
+    private string WorkflowStageToken => _activeWorkflowStage switch
+    {
+        WorkflowStage.Review => "review",
+        WorkflowStage.Prepare => "prepare",
+        _ => "configure"
+    };
+    private string? ScopeSummary => _form?.ConfigurationContext is not { } context ? null
+        : _form.ConfigurationRecipes.FirstOrDefault(recipe => recipe.Id == context.RecipeId) is { } recipe
+            && recipe.Scopes.FirstOrDefault(scope => scope.Id == context.ScopeId) is { } scope
+            ? $"{RecipeTitle(recipe)} · {ScopeTitle(recipe, scope)}"
+            : $"{context.RecipeId} · {context.ScopeId}";
     protected override void OnInitialized() => Appearance.Changed += AppearanceChanged;
     private void AppearanceChanged(object? sender, EventArgs args)
     {
-        if (!_disposed) _ = InvokeAsync(StateHasChanged);
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            if (_form is not null)
+            {
+                _form.SetWorkspaceDensity(Appearance.Current.ToWorkspaceDensity());
+                _form.SetWorkspaceNamingMode(Appearance.Current.ToWorkspaceNamingMode());
+            }
+            StateHasChanged();
+        });
     }
     private string? _focusField;
     private IReadOnlyList<string> _focusPath = [];
@@ -86,9 +113,20 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private CancellationTokenSource? _readCancellation;
     private byte[]? _readBuffer;
     private InputFile? _fileInput;
-    private ElementReference _startButton;
+    private WorkspaceStartupGate? _startupGate;
     private bool _disposed;
     private bool _ready;
+    private bool _inspectorOpen;
+    private DefinitionPath? _inspectedPath;
+    private bool _suppressUndoToast;
+    private long _lastToastRevision = -1;
+    private Action<DefinitionPath> _fieldFocusCallback => OnFieldFocused;
+    private bool _preparing;
+    private bool _preparationFailed;
+    private WorkspaceStartupStage StartupStage => _ready && _form is not null ? WorkspaceStartupStage.Ready
+        : _form is null || _preparing ? WorkspaceStartupStage.Preparing
+        : _preparationFailed ? WorkspaceStartupStage.PreparationFailed
+        : WorkspaceStartupStage.BeforeEntry;
     private bool HasWork(DefinitionFormModel form) => !_disposed && _ready && ReferenceEquals(form, _form) &&
         (form.HasWorkspaceChanges || form.RequiresBrowserProfileComposition || _prepared.Count > 0 || _importPending || form.ImportComparison is not null
             || _developerPanel is { } developer && ReferenceEquals(developer.Form, form) && developer.HasWork);
@@ -102,7 +140,6 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
                 ? "blocked" : progress.Deferred > 0 ? "deferred" : "complete";
         }
     }
-    private bool _compact;
     private long _offlineLease;
     private DefinitionValidationResult? _validation;
     private BrowserNavigationState? _navigation;
@@ -133,11 +170,13 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _selectedSection = null;
         _focusField = null;
         _pinned = Definition;
-        _compact = false;
+        _contextOpen = false;
         _consentOpen = false;
         _taskToolsOpen = false;
         _importPurpose = "compare";
         _ready = false;
+        _preparing = false;
+        _preparationFailed = false;
         QueueStartup(InitialLocale, InitialEntry, begin: true);
         _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
         StartupRequest startup = _startup!;
@@ -176,6 +215,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (startup.Definition.Presentation is not null) _form.SetDisclosureOverride(FieldDisclosure.Essential);
         _form.SelectLocale(startup.Locale);
         if (startup.Entry is not null) _form.SelectOutput(startup.Entry);
+        _form.SetWorkspaceDensity(Appearance.Current.ToWorkspaceDensity());
+        _form.SetWorkspaceNamingMode(Appearance.Current.ToWorkspaceNamingMode());
         IndexSections();
         _requiredCount = _form.Projection.Progress.Required;
         _form.InputChanged += InputChanged;
@@ -209,6 +250,13 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
                             || lease != _search.Generation || inputRevision != form.InputRevision) return;
                         _search.CompleteNavigation(this, lease);
                         CorrectField(diagnostic);
+                    }));
+                builder.AddAttribute(3, nameof(ConfigurationDiscovery.CommandSelected),
+                    EventCallback.Factory.Create<WorkspaceCommandDescriptor>(this, async command =>
+                    {
+                        if (_disposed || !ReferenceEquals(form, _form) || lease != _search.Generation) return;
+                        _search.CompleteNavigation(this, lease);
+                        await ExecuteCommandAsync(command);
                     }));
                 builder.CloseComponent();
             });
@@ -319,9 +367,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     }
     private DefinitionFormSection[] EditorSections()
     {
-        return _form!.Projection.Sections
-            .Select(section => _editorSections[section.Id])
-            .ToArray();
+        return _form!.Projection.Sections.ToArray();
     }
     private string? SelectedSection(IReadOnlyList<DefinitionFormSection> sections) =>
         sections.Any(item => item.Id == _selectedSection) ? _selectedSection : sections.Count > 0 ? sections[0].Id : null;
@@ -329,6 +375,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     {
         _selectedSection = section;
         _focusField = null;
+        _form?.RecordSectionOpened(section);
         SelectWorkflowStage(WorkflowStage.Configure);
     }
 
@@ -391,9 +438,9 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             RequestFocus(FocusTarget.Output);
             return;
         }
-        if (_form!.ConfigurationContext is not null && Definition.Deployment is { } deployment && path.Count == 1
-            && (DefinitionPath.FromSegments([field.Name]).ToPointer() == deployment.RecipePointer
-                || DefinitionPath.FromSegments([field.Name]).ToPointer() == deployment.ScopePointer))
+        if (_form!.ConfigurationContext is not null && Definition.Deployment is { } deployment
+            && DefinitionPath.FromSegments(new[] { field.Name }.Concat(path.Skip(1)).ToArray()).ToPointer() is var selectorPointer
+            && (selectorPointer == deployment.RecipePointer || selectorPointer == deployment.ScopePointer))
         {
             SelectWorkflowStage(WorkflowStage.Configure);
             RequestFocus(FocusTarget.Context);
@@ -414,6 +461,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         bool denied = !_form.CanEdit(path);
         if (!focused && !denied) return;
         SelectWorkflowStage(WorkflowStage.Configure);
+        if (_form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact)
+            _form.SetWorkspaceLayoutMode(WorkspaceLayoutMode.Guided);
         _selectedSection = EditorSections().Single(section => section.Fields.Contains(fieldId)).Id;
         _focusField = denied ? null : field.Id;
         _focusPath = denied ? [] : path;
@@ -487,6 +536,12 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _requiredCount = required;
         _statusCode = "answers-changed";
         _search?.Refresh(this, _searchLease);
+        if (!_suppressUndoToast && _form!.CanUndo && _lastToastRevision != _form.InputRevision &&
+            IsUndoToastAction(_form.LastUndoLabel, _form.Locale))
+        {
+            _lastToastRevision = _form.InputRevision;
+            ShowUndoSnackbar(_form, _form.LastUndoLabel!);
+        }
         StateHasChanged();
     }
     private void ViewChanged(object? sender, EventArgs args)
@@ -537,8 +592,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     }
     private void RequestFocus(FocusTarget target)
     {
+        if (target == FocusTarget.Context) _contextOpen = true;
         if (target == FocusTarget.Consent) _consentOpen = true;
-        if (target == FocusTarget.Output) _taskToolsOpen = true;
         _pendingFocus = (_form!, _viewGeneration, target);
     }
     private void ChangeDetail(ChangeEventArgs args)
@@ -555,11 +610,214 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     {
         if (args.Value is string locale) _form!.SelectLocale(locale);
     }
-    private void ChangeDensity(ChangeEventArgs args)
+    private void OpenScopeSelector()
     {
-        if (args.Value is not ("compact" or "comfortable")) return;
-        _compact = args.Value is "compact";
+        _contextOpen = true;
+        RequestFocus(FocusTarget.Context);
     }
+    private Task ChangeNamingModeAsync(WorkspaceNamingMode mode)
+    {
+        _form?.SetWorkspaceNamingMode(mode);
+        return Appearance.SetNamingModeAsync(AppearanceState.FromWorkspaceNamingMode(mode)).AsTask();
+    }
+    private Task ChangeDensityValueAsync(WorkspaceDensity density)
+    {
+        _form?.SetWorkspaceDensity(density);
+        return Appearance.SetDensityAsync(AppearanceState.FromWorkspaceDensity(density)).AsTask();
+    }
+    private async Task SelectStageAndLayoutAsync((string Stage, WorkspaceLayoutMode Layout) selection)
+    {
+        if (!await ResolvePendingAsync()) return;
+        if (_developerMode && selection.Stage == "configure")
+        {
+            RetireDeveloper();
+            _developerMode = false;
+            _configurePanel = null;
+        }
+        if (selection.Stage == "configure")
+            _form?.SetWorkspaceLayoutMode(selection.Layout);
+        WorkflowStage target = selection.Stage switch
+        {
+            "review" => WorkflowStage.Review,
+            "prepare" => WorkflowStage.Prepare,
+            _ => WorkflowStage.Configure
+        };
+        if (_activeWorkflowStage != target)
+            SelectWorkflowStage(target);
+    }
+    private Task HandleWorkspaceKeyAsync(KeyboardEventArgs args)
+    {
+        if ((args.CtrlKey || args.MetaKey) && !args.AltKey)
+        {
+            if (args.ShiftKey && string.Equals(args.Key, "K", StringComparison.OrdinalIgnoreCase))
+            {
+                WorkspaceNamingMode next = NamingMode == WorkspaceNamingMode.Technical
+                    ? WorkspaceNamingMode.Humanized
+                    : WorkspaceNamingMode.Technical;
+                return ChangeNamingModeAsync(next);
+            }
+            if (!args.ShiftKey && string.Equals(args.Key, "k", StringComparison.OrdinalIgnoreCase))
+            {
+                _search?.RequestOpen(this, _searchLease);
+                return Task.CompletedTask;
+            }
+            if ((args.ShiftKey && string.Equals(args.Key, "z", StringComparison.OrdinalIgnoreCase))
+                || (!args.ShiftKey && string.Equals(args.Key, "y", StringComparison.OrdinalIgnoreCase)))
+            {
+                PerformRedo();
+                return Task.CompletedTask;
+            }
+            if (!args.ShiftKey && string.Equals(args.Key, "z", StringComparison.OrdinalIgnoreCase))
+            {
+                PerformUndo();
+                return Task.CompletedTask;
+            }
+        }
+        if (!args.CtrlKey && !args.MetaKey && !args.AltKey)
+        {
+            if (args.Key == "F2")
+            {
+                ToggleInspector();
+                return Task.CompletedTask;
+            }
+            if (args.Key == "?")
+                return OpenShortcutsHelpAsync();
+        }
+        return Task.CompletedTask;
+    }
+
+    private void OnFieldFocused(DefinitionPath path)
+    {
+        if (_disposed) return;
+        bool changed = !Equals(_inspectedPath, path);
+        _inspectedPath = path;
+        if (_inspectorOpen && changed)
+            _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleInspector()
+    {
+        if (_disposed) return;
+        _inspectorOpen = !_inspectorOpen;
+    }
+
+    private void PerformUndo()
+    {
+        if (_disposed || _form is null || !_form.CanUndo) return;
+        _suppressUndoToast = true;
+        try
+        {
+            if (_form.Undo())
+                Snackbar.RemoveByKey("workspace-undo");
+        }
+        finally { _suppressUndoToast = false; }
+    }
+
+    private void PerformRedo()
+    {
+        if (_disposed || _form is null || !_form.CanRedo) return;
+        _suppressUndoToast = true;
+        try
+        {
+            if (_form.Redo())
+                Snackbar.RemoveByKey("workspace-undo");
+        }
+        finally { _suppressUndoToast = false; }
+    }
+
+    private static bool IsUndoToastAction(string? label, string locale) => !string.IsNullOrEmpty(label) && (
+        string.Equals(label, PresentationStrings.Get("UndoActionOmit", locale), StringComparison.Ordinal) ||
+        string.Equals(label, PresentationStrings.Get("UndoActionReset", locale), StringComparison.Ordinal) ||
+        string.Equals(label, PresentationStrings.Get("UndoActionRemoveItem", locale), StringComparison.Ordinal) ||
+        string.Equals(label, PresentationStrings.Get("UndoActionChangeVariant", locale), StringComparison.Ordinal) ||
+        string.Equals(label, PresentationStrings.Get("UndoActionDocument", locale), StringComparison.Ordinal) ||
+        string.Equals(label, PresentationStrings.Get("UndoActionImport", locale), StringComparison.Ordinal));
+
+    private void ShowUndoSnackbar(DefinitionFormModel form, string label)
+    {
+        Snackbar.RemoveByKey("workspace-undo");
+        string undoText = UiText("UndoAction");
+        Snackbar.Add(builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "class", "workspace-undo-toast");
+            builder.OpenElement(2, "span");
+            builder.AddContent(3, label);
+            builder.CloseElement();
+            builder.OpenElement(4, "button");
+            builder.AddAttribute(5, "type", "button");
+            builder.AddAttribute(6, "class", "button button--secondary");
+            builder.AddAttribute(7, "data-snackbar-undo", "");
+            builder.AddAttribute(8, "onclick", EventCallback.Factory.Create(this, () =>
+            {
+                if (!_disposed && ReferenceEquals(form, _form))
+                    PerformUndo();
+            }));
+            builder.AddContent(9, undoText);
+            builder.CloseElement();
+            builder.CloseElement();
+        }, MudBlazor.Severity.Info, options => { options.RequireInteraction = false; }, "workspace-undo");
+    }
+
+    private Task OpenShortcutsHelpAsync()
+    {
+        if (_disposed || _form is null) return Task.CompletedTask;
+        var parameters = new MudBlazor.DialogParameters
+        {
+            [nameof(KeyboardShortcutsDialog.Locale)] = _form.Locale
+        };
+        return Dialogs.ShowAsync<KeyboardShortcutsDialog>(
+            UiText("ShortcutsTitle"), parameters, DialogOptionsFactory.Standard());
+    }
+
+    private async Task ExecuteCommandAsync(WorkspaceCommandDescriptor command)
+    {
+        if (_disposed || _form is null) return;
+        switch (command.Id)
+        {
+            case WorkspaceCommandId.Undo: PerformUndo(); break;
+            case WorkspaceCommandId.Redo: PerformRedo(); break;
+            case WorkspaceCommandId.SwitchToGuided:
+                await SelectStageAndLayoutAsync(("configure", WorkspaceLayoutMode.Guided));
+                break;
+            case WorkspaceCommandId.SwitchToCompact:
+                await SelectStageAndLayoutAsync(("configure", WorkspaceLayoutMode.Compact));
+                break;
+            case WorkspaceCommandId.SwitchToReview:
+                await RequestWorkflowStageAsync(WorkflowStage.Review);
+                break;
+            case WorkspaceCommandId.SwitchToFiles:
+                await RequestWorkflowStageAsync(WorkflowStage.Prepare);
+                break;
+            case WorkspaceCommandId.ToggleNamingMode:
+                await ChangeNamingModeAsync(NamingMode == WorkspaceNamingMode.Technical
+                    ? WorkspaceNamingMode.Humanized : WorkspaceNamingMode.Technical);
+                break;
+            case WorkspaceCommandId.ToggleInspector:
+                ToggleInspector();
+                break;
+            case WorkspaceCommandId.OpenShortcutsHelp:
+                await OpenShortcutsHelpAsync();
+                break;
+            case WorkspaceCommandId.JumpToNextError:
+            case WorkspaceCommandId.JumpToNextRequired:
+            case WorkspaceCommandId.JumpToNextUnvisited:
+                if (command.TargetSectionId is { } sectionId)
+                {
+                    await SelectStageAndLayoutAsync(("configure", WorkspaceLayoutMode.Guided));
+                    SelectSection(sectionId);
+                }
+                break;
+        }
+    }
+    private async Task OpenCompactFieldInGuidedAsync(DefinitionPath path)
+    {
+        if (_disposed || _form is null || path.Segments.Count == 0) return;
+        await SelectStageAndLayoutAsync(("configure", WorkspaceLayoutMode.Guided));
+        string fieldId = DefinitionProfile.FieldId(path.Segments[0]);
+        CorrectField(new DefinitionDiagnostic("compact-focus", fieldId, path.Segments.Skip(1).ToArray()));
+    }
+
     private void ChangeExperience(ChangeEventArgs args)
     {
         if (args.Value is not string id || !_form!.SelectExperience(id)) return;
@@ -571,6 +829,11 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         bool enabled = args.Value is true;
         if (enabled != (_form!.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled))
             ++_profileConsentEpoch;
+        if (!enabled)
+        {
+            Snackbar.RemoveByKey("workspace-undo");
+            Snackbar.Clear();
+        }
         DefinitionFormModel form = _form!;
         long generation = _generation;
         form.SetSecretEntryEnabled(enabled);
@@ -623,7 +886,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             FocusTarget.Output when _ready && OutputSelector is not null => _outputControl,
             FocusTarget.Context when _ready && _form!.ConfigurationContext is not null => _contextControl,
             FocusTarget.DeveloperDestination when _ready && _developerMode && DeveloperArtifacts.Length > 1 => _developerDestinationControl,
-            FocusTarget.Start when !_ready => _startButton,
+            FocusTarget.Start when !_ready => _startupGate?.StartButton,
             _ => null
         };
         if (target is not { } element || string.IsNullOrEmpty(element.Id)) return;
@@ -634,6 +897,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     {
         if (_disposed || _form is null) return;
         _ready = false;
+        _preparing = true;
+        _preparationFailed = false;
         Invalidate();
         DefinitionFormModel form = _form;
         _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form)) ?? 0;
@@ -651,7 +916,9 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             await Offline.EndWorkspaceAsync(lease);
             return;
         }
+        _preparing = false;
         _ready = ready;
+        _preparationFailed = !ready;
         if (_ready)
         {
             _offlineLease = lease;
@@ -740,12 +1007,14 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         long navigationLease = _navigationLease;
         Task retirement = _outputRetirement;
         _ready = false;
+        _preparing = false;
+        _preparationFailed = false;
         _search?.Release(this, _searchLease);
         if (form is not null) form.ImportComparisonChanged -= ImportComparisonChanged;
         form?.Dispose();
         _form = null;
         Task outputs = InvalidateOutputAsync();
-        _compact = false;
+        _contextOpen = false;
         _consentOpen = false;
         _taskToolsOpen = false;
         _activeWorkflowStage = WorkflowStage.Configure;

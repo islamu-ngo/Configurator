@@ -53,6 +53,7 @@ internal static class BrowserFixture
     {
         var context = new BunitContext();
         context.JSInterop.Mode = JSRuntimeMode.Loose;
+        context.Services.AddSingleton(TimeProvider.System);
         context.Services.AddSingleton(registry ?? new BrowserDefinitionRegistry([Definition]));
         context.Services.AddScoped<AppearanceThemeService>();
         context.Services.AddScoped<BrowserNavigationState>();
@@ -171,6 +172,9 @@ internal static class BrowserFixture
         var radios = editor.FindComponents<MudRadioGroup<string>>().SingleOrDefault();
         if (radios is not null)
             return component.InvokeAsync(() => radios.Instance.ValueChanged.InvokeAsync(selection));
+        var sw = editor.FindAll("input[type=checkbox][role=switch]").SingleOrDefault();
+        if (sw is not null)
+            return sw.ChangeAsync(new ChangeEventArgs { Value = bool.Parse(value) });
         var choice = editor.FindComponent<MudSelect<string>>();
         return component.InvokeAsync(() => choice.Instance.ValueChanged.InvokeAsync(selection));
     }

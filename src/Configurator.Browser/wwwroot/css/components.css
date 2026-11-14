@@ -2,15 +2,15 @@ section { margin-block-end: var(--isl-space-section); }
 .page-header { margin-block-end: var(--isl-space-8); }
 .page-header h1 { margin-block-end: var(--isl-space-3); }
 .page-header .lede { max-inline-size: 72ch; margin-block-end: var(--isl-space-3); }
-.workspace, .hero, .table-scroll { padding: var(--isl-space-page); background: var(--isl-color-surface); border: var(--isl-card-border); border-radius: var(--isl-radius-card); }
+.workspace, .hero, .table-scroll { padding: var(--isl-space-page); background: var(--isl-surface-container-lowest); border: var(--isl-card-border); border-radius: var(--isl-radius-card); }
 .eyebrow { display: inline-flex; align-items: center; gap: var(--isl-space-2); color: var(--isl-color-text-secondary); font-size: .8125rem; font-weight: 500; letter-spacing: 0; text-transform: none; margin-block-end: var(--isl-space-2); }
 .lede { max-inline-size: 65ch; color: var(--isl-color-text-secondary); font-size: 1rem; line-height: 1.5; }
 .actions, .section-heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--isl-space-3); margin-block: var(--isl-space-4); }
-.button { display: inline-flex; min-block-size: var(--isl-target-min); align-items: center; justify-content: center; padding: var(--isl-button-padding); border: 1px solid var(--isl-color-primary); border-radius: var(--isl-radius-sm); background: var(--isl-color-primary); color: var(--mud-palette-primary-text, #fff); font-weight: 500; text-decoration: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15); transition: background-color var(--isl-duration-fast) var(--isl-ease-standard), border-color var(--isl-duration-fast) var(--isl-ease-standard), box-shadow var(--isl-duration-fast) var(--isl-ease-standard), transform var(--isl-duration-fast) var(--isl-ease-standard); }
+.button { display: inline-flex; min-block-size: var(--isl-target-min); align-items: center; justify-content: center; padding: var(--isl-button-padding); border: 1px solid var(--isl-color-primary); border-radius: var(--isl-radius-sm); background: var(--isl-color-primary); color: var(--isl-color-on-primary); font-weight: 500; text-decoration: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15); transition: background-color var(--isl-duration-fast) var(--isl-ease-standard), border-color var(--isl-duration-fast) var(--isl-ease-standard), box-shadow var(--isl-duration-fast) var(--isl-ease-standard), transform var(--isl-duration-fast) var(--isl-ease-standard); }
 .button:hover { filter: brightness(1.08); }
 .button:active { transform: scale(0.98); }
-.button--secondary { background: var(--isl-color-surface); border-color: var(--isl-color-border); color: var(--isl-color-text); box-shadow: none; }
-.button--secondary:hover { background: var(--isl-color-surface-muted); border-color: var(--isl-color-control-border); color: var(--isl-color-text); filter: none; }
+.button--secondary { background: var(--isl-surface-container-lowest); border-color: var(--isl-color-border); color: var(--isl-color-text); box-shadow: none; }
+.button--secondary:hover { background: var(--isl-surface-container); border-color: var(--isl-color-control-border); color: var(--isl-color-text); filter: none; }
 .table-scroll { overflow-x: auto; padding: 0; }
 table { inline-size: 100%; border-collapse: collapse; }
 caption { padding: var(--isl-space-4); color: var(--isl-color-text-secondary); text-align: start; }

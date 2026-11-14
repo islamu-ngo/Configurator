@@ -219,4 +219,76 @@ public sealed class BrowserSecretGenerationTests
         await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("value")).IsEqualTo("synthetic-copy-value");
         await Assert.That(component.Find("[data-field='credential'] [role='status']").GetAttribute("data-secret-status")).IsEqualTo("clipboard-unavailable");
     }
+
+    [Test]
+    public async Task ModalSecretGeneratorEnforcesSchemaBoundsAndAppliesOnlyOnCommit()
+    {
+        JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        BrowserFixture.WithField(source, "credential", """
+            {"type":"string","title":"Database password","minLength":16,"maxLength":64,
+             "x-configurator":{"secret":{
+               "kind":"password","acquisition":"local","generation":{"length":24}}}}
+            """, "schema.bounds", "schema.secret");
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        await using var context = BrowserFixture.Context();
+        var layout = BrowserFixture.RenderWorkspace(context, definition);
+        await layout.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await layout.Find("[data-field='credential'] [data-secret-action='open-generator']").ClickAsync(new());
+        var dialog = layout.Find("[data-secret-generator-dialog]");
+        var form = layout.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
+        await Assert.That(dialog.QuerySelector("[data-entropy-bits]")!.TextContent.Length).IsGreaterThan(0);
+
+        await layout.Find("[data-generator-length]").InputAsync(new ChangeEventArgs { Value = "10" });
+        await Assert.That(layout.FindAll("[data-secret-generator-error]").Count).IsGreaterThan(0);
+        await Assert.That(layout.Find("[data-secret-generator-generate]").HasAttribute("disabled")).IsTrue();
+        await Assert.That(layout.Find("[data-secret-generator-apply]").HasAttribute("disabled")).IsTrue();
+
+        await layout.Find("[data-generator-length]").InputAsync(new ChangeEventArgs { Value = "24" });
+        await Assert.That(layout.Find("[data-secret-generator-generate]").HasAttribute("disabled")).IsFalse();
+        await layout.Find("[data-secret-generator-generate]").ClickAsync(new());
+
+        var preview = layout.Find("[data-secret-generator-preview]");
+        await Assert.That(preview.GetAttribute("type")).IsEqualTo("password");
+        await Assert.That(preview.GetAttribute("value")!.Length).IsEqualTo(24);
+        await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
+
+        await layout.Find("[data-secret-generator-reveal]").ClickAsync(new());
+        await Assert.That(layout.Find("[data-secret-generator-preview]").GetAttribute("type")).IsEqualTo("text");
+
+        await layout.Find("[data-secret-generator-apply]").ClickAsync(new());
+        await Assert.That(layout.FindAll("[data-secret-generator-dialog]")).IsEmpty();
+        await Assert.That(form.Snapshot().Values["credential"].GetString()!.Length).IsEqualTo(24);
+    }
+
+    [Test]
+    public async Task ModalSecretGeneratorCancelsAndPurgesOnCancelOrConsentRevocation()
+    {
+        JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        BrowserFixture.WithField(source, "credential", """
+            {"type":"string","title":"Service password","minLength":16,"maxLength":64,
+             "x-configurator":{"secret":{
+               "kind":"password","acquisition":"local","generation":{"length":24}}}}
+            """, "schema.bounds", "schema.secret");
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        await using var context = BrowserFixture.Context();
+        var layout = BrowserFixture.RenderWorkspace(context, definition);
+        await layout.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await layout.Find("[data-field='credential'] [data-secret-action='open-generator']").ClickAsync(new());
+        await layout.Find("[data-secret-generator-generate]").ClickAsync(new());
+        string generated = layout.Find("[data-secret-generator-preview]").GetAttribute("value")!;
+        await layout.Find("[data-secret-generator-cancel]").ClickAsync(new());
+        await Assert.That(layout.FindAll("[data-secret-generator-dialog]")).IsEmpty();
+        var form = layout.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
+        await Assert.That(layout.Markup).DoesNotContain(generated);
+
+        await layout.Find("[data-field='credential'] [data-secret-action='open-generator']").ClickAsync(new());
+        await layout.Find("[data-secret-generator-generate]").ClickAsync(new());
+        string second = layout.Find("[data-secret-generator-preview]").GetAttribute("value")!;
+        await layout.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await Assert.That(layout.FindAll("[data-secret-generator-dialog]")).IsEmpty();
+        await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
+        await Assert.That(layout.Markup).DoesNotContain(second);
+    }
 }

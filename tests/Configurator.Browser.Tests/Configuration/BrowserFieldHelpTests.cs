@@ -124,4 +124,32 @@ public sealed class BrowserFieldHelpTests
         await component.Find("[aria-label='Close field help']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll("[role='dialog']")).IsEmpty();
     }
+
+    [Test]
+    public async Task DockedInspectorPaneTracksFocusedFieldAndShowsOnlyPublicMetadata()
+    {
+        await using var context = BrowserFixture.Context();
+        JsonNode source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        BrowserFixture.WithField(source, "credential", """
+            {"type":"string","title":"Service credential","x-configurator":{
+              "sensitivity":"secret","detail":"basic","units":"token",
+              "guidance":{"instructions":"Keep local and never commit."}}}
+            """);
+        source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"object","members":{"CREDENTIAL":{"op":"copy","reference":{"scope":"root","path":"/credential"}}}}""");
+        var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var component = BrowserFixture.RenderWorkspace(context, definition);
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-docked-secret-value" });
+
+        await component.Find("[data-action='toggle-inspector']").ClickAsync(new MouseEventArgs());
+        var pane = component.Find("[data-inspector-pane]");
+        await Assert.That(component.FindAll("[role='dialog']")).IsEmpty();
+
+        await component.Find("[data-field='credential']").FocusInAsync(new FocusEventArgs());
+        pane = component.Find("[data-inspector-pane]");
+        await Assert.That(pane.QuerySelector("[data-definition-path]")!.TextContent).IsEqualTo("credential");
+        await Assert.That(pane.QuerySelector("[data-help-units]")!.TextContent).IsEqualTo("token");
+        await Assert.That(pane.QuerySelector("[data-output-key]")!.TextContent).IsEqualTo("CREDENTIAL");
+        await Assert.That(pane.TextContent).DoesNotContain("synthetic-docked-secret-value");
+    }
 }

@@ -1,2 +1,3 @@
 /* The stable viewport gutter already reserves scrollbar space during modal scroll lock. */
 body.scroll-locked { padding-inline: 0; }
+:is(.mud-input-control, .mud-select) :focus-visible { outline: var(--isl-focus-ring-width) solid var(--isl-focus-ring); outline-offset: var(--isl-focus-ring-offset); }

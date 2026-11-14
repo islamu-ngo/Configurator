@@ -1,0 +1,38 @@
+.workspace-startup-gate {
+    display: flex;
+    justify-content: center;
+    padding-block: var(--isl-space-6);
+    padding-inline: var(--isl-space-3);
+}
+
+.workspace-startup-gate__card {
+    inline-size: min(100%, 40rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--isl-space-3);
+    padding: var(--isl-space-5);
+    border: 1px solid var(--isl-outline-variant);
+    border-radius: var(--isl-radius-lg, 12px);
+    background: var(--isl-surface-container-low);
+}
+
+.workspace-startup-gate__title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--isl-color-text);
+}
+
+.workspace-startup-gate__privacy {
+    margin: 0;
+    color: var(--isl-color-text-secondary);
+    line-height: 1.5;
+}
+
+.workspace-startup-gate__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--isl-space-2);
+    align-items: center;
+    padding-block-start: var(--isl-space-2);
+}

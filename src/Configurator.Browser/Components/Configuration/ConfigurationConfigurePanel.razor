@@ -14,19 +14,29 @@
     var states = Form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal);
     string? outputField = Form.Definition.Presentation?.OutputSelector is { } selector
         ? DefinitionProfile.FieldId(selector.Location.Segments[0]) : null;
-    var sections = Sections.Where(section => section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive &&
-        (experience.Sections.Contains(section.Id) || projection.IsFieldVisible(fieldId)))).ToArray();
-    string? selected = sections.Any(section => section.Id == SelectedSection) ? SelectedSection : sections.FirstOrDefault()?.Id;
+    var sections = Sections.Where(section =>
+        experience.Sections.Contains(section.Id)
+        || section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && projection.IsFieldVisible(fieldId))).ToArray();
+    string? selected = sections.Any(section => section.Id == SelectedSection)
+        ? SelectedSection
+        : sections.FirstOrDefault(section => section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive
+              && (experience.Sections.Contains(section.Id) || projection.IsFieldVisible(fieldId))))?.Id
+          ?? sections.FirstOrDefault()?.Id;
 <SectionContent SectionName="configuration-sections">
-    @if (sections.Length > 1)
+    @if (Form.WorkspaceLayoutMode != WorkspaceLayoutMode.Compact && sections.Length > 1)
     {
-        <ConfigurationNavigation Sections="@(sections.Select(section => new ConfigurationSection(section.Id, section.Title, projection.SectionProgress[section.Id])).ToArray())"
-                                 Selected="@selected" SelectedChanged="SelectedChanged" Locale="@Form.Locale" />
+        <ConfigurationNavigation Sections="@(sections.Select(section => new ConfigurationSection(section.Id, section.Title, projection.SectionProgress[section.Id], projection.SectionStatuses.GetValueOrDefault(section.Id))).ToArray())"
+                                 Selected="@selected" SelectedChanged="SelectedChanged" Locale="@Form.Locale"
+                                 NavigationMode="@experience.Navigation" Navigation="@projection.Navigation" />
     }
 </SectionContent>
-<div class="configuration-configure-panel @(sections.Length == 1 ? "configuration-configure-panel--single" : "")" data-navigation="@experience.Navigation">
+<div class="configuration-configure-panel @(sections.Length == 1 || Form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact ? "configuration-configure-panel--single" : "")" data-navigation="@experience.Navigation" data-layout-active="@(Form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact ? "compact" : "guided")">
     <div class="configuration-configure-panel__fields">
-        @if (!DefinitionEditingSupport.HasPropertyRoot(Form.Definition))
+        @if (Form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact)
+        {
+            <ConfigurationCompactTable Form="Form" RequestSecretConsent="RequestSecretConsent" OpenFieldInGuided="OpenFieldInGuided" />
+        }
+        else if (!DefinitionEditingSupport.HasPropertyRoot(Form.Definition))
         {
             <ConfigurationRoot @ref="_root" Form="Form" Validation="Validation" MountCancellation="MountCancellation"
                                FocusFirstControl="@(FocusField == string.Empty)" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
@@ -43,13 +53,44 @@
                 {
                     <p id="@(SectionId(section.Id) + "-description")" class="configuration-configure-panel__description">@section.Description</p>
                 }
-                <ConfigurationSectionFields @key="Form" Form="Form" Fields="@(section.Fields.Where(fieldId => fieldId != outputField && projection.IsFieldVisible(fieldId)).Select(fieldId => states[fieldId]).ToArray())"
-                                            MountCancellation="MountCancellation" Validation="Validation"
-                                            FocusField="@FocusField" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
-                @if (section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && !projection.IsFieldVisible(fieldId)))
+                @{
+                    var visibleFields = section.Fields
+                        .Where(fieldId => fieldId != outputField && projection.IsFieldVisible(fieldId))
+                        .Select(fieldId => states[fieldId])
+                        .ToArray();
+                    var sectionStatus = projection.SectionStatuses.GetValueOrDefault(section.Id);
+                    bool hasHiddenOptional = section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && !projection.IsFieldVisible(fieldId));
+                }
+                @if (visibleFields.Length > 0)
                 {
-                    <AppButton Variant="Variant.Outlined" data-action="show-section-options"
-                               OnClick="() => { if (!_disposed && !actionMount.IsCancellationRequested && ReferenceEquals(Form, actionForm) && Form.InputRevision == inputRevision) Form.SetSectionExpanded(section.Id, true); }">@BrowserStrings.Get("ShowOptionalSettings", Form.Locale)</AppButton>
+                    <ConfigurationSectionFields @key="Form" Form="Form" SectionId="@section.Id" Groups="section.Groups"
+                                                Fields="visibleFields" MountCancellation="MountCancellation" Validation="Validation"
+                                                FocusField="@FocusField" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
+                    @if (hasHiddenOptional)
+                    {
+                        <AppButton Variant="Variant.Outlined" data-action="show-section-options"
+                                   OnClick="() => { if (!_disposed && !actionMount.IsCancellationRequested && ReferenceEquals(Form, actionForm) && Form.InputRevision == inputRevision) Form.SetSectionExpanded(section.Id, true); }">@BrowserStrings.Get("ShowOptionalSettings", Form.Locale)</AppButton>
+                    }
+                }
+                else if (sectionStatus?.ConfigurationStatus == SectionConfigurationStatus.OutsideSelectedScope)
+                {
+                    <div class="configuration-configure-panel__empty" role="status" data-empty-section-state="outside-scope">
+                        <p>@BrowserStrings.Get("EmptySectionOutsideScope", Form.Locale)</p>
+                    </div>
+                }
+                else if (hasHiddenOptional)
+                {
+                    <div class="configuration-configure-panel__empty" role="status" data-empty-section-state="hidden-optional">
+                        <p>@BrowserStrings.Get("EmptySectionHiddenOptional", Form.Locale)</p>
+                        <AppButton Variant="Variant.Outlined" data-action="show-section-options"
+                                   OnClick="() => { if (!_disposed && !actionMount.IsCancellationRequested && ReferenceEquals(Form, actionForm) && Form.InputRevision == inputRevision) Form.SetSectionExpanded(section.Id, true); }">@BrowserStrings.Get("ShowOptionalSettings", Form.Locale)</AppButton>
+                    </div>
+                }
+                else
+                {
+                    <div class="configuration-configure-panel__empty" role="status" data-empty-section-state="no-fields">
+                        <p>@BrowserStrings.Get("EmptySectionNoFields", Form.Locale)</p>
+                    </div>
                 }
             </section>
         }
@@ -87,6 +128,8 @@
     [Parameter] public long FocusGeneration { get; set; }
     [Parameter] public IReadOnlyList<string> FocusPath { get; set; } = [];
     [Parameter] public EventCallback ReviewRequested { get; set; }
+    [Parameter] public EventCallback RequestSecretConsent { get; set; }
+    [Parameter] public EventCallback<DefinitionPath> OpenFieldInGuided { get; set; }
     private ElementReference _heading;
     private ConfigurationRoot? _root;
     private bool _disposed;

@@ -80,7 +80,7 @@ public sealed class DefinitionDocumentParseResult : IDisposable
     public bool DiagnosticsTruncated { get; }
     public void Dispose() => Candidate?.Dispose();
     public override string ToString() => $"{nameof(DefinitionDocumentParseResult)}:Succeeded={Succeeded}:Diagnostics={Diagnostics.Count}";
-    internal static DefinitionDocumentParseResult Reject(string code) => new(null, [new(code)]);
+    public static DefinitionDocumentParseResult Reject(string code) => new(null, [new(code)]);
 }
 
 /// <summary>

@@ -645,3 +645,13 @@ remains a Browser custody transfer, separate from native protected saving.
 admitted store provider and renders schema metadata, section inventory and
 declared artifacts. It does not mount `ConfigurationEditor`, collect answers,
 request secret consent or prepare output.
+
+## Connected workspace editing
+
+The startup gate, header, section navigation, guided fields, compact table,
+inspector and keyboard commands consume the shared workspace projection.
+Local density/naming changes preserve accepted-answer revisions. Document
+editing and local secret options use explicit adoption; private compact rows
+remain masked. The shell/search adapter retains workspace and view generations.
+Output acknowledgements and reviewed transfer controls are integrated in a
+separate slice; this editing graph preserves direct output selection.

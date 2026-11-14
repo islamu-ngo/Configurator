@@ -9,41 +9,58 @@
                  aria-labelledby="configuration-heading" aria-busy="true"
                  lang="@_startup!.Locale" dir="@DisplayDirection"
                  data-startup-generation="@_startup.View.ToString(System.Globalization.CultureInfo.InvariantCulture)">
-            <h2 id="configuration-heading">@BrowserStrings.Get("WorkspaceTitle", _startup.Locale)</h2>
-            <p role="status" class="notice" data-code="workspace-starting">@BrowserStrings.Get("Preparing", _startup.Locale)</p>
+            <h2 class="sr-only" id="configuration-heading">@BrowserStrings.Get("WorkspaceTitle", _startup.Locale)</h2>
+            <WorkspaceStartupGate @ref="_startupGate" Locale="@_startup.Locale" Stage="@StartupStage"
+                                  Title="@Definition.Title" StatusCode="workspace-starting" />
         </section>
     </MudRTLProvider>
 }
 else
 {
     DefinitionFormModel actionForm = _form; long actionView = _viewGeneration;
+    string densityToken = AppearanceState.FromWorkspaceDensity(Density);
 <MudRTLProvider RightToLeft="@(DisplayDirection == "rtl")">
-<section @key="_form" class="workspace configuration-editor @(_compact ? "configuration-editor--compact" : "")" aria-labelledby="configuration-heading"
+<section @key="_form" class="workspace configuration-editor configuration-editor--@densityToken" aria-labelledby="configuration-heading"
          lang="@_form!.Locale" dir="@DisplayDirection"
-         data-experience="@_form!.SelectedExperienceId" data-density="@(_compact ? "compact" : "comfortable")">
+         data-experience="@_form!.SelectedExperienceId" data-density="@densityToken"
+         data-naming-mode="@AppearanceState.FromWorkspaceNamingMode(NamingMode)"
+         @onkeydown="args => IsCurrentView(actionForm, actionView) ? HandleWorkspaceKeyAsync(args) : Task.CompletedTask">
     <header class="configuration-editor__header">
         <h2 class="sr-only" id="configuration-heading">@UiText("WorkspaceTitle")</h2>
         <p class="sr-only" id="session-boundary">@UiText("AnswersStayLocal")</p>
     </header>
     @if (!_ready)
     {
-        <button @ref="_startButton" class="button" type="button" @onclick="() => IsCurrentView(actionForm, actionView) ? BeginAsync() : Task.CompletedTask">@UiText("StartWorkspace")</button>
+        <WorkspaceStartupGate @ref="_startupGate" Locale="@_form.Locale" Stage="@StartupStage"
+                              Title="@_form.Definition.Title"
+                              StatusMessage="@UiFormat(_statusKey, _statusArguments)"
+                              StatusCode="@_statusCode"
+                              StartRequested="() => IsCurrentView(actionForm, actionView) ? BeginAsync() : Task.CompletedTask" />
     }
-    <fieldset class="configuration-editor__controls" disabled="@(!_ready)">
+    else
+    {
+    <fieldset class="configuration-editor__controls">
         <legend class="sr-only">@UiText("ConfigurationAnswers")</legend>
         @{ var projection = _form.Projection; var progress = projection.Progress; var viewSections = EditorSections();
             string? currentSectionId = SelectedSection(viewSections); }
-        <nav class="configuration-editor__workflow" aria-label="@UiText("ConfigurationWorkflow")">
-            <ol>
-                <li><button type="button" data-workflow-step="configure" aria-current="@(_activeWorkflowStage == WorkflowStage.Configure ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(WorkflowStage.Configure) : Task.CompletedTask'><span aria-hidden="true">1</span> @UiText("WorkflowConfigure")</button></li>
-                <li><button type="button" data-workflow-step="review" aria-current="@(_activeWorkflowStage == WorkflowStage.Review ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(WorkflowStage.Review) : Task.CompletedTask'><span aria-hidden="true">2</span> @UiText("WorkflowReview")</button></li>
-                <li><button type="button" data-workflow-step="prepare" aria-current="@(_activeWorkflowStage == WorkflowStage.Prepare ? "step" : null)" @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(WorkflowStage.Prepare) : Task.CompletedTask'><span aria-hidden="true">3</span> @UiText("WorkflowFiles")</button></li>
-            </ol>
-        </nav>
+        <WorkspaceHeader Form="_form" Locale="@_form.Locale"
+                         ActiveStage="@WorkflowStageToken"
+                         LayoutMode="@LayoutMode"
+                         Density="@Density"
+                         NamingMode="@NamingMode"
+                         DeveloperMode="@_developerMode"
+                         ScopeSummary="@ScopeSummary"
+                         OnScopeRequested="() => { if (IsCurrentView(actionForm, actionView)) OpenScopeSelector(); }"
+                         OnSecretConsentRequested="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }"
+                         NamingModeChanged="mode => IsCurrentView(actionForm, actionView) ? ChangeNamingModeAsync(mode) : Task.CompletedTask"
+                         DensityChanged="density => IsCurrentView(actionForm, actionView) ? ChangeDensityValueAsync(density) : Task.CompletedTask"
+                         StageSelected="selection => IsCurrentView(actionForm, actionView) ? SelectStageAndLayoutAsync(selection) : Task.CompletedTask" />
         @if (_form.ConfigurationContext is { } configurationContext)
         {
+            <details class="configuration-editor__context" open="@_contextOpen">
+                <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _contextOpen = !_contextOpen; }" @onclick:preventDefault>@UiText("ConfigurationContext")</summary>
             <fieldset id="configuration-context" @key="(_form, _contextChoiceKey)">
-                <legend>@UiText("ConfigurationContext")</legend>
+                <legend class="sr-only">@UiText("ConfigurationContext")</legend>
                 <p id="configuration-context-help">@UiText("ConfigurationContextHelp")</p>
                 <div class="configuration-editor__mode">
                     <label for="configuration-recipe">@UiText("ConfigurationRecipe")</label>
@@ -83,6 +100,7 @@ else
                     </div>
                 </details>
             </fieldset>
+            </details>
         }
         <div class="configuration-editor__progress" aria-live="polite" aria-atomic="true"
              data-required-count="@progress.Required" data-ready-count="@progress.Ready">
@@ -100,8 +118,37 @@ else
                 <button type="button" class="button button--secondary" data-action="review-required-work"
                         @onclick='() => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(WorkflowStage.Review) : Task.CompletedTask'>@UiText("NeedsAttention"): @(progress.Missing + progress.Invalid)</button>
             }
+            <div class="configuration-editor__quick-actions">
+                <button type="button" class="button button--secondary" data-action="undo"
+                        disabled="@(!_form.CanUndo)" aria-label="@UiText("UndoAction")"
+                        @onclick="() => { if (IsCurrentView(actionForm, actionView)) PerformUndo(); }">@UiText("UndoAction")</button>
+                <button type="button" class="button button--secondary" data-action="redo"
+                        disabled="@(!_form.CanRedo)" aria-label="@UiText("RedoAction")"
+                        @onclick="() => { if (IsCurrentView(actionForm, actionView)) PerformRedo(); }">@UiText("RedoAction")</button>
+                <button type="button" class="button button--secondary" data-action="toggle-inspector"
+                        aria-pressed="@(_inspectorOpen ? "true" : "false")"
+                        @onclick="() => { if (IsCurrentView(actionForm, actionView)) ToggleInspector(); }">@UiText("ToggleInspector")</button>
+                <button type="button" class="button button--secondary" data-action="open-shortcuts"
+                        @onclick="() => IsCurrentView(actionForm, actionView) ? OpenShortcutsHelpAsync() : Task.CompletedTask">?</button>
+            </div>
         </div>
         <p role="status" class="@(_statusCode == "workspace-ready" ? "sr-only" : "notice")" data-code="@_statusCode">@UiFormat(_statusKey, _statusArguments)</p>
+        @if (OutputSelector is { Options.Count: > 1 } outputTaskSelector)
+        {
+            <div class="configuration-editor__toolbar configuration-editor__output-task">
+                <label for="configuration-output">@UiText("OutputTask")</label>
+                <select @key="_outputChoiceKey" @ref="_outputControl" id="configuration-output" value="@OutputSelection"
+                        data-output-field="@DefinitionProfile.FieldId(outputTaskSelector.Location.Segments[0])"
+                        @onchange="args => IsCurrentView(actionForm, actionView) ? RequestOutputChangeAsync(args) : Task.CompletedTask">
+                    <option value="-1" disabled>@UiText("NotSupplied")</option>
+                    @for (int index = 0; index < outputTaskSelector.Options.Count; ++index)
+                    {
+                        <option value="@index.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                data-output-value="@outputTaskSelector.Options[index].Value">@OutputTitle(index)</option>
+                    }
+                </select>
+            </div>
+        }
         @if (_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)
         {
             <AppButton Variant="Variant.Outlined" data-action="revoke-secret-entry"
@@ -136,11 +183,22 @@ else
         else
         {
         <CascadingValue Name="WorkspaceConsentAction" Value="_consentAction">
-        <ConfigurationConfigurePanel @ref="_configurePanel" Form="_form" Sections="viewSections" SelectedSection="@_selectedSection"
-                                     SelectedChanged="section => { if (IsCurrentView(actionForm, actionView)) SelectSection(section); }"
-                                     MountCancellation="_mountCancellation.Token" Validation="_validation"
-                                     FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath"
-                                     ReviewRequested='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage(WorkflowStage.Review); }' />
+        <CascadingValue Name="OnFieldFocused" Value="_fieldFocusCallback">
+        <div class="@(_inspectorOpen ? "configuration-editor__workbench" : string.Empty)">
+            <ConfigurationConfigurePanel @ref="_configurePanel" Form="_form" Sections="viewSections" SelectedSection="@_selectedSection"
+                                         SelectedChanged="section => { if (IsCurrentView(actionForm, actionView)) SelectSection(section); }"
+                                         MountCancellation="_mountCancellation.Token" Validation="_validation"
+                                         FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath"
+                                         RequestSecretConsent="_consentAction"
+                                         OpenFieldInGuided="path => IsCurrentView(actionForm, actionView) ? OpenCompactFieldInGuidedAsync(path) : Task.CompletedTask"
+                                         ReviewRequested='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage(WorkflowStage.Review); }' />
+            @if (_inspectorOpen)
+            {
+                <ConfigurationInspectorPane Form="_form" InspectedPath="@_inspectedPath" ProjectionRevision="_form.InputRevision"
+                                            Locale="@_form.Locale" CloseRequested="() => ToggleInspector()" />
+            }
+        </div>
+        </CascadingValue>
         </CascadingValue>
         @if (_returnToReview)
         {
@@ -177,13 +235,6 @@ else
                     <option value="essential">@UiText("Basic")</option>
                     <option value="guided">@UiText("Standard")</option>
                     <option value="advanced">@UiText("AllActive")</option>
-                </select>
-            </div>
-            <div class="configuration-editor__mode">
-                <label for="configuration-density">@UiText("Density")</label>
-                <select id="configuration-density" value="@(_compact ? "compact" : "comfortable")" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeDensity(args); }">
-                    <option value="comfortable">@UiText("Comfortable")</option>
-                    <option value="compact">@UiText("Compact")</option>
                 </select>
             </div>
             <ConfigurationFieldHelp @key="(_form, _form.SelectedExperienceId, currentSectionId)" Schema="default" Title="@UiText("ThisWorkspace")" FieldPath="workspace"
@@ -289,39 +340,23 @@ else
         }
         </ConfigurationFilesPanel>
         }
-        <details class="configuration-editor__task-tools" open="@_taskToolsOpen">
-        <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _taskToolsOpen = !_taskToolsOpen; }" @onclick:preventDefault>@UiText("WorkspaceTaskTools")</summary>
-        <div class="configuration-editor__toolbar">
-            @if (OutputSelector is { } outputSelector)
-            {
-                <div class="configuration-editor__mode configuration-editor__output">
-                    <label for="configuration-output">@UiText("SelectOutput")</label>
-                    <select @key="_outputChoiceKey" @ref="_outputControl" id="configuration-output" value="@OutputSelection"
-                            data-output-field="@DefinitionProfile.FieldId(outputSelector.Location.Segments[0])"
-                            @onchange="args => IsCurrentView(actionForm, actionView) ? RequestOutputChangeAsync(args) : Task.CompletedTask">
-                        <option value="-1" disabled>@UiText("NotSupplied")</option>
-                        @for (int index = 0; index < outputSelector.Options.Count; ++index)
-                        {
-                            <option value="@index.ToString(System.Globalization.CultureInfo.InvariantCulture)"
-                                    data-output-value="@outputSelector.Options[index].Value">@OutputTitle(index)</option>
-                        }
-                    </select>
+        @if (_form.Definition.Locales.Count > 1)
+        {
+            <details class="configuration-editor__task-tools" open="@_taskToolsOpen">
+                <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _taskToolsOpen = !_taskToolsOpen; }" @onclick:preventDefault>@UiText("Language")</summary>
+                <div class="configuration-editor__toolbar">
+                    <div class="configuration-editor__mode">
+                        <label for="configuration-locale">@UiText("Language")</label>
+                        <select id="configuration-locale" value="@_form.Locale" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeLocale(args); }">
+                            @foreach (string locale in _form.Definition.Locales)
+                            {
+                                <option value="@locale">@LanguageName(locale)</option>
+                            }
+                        </select>
+                    </div>
                 </div>
-            }
-            @if (_form.Definition.Locales.Count > 1)
-            {
-                <div class="configuration-editor__mode">
-                    <label for="configuration-locale">@UiText("Language")</label>
-                    <select id="configuration-locale" value="@_form.Locale" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeLocale(args); }">
-                        @foreach (string locale in _form.Definition.Locales)
-                        {
-                            <option value="@locale">@LanguageName(locale)</option>
-                        }
-                    </select>
-                </div>
-            }
-        </div>
-        </details>
+            </details>
+        }
         <details class="configuration-editor__privacy" data-secret-consent open="@_consentOpen">
             <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _consentOpen = !_consentOpen; }" @onclick:preventDefault>@UiText("ReviewSecretConsent")</summary>
             <div class="configuration-editor__consent">
@@ -339,6 +374,7 @@ else
         <p>@UiText("WorkspaceExportBoundary")</p>
     </details>
     </fieldset>
+    }
 </section>
 </MudRTLProvider>
 }

@@ -17,6 +17,84 @@
                                 FocusFirstControl="@(FocusField == string.Empty)" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
         }
     }
+    @if (Groups.Count > 0 && SectionId is not null && !LiteralRoot)
+    {
+        var groupedIds = Groups.Where(group => group.IsApplicable).SelectMany(group => group.Fields).ToHashSet(StringComparer.Ordinal);
+        @for (int index = 0; index < _activeFields.Length; index++)
+        {
+            if (groupedIds.Contains(_activeFields[index].Id)) continue;
+            var state = _activeFields[index];
+            var node = _plan.Roots[index];
+            var editor = Form.GetFieldEditor(state.Id);
+            <div @key="editor.Input" class="configuration-section-fields__slot">
+                @if (node.Admitted)
+                {
+                    <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
+                                        MountNode="node" MountRevision="_planRevision" Validation="Validation" RequiredOverride="state.IsRequired"
+                                        FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
+                                        FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
+                }
+                else
+                {
+                    <div class="configuration-section-fields__placeholder" aria-hidden="true">
+                        @(Form.GetEditorPresentation([state.Id])?.Title ?? Configurator.Core.Definitions.DefinitionDisplayText.Resolve(state.Definition.Title, state.Id))
+                    </div>
+                }
+            </div>
+        }
+        <div class="configuration-section-fields__groups">
+            @foreach (var group in Groups)
+            {
+                if (!group.IsApplicable) continue;
+                var groupFieldSet = group.Fields.ToHashSet(StringComparer.Ordinal);
+                int[] groupIndices = Enumerable.Range(0, _activeFields.Length)
+                    .Where(index => groupFieldSet.Contains(_activeFields[index].Id)).ToArray();
+                if (groupIndices.Length == 0) continue;
+                <section @key="group.Id" class="configuration-section-group" data-group="@group.Id"
+                         data-group-expanded="@(group.IsExpanded ? "true" : "false")">
+                    <button type="button" class="configuration-section-group__toggle" data-group-toggle
+                            aria-expanded="@(group.IsExpanded ? "true" : "false")"
+                            aria-label="@string.Format(System.Globalization.CultureInfo.GetCultureInfo(Form.Locale), Configurator.Browser.Resources.BrowserStrings.Get(group.IsExpanded ? "GroupCollapseLabel" : "GroupExpandLabel", Form.Locale), group.Title)"
+                            @onclick="() => Form.SetGroupExpanded(SectionId, group.Id, !group.IsExpanded)">
+                        <span>@group.Title</span>
+                        <span aria-hidden="true">@(group.IsExpanded ? "−" : "+")</span>
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(group.Description) && group.IsExpanded)
+                    {
+                        <p class="configuration-section-group__description">@group.Description</p>
+                    }
+                    @if (group.IsExpanded)
+                    {
+                        <div class="configuration-section-group__fields">
+                            @foreach (int index in groupIndices)
+                            {
+                                var state = _activeFields[index];
+                                var node = _plan.Roots[index];
+                                var editor = Form.GetFieldEditor(state.Id);
+                                <div @key="editor.Input" class="configuration-section-fields__slot">
+                                    @if (node.Admitted)
+                                    {
+                                        <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
+                                                            MountNode="node" MountRevision="_planRevision" Validation="Validation" RequiredOverride="state.IsRequired"
+                                                            FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
+                                                            FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
+                                    }
+                                    else
+                                    {
+                                        <div class="configuration-section-fields__placeholder" aria-hidden="true">
+                                            @(Form.GetEditorPresentation([state.Id])?.Title ?? Configurator.Core.Definitions.DefinitionDisplayText.Resolve(state.Definition.Title, state.Id))
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </section>
+            }
+        </div>
+    }
+    else
+    {
     @for (int index = 0; index < _activeFields.Length && !LiteralRoot; index++)
     {
         var state = _activeFields[index];
@@ -27,17 +105,17 @@
             {
                 <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
                                     MountNode="node" MountRevision="_planRevision" Validation="Validation" RequiredOverride="state.IsRequired"
-                                    TitleOverride="@(editor.Schema.Keywords.TryGetProperty("title", out _) ? null : ConfigurationDiagnosticText.Title(state.Definition))"
                                     FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
                                     FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
             }
             else
             {
                 <div class="configuration-section-fields__placeholder" aria-hidden="true">
-                    @ConfigurationDiagnosticText.Title(state.Definition)
+                    @(Form.GetEditorPresentation([state.Id])?.Title ?? Configurator.Core.Definitions.DefinitionDisplayText.Resolve(state.Definition.Title, state.Id))
                 </div>
             }
         </div>
+    }
     }
 </div>
 @if (Busy)

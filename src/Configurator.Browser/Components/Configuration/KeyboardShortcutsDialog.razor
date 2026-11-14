@@ -1,0 +1,28 @@
+@using Configurator.Presentation
+
+<MudDialog DefaultFocus="DefaultFocus.FirstChild">
+    <DialogContent>
+        <div class="keyboard-shortcuts" data-shortcuts-dialog lang="@Locale" dir="@(PresentationStrings.Culture(Locale).TextInfo.IsRightToLeft ? "rtl" : "ltr")">
+            <h2>@T("ShortcutsTitle")</h2>
+            <dl class="keyboard-shortcuts__list">
+                <dt><kbd dir="ltr">Ctrl+K</kbd></dt><dd>@T("ShortcutPaletteDesc")</dd>
+                <dt><kbd dir="ltr">Ctrl+Z</kbd></dt><dd>@T("ShortcutUndoDesc")</dd>
+                <dt><kbd dir="ltr">Ctrl+Shift+Z</kbd></dt><dd>@T("ShortcutRedoDesc")</dd>
+                <dt><kbd dir="ltr">Ctrl+Shift+K</kbd></dt><dd>@T("ShortcutNamingDesc")</dd>
+                <dt><kbd dir="ltr">F2</kbd></dt><dd>@T("ShortcutInspectorDesc")</dd>
+                <dt><kbd dir="ltr">?</kbd></dt><dd>@T("ShortcutHelpDesc")</dd>
+            </dl>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <AppButton Variant="Variant.Outlined" OnClick="Close" data-action="close-shortcuts">@T("Close")</AppButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+    [Parameter] public string Locale { get; set; } = "en";
+
+    private string T(string key) => BrowserStrings.Get(key, Locale);
+    private void Close() => Dialog.Close();
+}

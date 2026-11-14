@@ -38,12 +38,11 @@ public sealed class BrowserWorkspaceLifecycleTests
         try
         {
             await policyModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
-            await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsTrue();
+            await Assert.That(component.Find("[data-startup-state]").GetAttribute("data-startup-state")).IsEqualTo("preparing");
+            await Assert.That(component.FindAll("input, select, textarea, .configuration-editor__controls, [data-workflow-step='prepare'], #prepare-draft")).IsEmpty();
             using var input = new MemoryStream("""{"mode":"single","hostname":"pending-custody.test"}"""u8.ToArray());
             await component.InvokeAsync(() => component.Instance.LoadAsync(input));
             await Assert.That(input.Position).IsEqualTo(0);
-            // Also exercise navigation already queued before the custody decision.
-            await component.Find("[data-workflow-step='prepare']").TriggerEventAsync("onclick", new MouseEventArgs());
             await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         }
         finally { policyModule.Release.TrySetResult(); }
@@ -62,12 +61,11 @@ public sealed class BrowserWorkspaceLifecycleTests
         context.Services.AddSingleton<IJSRuntime>(javascript);
         context.Services.AddSingleton(policy);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsTrue();
+        await Assert.That(component.Find("[data-startup-state]").GetAttribute("data-startup-state")).IsEqualTo("failed");
+        await Assert.That(component.FindAll("input, select, textarea, .configuration-editor__controls, [data-workflow-step='prepare'], #prepare-draft")).IsEmpty();
         using var input = new MemoryStream("""{"mode":"single","hostname":"rejected-custody.test"}"""u8.ToArray());
         await component.InvokeAsync(() => component.Instance.LoadAsync(input));
         await Assert.That(input.Position).IsEqualTo(0);
-        // A queued navigation cannot grant the rejected workspace output authority.
-        await component.Find("[data-workflow-step='prepare']").TriggerEventAsync("onclick", new MouseEventArgs());
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
     }
 
@@ -89,10 +87,8 @@ public sealed class BrowserWorkspaceLifecycleTests
         context.Services.AddSingleton<IJSRuntime>(javascript);
         context.Services.AddSingleton(policy);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await Assert.That(component.Find(".configuration-editor__controls").HasAttribute("disabled")).IsTrue();
-        await component.Find("[data-workflow-step='prepare']").TriggerEventAsync("onclick", new MouseEventArgs());
-        // Exercise a queued callback, not a new native click on a disabled control.
-        await component.Find("#prepare-draft").TriggerEventAsync("onclick", new MouseEventArgs());
+        await Assert.That(component.Find("[data-startup-state]").GetAttribute("data-startup-state")).IsEqualTo("failed");
+        await Assert.That(component.FindAll("input, select, textarea, .configuration-editor__controls, [data-workflow-step='prepare'], #prepare-draft")).IsEmpty();
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
     }
 
