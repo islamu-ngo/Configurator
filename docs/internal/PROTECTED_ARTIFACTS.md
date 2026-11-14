@@ -114,6 +114,59 @@ not-installed result. A vault/comparison pair is not a transaction. Native owner
 regressions passed on the executing Linux host; this does not qualify Windows,
 macOS, every Linux filesystem, keyring recovery or actual release packages.
 
+## OS keyring ownership
+
+`IOsKeyringProvider` separates lookup from creation. `OsKeyringProvider` generates
+a fresh opaque ID and independent random 32-byte key for each creation. Native
+recipient and comparison keys have distinct purposes and entries. OS values use
+canonical 44-byte Base64 UTF-8; missing, malformed, locked, denied or unavailable
+lookup never creates a replacement. No machine-derived key, app master key,
+subprocess secret transport or ordinary key file participates.
+
+`OsKeyringResult` exposes only status, ID, purpose and creation disposition;
+its lease is excluded from JSON. `OsKeyringSecretLease` clears owned raw bytes
+on disposal and exposes metadata only. Comparison-purpose leases can create a
+separate disposable Core commitment owner; trusted Artifacts orchestration owns
+and clears any internal recipient-credential copy.
+
+One nonqueued process-wide permit remains held through actual native completion
+and cleanup. Cancellation retires result adoption but cannot roll back OS
+effects. Preserve a known created ID and distinguish `Created`, `Uncertain` and
+`NotAttempted`. Neither disposal nor a failed/uncertain publication deletes an
+OS entry; a key may protect an installed or historical snapshot.
+
+Linux uses an independently owned libsecret service proxy and thread-default
+GLib context. Async search loads unlocked values without requesting unlock.
+Creation checks the default collection and omits replacement; it may still
+prompt through the OS API. A thirty-second deadline requests `GCancellable`
+cancellation, without guaranteeing physical return by then. Finish callbacks
+precede release of native values, references, attributes, cancellation state and
+context. Native error text is never copied into diagnostics.
+
+Windows uses the current token's generic Credential Manager store and
+`CRED_PERSIST_LOCAL_MACHINE`, which persists for that user on that computer.
+`CredReadW` returns one allocation: admit the exact bounded blob, copy it and
+release with `CredFree`. Numeric failures remain value-free. `CredWriteW`
+replaces an existing target/type and has no create-only mode; only internally
+generated fresh IDs enter creation. This avoids intentional shared-target reuse
+without inventing atomic collision rejection. Synchronous OS calls run off the
+caller thread; cancellation waits for physical completion and cleanup.
+
+macOS pins the user-domain default file keychain and scopes generic-password
+service/account queries by purpose and opaque ID. `SecItemAdd` rejects duplicate
+creation without replacement. Lookup admits CFData of exactly 44 bytes before
+copying. Owned CF objects remain alive through the synchronous call and release
+afterward; exported constants are borrowed. This classic file-keychain adapter
+saves, disables and restores the documented process interaction policy. That
+control is deprecated, has process-level effects and does not claim LAContext
+semantics. Restoration failure preserves creation facts and refuses successful
+custody. Actual prompt/locking/unsigned-package behavior remains a host gate.
+
+Injected-boundary tests qualify application ownership and mapping, not libsecret
+callbacks, Windows execution, actual unlocked/locked/headless keyrings or secure
+erasure. Native host and package qualification remain separate. Keyring support
+does not grant protected-save support on Windows or macOS.
+
 ## Bounded native input lifetime
 
 `Configurator.Artifacts.Composition.CompositionDirectoryCompiler` owns bounded

@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7D15XYN4CHB9Q8PM8PRR139
+Title: "Keep profile credentials in purpose-bound native keyrings"
+Type: feat
+Scope: privacy
+Summary: "Separate key lookup from fresh creation, retain opaque identity and creation facts through cancellation, and implement the common owner with its Linux, Windows and macOS native boundaries."
+Group: native-profile-keyrings
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "Lookup never creates missing keys. Fresh creation uses independent random keys and opaque purpose-bound identifiers. Preserve creation facts through cancellation or restoration failure; clear owned buffers without deleting possibly referenced OS entries. Platform boundaries own native allocations and use value-free statuses. Actual keyring hosts remain unqualified."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/import-and-compare.md
+    Disposition: documented
+    Detail: "Uninstall, OS reset and device loss may remove access; no retention/deletion guarantee or master-key recovery exists. Keyring adapter availability does not grant protected-save support on Windows or macOS."

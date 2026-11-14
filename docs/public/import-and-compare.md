@@ -173,6 +173,11 @@ exact copy without the native device material. Losing all applicable credentials
 is unrecoverable; reinstalling the application cannot reconstruct them. Changing
 a passphrase affects new snapshots, not stolen or historical copies.
 
+Uninstall/reinstall does not
+promise either key retention or deletion; account reset, OS reinstall and
+device loss may remove access. Configurator has no master key or reset service
+that can recover a file after every recipient credential is lost.
+
 The profile boundary admits files up to 4 MiB and rejects unsupported formats,
 costs or ambiguous metadata. It never guesses another algorithm or recipient
 after a failed selected attempt. This limit is distinct from ordinary artifact
