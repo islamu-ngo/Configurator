@@ -42,7 +42,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private enum WorkflowStage { Configure, Review, Prepare }
     private long _viewGeneration;
     private (DefinitionFormModel Form, long Generation, FocusTarget Target)? _pendingFocus;
-    private enum FocusTarget { Configure, Review, Files, Consent, Import, Start, Output, Context, DeveloperDestination }
+    private enum FocusTarget { Configure, Review, Files, Consent, Import, Start, Output, Context, DeveloperDestination, TransferReview }
     private int _requiredCount;
     private ElementReference _outputControl;
     private ConfigurationConfigurePanel? _configurePanel;
@@ -291,20 +291,6 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     }
     private string OutputTitle(int index) => _form!.LocalizedText(DefinitionPath.FromSegments(
         ["presentation", "outputSelector", "options", index.ToString(CultureInfo.InvariantCulture), "title"]), OutputSelector!.Options[index].Title)!;
-    private void ChangeOutput(ChangeEventArgs args)
-    {
-        if (OutputSelector is not { } selector || args.Value is not string choice
-            || !int.TryParse(choice, NumberStyles.None, CultureInfo.InvariantCulture, out int index)
-            || index < 0 || index >= selector.Options.Count) return;
-        if (!_form!.SelectOutput(selector.Options[index].Value)) return;
-        _selectedSection = null;
-        if (_activeWorkflowStage != WorkflowStage.Configure)
-        {
-            SelectWorkflowStage(WorkflowStage.Configure);
-            RequestFocus(FocusTarget.Output);
-        }
-    }
-
     public async Task<bool> ResolvePendingAsync()
     {
         if (_disposed) return false;
@@ -345,7 +331,10 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     {
         DefinitionFormModel form = _form!;
         long view = _viewGeneration;
-        if (!await ResolvePendingAsync())
+        if (OutputSelector is not { } selector || args.Value is not string choice
+            || !int.TryParse(choice, NumberStyles.None, CultureInfo.InvariantCulture, out int index)
+            || index < 0 || index >= selector.Options.Count) return;
+        if (!await ReviewTransitionAsync(selector.Options[index].Value))
         {
             if (ReferenceEquals(form, _form))
             {
@@ -354,8 +343,6 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             }
             return;
         }
-        RetireDeveloper();
-        ChangeOutput(args);
     }
     private ArtifactDefinition[] ImportArtifacts { get; set; } = [];
     private DefinitionImportCapability? ImportCapability => _importCapabilities.GetValueOrDefault(_importArtifact);
@@ -574,6 +561,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         !_disposed && ReferenceEquals(form, _form) && generation == _viewGeneration;
     private void RetireView()
     {
+        _transferReview = null;
         ++_viewGeneration;
         ++_focusGeneration;
         _pendingFocus = null;
@@ -881,6 +869,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
                 ? _developerPanel?.Heading : _configurePanel?.SectionHeading,
             FocusTarget.Review when _ready && _activeWorkflowStage == WorkflowStage.Review => _reviewPanel?.Heading,
             FocusTarget.Files when _ready && _activeWorkflowStage == WorkflowStage.Prepare => _filesPanel?.Heading,
+            FocusTarget.TransferReview when _ready && _transferReview is not null => _nextActionsPanel?.ReviewHeading,
             FocusTarget.Consent when _ready && _activeWorkflowStage == WorkflowStage.Configure => _consentControl,
             FocusTarget.Import when _ready && _activeWorkflowStage == WorkflowStage.Configure => _fileInput?.Element,
             FocusTarget.Output when _ready && OutputSelector is not null => _outputControl,
@@ -933,6 +922,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     public void Invalidate() => _ = InvalidateOutputAsync();
     private Task InvalidateOutputAsync()
     {
+        _outputExportContext = null;
+        if (!_disposed) _form?.InvalidateOutputExports();
         InvalidateImport();
         PreparedArtifact[] previous = _prepared.ToArray();
         _prepared.Clear();

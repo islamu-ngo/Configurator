@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7DZJ8Q6R6APXTXYYGRNB9D3
+Title: "Review Browser task transfers after acknowledged output delivery"
+Type: feat
+Scope: privacy
+Summary: "Bind Browser copy and download acknowledgements to captured workspace authority and expose explicit masked task-transfer reviews with stale confirmation rejection."
+Group: browser-output-review
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Output acknowledgements retain captured workspace authority. Transfer reviews mask protected candidates and reject retired confirmations."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Acknowledged copy/download can suggest related tasks. Copying candidate answers and switching tasks require explicit review."

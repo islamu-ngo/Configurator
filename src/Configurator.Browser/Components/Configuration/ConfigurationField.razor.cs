@@ -21,6 +21,7 @@ public partial class ConfigurationField
     [Parameter, EditorRequired] public IReadOnlyList<string> Path { get; set; } = [];
     [Parameter] public bool LiteralPath { get; set; }
     [CascadingParameter(Name = "OnFieldFocused")] private Action<DefinitionPath>? OnFieldFocused { get; set; }
+    [CascadingParameter(Name = "SuggestionReviewRequested")] private EventCallback<DefinitionPath> SuggestionReviewRequested { get; set; }
     [Parameter] public DefinitionValidationResult? Validation { get; set; }
     [Parameter] public EventCallback<(string Id, string FieldId, bool Invalid)> ValidationChanged { get; set; }
     [Parameter] public bool InheritedSecret { get; set; }
@@ -527,9 +528,18 @@ public partial class ConfigurationField
     {
         if (IsCurrentAction(form, path, revision, generation, requiresEdit: false) && CorrectionFacts.CanReset) { Form.ResetValue(EditorPath); _invalid = false; _ = NotifyValidityAsync(); }
     }
-    private void Suggest(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
+    private Task Suggest(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
     {
-        if (IsCurrentAction(form, path, revision, generation) && CorrectionFacts.CanApplySuggestion) { Form.ApplySuggestion(EditorPath); _invalid = false; _ = NotifyValidityAsync(); }
+        if (!IsCurrentAction(form, path, revision, generation) || !CorrectionFacts.CanApplySuggestion) return Task.CompletedTask;
+        if (Schema.PresentationMetadata.SuggestedSource is not null)
+        {
+            if (!SuggestionReviewRequested.HasDelegate) throw new InvalidOperationException("suggestion-review-owner-missing");
+            return SuggestionReviewRequested.InvokeAsync(EditorPath);
+        }
+        Form.ApplySuggestion(EditorPath);
+        _invalid = false;
+        _ = NotifyValidityAsync();
+        return Task.CompletedTask;
     }
     private void SupplyNull(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
     {

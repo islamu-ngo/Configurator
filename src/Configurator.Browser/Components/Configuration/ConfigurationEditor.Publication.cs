@@ -110,7 +110,10 @@ public partial class ConfigurationEditor
                 }
                 finally { if (!retained) workspace.Dispose(); }
             }
+            DefinitionOutputExportContext exportContext = form.CaptureOutputExportContext(
+                answers.InputRevision, form.EligibleArtifacts.Select(artifact => artifact.Id));
             _prepared.AddRange(staged);
+            _outputExportContext = exportContext;
             staged.Clear();
             _navigation?.RefreshWork(this, _navigationLease);
             bool incompleteDraft = draft && (_prepared.Any(item => item.Metadata.IsDraft) ||
@@ -131,7 +134,8 @@ public partial class ConfigurationEditor
     {
         DefinitionFormModel form = _form!;
         long view = _viewGeneration;
-        if (!IsCurrentView(form, view) || !_ready || _activeWorkflowStage != WorkflowStage.Prepare || _prepared.Count == 0) return;
+        if (!IsCurrentView(form, view) || !_ready || _activeWorkflowStage != WorkflowStage.Prepare
+            || _prepared.Count == 0 || _outputExportContext is not { } exportContext) return;
         if (_prepared.Count == 1)
         {
             if (archive) await DownloadAsync(_prepared[0]);
@@ -152,6 +156,9 @@ public partial class ConfigurationEditor
         bool exposed = archive ? await _bundleExport.DownloadAsync() : await _bundleExport.CopyAsync();
         if (!IsCurrentView(form, view) || !_ready || generation != _generation || snapshot.Length != _prepared.Count
             || !snapshot.SequenceEqual(_prepared)) return;
+        if (exposed)
+            form.RecordOutputExport(exportContext, snapshot.Select(artifact => artifact.Metadata.ArtifactId!),
+                archive ? DefinitionOutputDeliveryKind.DownloadRequested : DefinitionOutputDeliveryKind.ClipboardCopied);
         SetStatus(exposed ? archive ? "AggregateDownloadedStatus" : "AggregateCopiedStatus"
             : archive ? "DownloadUnavailableStatus" : "ClipboardUnavailableStatus");
         _statusCode = exposed ? archive ? "aggregate-download-requested" : "aggregate-copied" : "aggregate-export-unavailable";
@@ -160,11 +167,12 @@ public partial class ConfigurationEditor
     {
         DefinitionFormModel form = _form!;
         long view = _viewGeneration;
-        if (!IsCurrentExport(artifact, form, view)) return;
+        if (!IsCurrentExport(artifact, form, view) || _outputExportContext is not { } exportContext) return;
         InvalidateImport();
         if (!artifact.Export.HasOutput) artifact.Export.SetOutput(artifact.Workspace.Output);
         bool copied = await artifact.Export.CopyAsync();
         if (!IsCurrentExport(artifact, form, view)) return;
+        if (copied) form.RecordOutputExport(exportContext, [artifact.Metadata.ArtifactId!], DefinitionOutputDeliveryKind.ClipboardCopied);
         artifact.StatusKey = copied ? "ArtifactCopiedStatus" : "ClipboardUnavailableStatus";
         artifact.StatusCode = copied ? "copied" : "clipboard-unavailable";
     }
@@ -172,11 +180,12 @@ public partial class ConfigurationEditor
     {
         DefinitionFormModel form = _form!;
         long view = _viewGeneration;
-        if (!IsCurrentExport(artifact, form, view)) return;
+        if (!IsCurrentExport(artifact, form, view) || _outputExportContext is not { } exportContext) return;
         InvalidateImport();
         if (!artifact.Export.HasOutput) artifact.Export.SetOutput(artifact.Workspace.Output);
         bool downloaded = await artifact.Export.DownloadAsync(artifact.Metadata.FileName!, artifact.Metadata.MediaType!);
         if (!IsCurrentExport(artifact, form, view)) return;
+        if (downloaded) form.RecordOutputExport(exportContext, [artifact.Metadata.ArtifactId!], DefinitionOutputDeliveryKind.DownloadRequested);
         artifact.StatusKey = downloaded ? "DownloadRequestedStatus" : "DownloadUnavailableStatus";
         artifact.StatusCode = downloaded ? "download-requested" : "download-unavailable";
     }

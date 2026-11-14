@@ -653,5 +653,9 @@ inspector and keyboard commands consume the shared workspace projection.
 Local density/naming changes preserve accepted-answer revisions. Document
 editing and local secret options use explicit adoption; private compact rows
 remain masked. The shell/search adapter retains workspace and view generations.
-Output acknowledgements and reviewed transfer controls are integrated in a
-separate slice; this editing graph preserves direct output selection.
+`ConfigurationEditor.Workflow` captures output authority and retains immutable
+transfer reviews. Publication records only acknowledged copy/download results;
+edits, revocation and replacement retire stale authority. The next-actions panel
+renders related tasks only after acknowledged delivery and masks protected
+candidate previews. Confirming selected candidates adopts one atomic transfer;
+cancellation and old captured delegates cannot overwrite current answers.

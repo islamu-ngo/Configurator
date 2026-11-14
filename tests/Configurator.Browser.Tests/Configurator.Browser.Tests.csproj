@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="../../examples/minimal-self-hosted/setup-definition.json" LogicalName="NativeNeutralDefinition" />
+    <EmbeddedResource Include="../../examples/grafana-13.2.2/setup-definition.json" LogicalName="OutputGuidance.Grafana" />
+    <EmbeddedResource Include="../../examples/secret-generation/setup-definition.json" LogicalName="OutputGuidance.SecretGeneration" />
     <EmbeddedResource Include="Fixtures/InteractiveDefinition.json" LogicalName="InteractiveDefinition" />
     <EmbeddedResource Include="../Conformance/root-map.definition.json" LogicalName="Conformance.RootMap" />
     <EmbeddedResource Include="../Conformance/root-variant.definition.json" LogicalName="Conformance.RootVariant" />

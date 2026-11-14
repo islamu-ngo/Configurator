@@ -18,6 +18,7 @@
 else
 {
     DefinitionFormModel actionForm = _form; long actionView = _viewGeneration;
+    DefinitionTransitionTransferPlan? actionReview = _transferReview;
     string densityToken = AppearanceState.FromWorkspaceDensity(Density);
 <MudRTLProvider RightToLeft="@(DisplayDirection == "rtl")">
 <section @key="_form" class="workspace configuration-editor configuration-editor--@densityToken" aria-labelledby="configuration-heading"
@@ -39,6 +40,8 @@ else
     }
     else
     {
+    <CascadingValue Name="SuggestionReviewRequested"
+                    Value="@(EventCallback.Factory.Create<DefinitionPath>(this, path => IsCurrentView(actionForm, actionView) ? ReviewInlineSuggestionAsync(path) : Task.CompletedTask))">
     <fieldset class="configuration-editor__controls">
         <legend class="sr-only">@UiText("ConfigurationAnswers")</legend>
         @{ var projection = _form.Projection; var progress = projection.Progress; var viewSections = EditorSections();
@@ -340,6 +343,11 @@ else
         }
         </ConfigurationFilesPanel>
         }
+        <ConfigurationNextActionsPanel @ref="_nextActionsPanel" Form="actionForm"
+                                       ShowNextActions="@(_activeWorkflowStage == WorkflowStage.Prepare)" Review="actionReview"
+                                       ReviewRequested="target => IsCurrentView(actionForm, actionView) ? ReviewTransitionAsync(target) : Task.CompletedTask"
+                                       ApplyRequested="selection => IsCurrentView(actionForm, actionView) && ReferenceEquals(selection.Review, actionReview) ? ApplyReviewedTransferAsync(selection) : Task.CompletedTask"
+                                       CancelRequested="review => { if (IsCurrentView(actionForm, actionView) && ReferenceEquals(review, actionReview)) CancelTransferReview(review); }" />
         @if (_form.Definition.Locales.Count > 1)
         {
             <details class="configuration-editor__task-tools" open="@_taskToolsOpen">
@@ -374,6 +382,7 @@ else
         <p>@UiText("WorkspaceExportBoundary")</p>
     </details>
     </fieldset>
+    </CascadingValue>
     }
 </section>
 </MudRTLProvider>

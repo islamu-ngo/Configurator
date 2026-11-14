@@ -566,3 +566,10 @@ Use Guided for schema-aware fields or Compact for a searchable settings table.
 The section rail, inspector, shortcuts, naming and density controls share one
 local answer workspace. Review and Files remain part of that workspace; local
 document and secret generation changes are adopted only through their controls.
+
+## Related tasks after export
+
+After a successful copy or requested download, declared related tasks can appear
+in Files. Review suggested answer transfers before applying them or switch
+without copying. Protected candidates stay masked. Editing or revoking consent
+retires old confirmations; download acknowledgement does not prove host acceptance.

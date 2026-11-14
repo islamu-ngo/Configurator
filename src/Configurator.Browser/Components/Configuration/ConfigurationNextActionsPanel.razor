@@ -1,0 +1,173 @@
+@using System.Globalization
+@using System.Text
+@using System.Text.Json
+@using Configurator.Core.Definitions
+@using Configurator.Presentation
+
+@if (Form.Definition.Presentation?.OutputSelector is { Options.Count: > 1 })
+{
+<div class="configuration-next-actions__announcement" role="status" aria-live="polite" data-output-workflow-announcement
+     aria-atomic="true" lang="@Form.Locale" dir="@Form.Direction">
+    @if (ShowNextActions && _workflow.ProposedNextActions.Count > 0)
+    {
+        @PresentationStrings.Get("NextActionsTitle", Form.Locale)
+        @(": " + string.Join(", ", _workflow.ProposedNextActions.Select(action => action.Title)))
+    }
+</div>
+}
+
+@if (ShowNextActions && Form.Definition.Presentation?.OutputSelector is { Options.Count: > 1 }
+    && _workflow.ProposedNextActions.Count > 0)
+{
+    <section class="configuration-next-actions" data-next-actions lang="@Form.Locale" dir="@Form.Direction"
+             aria-labelledby="configuration-next-actions-heading">
+        <h3 id="configuration-next-actions-heading">@PresentationStrings.Get("NextActionsTitle", Form.Locale)</h3>
+        @foreach (DefinitionOutputTaskState task in _workflow.Tasks.Where(task =>
+            task.Status is DefinitionOutputExportStatus.Partial or DefinitionOutputExportStatus.ExportedCurrent))
+        {
+            <p class="configuration-next-actions__status" data-export-state="@task.Status">
+                @PresentationStrings.OutputStatus(task, Form.Locale)
+            </p>
+        }
+        <div class="configuration-next-actions__actions">
+            @foreach (DefinitionOutputNextActionState action in _workflow.ProposedNextActions)
+            {
+                string target = action.TargetOption;
+                <div class="configuration-next-actions__action" @key="target">
+                    <button type="button" class="button button--secondary" data-next-option="@target"
+                            @onclick="() => ReviewRequested.InvokeAsync(target)">@action.Title</button>
+                    @if (action.Description is { } description)
+                    {
+                        <p class="configuration-next-actions__hint">@description</p>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@if (Review is { } review)
+{
+    <section class="configuration-next-actions" data-transfer-review lang="@Form.Locale" dir="@Form.Direction"
+             aria-labelledby="configuration-transfer-review-heading" @key="review">
+        <h3 id="configuration-transfer-review-heading" tabindex="-1" @ref="_reviewHeading">
+            @PresentationStrings.Get("TransferReviewTitle", Form.Locale)
+        </h3>
+        @if (review.Candidates.Count == 0)
+        {
+            <p>@PresentationStrings.Get("TransferUnavailable", Form.Locale)</p>
+        }
+        <div class="configuration-next-actions__actions">
+            @if (review.Candidates.Count > 0)
+            {
+                <button type="button" class="button" data-transfer-apply disabled="@(_selected.Count == 0)"
+                        @onclick="() => Apply(review)">
+                    @PresentationStrings.Get(review.TargetOption is null ? "TransferApply" : "TransferApplyAndSwitch", Form.Locale)
+                </button>
+            }
+            @if (review.TargetOption is not null)
+            {
+                <button type="button" class="button button--secondary" data-transfer-switch
+                        @onclick="() => Apply(review, withoutCopy: true)">
+                    @PresentationStrings.Get("TransferSwitchWithoutCopy", Form.Locale)
+                </button>
+            }
+            <button type="button" class="configuration-next-actions__cancel" data-transfer-cancel
+                    @onclick="() => CancelRequested.InvokeAsync(review)">
+                @PresentationStrings.Get("TransferCancel", Form.Locale)
+            </button>
+        </div>
+        @foreach (DefinitionTransferCandidate candidate in review.Candidates)
+        {
+            int id = candidate.Id;
+            string inputId = "configuration-transfer-choice-" + id.ToString(CultureInfo.InvariantCulture);
+            <label class="configuration-next-actions__row" for="@inputId" @key="id">
+                <input id="@inputId" type="checkbox" checked="@_selected.Contains(id)" data-transfer-candidate="@id"
+                       @onchange="args => Select(review, id, args.Value is true)" />
+                <span class="configuration-next-actions__body">
+                    <strong>@candidate.TargetTitle</strong>
+                    <span>@PresentationStrings.Get("TransferFrom", Form.Locale) @candidate.SourceTitle</span>
+                    <span class="configuration-next-actions__path">
+                        <bdi dir="ltr">@candidate.Source.ToPointer()</bdi>
+                        <span aria-hidden="true"> / </span>
+                        <bdi dir="ltr">@candidate.Target.ToPointer()</bdi>
+                    </span>
+                    @if (candidate.DestinationProvided)
+                    {
+                        <span class="configuration-next-actions__hint">@PresentationStrings.Get("TransferOverwrite", Form.Locale)</span>
+                    }
+                    @if (candidate.RequiresMasking)
+                    {
+                        <span class="configuration-next-actions__hint" data-transfer-masked>
+                            @PresentationStrings.Get("TransferMasked", Form.Locale)
+                        </span>
+                    }
+                    else if (Form.ReadTransferPreview(review, id) is { } value)
+                    {
+                        string text = value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
+                        var runes = text.EnumerateRunes().Take(161).ToArray();
+                        bool shortened = runes.Length > 160;
+                        <span class="configuration-next-actions__preview" dir="auto">
+                            @(shortened ? string.Concat(runes.Take(160).Select(rune => rune.ToString())) + "..." : text)
+                        </span>
+                        @if (shortened)
+                        {
+                            <span class="configuration-next-actions__hint">@PresentationStrings.Get("TransferPreviewLimited", Form.Locale)</span>
+                        }
+                    }
+                </span>
+            </label>
+        }
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = default!;
+    [Parameter] public bool ShowNextActions { get; set; }
+    [Parameter] public DefinitionTransitionTransferPlan? Review { get; set; }
+    [Parameter] public EventCallback<string> ReviewRequested { get; set; }
+    [Parameter] public EventCallback<TransferSelection> ApplyRequested { get; set; }
+    [Parameter] public EventCallback<DefinitionTransitionTransferPlan> CancelRequested { get; set; }
+    public ElementReference ReviewHeading => _reviewHeading;
+
+    private WorkspaceOutputWorkflow _workflow = new([], []);
+    private readonly HashSet<int> _selected = [];
+    private DefinitionTransitionTransferPlan? _selectionReview;
+    private ElementReference _reviewHeading;
+
+    protected override void OnParametersSet()
+    {
+        _workflow = Form.Definition.Presentation?.OutputSelector is { Options.Count: > 1 }
+            ? Form.OutputWorkflow : new([], []);
+        if (ReferenceEquals(Review, _selectionReview)) return;
+        _selectionReview = Review;
+        _selected.Clear();
+        if (Review is { } review)
+            _selected.UnionWith(review.Candidates.Where(candidate => candidate.SelectedByDefault).Select(candidate => candidate.Id));
+    }
+
+    private void Select(DefinitionTransitionTransferPlan review, int id, bool selected)
+    {
+        if (!ReferenceEquals(review, Review) || Form.InputRevision != review.InputRevision) return;
+        if (selected) _selected.Add(id); else _selected.Remove(id);
+    }
+
+    private Task Apply(DefinitionTransitionTransferPlan review, bool withoutCopy = false) =>
+        !ReferenceEquals(review, Review) || Form.InputRevision != review.InputRevision
+            ? Task.CompletedTask
+            : ApplyRequested.InvokeAsync(new TransferSelection(review, withoutCopy ? [] : _selected));
+
+    public sealed record TransferSelection
+    {
+        public TransferSelection(DefinitionTransitionTransferPlan review, IEnumerable<int> selectedIds)
+        {
+            ArgumentNullException.ThrowIfNull(review);
+            ArgumentNullException.ThrowIfNull(selectedIds);
+            Review = review;
+            SelectedIds = Array.AsReadOnly(selectedIds.Take(review.Candidates.Count + 1).ToArray());
+        }
+
+        public DefinitionTransitionTransferPlan Review { get; }
+        public IReadOnlyList<int> SelectedIds { get; }
+    }
+}
