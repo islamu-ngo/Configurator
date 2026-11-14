@@ -421,3 +421,9 @@ Use section navigation, search, the metadata inspector and keyboard shortcuts
 to reach settings. Naming and density choices change presentation. Document
 previews and suggested transfers require deliberate application; Review still
 separates preparing output from create-only saving.
+
+## Related tasks after verified saving
+
+Declared related tasks can appear after native saving verifies installation.
+Preparation alone does not establish delivery. Review copied candidates before
+switching tasks; verified local saving does not grant target apply permission.

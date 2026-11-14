@@ -746,3 +746,10 @@ typed widget hints and declared ordering. Workspace commands preserve accepted
 answer authority; document application and task transfers require explicit
 adoption. Definition exploration reads public schema metadata before editing.
 Native delivery acknowledgements are recorded by the publisher integration.
+
+## Verified native delivery acknowledgements
+
+`ArtifactPublisherViewModel` captures output context with prepared answers and
+records only installed, verified files after native save settlement. Bundle
+results acknowledge individual verified artifacts. Replacement and invalidation
+retire old contexts before they can create current related-task guidance.

@@ -24,6 +24,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         Task<ProtectedArtifactBundleResult>> _publishBundle;
     private DefinitionFormModel? _form;
     private PresentationOutcome? _preparedOutcome;
+    private DefinitionOutputExportContext? _preparedExportContext;
     private string[]? _preparedBundleSelection;
     private long _preparedBundleInputRevision;
     private readonly HashSet<string> _selectedArtifactIds = new(StringComparer.Ordinal);
@@ -403,6 +404,9 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
                     try
                     {
                         accepted = true;
+                        if (succeeded)
+                            _preparedExportContext = form.CaptureOutputExportContext(answers.InputRevision,
+                                form.EligibleArtifacts.Select(artifact => artifact.Id));
                         if (bundle && succeeded)
                         {
                             _preparedBundleSelection = selection;
@@ -459,12 +463,14 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
 #endif
         byte[] bytes = _preparedOutcome.Output.ToArray();
         string artifactId = Preparation.ArtifactId;
+        DefinitionFormModel? form = _form;
+        DefinitionOutputExportContext? exportContext = _preparedExportContext;
         string fileName = FileName;
         string directory = OutputDirectory;
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
         Configurator.Engineering.MeasureNativePreparation.Mark("capture-end");
 #endif
-        ClearPreparation();
+        ClearPreparation(invalidateExports: false);
         DesktopOperation? operation = DesktopOperation.Begin(_messenger, "save", cancellationToken);
         if (operation is null)
         {
@@ -497,11 +503,17 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
                 Configurator.Engineering.MeasureNativePreparation.Mark("consumer-end");
 #endif
-                completion = () => _messenger.Send(new StatusChangedMessage(result.Succeeded ? "save-complete"
+                completion = () =>
+                {
+                    if (result is { InstallationEstablished: true, VerificationSucceeded: true } &&
+                        !_disposed && ReferenceEquals(_form, form) && exportContext is not null)
+                        form!.RecordOutputExport(exportContext, [artifactId], DefinitionOutputDeliveryKind.NativeSaveVerified);
+                    _messenger.Send(new StatusChangedMessage(result.Succeeded ? "save-complete"
                     : "save-" + FormatCommitResult(result), operation.Generation,
                     result.Succeeded ? DesktopStatusGuidance.General : !result.InstallationEstablished
                         ? DesktopStatusGuidance.SaveFailed : result.VerificationSucceeded
                             ? DesktopStatusGuidance.SaveInstalledVerified : DesktopStatusGuidance.SaveInstalledUnverified));
+                };
                 return result;
             }
             catch (OperationCanceledException) when (operation.Token.IsCancellationRequested)
@@ -539,6 +551,9 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         Configurator.Engineering.MeasureNativePreparation.Mark("capture-start");
 #endif
         string[] selection = _preparedBundleSelection;
+        DefinitionFormModel form = _form;
+        DefinitionOutputExportContext? exportContext = _preparedExportContext;
+        _preparedExportContext = null;
         long inputRevision = _preparedBundleInputRevision;
         string directory = OutputDirectory;
         Definition definition = _form.Definition;
@@ -597,7 +612,14 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
                 Configurator.Engineering.MeasureNativePreparation.Mark("consumer-end");
 #endif
                 publication.Complete(result.Outcomes, result.CompletionCode, result.CleanupFailed);
-                completion = () => _messenger.Send(new StatusChangedMessage(result.Succeeded ? "bundle-save-complete" :
+                completion = () =>
+                {
+                    string[] verified = result.Outcomes.Where(item =>
+                        item.Result is { InstallationEstablished: true, VerificationSucceeded: true })
+                        .Select(item => item.ArtifactId).ToArray();
+                    if (!_disposed && ReferenceEquals(_form, form) && exportContext is not null && verified.Length > 0)
+                        form.RecordOutputExport(exportContext, verified, DefinitionOutputDeliveryKind.NativeSaveVerified);
+                    _messenger.Send(new StatusChangedMessage(result.Succeeded ? "bundle-save-complete" :
                     (result.Outcomes.Any(item => item.Result is { InstallationEstablished: true })
                         ? "bundle-save-partial:" : "bundle-save-blocked:") +
                     string.Join(",", result.Outcomes.Select(item =>
@@ -606,6 +628,7 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
                     result.Succeeded ? DesktopStatusGuidance.General
                         : result.Outcomes.Any(item => item.Result is { InstallationEstablished: true })
                             ? DesktopStatusGuidance.BundleSavePartial : DesktopStatusGuidance.SaveFailed));
+                };
                 return result;
             }
             catch (OperationCanceledException) when (operation.Token.IsCancellationRequested)
@@ -635,8 +658,10 @@ public sealed partial class ArtifactPublisherViewModel : ObservableObject, IDisp
         }, CancellationToken.None);
     }
 
-    private void ClearPreparation()
+    private void ClearPreparation(bool invalidateExports = true)
     {
+        _preparedExportContext = null;
+        if (invalidateExports) _form?.InvalidateOutputExports();
         _preparedBundleSelection = null;
         _preparedOutcome?.Dispose();
         _preparedOutcome = null;

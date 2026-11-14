@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7E063K02T93MQVXE59WW2HA
+Title: "Record Desktop output delivery only after verified native saving"
+Type: feat
+Scope: privacy
+Summary: "Capture prepared workspace authority and acknowledge only installed, verified native files, including partial bundle coverage, before proposing related tasks."
+Group: desktop-output-acknowledgement
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Only installed and verified native files acknowledge captured output authority. Retired saves and partial bundles cannot claim complete current delivery."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/desktop.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Verified saving can propose declared related tasks. Preparation, refused writes and unverified installation do not establish delivery."
