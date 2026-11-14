@@ -544,3 +544,12 @@ Appearance settings offer Spacious, Comfortable, Compact and Dense spacing,
 plus Humanized and Technical naming. These local view preferences accompany
 theme and direction; they contain no configuration answers and do not change
 the accepted answer revision.
+
+## Portable profile controls
+
+The local profile panel offers comparison, encrypted opening, deliberate
+retained-field replacement, private output download, resealing and exact-copy
+recovery checks. Secret operations require workspace consent. Retained values
+stay outside ordinary fields and preparation readiness until explicitly
+disclosed in an allowed mode or composed inside the worker. Downloads do not
+provide native file protection or establish target acceptance.

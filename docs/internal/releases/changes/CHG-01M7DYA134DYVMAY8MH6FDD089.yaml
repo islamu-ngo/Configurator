@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7DYA134DYVMAY8MH6FDD089
+Title: "Integrate portable profiles with consent-bound Browser custody"
+Type: feat
+Scope: privacy
+Summary: "Mount deliberate profile workflows over the dedicated worker, share removal-resistant definition identity history, explain retained fields, block ordinary readiness and retire authority across workspace consent changes."
+Group: browser-profile-custody
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Profile operations require workspace consent and captured worker authority. Retained fields stay outside ordinary readiness and editing, while the catalogue and authenticated profiles share bounded removal-resistant revision identities."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Profile actions are explicit local operations. Restricted downloads transfer custody deliberately; they do not promise native protected saving or target acceptance."

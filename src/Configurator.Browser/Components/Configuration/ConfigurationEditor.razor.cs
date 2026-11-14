@@ -90,12 +90,13 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private bool _disposed;
     private bool _ready;
     private bool HasWork(DefinitionFormModel form) => !_disposed && _ready && ReferenceEquals(form, _form) &&
-        (form.HasWorkspaceChanges || _prepared.Count > 0 || _importPending || form.ImportComparison is not null
+        (form.HasWorkspaceChanges || form.RequiresBrowserProfileComposition || _prepared.Count > 0 || _importPending || form.ImportComparison is not null
             || _developerPanel is { } developer && ReferenceEquals(developer.Form, form) && developer.HasWork);
     private string PreparationReadiness
     {
         get
         {
+            if (_form!.RequiresBrowserProfileComposition) return "blocked";
             DefinitionFormProgress progress = _form!.Projection.Progress;
             return _form.ConfigurationContext is { IsReady: false } || _form.HasInputErrors || _form.HasAnswerBudgetError || progress.Invalid > 0 || progress.Missing > progress.Deferred
                 ? "blocked" : progress.Deferred > 0 ? "deferred" : "complete";
@@ -171,6 +172,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             BrowserLaunchSelection.EditingCapabilities, startup.Definition.Presentation is null
                 ? DefinitionEditorVisibilityPolicy.Direct : DefinitionEditorVisibilityPolicy.Authored);
         _workspaceLifetime = Guid.NewGuid().ToString("N");
+        ++_profileConsentEpoch;
         if (startup.Definition.Presentation is not null) _form.SetDisclosureOverride(FieldDisclosure.Essential);
         _form.SelectLocale(startup.Locale);
         if (startup.Entry is not null) _form.SelectOutput(startup.Entry);
@@ -567,6 +569,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private async Task ConsentAsync(ChangeEventArgs args)
     {
         bool enabled = args.Value is true;
+        if (enabled != (_form!.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled))
+            ++_profileConsentEpoch;
         DefinitionFormModel form = _form!;
         long generation = _generation;
         form.SetSecretEntryEnabled(enabled);

@@ -107,6 +107,8 @@ else
             <AppButton Variant="Variant.Outlined" data-action="revoke-secret-entry"
                        OnClick="() => IsCurrentView(actionForm, actionView) ? ConsentAsync(new ChangeEventArgs { Value = false }) : Task.CompletedTask">@UiText("RevokeSecrets")</AppButton>
         }
+        <ConfigurationVaultPanel @key="_form" Form="_form" CaptureAuthority="CaptureProfileAuthority"
+                                 Ready="_ready" RequestConsent="_consentAction" />
         @if (_activeWorkflowStage == WorkflowStage.Configure)
         {
         @if (_developerMode)

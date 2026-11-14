@@ -1,5 +1,72 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="ProfileTitle" xml:space="preserve"><value>Portable saved profiles</value></data>
+  <data name="ProfileLocalOnly" xml:space="preserve"><value>Profiles and passphrases stay in this tab and its dedicated worker. Nothing is saved automatically. Closing or cancelling retires private state; browser and runtime memory cannot be guaranteed erased.</value></data>
+  <data name="ProfileAlgorithm" xml:space="preserve"><value>One supported encryption profile, with a fixed derivation cost:</value></data>
+  <data name="ProfileNoRecoveryBackdoor" xml:space="preserve"><value>Keep a working passphrase separately from the vault and test the exact saved copy. If every recipient is lost, reinstalling the app or contacting support cannot recover it. Uninstall or reset may remove files or keys; their survival is not guaranteed.</value></data>
+  <data name="ProfileWorking" xml:space="preserve"><value>Working locally. Cancel remains available.</value></data>
+  <data name="ProfileCancelled" xml:space="preserve"><value>Private profile work was closed. Reopen the vault to use retained values.</value></data>
+  <data name="ProfileRejected" xml:space="preserve"><value>The profile operation was rejected. Check the selected file, recipient and passphrase.</value></data>
+  <data name="ProfilePrivateOutputRequired" xml:space="preserve"><value>This workspace contains a stripped profile projection, so ordinary output cannot establish complete readiness. Use the profile's private download, explicitly inspect an inspectable profile, or start a fresh workspace.</value></data>
+  <data name="ProfileComparison" xml:space="preserve"><value>Public comparison</value></data>
+  <data name="ProfileComparisonHelp" xml:space="preserve"><value>Comparison files omit protected values and private dynamic keys. They need no secret consent and cannot restore omitted values. Public values can still be sensitive in context. Keyed equality remains unavailable without its independently protected key; missing historical schema limits structural comparison.</value></data>
+  <data name="ProfileComparisonOpen" xml:space="preserve"><value>Choose a comparison file</value></data>
+  <data name="ProfileComparisonSave" xml:space="preserve"><value>Download a stripped comparison</value></data>
+  <data name="ProfileComparisonDownloaded" xml:space="preserve"><value>Stripped comparison download requested.</value></data>
+  <data name="ProfileComparisonReady" xml:space="preserve"><value>Public comparison is ready. Protected equality is unavailable.</value></data>
+  <data name="ProfileConsentHelp" xml:space="preserve"><value>Enable secret entry for this workspace before selecting an encrypted vault or entering a passphrase. Consent also permits bounded transfers to this tab's dedicated profile worker.</value></data>
+  <data name="ProfileOpen" xml:space="preserve"><value>Open encrypted profile</value></data>
+  <data name="ProfileOpenHelp" xml:space="preserve"><value>Opening replaces current editable answers with a safe public projection. Retained values remain in the worker. Close an existing profile before opening another.</value></data>
+  <data name="ProfileChooseVault" xml:space="preserve"><value>Choose an encrypted vault</value></data>
+  <data name="ProfilePassphrase" xml:space="preserve"><value>Unlock passphrase</value></data>
+  <data name="ProfileRecipientIndex" xml:space="preserve"><value>Recipient index (0–7)</value></data>
+  <data name="ProfileRecipientHelp" xml:space="preserve"><value>Choose one recipient per attempt. Index 0 is the first recipient; native vaults with a device recipient normally place portable recovery at index 1. Browser never uses an OS keyring or tries other recipients automatically. Recipient labels do not prove recovery.</value></data>
+  <data name="ProfileOpened" xml:space="preserve"><value>Profile opened without disclosing retained values. Review upgrade findings before private output.</value></data>
+  <data name="ProfileMode" xml:space="preserve"><value>Protection mode</value></data>
+  <data name="ProfileBlind" xml:space="preserve"><value>Import and upgrade only (no inspection)</value></data>
+  <data name="ProfileInspectable" xml:space="preserve"><value>Encrypted, with deliberate inspection allowed</value></data>
+  <data name="ProfileRetainedHelp" xml:space="preserve"><value>Retained fields cannot be edited through ordinary controls. Replacement permanently retires the whole retained field, including its collection values. Undo cannot restore it.</value></data>
+  <data name="ProfileReplace" xml:space="preserve"><value>Replace retained field</value></data>
+  <data name="ProfileReplaceConfirmation" xml:space="preserve"><value>Retire this retained field permanently, then clear it for ordinary editing? An invalid replacement or Undo will not restore the old value.</value></data>
+  <data name="ProfileConfirmReplace" xml:space="preserve"><value>Retire and enable replacement</value></data>
+  <data name="ProfileReplacementReady" xml:space="preserve"><value>The retained field was retired. Enter its replacement in the ordinary form.</value></data>
+  <data name="ProfileInspectConsent" xml:space="preserve"><value>I want to replace the current answers with this inspectable profile's disclosed answers and accept their ordinary editing, preview and copy behavior.</value></data>
+  <data name="ProfileInspect" xml:space="preserve"><value>Inspect in ordinary form</value></data>
+  <data name="ProfileInspected" xml:space="preserve"><value>Inspectable answers were accepted into the ordinary consented form. Worker custody has ended.</value></data>
+  <data name="ProfileRefreshPlan" xml:space="preserve"><value>Review source upgrade eligibility</value></data>
+  <data name="ProfilePlanReady" xml:space="preserve"><value>Source upgrade eligibility is shown. Private composition revalidates current replacements before producing output.</value></data>
+  <data name="ProfileArtifact" xml:space="preserve"><value>Declared target file</value></data>
+  <data name="ProfileDownloadPrivate" xml:space="preserve"><value>Prepare and download private target file</value></data>
+  <data name="ProfileDownloadBoundary" xml:space="preserve"><value>This deliberate download may contain retained secrets. It has no ordinary preview or clipboard action, no native protected-file guarantee, and grants no target acceptance or apply authority.</value></data>
+  <data name="ProfileDownloaded" xml:space="preserve"><value>Private target file download requested.</value></data>
+  <data name="ProfileNotReady" xml:space="preserve"><value>Private composition is not ready. Resolve required replacements and invalid or missing answers.</value></data>
+  <data name="ProfileComparisonResults" xml:space="preserve"><value>Value-free profile findings</value></data>
+  <data name="ProfileField" xml:space="preserve"><value>Declared field</value></data>
+  <data name="ProfileEligibility" xml:space="preserve"><value>Carry eligibility</value></data>
+  <data name="ProfileEligibilityEligible" xml:space="preserve"><value>Eligible, subject to final validation</value></data>
+  <data name="ProfileEligibilityMissing" xml:space="preserve"><value>Missing</value></data>
+  <data name="ProfileEligibilityRemoved" xml:space="preserve"><value>Removed</value></data>
+  <data name="ProfileEligibilityInvalid" xml:space="preserve"><value>Invalid</value></data>
+  <data name="ProfileEligibilityInactive" xml:space="preserve"><value>Inactive</value></data>
+  <data name="ProfileEligibilityReplacementRequired" xml:space="preserve"><value>Replacement required</value></data>
+  <data name="ProfileEligibilityRevalidationRequired" xml:space="preserve"><value>Revalidation required</value></data>
+  <data name="ProfileComparisonUnavailable" xml:space="preserve"><value>Unavailable</value></data>
+  <data name="ProfileComparisonUnchanged" xml:space="preserve"><value>Unchanged</value></data>
+  <data name="ProfileComparisonChanged" xml:space="preserve"><value>Changed</value></data>
+  <data name="ProfileSave" xml:space="preserve"><value>Download a new encrypted snapshot</value></data>
+  <data name="ProfileSaveHelp" xml:space="preserve"><value>Use at least 15 Unicode characters, at most 1024 UTF-8 bytes, and confirm each passphrase exactly. Existing profiles retain their mode. Every save creates a new snapshot; old copies still accept old passphrases, and target credentials are not rotated.</value></data>
+  <data name="ProfileNewPassphrase" xml:space="preserve"><value>New snapshot passphrase</value></data>
+  <data name="ProfileConfirmPassphrase" xml:space="preserve"><value>Confirm new passphrase</value></data>
+  <data name="ProfileAddRecovery" xml:space="preserve"><value>Add a different independent recovery passphrase (recommended)</value></data>
+  <data name="ProfileRecoveryPassphrase" xml:space="preserve"><value>Independent recovery passphrase</value></data>
+  <data name="ProfileConfirmRecovery" xml:space="preserve"><value>Confirm recovery passphrase</value></data>
+  <data name="ProfileSavedUnverified" xml:space="preserve"><value>Encrypted download requested. Recovery is configured but unverified for this snapshot.</value></data>
+  <data name="ProfileVerifyRecovery" xml:space="preserve"><value>Verify the saved snapshot</value></data>
+  <data name="ProfileRecoveryHelp" xml:space="preserve"><value>Select the exact downloaded copy and one portable passphrase. A fresh worker checks it against the independently held snapshot identity and ciphertext digest, without adopting or revealing answers. Verification covers only this copy and recipient, not every backup.</value></data>
+  <data name="ProfileSnapshot" xml:space="preserve"><value>Saved snapshot</value></data>
+  <data name="ProfileChooseSavedCopy" xml:space="preserve"><value>Choose the exact saved vault copy</value></data>
+  <data name="ProfileRecoveryVerified" xml:space="preserve"><value>Recovery verified for this exact snapshot and selected recipient. Keep the working passphrase separately.</value></data>
+  <data name="ProfileClose" xml:space="preserve"><value>Cancel work and close private profile</value></data>
   <data name="ConfigurationContext" xml:space="preserve"><value>Deployment configuration</value></data>
   <data name="EnvironmentDestination" xml:space="preserve"><value>Environment destination</value></data>
   <data name="ComposeInputDestination" xml:space="preserve"><value>Compose input: pass this file to the declared Compose recipe.</value></data>

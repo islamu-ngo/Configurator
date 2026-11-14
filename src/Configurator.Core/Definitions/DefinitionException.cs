@@ -7,6 +7,10 @@ public sealed class DefinitionException : Exception
     public string? SchemaPath { get; private init; }
     public DefinitionSourceSpan? SourceSpan { get; private init; }
 
+    public static DefinitionException RegistryLimit() => new("registry-limit");
+
+    public static DefinitionException RevisionConflict() => new("revision-conflict");
+
     internal DefinitionException AtSchemaPath(string knownSchemaPath) => SchemaPath is not null ? this
         : new DefinitionException(Code) { SchemaPath = knownSchemaPath };
 

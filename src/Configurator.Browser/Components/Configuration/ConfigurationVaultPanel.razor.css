@@ -1,0 +1,37 @@
+.configuration-vault {
+    border: var(--isl-card-border);
+    border-radius: var(--isl-radius-card);
+    padding: var(--isl-space-4);
+    margin-block: var(--isl-space-4);
+    overflow-wrap: anywhere;
+    min-inline-size: 0;
+}
+.configuration-vault__group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--isl-space-3);
+    min-inline-size: 0;
+    margin-block: var(--isl-space-4);
+}
+.configuration-vault__confirmation {
+    display: flex;
+    align-items: baseline;
+    gap: var(--isl-space-2);
+}
+.configuration-vault__fields {
+    padding-inline-start: var(--isl-space-4);
+}
+.configuration-vault__fields li {
+    margin-block: var(--isl-space-3);
+}
+.configuration-vault__table {
+    inline-size: 100%;
+    table-layout: fixed;
+}
+.configuration-vault__table th,
+.configuration-vault__table td {
+    text-align: start;
+    padding: var(--isl-space-2);
+    border-block-end: var(--isl-card-border);
+}

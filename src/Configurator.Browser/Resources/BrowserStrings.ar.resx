@@ -1,5 +1,72 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
+  <data name="ProfileTitle" xml:space="preserve"><value>ملفات الإعداد المحفوظة المحمولة</value></data>
+  <data name="ProfileLocalOnly" xml:space="preserve"><value>تبقى ملفات الإعداد وعبارات المرور في هذا التبويب والعامل المخصص له. لا يُحفظ شيء تلقائياً. يؤدي الإغلاق أو الإلغاء إلى إنهاء الحالة الخاصة؛ ولا يمكن ضمان محو ذاكرة المتصفح وبيئة التشغيل.</value></data>
+  <data name="ProfileAlgorithm" xml:space="preserve"><value>صيغة تشفير واحدة مدعومة بتكلفة اشتقاق ثابتة:</value></data>
+  <data name="ProfileNoRecoveryBackdoor" xml:space="preserve"><value>احتفظ بعبارة مرور صالحة منفصلة عن الخزنة واختبر النسخة المحفوظة نفسها. إذا فُقدت كل وسائل الفتح فلن يعيد التثبيت أو الدعم استرجاعها. قد تزيل إعادة الضبط أو إزالة التثبيت الملفات أو المفاتيح؛ ولا يُضمن بقاؤها.</value></data>
+  <data name="ProfileWorking" xml:space="preserve"><value>جارٍ العمل محلياً. يظل الإلغاء متاحاً.</value></data>
+  <data name="ProfileCancelled" xml:space="preserve"><value>أُغلق العمل الخاص بملف الإعداد. أعد فتح الخزنة لاستخدام القيم المحتفظ بها.</value></data>
+  <data name="ProfileRejected" xml:space="preserve"><value>رُفضت العملية. تحقق من الملف وموضع المستلم وعبارة المرور.</value></data>
+  <data name="ProfilePrivateOutputRequired" xml:space="preserve"><value>تحتوي مساحة العمل على عرض منزوع القيم المحمية، فلا تثبت المخرجات العادية اكتمال الجاهزية. استخدم التنزيل الخاص، أو افحص ملفاً يسمح بالفحص صراحةً، أو ابدأ مساحة عمل جديدة.</value></data>
+  <data name="ProfileComparison" xml:space="preserve"><value>مقارنة القيم العامة</value></data>
+  <data name="ProfileComparisonHelp" xml:space="preserve"><value>تحذف ملفات المقارنة القيم المحمية والمفاتيح الديناميكية الخاصة. لا تحتاج إلى إذن الأسرار ولا تستعيد القيم المحذوفة. قد تظل القيم العامة حساسة بحسب السياق. لا تتاح مقارنة التطابق بمفتاح دون مفتاحها المحمي بصورة مستقلة، ويحد غياب المخطط السابق من المقارنة البنيوية.</value></data>
+  <data name="ProfileComparisonOpen" xml:space="preserve"><value>اختر ملف مقارنة</value></data>
+  <data name="ProfileComparisonSave" xml:space="preserve"><value>تنزيل مقارنة منزوعة القيم المحمية</value></data>
+  <data name="ProfileComparisonDownloaded" xml:space="preserve"><value>طُلب تنزيل ملف المقارنة المنزوع القيم المحمية.</value></data>
+  <data name="ProfileComparisonReady" xml:space="preserve"><value>مقارنة القيم العامة جاهزة. مقارنة تطابق القيم المحمية غير متاحة.</value></data>
+  <data name="ProfileConsentHelp" xml:space="preserve"><value>فعّل إدخال الأسرار لهذه المساحة قبل اختيار خزنة مشفرة أو إدخال عبارة مرور. يشمل الإذن النقل المحدود إلى عامل ملفات الإعداد المخصص لهذا التبويب.</value></data>
+  <data name="ProfileOpen" xml:space="preserve"><value>فتح ملف إعداد مشفر</value></data>
+  <data name="ProfileOpenHelp" xml:space="preserve"><value>يستبدل الفتح الإجابات القابلة للتحرير بعرض آمن للقيم العامة. تبقى القيم المحتفظ بها داخل العامل. أغلق الملف الحالي قبل فتح آخر.</value></data>
+  <data name="ProfileChooseVault" xml:space="preserve"><value>اختر خزنة مشفرة</value></data>
+  <data name="ProfilePassphrase" xml:space="preserve"><value>عبارة مرور الفتح</value></data>
+  <data name="ProfileRecipientIndex" xml:space="preserve"><value>فهرس المستلم (0–7)</value></data>
+  <data name="ProfileRecipientHelp" xml:space="preserve"><value>اختر مستلماً واحداً لكل محاولة. الفهرس 0 هو الأول؛ وتضع الخزن الأصلية ذات مستلم الجهاز الاسترداد المحمول عادةً في الفهرس 1. لا يستخدم المتصفح مخزن مفاتيح النظام ولا يجرّب المستلمين الآخرين تلقائياً. أسماء المستلمين لا تثبت صلاحية الاسترداد.</value></data>
+  <data name="ProfileOpened" xml:space="preserve"><value>فُتح الملف دون كشف القيم المحتفظ بها. راجع نتائج الترقية قبل إنشاء المخرجات الخاصة.</value></data>
+  <data name="ProfileMode" xml:space="preserve"><value>وضع الحماية</value></data>
+  <data name="ProfileBlind" xml:space="preserve"><value>للاستيراد والترقية فقط، دون فحص</value></data>
+  <data name="ProfileInspectable" xml:space="preserve"><value>مشفر مع السماح بالفحص الصريح</value></data>
+  <data name="ProfileRetainedHelp" xml:space="preserve"><value>لا تُحرر الحقول المحتفظ بها بالأدوات العادية. ينهي الاستبدال الاحتفاظ بالحقل كله، بما فيه قيم المجموعات، نهائياً. لا يعيده التراجع.</value></data>
+  <data name="ProfileReplace" xml:space="preserve"><value>استبدال الحقل المحتفظ به</value></data>
+  <data name="ProfileReplaceConfirmation" xml:space="preserve"><value>هل تريد إنهاء الاحتفاظ بهذا الحقل نهائياً ثم إفراغه للتحرير العادي؟ لن تعيد القيمة القديمةَ إجابةٌ بديلة غير صالحة أو عمليةُ تراجع.</value></data>
+  <data name="ProfileConfirmReplace" xml:space="preserve"><value>إنهاء الاحتفاظ وإتاحة الاستبدال</value></data>
+  <data name="ProfileReplacementReady" xml:space="preserve"><value>أُنهي الاحتفاظ بالحقل. أدخل قيمته البديلة في النموذج العادي.</value></data>
+  <data name="ProfileInspectConsent" xml:space="preserve"><value>أريد استبدال الإجابات الحالية بالإجابات المكشوفة من هذا الملف الذي يسمح بالفحص، وأقبل سلوك التحرير والمعاينة والنسخ المعتاد لها.</value></data>
+  <data name="ProfileInspect" xml:space="preserve"><value>الفحص في النموذج العادي</value></data>
+  <data name="ProfileInspected" xml:space="preserve"><value>اعتُمدت الإجابات في النموذج العادي بإذن الأسرار. انتهت حيازة العامل.</value></data>
+  <data name="ProfileRefreshPlan" xml:space="preserve"><value>مراجعة أهلية ترقية المصدر</value></data>
+  <data name="ProfilePlanReady" xml:space="preserve"><value>تظهر أهلية ترقية المصدر. يتحقق الإنشاء الخاص من القيم البديلة الحالية مجدداً قبل إنتاج المخرجات.</value></data>
+  <data name="ProfileArtifact" xml:space="preserve"><value>ملف الهدف المعلن</value></data>
+  <data name="ProfileDownloadPrivate" xml:space="preserve"><value>إعداد ملف الهدف الخاص وتنزيله</value></data>
+  <data name="ProfileDownloadBoundary" xml:space="preserve"><value>قد يحتوي هذا التنزيل الصريح على أسرار محتفظ بها. لا تتاح له معاينة عادية أو عملية نسخ للحافظة، ولا يضمن حماية الملفات الأصلية، ولا يمنح قبول التطبيق الهدف أو صلاحية التطبيق.</value></data>
+  <data name="ProfileDownloaded" xml:space="preserve"><value>طُلب تنزيل ملف الهدف الخاص.</value></data>
+  <data name="ProfileNotReady" xml:space="preserve"><value>الإنشاء الخاص غير جاهز. أكمل الاستبدالات المطلوبة وصحح الإجابات غير الصالحة أو الناقصة.</value></data>
+  <data name="ProfileComparisonResults" xml:space="preserve"><value>نتائج ملف الإعداد دون القيم</value></data>
+  <data name="ProfileField" xml:space="preserve"><value>الحقل المعلن</value></data>
+  <data name="ProfileEligibility" xml:space="preserve"><value>أهلية نقل القيمة</value></data>
+  <data name="ProfileEligibilityEligible" xml:space="preserve"><value>مؤهل بشرط التحقق النهائي</value></data>
+  <data name="ProfileEligibilityMissing" xml:space="preserve"><value>مفقود</value></data>
+  <data name="ProfileEligibilityRemoved" xml:space="preserve"><value>محذوف</value></data>
+  <data name="ProfileEligibilityInvalid" xml:space="preserve"><value>غير صالح</value></data>
+  <data name="ProfileEligibilityInactive" xml:space="preserve"><value>غير نشط</value></data>
+  <data name="ProfileEligibilityReplacementRequired" xml:space="preserve"><value>يلزم الاستبدال</value></data>
+  <data name="ProfileEligibilityRevalidationRequired" xml:space="preserve"><value>يلزم إعادة التحقق</value></data>
+  <data name="ProfileComparisonUnavailable" xml:space="preserve"><value>غير متاح</value></data>
+  <data name="ProfileComparisonUnchanged" xml:space="preserve"><value>لم يتغير</value></data>
+  <data name="ProfileComparisonChanged" xml:space="preserve"><value>تغير</value></data>
+  <data name="ProfileSave" xml:space="preserve"><value>تنزيل لقطة مشفرة جديدة</value></data>
+  <data name="ProfileSaveHelp" xml:space="preserve"><value>استخدم 15 محرف يونيكود على الأقل وبحد أقصى 1024 بايت بترميز UTF-8، وأكد كل عبارة مرور بدقة. تحتفظ الملفات الحالية بوضعها. كل حفظ ينشئ لقطة جديدة؛ وتظل النسخ القديمة تقبل عبارات المرور القديمة، ولا تتغير بيانات اعتماد التطبيق الهدف.</value></data>
+  <data name="ProfileNewPassphrase" xml:space="preserve"><value>عبارة مرور اللقطة الجديدة</value></data>
+  <data name="ProfileConfirmPassphrase" xml:space="preserve"><value>تأكيد عبارة المرور الجديدة</value></data>
+  <data name="ProfileAddRecovery" xml:space="preserve"><value>إضافة عبارة مرور استرداد مختلفة ومستقلة، وهو الخيار الموصى به</value></data>
+  <data name="ProfileRecoveryPassphrase" xml:space="preserve"><value>عبارة مرور الاسترداد المستقلة</value></data>
+  <data name="ProfileConfirmRecovery" xml:space="preserve"><value>تأكيد عبارة مرور الاسترداد</value></data>
+  <data name="ProfileSavedUnverified" xml:space="preserve"><value>طُلب التنزيل المشفر. الاسترداد مُعدّ لكنه لم يُتحقق منه لهذه اللقطة.</value></data>
+  <data name="ProfileVerifyRecovery" xml:space="preserve"><value>التحقق من اللقطة المحفوظة</value></data>
+  <data name="ProfileRecoveryHelp" xml:space="preserve"><value>اختر نسخة التنزيل نفسها وعبارة مرور محمولة واحدة. يفحصها عامل جديد مقابل هوية اللقطة وبصمة النص المشفر المحتفظ بهما بصورة مستقلة، دون اعتماد الإجابات أو كشفها. يخص التحقق هذه النسخة وهذا المستلم فقط، ولا يشمل كل النسخ الاحتياطية.</value></data>
+  <data name="ProfileSnapshot" xml:space="preserve"><value>اللقطة المحفوظة</value></data>
+  <data name="ProfileChooseSavedCopy" xml:space="preserve"><value>اختر نسخة الخزنة المحفوظة نفسها</value></data>
+  <data name="ProfileRecoveryVerified" xml:space="preserve"><value>تم التحقق من الاسترداد لهذه اللقطة بعينها والمستلم المحدد. احتفظ بعبارة المرور الصالحة بصورة منفصلة.</value></data>
+  <data name="ProfileClose" xml:space="preserve"><value>إلغاء العمل وإغلاق الملف الخاص</value></data>
   <data name="ConfigurationContext" xml:space="preserve"><value>إعداد النشر</value></data>
   <data name="EnvironmentDestination" xml:space="preserve"><value>وجهة ملف البيئة</value></data>
   <data name="ComposeInputDestination" xml:space="preserve"><value>مدخلات Compose: استخدم الملف مع طريقة Compose المعلنة.</value></data>

@@ -12,6 +12,10 @@
                 <button type="button" class="button button--secondary" data-action="expand-field"
                         aria-expanded="false" @onclick="ExpandEditor">@UiFormat("ConfigureProject", Title)</button>
             }
+            else if (IsRetainedByProfile)
+            {
+                <p class="configuration-field__help" data-profile-retained>@Ui("ProfileRetainedHelp")</p>
+            }
             else if (IsSecret)
             {
                 <p data-secret-denied>@Ui("FieldSecretDenied")</p>
@@ -162,10 +166,17 @@
                                            OnNull="@(() => SupplyNull(actionForm, actionPath, actionRevision, actionGeneration))"
                                            GetBindings="InspectorBindings" />
             </div>
-            <p data-secret-denied>@Ui("FieldSecretDenied")</p>
-            @if (RequestSecretConsent.HasDelegate)
+            @if (IsRetainedByProfile)
             {
-                <button type="button" class="button button--secondary" data-action="field-secret-consent" @onclick="RequestSecretConsent">@Ui("ReviewSecretConsent")</button>
+                <p class="configuration-field__help" data-profile-retained>@Ui("ProfileRetainedHelp")</p>
+            }
+            else
+            {
+                <p data-secret-denied>@Ui("FieldSecretDenied")</p>
+                @if (RequestSecretConsent.HasDelegate)
+                {
+                    <button type="button" class="button button--secondary" data-action="field-secret-consent" @onclick="RequestSecretConsent">@Ui("ReviewSecretConsent")</button>
+                }
             }
         }
         else

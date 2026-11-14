@@ -120,6 +120,9 @@ public partial class ConfigurationField
     private DefinitionPath EditorPath => MountNode.Location;
     private DefinitionFieldValidation CorrectionFacts => Form.GetFieldValidation(EditorPath);
     private bool CanEdit => CorrectionFacts.CanEdit;
+    private bool IsRetainedByProfile => Form.BrowserProfile?.RetainedPaths.Any(retained =>
+        retained.Segments.Count == 0 || EditorPath.Segments.Count == 0 ||
+        retained.Segments[0] == EditorPath.Segments[0]) == true;
     private bool IsVisible => Form.IsEditorVisible(EditorPath);
     private string Error
     {

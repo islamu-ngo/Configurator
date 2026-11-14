@@ -628,3 +628,13 @@ and local controls. The public preference contains no answers or output.
 Four density presets map to shared workspace presentation options; humanized
 and technical naming remain view choices. Theme surfaces, density tokens and
 the named controls are checked independently of profile/workspace integration.
+
+## Consent-bound portable profile controls
+
+`ConfigurationVaultPanel` delegates portable profile operations to
+`ProfileWorkerClient`. The editor captures workspace lifetime, generation,
+answer revision and consent epoch. Retained fields explain their custody and
+cannot certify ordinary preparation readiness. `BrowserDefinitionRegistry`
+shares bounded digest-only revision history with authenticated candidates,
+including identities removed from the visible catalogue. Deliberate download
+remains a Browser custody transfer, separate from native protected saving.
