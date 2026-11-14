@@ -388,35 +388,29 @@ public sealed class DefinitionCorrectionFactsTests
              }},"outputs":{"config.json":{"format":"json"}}}
             """u8.ToArray()), privacy);
 
-    private sealed class ValidationCounter : IObserver<DiagnosticListener>,
-        IObserver<KeyValuePair<string, object?>>, IDisposable
+    private sealed class ValidationCounter : IDisposable
     {
         private readonly Activity _activity;
-        private readonly IDisposable _listeners;
-        private readonly List<IDisposable> _subscriptions = [];
+        private readonly ActivityListener _listener;
 
         internal ValidationCounter(Activity activity)
         {
             _activity = activity;
-            _listeners = DiagnosticListener.AllListeners.Subscribe(this);
+            _listener = new()
+            {
+                ShouldListenTo = source => source.Name == "Configurator.Core.Preparation",
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                SampleUsingParentId = (ref ActivityCreationOptions<string> _) => ActivitySamplingResult.AllData,
+                ActivityStarted = OnStarted
+            };
+            ActivitySource.AddActivityListener(_listener);
         }
 
         internal int Count { get; private set; }
-        public void OnNext(DiagnosticListener listener)
+        private void OnStarted(Activity activity)
         {
-            if (listener.Name == "Configurator.Core.Preparation")
-                _subscriptions.Add(listener.Subscribe(this));
+            if (activity.OperationName == "ValidationCompleted" && ReferenceEquals(activity.Parent, _activity)) Count++;
         }
-        public void OnNext(KeyValuePair<string, object?> item)
-        {
-            if (item.Key == "ValidationCompleted" && ReferenceEquals(Activity.Current, _activity)) Count++;
-        }
-        public void OnCompleted() { }
-        public void OnError(Exception error) { }
-        public void Dispose()
-        {
-            _listeners.Dispose();
-            foreach (IDisposable subscription in _subscriptions) subscription.Dispose();
-        }
+        public void Dispose() => _listener.Dispose();
     }
 }
