@@ -13,6 +13,8 @@ public sealed class ListFieldViewModel : FieldViewModel
     private readonly ObservableCollection<FieldViewModel> _visibleItems = [];
     private int _pageIndex;
     private bool _isExpanded;
+    private bool _hasDuplicateKeys;
+    private string _duplicateKeysWarning = string.Empty;
 
     internal ListFieldViewModel(DefinitionNode schema, string name, bool required,
         FieldViewModel? parent, bool listItem, bool inheritedMasking = false)
@@ -54,10 +56,13 @@ public sealed class ListFieldViewModel : FieldViewModel
         }
     }
     public string AddItemName => Strings.Format("AddItemName", Title);
+    public bool HasDuplicateKeys => _hasDuplicateKeys;
+    public string DuplicateKeysWarning => _duplicateKeysWarning;
     protected override void OnRefreshed()
     {
         OnPropertyChanged(nameof(AddItemName));
         OnPropertyChanged(nameof(PageText));
+        OnPropertyChanged(nameof(DuplicateKeysWarning));
     }
     public int MaximumItems => Schema.Keywords.TryGetProperty("maxItems", out var maximum) ? maximum.GetInt32() : 4096;
     public int MinimumItems => Schema.Keywords.TryGetProperty("minItems", out var minimum) ? minimum.GetInt32() : 0;
@@ -95,9 +100,97 @@ public sealed class ListFieldViewModel : FieldViewModel
                 if (index != _items.Count - 1) _items.Move(_items.Count - 1, index);
             }
         }
+
+        ApplyItemTitlesAndUniqueChecks(value as JsonElement?);
+
         base.Load(value);
         RefreshPage();
         NotifyCommands();
+    }
+
+    private void ApplyItemTitlesAndUniqueChecks(JsonElement? arrayValue)
+    {
+        string? titlePointer = !RequiresMasking ? Schema.PresentationMetadata.ItemTitlePointer : null;
+        DefinitionPath? titlePath = TryParseRelativePath(titlePointer);
+        IReadOnlyList<DefinitionPath> uniquePaths = !RequiresMasking ? Schema.UniqueBy : [];
+        var seenTuples = new HashSet<string>(StringComparer.Ordinal);
+        bool duplicate = false;
+
+        if (arrayValue is { ValueKind: JsonValueKind.Array } array)
+        {
+            for (int index = 0; index < _items.Count && index < array.GetArrayLength(); index++)
+            {
+                JsonElement element = array[index];
+                string? resolvedTitle = titlePath is not null
+                    ? ResolveScalarPointerText(element, titlePath)
+                    : null;
+                _items[index].SetItemDisplayTitle(resolvedTitle);
+
+                if (uniquePaths.Count > 0)
+                {
+                    var keyParts = new string[uniquePaths.Count];
+                    bool allPresent = true;
+                    for (int k = 0; k < uniquePaths.Count; k++)
+                    {
+                        string? part = ResolveScalarPointerText(element, uniquePaths[k]);
+                        if (string.IsNullOrEmpty(part))
+                        {
+                            allPresent = false;
+                            break;
+                        }
+                        keyParts[k] = part;
+                    }
+                    if (allPresent)
+                    {
+                        string tuple = string.Join('\x1f', keyParts);
+                        if (!seenTuples.Add(tuple)) duplicate = true;
+                    }
+                }
+            }
+        }
+        else
+        {
+            foreach (FieldViewModel item in _items) item.SetItemDisplayTitle(null);
+        }
+
+        if (_hasDuplicateKeys != duplicate)
+        {
+            _hasDuplicateKeys = duplicate;
+            OnPropertyChanged(nameof(HasDuplicateKeys));
+        }
+        string warning = duplicate ? Strings.UniqueDuplicateWarning : string.Empty;
+        if (!string.Equals(_duplicateKeysWarning, warning, StringComparison.Ordinal))
+        {
+            _duplicateKeysWarning = warning;
+            OnPropertyChanged(nameof(DuplicateKeysWarning));
+        }
+    }
+
+    private static DefinitionPath? TryParseRelativePath(string? pointer)
+    {
+        if (string.IsNullOrWhiteSpace(pointer)) return null;
+        try { return DefinitionPath.Parse(pointer.StartsWith('/') ? pointer : "/" + pointer); }
+        catch (DefinitionException) { return null; }
+    }
+
+    private static string? ResolveScalarPointerText(JsonElement root, DefinitionPath path)
+    {
+        JsonElement current = root;
+        foreach (string segment in path.Segments)
+        {
+            if (current.ValueKind == JsonValueKind.Object && current.TryGetProperty(segment, out JsonElement prop))
+                current = prop;
+            else if (current.ValueKind == JsonValueKind.Array && int.TryParse(segment, NumberStyles.None, CultureInfo.InvariantCulture, out int idx) && idx >= 0 && idx < current.GetArrayLength())
+                current = current[idx];
+            else
+                return null;
+        }
+        return current.ValueKind switch
+        {
+            JsonValueKind.String => current.GetString(),
+            JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False => current.GetRawText(),
+            _ => null
+        };
     }
     private FieldViewModel CreateItem(string identity)
     {

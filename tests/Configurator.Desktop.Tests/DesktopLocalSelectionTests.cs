@@ -138,6 +138,7 @@ public sealed class DesktopLocalSelectionTests
     }
 
     [Test]
+    [NotInParallel]
     public async Task LocalSelectionFeedsBoundedDefinitionImportAndDestinationOperations()
     {
         using var directory = new TemporaryDirectory();

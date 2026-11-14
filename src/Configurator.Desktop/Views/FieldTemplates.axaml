@@ -10,10 +10,37 @@
   </DataTemplate>
   <DataTemplate x:Key="FieldHeader" x:DataType="fields:FieldViewModel">
     <StackPanel Spacing="4">
-      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+      <WrapPanel Orientation="Horizontal" ItemSpacing="8" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" />
+        <Button Name="CopyWireKey"
+                Content="{Binding WireToken}"
+                Command="{Binding CopyWireKeyCommand}"
+                IsVisible="{Binding HasCopyableWireToken}"
+                AutomationProperties.Name="{Binding CopyWireKeyName}"
+                Padding="8,2" Margin="0" FontSize="12" />
+        <TextBlock Text="{Binding WireKeyStatus}"
+                   Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
+                   IsVisible="{Binding WireKeyStatus, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
+                   VerticalAlignment="Center" FontSize="12" />
+      </WrapPanel>
+      <TextBlock Text="{Binding DeprecationDisplay}" Classes="warning" TextWrapping="Wrap"
+                 IsVisible="{Binding HasDeprecationBanner}" />
       <TextBlock Text="{Binding Strings[Required]}" IsVisible="{Binding IsRequired}" />
       <TextBlock Text="{Binding Help}" TextWrapping="Wrap"
                  IsVisible="{Binding Help, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock Text="{Binding Instructions}" TextWrapping="Wrap"
+                 IsVisible="{Binding Instructions, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock Text="{Binding UnitsDisplay}"
+                 Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
+                 IsVisible="{Binding UnitsDisplay, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock Text="{Binding IfOmittedDisplay}"
+                 Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding IfOmittedDisplay, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+      <TextBlock Text="{Binding ControllerImpactSummary}"
+                 Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding IsController}" />
       <TextBlock Text="{Binding Format}" TextWrapping="Wrap"
                  IsVisible="{Binding Format, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
       <TextBlock Text="{Binding ConstraintsSummary}" TextWrapping="Wrap"
@@ -50,6 +77,9 @@
       <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
       <TextBox Text="{Binding Text, Mode=TwoWay}" PasswordChar="{Binding PasswordChar}" MaxLength="{Binding MaxLength}"
                AcceptsReturn="{Binding AcceptsReturn}"
+               PlaceholderText="{Binding PlaceholderText}"
+               Classes.multiline-editor="{Binding AcceptsReturn}"
+               Classes.code-editor="{Binding IsCodeOrMarkdown}"
                AutomationProperties.AutomationId="{Binding AutomationId}"
                AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding InputHelpText}"
                local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
@@ -60,16 +90,45 @@
   <DataTemplate x:Key="EnumFieldTemplate" DataType="fields:EnumFieldViewModel" x:DataType="fields:EnumFieldViewModel">
     <StackPanel Spacing="5" IsVisible="{Binding IsVisible}" local:FieldFeedbackBehavior.Enabled="True">
       <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
-      <ComboBox ItemsSource="{Binding Choices}" SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" IsVisible="{Binding IsPublic}"
+      <ComboBox ItemsSource="{Binding Choices}" SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" IsVisible="{Binding IsSelectWidget}"
                 HorizontalAlignment="Stretch" AutomationProperties.AutomationId="{Binding AutomationId}"
                 AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
                 local:FocusBehavior.Request="{Binding FocusRequestVersion}">
         <ComboBox.ItemTemplate>
           <DataTemplate x:DataType="fields:EnumChoice">
-            <TextBlock Text="{Binding Label}" />
+            <StackPanel Spacing="2">
+              <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding Explanation}"
+                         IsVisible="{Binding Explanation, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
+                         Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" FontSize="12" />
+            </StackPanel>
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>
+      <TextBlock Text="{Binding SelectedChoiceExplanation}"
+                 IsVisible="{Binding SelectedChoiceExplanation, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
+                 Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding SelectedChoiceDeprecation}"
+                 Classes="warning"
+                 IsVisible="{Binding SelectedChoiceDeprecation, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
+                 TextWrapping="Wrap" />
+      <ItemsControl ItemsSource="{Binding Choices}" IsVisible="{Binding IsRadioWidget}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="fields:EnumChoice">
+            <StackPanel Spacing="2" Margin="0,2">
+              <RadioButton Content="{Binding Label}" IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+              <TextBlock Text="{Binding Explanation}"
+                         IsVisible="{Binding Explanation, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
+                         Margin="28,0,0,2"
+                         Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding DeprecationGuidance}"
+                         Classes="warning"
+                         IsVisible="{Binding DeprecationGuidance, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
+                         Margin="28,0,0,2" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
       <TextBox Text="{Binding Text, Mode=TwoWay}" PasswordChar="{Binding PasswordChar}" IsVisible="{Binding RequiresMasking}" MaxLength="65536"
                AutomationProperties.AutomationId="{Binding AutomationId}"
                AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
@@ -80,7 +139,15 @@
   <DataTemplate x:Key="NumericFieldTemplate" DataType="fields:NumericFieldViewModel" x:DataType="fields:NumericFieldViewModel">
     <StackPanel Spacing="5" IsVisible="{Binding IsVisible}" local:FieldFeedbackBehavior.Enabled="True">
       <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
+      <Slider IsVisible="{Binding IsSliderWidget}"
+              Minimum="{Binding SliderMinimum}"
+              Maximum="{Binding SliderMaximum}"
+              TickFrequency="{Binding SliderFrequency}"
+              IsSnapToTickEnabled="{Binding IsInteger}"
+              Value="{Binding SliderValue, Mode=TwoWay}"
+              AutomationProperties.Name="{Binding Name}" />
       <TextBox Text="{Binding Text, Mode=TwoWay}" PasswordChar="{Binding PasswordChar}" MaxLength="65536"
+               PlaceholderText="{Binding PlaceholderText}"
                AutomationProperties.AutomationId="{Binding AutomationId}"
                AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
                local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
@@ -90,7 +157,7 @@
   <DataTemplate x:Key="BooleanFieldTemplate" DataType="fields:BooleanFieldViewModel" x:DataType="fields:BooleanFieldViewModel">
     <StackPanel Spacing="5" IsVisible="{Binding IsVisible}" local:FieldFeedbackBehavior.Enabled="True">
       <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
-      <ComboBox ItemsSource="{Binding Choices}" SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" IsVisible="{Binding IsPublic}"
+      <ComboBox ItemsSource="{Binding Choices}" SelectedIndex="{Binding SelectedIndex, Mode=TwoWay}" IsVisible="{Binding IsSelectWidget}"
                 HorizontalAlignment="Stretch" AutomationProperties.AutomationId="{Binding AutomationId}"
                 AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
                 local:FocusBehavior.Request="{Binding FocusRequestVersion}">
@@ -100,6 +167,21 @@
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>
+      <WrapPanel IsVisible="{Binding IsSwitchWidget}" ItemSpacing="8" VerticalAlignment="Center">
+        <ToggleSwitch IsChecked="{Binding SwitchValue, Mode=TwoWay}"
+                      OnContent="{Binding TrueLabel}" OffContent="{Binding FalseLabel}"
+                      AutomationProperties.AutomationId="{Binding AutomationId}"
+                      AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
+                      local:FocusBehavior.Request="{Binding FocusRequestVersion}" />
+        <TextBlock Text="{Binding Strings[SwitchOmittedStatus]}"
+                   IsVisible="{Binding IsOmitted}"
+                   Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
+                   VerticalAlignment="Center" />
+        <Button Content="{Binding Strings[OmitSwitchLabel]}"
+                Command="{Binding OmitSwitchCommand}"
+                IsVisible="{Binding !IsOmitted}"
+                Margin="0" />
+      </WrapPanel>
       <TextBox Text="{Binding Text, Mode=TwoWay}" PasswordChar="{Binding PasswordChar}" IsVisible="{Binding RequiresMasking}" MaxLength="65536"
                AutomationProperties.AutomationId="{Binding AutomationId}"
                AutomationProperties.Name="{Binding Name}" AutomationProperties.HelpText="{Binding HelpText}"
@@ -125,6 +207,7 @@
           <ContentControl Content="{Binding}" ContentTemplate="{StaticResource FieldHeader}" />
         </Expander.Header>
         <StackPanel Spacing="5">
+          <TextBlock Text="{Binding DuplicateKeysWarning}" Classes="error" IsVisible="{Binding HasDuplicateKeys}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding PageText}" TextWrapping="Wrap" />
           <ItemsControl ItemsSource="{Binding VisibleItems}" Margin="16,0,0,0">
             <ItemsControl.ItemTemplate>

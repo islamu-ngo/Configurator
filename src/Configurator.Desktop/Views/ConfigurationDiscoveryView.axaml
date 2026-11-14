@@ -9,8 +9,65 @@
     <TextBox Name="ConfigurationSearch" Text="{Binding Navigation.SearchText, Mode=TwoWay}" MaxLength="65536"
              AutomationProperties.Name="{Binding Workspace.Strings[DiscoveryLabel]}"
              AutomationProperties.HelpText="{Binding Workspace.Strings[DiscoveryHelp]}" />
-    <CheckBox Content="{Binding Workspace.Strings[DiscoveryIncludeInactive]}"
-              IsChecked="{Binding Navigation.IncludeInactive, Mode=TwoWay}" />
+    <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="4">
+      <CheckBox Content="{Binding Workspace.Strings[DiscoveryIncludeInactive]}"
+                IsChecked="{Binding Navigation.IncludeInactive, Mode=TwoWay}" />
+      <Button Name="ToggleCommandPalette" Content="{Binding Workspace.Strings[CommandPaletteToggleLabel]}"
+              Command="{Binding Navigation.ToggleCommandPaletteCommand}"
+              Classes.active-stage="{Binding Navigation.IsCommandPaletteOpen}" />
+    </WrapPanel>
+    <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
+      <Button Content="{Binding Workspace.Strings[DiscoveryFilterAll]}"
+              Classes.active-stage="{Binding Navigation.IsDiscoveryFilterAll}"
+              Command="{Binding Navigation.SetDiscoveryFilterCommand}"
+              CommandParameter="{x:Static p:DefinitionDiscoveryFilter.All}" />
+      <Button Content="{Binding Workspace.Strings[DiscoveryFilterInvalid]}"
+              Classes.active-stage="{Binding Navigation.IsDiscoveryFilterInvalid}"
+              Command="{Binding Navigation.SetDiscoveryFilterCommand}"
+              CommandParameter="{x:Static p:DefinitionDiscoveryFilter.Invalid}" />
+      <Button Content="{Binding Workspace.Strings[DiscoveryFilterMissing]}"
+              Classes.active-stage="{Binding Navigation.IsDiscoveryFilterMissing}"
+              Command="{Binding Navigation.SetDiscoveryFilterCommand}"
+              CommandParameter="{x:Static p:DefinitionDiscoveryFilter.MissingRequired}" />
+      <Button Content="{Binding Workspace.Strings[DiscoveryFilterModified]}"
+              Classes.active-stage="{Binding Navigation.IsDiscoveryFilterModified}"
+              Command="{Binding Navigation.SetDiscoveryFilterCommand}"
+              CommandParameter="{x:Static p:DefinitionDiscoveryFilter.Modified}" />
+      <Button Content="{Binding Workspace.Strings[DiscoveryFilterDeferred]}"
+              Classes.active-stage="{Binding Navigation.IsDiscoveryFilterDeferred}"
+              Command="{Binding Navigation.SetDiscoveryFilterCommand}"
+              CommandParameter="{x:Static p:DefinitionDiscoveryFilter.DeferredSecret}" />
+    </WrapPanel>
+    <Border Classes="m3-surface-subtle" Padding="10" IsVisible="{Binding Navigation.HasDiscoveryCommands}">
+      <StackPanel Spacing="6">
+        <DockPanel>
+          <Button DockPanel.Dock="Right" Content="{Binding Workspace.Strings[CommandPaletteCloseLabel]}"
+                  Command="{Binding Navigation.CloseCommandPaletteCommand}" />
+          <TextBlock Text="{Binding Workspace.Strings[CommandPaletteHeading]}" FontWeight="SemiBold" VerticalAlignment="Center" />
+        </DockPanel>
+        <ListBox Name="DiscoveryCommandsList" ItemsSource="{Binding Navigation.DiscoveryCommands}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="p:WorkspaceCommandDescriptor">
+              <DockPanel Margin="2">
+                <Button DockPanel.Dock="Right"
+                        Content="{Binding $parent[local:ConfigurationDiscoveryView].((vm:DesktopShellViewModel)DataContext).Workspace.Strings[CommandRunLabel]}"
+                        Command="{Binding $parent[local:ConfigurationDiscoveryView].((vm:DesktopShellViewModel)DataContext).ExecuteWorkspaceCommandCommand}"
+                        CommandParameter="{Binding}"
+                        IsEnabled="{Binding IsEnabled}" />
+                <StackPanel Spacing="2">
+                  <WrapPanel Orientation="Horizontal" ItemSpacing="8">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ShortcutHint}" Foreground="{DynamicResource ConfiguratorAccentBrush}"
+                               IsVisible="{Binding ShortcutHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                  </WrapPanel>
+                  <TextBlock Text="{Binding Subtitle}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" FontSize="12" TextWrapping="Wrap" />
+                </StackPanel>
+              </DockPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </StackPanel>
+    </Border>
     <TextBlock Name="DiscoveryGuidance" Text="{Binding Navigation.DiscoveryGuidance}" />
     <StackPanel IsVisible="{Binding Navigation.HasDiscoveryQuery}" Spacing="8">
       <WrapPanel>

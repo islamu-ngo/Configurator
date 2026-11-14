@@ -1,0 +1,89 @@
+<UserControl x:Class="Configurator.Desktop.Views.DefinitionExplorerView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:Configurator.Desktop.ViewModels"
+    xmlns:local="using:Configurator.Desktop.Views"
+    xmlns:converters="using:Avalonia.Data.Converters"
+    x:DataType="vm:DesktopShellViewModel"
+    x:CompileBindings="True">
+  <Border Classes="m3-card" BorderBrush="{DynamicResource ConfiguratorFocusBrush}" BorderThickness="2" Margin="0,8,0,0">
+    <StackPanel Spacing="12">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+        <StackPanel Spacing="2">
+          <TextBlock Text="{Binding Workspace.Strings[ExplorerTitle]}"
+                     FontSize="{DynamicResource ConfiguratorHeadingFontSize}"
+                     FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Loader.Explorer.Title}" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding Workspace.Strings[ExplorerReadOnlyNote]}"
+                     Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+        </StackPanel>
+        <Button Grid.Column="1"
+                Name="ExplorerConfigureButton"
+                Content="{Binding Workspace.Strings[ConfigureProject]}"
+                Command="{Binding Loader.Explorer.ConfigureCommand}" />
+        <Button Grid.Column="2"
+                Name="ExplorerCloseButton"
+                Content="{Binding Workspace.Strings[ExplorerCloseLabel]}"
+                Command="{Binding Loader.Explorer.CloseCommand}" />
+      </Grid>
+
+      <WrapPanel ItemSpacing="12">
+        <TextBlock Text="{Binding Loader.Explorer.ApplicationId}" Classes="code-font" />
+        <TextBlock Text="{Binding Loader.Explorer.Revision}" />
+        <TextBlock Text="{Binding Loader.Explorer.Digest}" Classes="code-font"
+                   Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+      </WrapPanel>
+
+      <TextBlock Text="{Binding Workspace.Strings[ExplorerSectionsHeading]}" FontWeight="SemiBold" />
+      <ItemsControl Name="ExplorerSections" ItemsSource="{Binding Loader.Explorer.Sections}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:DefinitionExplorerViewModel+SectionItem">
+            <Border Classes="m3-card" Margin="0,0,0,8">
+              <StackPanel Spacing="6">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Description}"
+                           IsVisible="{Binding Description, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
+                           Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+                <ItemsControl ItemsSource="{Binding Fields}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DefinitionExplorerViewModel+FieldItem">
+                      <WrapPanel ItemSpacing="8" Margin="0,2">
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding WireKey}" Classes="code-font"
+                                   Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+                        <TextBlock Text="{Binding TypeLabel}"
+                                   Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+                        <TextBlock Text="{Binding SensitivityLabel}"
+                                   Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+                        <TextBlock Text="{Binding Units}"
+                                   IsVisible="{Binding Units, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+                        <TextBlock Text="{Binding DeprecationGuidance}"
+                                   Classes="warning"
+                                   IsVisible="{Binding DeprecationGuidance, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+                      </WrapPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+
+      <TextBlock Text="{Binding Workspace.Strings[ExplorerOutputsHeading]}" FontWeight="SemiBold" />
+      <ItemsControl Name="ExplorerOutputs" ItemsSource="{Binding Loader.Explorer.Outputs}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:DefinitionExplorerViewModel+OutputItem">
+            <WrapPanel ItemSpacing="10" Margin="0,2">
+              <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding Id}" Classes="code-font"
+                         Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+              <TextBlock Text="{Binding Format}"
+                         Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+            </WrapPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </Border>
+</UserControl>

@@ -70,15 +70,24 @@
                   </WrapPanel>
                   <TextBlock Text="{Binding TagsDisplay}" IsVisible="{Binding HasTags}"
                              Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
-                  <Button Content="{Binding $parent[local:DefinitionLoaderView].((vm:DesktopShellViewModel)DataContext).Workspace.Strings[ConfigureProject]}"
-                          Command="{Binding $parent[local:DefinitionLoaderView].((vm:DesktopShellViewModel)DataContext).Loader.ConfigureStoreProjectCommand}"
-                          CommandParameter="{Binding}"
-                          AutomationProperties.Name="{Binding Name}" />
+                  <WrapPanel ItemSpacing="8">
+                    <Button Name="ConfigureStoreProject"
+                            Content="{Binding $parent[local:DefinitionLoaderView].((vm:DesktopShellViewModel)DataContext).Workspace.Strings[ConfigureProject]}"
+                            Command="{Binding $parent[local:DefinitionLoaderView].((vm:DesktopShellViewModel)DataContext).Loader.ConfigureStoreProjectCommand}"
+                            CommandParameter="{Binding}"
+                            AutomationProperties.Name="{Binding Name}" />
+                    <Button Content="{Binding $parent[local:DefinitionLoaderView].((vm:DesktopShellViewModel)DataContext).Workspace.Strings[InspectProjectLabel]}"
+                            Command="{Binding $parent[local:DefinitionLoaderView].((vm:DesktopShellViewModel)DataContext).Loader.InspectStoreProjectCommand}"
+                            CommandParameter="{Binding}"
+                            AutomationProperties.Name="{Binding $parent[local:DefinitionLoaderView].((vm:DesktopShellViewModel)DataContext).Workspace.Strings[InspectProjectLabel]}" />
+                  </WrapPanel>
                 </StackPanel>
               </Border>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+        <local:DefinitionExplorerView Name="DefinitionExplorer"
+                                      IsVisible="{Binding Loader.Explorer.IsOpen}" />
       </StackPanel>
     </StackPanel>
 </UserControl>

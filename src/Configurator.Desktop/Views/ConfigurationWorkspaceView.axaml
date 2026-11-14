@@ -2,6 +2,7 @@
     xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:Configurator.Desktop.ViewModels"
     xmlns:local="using:Configurator.Desktop.Views"
+    xmlns:converters="using:Avalonia.Data.Converters"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
   <StackPanel Spacing="16" MaxWidth="800">
     <TextBlock Text="{Binding Workspace.Strings[Configure]}" FontSize="{DynamicResource ConfiguratorHeadingFontSize}" FontWeight="SemiBold" />
@@ -22,6 +23,43 @@
       </CheckBox>
     </StackPanel>
     <local:ConfigurationDiscoveryView />
+    <StackPanel Spacing="8" IsVisible="{Binding Workspace.HasOutputTasks}">
+      <TextBlock Text="{Binding Workspace.Strings[OutputTask]}" />
+      <ComboBox Name="OutputTask" ItemsSource="{Binding Workspace.OutputTasks}"
+                SelectedItem="{Binding Workspace.OutputTask, Mode=TwoWay}"
+                IsEnabled="{Binding !Workspace.IsBusy}" HorizontalAlignment="Stretch"
+                AutomationProperties.Name="{Binding Workspace.Strings[OutputTask]}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:ExperienceChoiceViewModel">
+            <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+    </StackPanel>
+    <TextBlock Text="{Binding Workspace.TransferStatus}" TextWrapping="Wrap" />
+    <StackPanel Name="TransferReview" IsVisible="{Binding Workspace.HasTransferReview}" Spacing="8">
+      <TextBlock Text="{Binding Workspace.Strings[TransferReviewTitle]}" FontWeight="SemiBold" />
+      <ItemsControl ItemsSource="{Binding Workspace.TransferCandidates}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:DesktopTransferCandidateViewModel">
+            <StackPanel Spacing="4">
+              <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                        AutomationProperties.Name="{Binding Title}">
+                <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+              </CheckBox>
+              <TextBlock Text="{Binding Preview}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+      <WrapPanel IsEnabled="{Binding !Workspace.IsBusy}">
+        <Button Name="TransferApply" Content="{Binding Workspace.TransferApplyLabel}"
+                AutomationProperties.Name="{Binding Workspace.TransferApplyLabel}" Command="{Binding Workspace.ApplyTransferCommand}" />
+        <Button Content="{Binding Workspace.Strings[TransferSwitchWithoutCopy]}" IsVisible="{Binding Workspace.CanSwitchWithoutCopy}"
+                Command="{Binding Workspace.SwitchWithoutCopyCommand}" />
+        <Button Content="{Binding Workspace.Strings[TransferCancel]}" Command="{Binding Workspace.CancelTransferCommand}" />
+      </WrapPanel>
+    </StackPanel>
     <StackPanel Classes="compact-navigation" Spacing="8">
       <TextBlock Text="{Binding Workspace.Strings[Section]}" />
       <ComboBox Name="SectionSelector" ItemsSource="{Binding Navigation.Sections}"
@@ -57,7 +95,38 @@
       <TextBlock Margin="0,0,16,8" Text="{Binding Workspace.Strings[InvalidCount]}" />
       <TextBlock Margin="0,0,16,8" Text="{Binding Navigation.Progress.Invalid}" />
     </WrapPanel>
-    <ItemsControl Name="Fields" ItemsSource="{Binding Navigation.VisibleFields}">
+    <ItemsControl Name="UngroupedFields"
+                  ItemsSource="{Binding Navigation.UngroupedFields}"
+                  IsVisible="{Binding Navigation.HasUngroupedFields}">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate><StackPanel Spacing="16" /></ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+    </ItemsControl>
+    <ItemsControl Name="SectionGroups"
+                  ItemsSource="{Binding Navigation.SelectedSection.Groups}"
+                  IsVisible="{Binding Navigation.HasSectionGroups}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:DesktopSectionGroupViewModel">
+          <Expander IsExpanded="{Binding IsExpanded, Mode=TwoWay}" Margin="0,0,0,8">
+            <Expander.Header>
+              <StackPanel Spacing="2">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Description}"
+                           IsVisible="{Binding Description, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
+                           Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+              </StackPanel>
+            </Expander.Header>
+            <ItemsControl ItemsSource="{Binding Fields}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Spacing="16" /></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </Expander>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+    <ItemsControl Name="Fields" ItemsSource="{Binding Navigation.VisibleFields}"
+                  IsVisible="{Binding !Navigation.HasSectionGroups}">
       <ItemsControl.ItemsPanel>
         <ItemsPanelTemplate><StackPanel Spacing="16" /></ItemsPanelTemplate>
       </ItemsControl.ItemsPanel>

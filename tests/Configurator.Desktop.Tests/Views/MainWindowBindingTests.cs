@@ -174,7 +174,7 @@ public sealed class MainWindowBindingTests
                     window.UpdateLayout();
                     Dispatcher.UIThread.RunJobs();
                     int filteredCount = cards.ItemCount;
-                    Button configure = cards.GetVisualDescendants().OfType<Button>().Single();
+                    Button configure = cards.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "ConfigureStoreProject");
                     await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)configure.Command!).ExecuteAsync(configure.CommandParameter);
                     Dispatcher.UIThread.RunJobs();
                     return (initialCount, filteredCount,

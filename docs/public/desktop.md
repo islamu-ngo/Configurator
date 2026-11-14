@@ -413,3 +413,11 @@ their original access, and rekeying a profile does not rotate target credentials
 Choose Generator options beside a locally generated secret to review bounded
 length and character choices. Generate a masked preview, then choose Apply
 secret to adopt it. Cancel closes the preview without changing the answer.
+
+## Connected editing views
+
+Choose Guided, Compact or Document for the same local answer workspace.
+Use section navigation, search, the metadata inspector and keyboard shortcuts
+to reach settings. Naming and density choices change presentation. Document
+previews and suggested transfers require deliberate application; Review still
+separates preparing output from create-only saving.

@@ -189,6 +189,100 @@ public sealed class DesktopAppearanceTests
         finally { await Task.Run(session.Dispose); }
     }
 
+    [Test]
+    [NotInParallel]
+    public async Task TonalPalettesPreserveHighContrast200PercentScaleAndSettingsDensityNamingShortcuts()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopAppearanceTests));
+        try
+        {
+            var result = await session.Dispatch(() =>
+            {
+                using var theme = new DesktopTheme(Application.Current!, _ => () => { });
+                var messenger = new WeakReferenceMessenger();
+                var dialogs = new NoDialogs();
+                var loader = new DefinitionLoaderViewModel(messenger, dialogs);
+                var workspace = new FormWorkspaceViewModel(messenger);
+                var publisher = new ArtifactPublisherViewModel(messenger, dialogs, new ProtectedArtifactWriter());
+                var review = new DesktopImportReviewViewModel(messenger, dialogs, publisher);
+                using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher, review, theme: theme);
+                shell.Loader.LoadDefinition(ViewModels.DefinitionEditingTests.Definition().CanonicalBytes);
+                var window = new MainWindow { DataContext = shell, Width = 1280, Height = 860 };
+                window.Resources["ConfiguratorBodyFontSize"] = 28d;
+                window.Resources["ConfiguratorHeadingFontSize"] = 48d;
+                window.Resources["ConfiguratorTitleFontSize"] = 52d;
+                try
+                {
+                    window.Show();
+                    shell.Navigation.SettingsCommand.Execute(null);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    bool hasM3TonalTokens =
+                        window.TryFindResource("ConfiguratorSurfaceContainerBrush", ThemeVariant.Light, out _) &&
+                        window.TryFindResource("ConfiguratorPrimaryContainerBrush", ThemeVariant.Light, out _) &&
+                        window.TryFindResource("ConfiguratorOnPrimaryContainerBrush", ThemeVariant.Light, out _) &&
+                        window.TryFindResource("ConfiguratorOutlineVariantBrush", ThemeVariant.Light, out _) &&
+                        window.TryFindResource("ConfiguratorSurfaceContainerBrush", DesktopTheme.HighContrast, out _);
+
+                    ComboBox? densitySelector = window.FindNamedControl<ComboBox>("SettingsDensitySelector");
+                    ComboBox? namingSelector = window.FindNamedControl<ComboBox>("SettingsDefaultNamingSelector");
+                    Button? shortcutsButton = window.FindNamedControl<Button>("SettingsShortcutsButton");
+
+                    shell.Density = Configurator.Presentation.WorkspaceDensity.Dense;
+                    shell.DefaultNamingMode = Configurator.Presentation.WorkspaceNamingMode.Technical;
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    double denseHeight = Application.Current!.TryFindResource("ConfiguratorControlMinHeight", out object? dRes) && dRes is double dVal ? dVal : 0;
+
+                    shell.Density = Configurator.Presentation.WorkspaceDensity.Spacious;
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    double spaciousHeight = Application.Current!.TryFindResource("ConfiguratorControlMinHeight", out object? sRes) && sRes is double sVal ? sVal : 0;
+
+                    double preservedBodyScale = window.TryFindResource("ConfiguratorBodyFontSize", window.ActualThemeVariant, out object? fRes) && fRes is double fVal ? fVal : 0;
+                    bool fourStagesPresent =
+                        window.FindNamedControl<Button>("OpenStage") is not null &&
+                        window.FindNamedControl<Button>("ConfigureStage") is not null &&
+                        window.FindNamedControl<Button>("ReviewStage") is not null &&
+                        window.FindNamedControl<Button>("SettingsStage") is not null;
+
+                    shortcutsButton?.Command?.Execute(shortcutsButton.CommandParameter);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    return (hasM3TonalTokens,
+                        hasDensitySelector: densitySelector is { ItemCount: 4 },
+                        hasNamingSelector: namingSelector is { ItemCount: 2 },
+                        hasShortcutsButton: shortcutsButton is not null,
+                        shortcutsActive: shell.Navigation.IsKeyboardSettings && shell.ShortcutsDialogOpen,
+                        denseHeight,
+                        spaciousHeight,
+                        preservedBodyScale,
+                        workspaceNamingSynced: shell.Workspace.NamingMode == Configurator.Presentation.WorkspaceNamingMode.Technical,
+                        fourStagesPresent);
+                }
+                finally
+                {
+                    DesktopDensity.Apply(Application.Current, Configurator.Presentation.WorkspaceDensity.Comfortable);
+                    window.Close();
+                }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+
+            await Assert.That(result.hasM3TonalTokens).IsTrue();
+            await Assert.That(result.hasDensitySelector).IsTrue();
+            await Assert.That(result.hasNamingSelector).IsTrue();
+            await Assert.That(result.hasShortcutsButton).IsTrue();
+            await Assert.That(result.shortcutsActive).IsTrue();
+            await Assert.That(result.denseHeight).IsGreaterThanOrEqualTo(24);
+            await Assert.That(result.spaciousHeight).IsGreaterThanOrEqualTo(44);
+            await Assert.That(result.preservedBodyScale).IsEqualTo(28d);
+            await Assert.That(result.workspaceNamingSynced).IsTrue();
+            await Assert.That(result.fourStagesPresent).IsTrue();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
     private static double Contrast(Color first, Color second)
     {
         static double Channel(byte channel)

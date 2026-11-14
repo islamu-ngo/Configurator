@@ -169,4 +169,80 @@ public sealed class DesktopNavigationTests
         shell.Workspace.DirectionModeIndex = 0;
         await Assert.That(shell.Workspace.FollowLocaleDirection).IsTrue();
     }
+
+    [Test]
+    [NotInParallel]
+    public async Task ConstrainedSlotHostsCompactOrDocumentWithoutUnboundedWorkspaceScrollWhilePreservingRailAndUndo()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopNavigationTests));
+        try
+        {
+            var result = await session.Dispatch(() =>
+            {
+                using var shell = DesktopTestContext.Root();
+                shell.Loader.LoadDefinition(DesktopApplicationTests.DefinitionWithExperiences());
+                var window = new MainWindow { DataContext = shell, Width = 1280, Height = 820 };
+                try
+                {
+                    window.Show();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    var rail = window.GetNamedControl<ListBox>("SectionRail");
+                    double railWidth = rail.Width;
+
+                    var field = shell.Workspace.Fields.Single(item => item.Id == "name");
+                    field.Text = "Updated service";
+                    bool canUndoBefore = shell.Workspace.UndoCommand.CanExecute(null);
+                    shell.Workspace.UndoCommand.Execute(null);
+                    bool revertedByUndo = field.Text != "Updated service";
+                    bool canRedoAfter = shell.Workspace.RedoCommand.CanExecute(null);
+                    shell.Workspace.RedoCommand.Execute(null);
+                    bool restoredByRedo = field.Text == "Updated service";
+
+                    long revBeforeNaming = shell.Workspace.Form!.InputRevision;
+                    shell.Workspace.ToggleNamingModeCommand.Execute(null);
+                    bool technicalNaming = shell.Workspace.NamingMode == Configurator.Presentation.WorkspaceNamingMode.Technical;
+                    bool revisionUnchanged = shell.Workspace.Form.InputRevision == revBeforeNaming;
+
+                    shell.Navigation.ConfigureMode = DesktopConfigureViewMode.Compact;
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    var scroll = window.GetNamedControl<ScrollViewer>("WorkspaceScroll");
+                    var boundedSlot = window.FindNamedControl<Grid>("BoundedConfigureSlot");
+                    bool insideScroll = boundedSlot is not null &&
+                        Avalonia.LogicalTree.LogicalExtensions.GetLogicalAncestors(boundedSlot).Contains(scroll);
+
+                    return (railWidth,
+                        canUndoBefore,
+                        revertedByUndo,
+                        canRedoAfter,
+                        restoredByRedo,
+                        technicalNaming,
+                        revisionUnchanged,
+                        boundedVisible: boundedSlot?.IsVisible == true,
+                        scrollHiddenInBounded: !scroll.IsVisible,
+                        outsideScroll: boundedSlot is not null && !insideScroll,
+                        finiteHeight: boundedSlot is not null && !double.IsPositiveInfinity(boundedSlot.Bounds.Height) && boundedSlot.Bounds.Height <= 820,
+                        hasThreeRows: boundedSlot?.RowDefinitions.Count == 3);
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+
+            await Assert.That(result.railWidth).IsEqualTo(300d);
+            await Assert.That(result.canUndoBefore).IsTrue();
+            await Assert.That(result.revertedByUndo).IsTrue();
+            await Assert.That(result.canRedoAfter).IsTrue();
+            await Assert.That(result.restoredByRedo).IsTrue();
+            await Assert.That(result.technicalNaming).IsTrue();
+            await Assert.That(result.revisionUnchanged).IsTrue();
+            await Assert.That(result.boundedVisible).IsTrue();
+            await Assert.That(result.scrollHiddenInBounded).IsTrue();
+            await Assert.That(result.outsideScroll).IsTrue();
+            await Assert.That(result.finiteHeight).IsTrue();
+            await Assert.That(result.hasThreeRows).IsTrue();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
 }

@@ -6,6 +6,8 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Desktop.Messages;
 using Configurator.Desktop.Resources;
+using Configurator.Desktop.Services;
+using Configurator.Presentation;
 
 /// <summary>Coordinates operation lifetime and status without owning field or artifact behavior.</summary>
 public sealed partial class DesktopShellViewModel : ObservableObject, IDisposable
@@ -14,6 +16,8 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     private readonly TimeProvider _timeProvider;
     private readonly DesktopTheme? _theme;
     private int _appearanceIndex;
+    private WorkspaceDensity _density = WorkspaceDensity.Comfortable;
+    private WorkspaceNamingMode _defaultNamingMode = WorkspaceNamingMode.Humanized;
     private DesktopOperation? _activeOperation;
     private TaskCompletionSource<bool>? _closeDecision;
     private Task<bool>? _closeTask;
@@ -42,10 +46,13 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     [NotifyPropertyChangedFor(nameof(CloseMessage))]
     [NotifyCanExecuteChangedFor(nameof(ForceCloseCommand))]
     private bool _closeDecisionRequired;
+    [ObservableProperty]
+    private bool _shortcutsDialogOpen;
 
     public DesktopShellViewModel(IMessenger messenger, DefinitionLoaderViewModel loader,
         FormWorkspaceViewModel workspace, ArtifactPublisherViewModel publisher,
-        DesktopImportReviewViewModel importReview, TimeProvider? timeProvider = null, DesktopTheme? theme = null)
+        DesktopImportReviewViewModel importReview, TimeProvider? timeProvider = null, DesktopTheme? theme = null,
+        ISecretClipboardService? clipboard = null)
     {
         _messenger = messenger;
         _timeProvider = timeProvider ?? TimeProvider.System;
@@ -55,6 +62,10 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         Loader = loader;
         Workspace = workspace;
         Navigation = new DesktopNavigationViewModel(workspace);
+        Inspector = new DesktopInspectorViewModel(workspace);
+        CompactTable = new CompactSettingsTableViewModel(workspace, Navigation, messenger, clipboard,
+            path => Inspector.InspectPath(path));
+        DocumentEditor = new DocumentEditorViewModel(workspace, Navigation, messenger);
         Publisher = publisher;
         ImportReview = importReview;
         Profiles = new ProfileManagerViewModel(workspace, messenger);
@@ -80,6 +91,11 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
             else if (message.Target is "SelectImport" or "ExistingFilePath" or "SelectOutput" or
                 "OutputDirectory" or "FileName" or "StayOpen" or "ForceClose")
                 root.Navigation.Stage = DesktopWorkspaceStage.Review;
+            else if (message.Target is "ConfigurationSearch" && root.Navigation.HasWorkspace)
+            {
+                root.Navigation.Stage = DesktopWorkspaceStage.Configure;
+                root.Navigation.ConfigureMode = DesktopConfigureViewMode.Guided;
+            }
             root.FocusTarget = message.Target;
             root.FocusRequestGeneration = checked(root.FocusRequestGeneration + 1);
         });
@@ -88,6 +104,9 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     public DefinitionLoaderViewModel Loader { get; }
     public FormWorkspaceViewModel Workspace { get; }
     public DesktopNavigationViewModel Navigation { get; }
+    public CompactSettingsTableViewModel CompactTable { get; }
+    public DocumentEditorViewModel DocumentEditor { get; }
+    public DesktopInspectorViewModel Inspector { get; }
     public ArtifactPublisherViewModel Publisher { get; }
     public DesktopImportReviewViewModel ImportReview { get; }
     public ProfileManagerViewModel Profiles { get; }
@@ -101,6 +120,61 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
             SetProperty(ref _appearanceIndex, value);
         }
     }
+    public WorkspaceDensity Density
+    {
+        get => _density;
+        set
+        {
+            if (_disposed || !Enum.IsDefined(value) || value == _density) return;
+            _density = value;
+            if (_theme is not null) _theme.Density = value;
+            else DesktopDensity.Apply(Avalonia.Application.Current, value);
+            Workspace.SetDensity(value);
+            OnPropertyChanged(nameof(Density));
+            OnPropertyChanged(nameof(DensityIndex));
+        }
+    }
+    public int DensityIndex
+    {
+        get => (int)_density;
+        set
+        {
+            if (value is >= 0 and <= 3) Density = (WorkspaceDensity)value;
+        }
+    }
+    public WorkspaceNamingMode DefaultNamingMode
+    {
+        get => _defaultNamingMode;
+        set
+        {
+            if (_disposed || !Enum.IsDefined(value) || value == _defaultNamingMode) return;
+            _defaultNamingMode = value;
+            Workspace.DefaultNamingMode = value;
+            OnPropertyChanged(nameof(DefaultNamingMode));
+            OnPropertyChanged(nameof(DefaultNamingModeIndex));
+        }
+    }
+    public int DefaultNamingModeIndex
+    {
+        get => (int)_defaultNamingMode;
+        set
+        {
+            if (value is >= 0 and <= 1) DefaultNamingMode = (WorkspaceNamingMode)value;
+        }
+    }
+
+    [RelayCommand]
+    public void OpenShortcutsHelp()
+    {
+        if (_disposed) return;
+        Navigation.Stage = DesktopWorkspaceStage.Settings;
+        Navigation.SelectedSettingsSection = Navigation.SettingsSections
+            .FirstOrDefault(section => section.Id == DesktopSettingsSectionId.KeyboardAndDialogs);
+        ShortcutsDialogOpen = true;
+    }
+
+    [RelayCommand]
+    public void CloseShortcutsHelp() => ShortcutsDialogOpen = false;
     /// <summary>Physical settlement, including consumer-owned cleanup; cancellation alone never completes this task.</summary>
     public Task ActiveCompletion => _activeOperation?.Completion ?? Task.CompletedTask;
     public bool IsCloseAuthorized { get; private set; }
@@ -203,6 +277,97 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         await Publisher.PrepareSelectionAsync();
     }
 
+    [RelayCommand]
+    public void ToggleInspector()
+    {
+        if (_disposed || Workspace.Form is null) return;
+        Inspector.Toggle();
+    }
+
+    [RelayCommand]
+    public void OpenCommandPalette()
+    {
+        if (_disposed || Workspace.Form is null) return;
+        Navigation.Stage = DesktopWorkspaceStage.Configure;
+        Navigation.ConfigureMode = DesktopConfigureViewMode.Guided;
+        Navigation.IsCommandPaletteOpen = true;
+        _messenger.Send(new FocusRequestedMessage("ConfigurationSearch"));
+    }
+
+    [RelayCommand]
+    public void OpenDocumentMode()
+    {
+        if (_disposed || Workspace.Form is null) return;
+        Navigation.Stage = DesktopWorkspaceStage.Configure;
+        Navigation.ConfigureMode = DesktopConfigureViewMode.Document;
+    }
+
+    [RelayCommand]
+    public void ExecuteWorkspaceCommand(WorkspaceCommandDescriptor? command)
+    {
+        if (_disposed || command is null || !command.IsEnabled) return;
+        switch (command.Id)
+        {
+            case WorkspaceCommandId.Undo:
+                if (Workspace.UndoCommand.CanExecute(null)) Workspace.UndoCommand.Execute(null);
+                break;
+            case WorkspaceCommandId.Redo:
+                if (Workspace.RedoCommand.CanExecute(null)) Workspace.RedoCommand.Execute(null);
+                break;
+            case WorkspaceCommandId.SwitchToGuided:
+                Navigation.Stage = DesktopWorkspaceStage.Configure;
+                Navigation.ConfigureMode = DesktopConfigureViewMode.Guided;
+                break;
+            case WorkspaceCommandId.SwitchToCompact:
+                if (Navigation.HasWorkspace)
+                {
+                    Navigation.Stage = DesktopWorkspaceStage.Configure;
+                    Navigation.ConfigureMode = DesktopConfigureViewMode.Compact;
+                }
+                break;
+            case WorkspaceCommandId.SwitchToReview:
+                if (Navigation.HasWorkspace) Navigation.Stage = DesktopWorkspaceStage.Review;
+                break;
+            case WorkspaceCommandId.SwitchToFiles:
+                Navigation.Stage = DesktopWorkspaceStage.Open;
+                break;
+            case WorkspaceCommandId.ToggleNamingMode:
+                if (Workspace.ToggleNamingModeCommand.CanExecute(null)) Workspace.ToggleNamingModeCommand.Execute(null);
+                break;
+            case WorkspaceCommandId.ToggleInspector:
+                Inspector.Toggle();
+                break;
+            case WorkspaceCommandId.OpenDocumentEditor:
+                OpenDocumentMode();
+                break;
+            case WorkspaceCommandId.OpenShortcutsHelp:
+                OpenShortcutsHelp();
+                break;
+            case WorkspaceCommandId.JumpToNextError:
+                if (Navigation.JumpNextErrorCommand.CanExecute(null))
+                {
+                    Navigation.Stage = DesktopWorkspaceStage.Configure;
+                    Navigation.JumpNextErrorCommand.Execute(null);
+                }
+                break;
+            case WorkspaceCommandId.JumpToNextRequired:
+                if (Navigation.JumpNextRequiredCommand.CanExecute(null))
+                {
+                    Navigation.Stage = DesktopWorkspaceStage.Configure;
+                    Navigation.JumpNextRequiredCommand.Execute(null);
+                }
+                break;
+            case WorkspaceCommandId.JumpToNextUnvisited:
+                if (Navigation.JumpNextUnvisitedCommand.CanExecute(null))
+                {
+                    Navigation.Stage = DesktopWorkspaceStage.Configure;
+                    Navigation.JumpNextUnvisitedCommand.Execute(null);
+                }
+                break;
+        }
+        Navigation.IsCommandPaletteOpen = false;
+    }
+
     /// <summary>Shares one close intent while retaining the exact physical settlement task.</summary>
     public Task<bool> RequestCloseAsync()
     {
@@ -285,6 +450,9 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         ImportReview.Dispose();
         Profiles.Dispose();
         Publisher.Dispose();
+        DocumentEditor.Dispose();
+        CompactTable.Dispose();
+        Inspector.Dispose();
         Navigation.Dispose();
         Workspace.Dispose();
         _messenger.UnregisterAll(this);

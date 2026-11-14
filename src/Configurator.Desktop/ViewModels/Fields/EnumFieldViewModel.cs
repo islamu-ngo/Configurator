@@ -7,15 +7,25 @@ public sealed class EnumFieldViewModel : FieldViewModel
 {
     private int _selectedIndex;
     private bool _loading;
+
     internal EnumFieldViewModel(DefinitionNode schema, string name, bool required,
         FieldViewModel? parent, bool listItem, bool inheritedMasking = false)
         : base(schema, name, required, parent, listItem, inheritedMasking)
     {
         Choices = RequiresMasking ? [] : Array.AsReadOnly(
-            new[] { new EnumChoice(0, Strings["NotSupplied"]) }.Concat(schema.Keywords.GetProperty("enum").EnumerateArray()
-                .Select((choice, index) => new EnumChoice(index + 1, Display(choice) is { Length: > 0 } text ? text : Strings["EmptyString"]))).ToArray());
+            new[] { new EnumChoice(0, Strings["NotSupplied"], select: SelectChoiceIndex) }
+                .Concat(schema.Keywords.GetProperty("enum").EnumerateArray()
+                    .Select((choice, index) => new EnumChoice(
+                        index + 1,
+                        Display(choice) is { Length: > 0 } text ? text : Strings["EmptyString"],
+                        select: SelectChoiceIndex)))
+                .ToArray());
     }
+
     public IReadOnlyList<EnumChoice> Choices { get; }
+    public bool IsRadioWidget => IsPublic && !RequiresMasking && Presentation?.Widget == DefinitionFieldWidget.Radio;
+    public bool IsSelectWidget => IsPublic && !RequiresMasking && !IsRadioWidget;
+
     public int SelectedIndex
     {
         get => RequiresMasking ? -1 : !IsProvided ? 0 : _selectedIndex;
@@ -26,6 +36,35 @@ public sealed class EnumFieldViewModel : FieldViewModel
             Form.SetValue(FullPath(), value == 0 ? null : Schema.Keywords.GetProperty("enum")[value - 1]);
         }
     }
+
+    public string SelectedChoiceExplanation
+    {
+        get
+        {
+            int idx = SelectedIndex;
+            if (RequiresMasking || idx <= 0 || idx >= Choices.Count) return string.Empty;
+            return Choices[idx].Explanation ?? string.Empty;
+        }
+    }
+
+    public string SelectedChoiceDeprecation
+    {
+        get
+        {
+            int idx = SelectedIndex;
+            if (RequiresMasking || idx <= 0 || idx >= Choices.Count) return string.Empty;
+            EnumChoice choice = Choices[idx];
+            return !string.IsNullOrWhiteSpace(choice.DeprecationGuidance)
+                ? Strings.DeprecatedText(choice.DeprecationGuidance!)
+                : choice.IsDeprecated ? Strings["DeprecatedBadge"] : string.Empty;
+        }
+    }
+
+    private void SelectChoiceIndex(int index)
+    {
+        if (!_loading) SelectedIndex = index;
+    }
+
     internal override void Load(JsonElement? value)
     {
         _loading = true;
@@ -34,8 +73,12 @@ public sealed class EnumFieldViewModel : FieldViewModel
             if (!RequiresMasking && Form.GetEditorPresentation(FullPath()) is { } display)
             {
                 Choices[0].UpdateLabel(Strings["NotSupplied"]);
-                for (int index = 0; index < display.Choices.Count; index++)
-                    Choices[index + 1].UpdateLabel(display.Choices[index].Label.Length == 0 ? Strings["EmptyString"] : display.Choices[index].Label);
+                for (int index = 0; index < display.Choices.Count && index + 1 < Choices.Count; index++)
+                {
+                    var item = display.Choices[index];
+                    string label = item.Label.Length == 0 ? Strings["EmptyString"] : item.Label;
+                    Choices[index + 1].UpdateMetadata(label, item.Explanation, item.IsDeprecated, item.DeprecationGuidance);
+                }
             }
             _selectedIndex = -1;
             if (!RequiresMasking && value is { } supplied)
@@ -52,9 +95,19 @@ public sealed class EnumFieldViewModel : FieldViewModel
                 }
             }
             base.Load(value);
+            int current = SelectedIndex;
+            foreach (EnumChoice choice in Choices)
+                choice.SyncSelected(choice.Index == current);
         }
         finally { _loading = false; }
     }
-    protected override void NotifyValue() => OnPropertyChanged(nameof(SelectedIndex));
 
+    protected override void NotifyValue()
+    {
+        OnPropertyChanged(nameof(SelectedIndex));
+        OnPropertyChanged(nameof(IsRadioWidget));
+        OnPropertyChanged(nameof(IsSelectWidget));
+        OnPropertyChanged(nameof(SelectedChoiceExplanation));
+        OnPropertyChanged(nameof(SelectedChoiceDeprecation));
+    }
 }

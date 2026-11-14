@@ -53,6 +53,13 @@ public sealed class DesktopStrings
     public string AddEntryName(string title) => string.Format(Culture, Read(nameof(AddEntryName)), title);
     public string SupplyName(string title) => string.Format(Culture, Read(nameof(SupplyName)), title);
     public string ClearName(string title) => string.Format(Culture, Read(nameof(ClearName)), title);
+    public string UnitsText(string units) => string.Format(Culture, Read("UnitsPrefix"), units);
+    public string DeprecatedText(string guidance) => string.Format(Culture, Read("DeprecatedPrefix"), guidance);
+    public string NamingToggleLabel => Read("ToggleNamingLabel");
+    public string CopyWireKeyLabel => Read("CopyWireKeyLabel");
+    public string OmitSwitchLabel => Read("OmitSwitchLabel");
+    public string SwitchOmittedStatus => Read("SwitchOmittedStatus");
+    public string UniqueDuplicateWarning => Read("UniqueDuplicateWarning");
 
     public string Read(string key) => Resources.GetString(key, Culture) ?? key;
 }

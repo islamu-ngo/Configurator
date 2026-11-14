@@ -3,112 +3,147 @@
     xmlns:vm="using:Configurator.Desktop.ViewModels" xmlns:definitions="using:Configurator.Core.Definitions"
     xmlns:local="using:Configurator.Desktop.Views"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
-    <StackPanel Spacing="8">
-      <WrapPanel>
-        <TextBlock Text="{Binding Workspace.Strings[RequiredCount]}" Margin="0,0,8,0" />
-        <TextBlock Text="{Binding Navigation.Progress.Required}" Margin="0,0,16,0" />
-        <TextBlock Text="{Binding Workspace.Strings[MissingCount]}" Margin="0,0,8,0" />
-        <TextBlock Text="{Binding Navigation.Progress.Missing}" Margin="0,0,16,0" />
-        <TextBlock Text="{Binding Workspace.Strings[InvalidCount]}" Margin="0,0,8,0" />
-        <TextBlock Text="{Binding Navigation.Progress.Invalid}" />
-      </WrapPanel>
-        <StackPanel IsVisible="{Binding Publisher.IsSingleSelection}">
-          <TextBlock Text="{Binding Workspace.Strings[FileName]}" />
-          <TextBox Name="FileName" Text="{Binding Publisher.FileName, Mode=TwoWay}" FlowDirection="LeftToRight" AutomationProperties.Name="{Binding Workspace.Strings[FileName]}" />
-        </StackPanel>
-      <TextBlock Text="{Binding Workspace.Strings[SelectedOutputs]}" />
-      <ItemsControl Name="ArtifactSelections" ItemsSource="{Binding Publisher.ArtifactSelections}">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="vm:ArtifactSelectionViewModel">
-            <StackPanel Spacing="4">
-            <CheckBox Content="{Binding Title}" IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                      AutomationProperties.Name="{Binding AutomationName}"
-                      AutomationProperties.HelpText="{Binding Title}" />
-            <TextBlock Text="{Binding DeclaredFileName}" FlowDirection="LeftToRight" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding Format}" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding PreparationStatus}" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding Consequences}" TextWrapping="Wrap" />
+    <StackPanel Spacing="12">
+      <local:ProfileWorkspaceView />
+      <Border Name="ReviewPrepareCard" Classes="m3-card" Padding="14">
+        <StackPanel Spacing="8">
+          <TextBlock Text="{Binding Workspace.Strings[ReviewPrepareCardTitle]}" Classes="m3-section" />
+          <TextBlock Text="{Binding Workspace.Strings[ReviewPrepareCardDescription]}"
+                     Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
+          <WrapPanel>
+            <TextBlock Text="{Binding Workspace.Strings[RequiredCount]}" Margin="0,0,8,0" />
+            <TextBlock Text="{Binding Navigation.Progress.Required}" Margin="0,0,16,0" />
+            <TextBlock Text="{Binding Workspace.Strings[MissingCount]}" Margin="0,0,8,0" />
+            <TextBlock Text="{Binding Navigation.Progress.Missing}" Margin="0,0,16,0" />
+            <TextBlock Text="{Binding Workspace.Strings[InvalidCount]}" Margin="0,0,8,0" />
+            <TextBlock Text="{Binding Navigation.Progress.Invalid}" />
+          </WrapPanel>
+          <TextBlock Text="{Binding Workspace.Strings[SelectedOutputs]}" />
+          <ItemsControl Name="ArtifactSelections" ItemsSource="{Binding Publisher.ArtifactSelections}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ArtifactSelectionViewModel">
+                <StackPanel Spacing="4">
+                <CheckBox Content="{Binding Title}" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                          AutomationProperties.Name="{Binding AutomationName}"
+                          AutomationProperties.HelpText="{Binding Title}" />
+                <TextBlock Text="{Binding DeclaredFileName}" FlowDirection="LeftToRight" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Format}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding PreparationStatus}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Consequences}" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Text="{Binding Workspace.Strings[SingleFileNameHelp]}" IsVisible="{Binding Publisher.IsSingleSelection}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Workspace.Strings[MultipleFileNamesHelp]}" IsVisible="{Binding !Publisher.IsSingleSelection}" TextWrapping="Wrap" />
+          <Expander Name="OptionalImport" Header="{Binding Workspace.Strings[OptionalImport]}">
+          <StackPanel Spacing="8">
+          <TextBlock Text="{Binding Workspace.Strings[ImportSourceArtifact]}" />
+          <ComboBox Name="Artifact" HorizontalAlignment="Stretch"
+                    AutomationProperties.Name="{Binding Workspace.Strings[ImportSourceArtifact]}"
+                    ItemsSource="{Binding Publisher.Artifacts}"
+                    SelectedItem="{Binding Publisher.SelectedArtifact, Mode=TwoWay}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="definitions:ArtifactDefinition">
+                <TextBlock Text="{Binding Title}" ToolTip.Tip="{Binding Description}" />
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Text="{Binding ImportReview.ImportPurposeLabel}" />
+          <ComboBox Name="ImportPurpose" HorizontalAlignment="Stretch"
+                    SelectedIndex="{Binding ImportReview.ImportPurposeIndex, Mode=TwoWay}"
+                    AutomationProperties.Name="{Binding ImportReview.ImportPurposeLabel}"
+                    AutomationProperties.HelpText="{Binding ImportReview.ImportLimitHelp}">
+            <ComboBoxItem AutomationProperties.Name="{Binding ImportReview.ImportPurposes[0]}">
+              <TextBlock Text="{Binding ImportReview.ImportPurposes[0]}" />
+            </ComboBoxItem>
+            <ComboBoxItem AutomationProperties.Name="{Binding ImportReview.ImportPurposes[1]}">
+              <TextBlock Text="{Binding ImportReview.ImportPurposes[1]}" />
+            </ComboBoxItem>
+          </ComboBox>
+          <TextBlock Text="{Binding ImportReview.ImportLimitHelp}" TextWrapping="Wrap" />
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <StackPanel>
+              <TextBlock Text="{Binding Workspace.Strings[ImportPath]}" TextWrapping="Wrap" />
+              <TextBox Name="ExistingFilePath" Text="{Binding ImportReview.ExistingFilePath, Mode=TwoWay}" FlowDirection="LeftToRight"
+                       AutomationProperties.Name="{Binding Workspace.Strings[ImportPath]}" />
             </StackPanel>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-      <TextBlock Text="{Binding Workspace.Strings[SingleFileNameHelp]}" IsVisible="{Binding Publisher.IsSingleSelection}" TextWrapping="Wrap" />
-      <TextBlock Text="{Binding Workspace.Strings[MultipleFileNamesHelp]}" IsVisible="{Binding !Publisher.IsSingleSelection}" TextWrapping="Wrap" />
-      <Expander Name="OptionalImport" Header="{Binding Workspace.Strings[OptionalImport]}">
-      <StackPanel Spacing="8">
-      <TextBlock Text="{Binding Workspace.Strings[ImportSourceArtifact]}" />
-      <ComboBox Name="Artifact" HorizontalAlignment="Stretch"
-                AutomationProperties.Name="{Binding Workspace.Strings[ImportSourceArtifact]}"
-                ItemsSource="{Binding Publisher.Artifacts}"
-                SelectedItem="{Binding Publisher.SelectedArtifact, Mode=TwoWay}">
-        <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="definitions:ArtifactDefinition">
-            <TextBlock Text="{Binding Title}" ToolTip.Tip="{Binding Description}" />
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
-      <TextBlock Text="{Binding ImportReview.ImportPurposeLabel}" />
-      <ComboBox Name="ImportPurpose" HorizontalAlignment="Stretch"
-                SelectedIndex="{Binding ImportReview.ImportPurposeIndex, Mode=TwoWay}"
-                AutomationProperties.Name="{Binding ImportReview.ImportPurposeLabel}"
-                AutomationProperties.HelpText="{Binding ImportReview.ImportLimitHelp}">
-        <ComboBoxItem AutomationProperties.Name="{Binding ImportReview.ImportPurposes[0]}">
-          <TextBlock Text="{Binding ImportReview.ImportPurposes[0]}" />
-        </ComboBoxItem>
-        <ComboBoxItem AutomationProperties.Name="{Binding ImportReview.ImportPurposes[1]}">
-          <TextBlock Text="{Binding ImportReview.ImportPurposes[1]}" />
-        </ComboBoxItem>
-      </ComboBox>
-      <TextBlock Text="{Binding ImportReview.ImportLimitHelp}" TextWrapping="Wrap" />
-      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-        <StackPanel>
-          <TextBlock Text="{Binding Workspace.Strings[ImportPath]}" TextWrapping="Wrap" />
-          <TextBox Name="ExistingFilePath" Text="{Binding ImportReview.ExistingFilePath, Mode=TwoWay}" FlowDirection="LeftToRight"
-                   AutomationProperties.Name="{Binding Workspace.Strings[ImportPath]}" />
+            <Button Grid.Column="1" Name="SelectImport" Content="{Binding Workspace.Strings[ChooseImport]}"
+                    Command="{Binding ImportReview.SelectImportCommand}" AutomationProperties.Name="{Binding Workspace.Strings[ChooseImport]}"
+                    VerticalAlignment="Bottom" />
+            <Button Grid.Column="2" Name="Import" Content="{Binding ImportReview.ReviewFileLabel}"
+                    AutomationProperties.Name="{Binding ImportReview.ReviewFileLabel}"
+                    Command="{Binding ImportReview.ImportFileCommand}" VerticalAlignment="Bottom" />
+          </Grid>
+          <StackPanel Name="ImportComparison" IsVisible="{Binding ImportReview.HasImportComparison}">
+            <local:ImportComparisonView DataContext="{Binding ImportReview}" />
+          </StackPanel>
+          </StackPanel>
+          </Expander>
+          <WrapPanel>
+            <Button Name="PrepareSelection" Classes="m3-primary" Content="{Binding Workspace.Strings[PrepareSelection]}"
+                    Command="{Binding Publisher.PrepareSelectionCommand}" />
+          </WrapPanel>
         </StackPanel>
-        <Button Grid.Column="1" Name="SelectImport" Content="{Binding Workspace.Strings[ChooseImport]}"
-                Command="{Binding ImportReview.SelectImportCommand}" AutomationProperties.Name="{Binding Workspace.Strings[ChooseImport]}"
-                VerticalAlignment="Bottom" />
-        <Button Grid.Column="2" Name="Import" Content="{Binding ImportReview.ReviewFileLabel}"
-                AutomationProperties.Name="{Binding ImportReview.ReviewFileLabel}"
-                Command="{Binding ImportReview.ImportFileCommand}" VerticalAlignment="Bottom" />
-      </Grid>
-      <StackPanel Name="ImportComparison" IsVisible="{Binding ImportReview.HasImportComparison}">
-        <local:ImportComparisonView DataContext="{Binding ImportReview}" />
-      </StackPanel>
-      </StackPanel>
-      </Expander>
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-      <StackPanel>
-        <TextBlock Text="{Binding Workspace.Strings[OutputDirectory]}" />
-        <TextBox Name="OutputDirectory" Text="{Binding Publisher.OutputDirectory, Mode=TwoWay}" FlowDirection="LeftToRight"
-                 AutomationProperties.Name="{Binding Workspace.Strings[OutputDirectory]}" />
-      </StackPanel>
-        <Button Grid.Column="1" Name="SelectOutput" Content="{Binding Workspace.Strings[ChooseFolder]}"
-                Command="{Binding Publisher.SelectOutputDirectoryCommand}" AutomationProperties.Name="{Binding Workspace.Strings[ChooseFolder]}"
-                VerticalAlignment="Bottom" />
-      </Grid>
-      <WrapPanel>
-        <Button Name="PrepareSelection" Content="{Binding Workspace.Strings[PrepareSelection]}" Margin="0,0,8,0"
-                Command="{Binding Publisher.PrepareSelectionCommand}" />
-        <Button Name="SaveSelection" Content="{Binding Workspace.Strings[SaveSelection]}"
-                Command="{Binding Publisher.SaveSelectionCommand}" />
-      </WrapPanel>
-      <TextBlock Text="{Binding Workspace.Strings[PublicationFacts]}" FontWeight="SemiBold" />
-      <TextBlock Name="PublicationReceipt" Text="{Binding Publisher.PublicationSummary}" TextWrapping="Wrap"
-                 AutomationProperties.Name="{Binding Workspace.Strings[PublicationFacts]}"
-                 AutomationProperties.HelpText="{Binding Workspace.Strings[PublicationHelp]}" />
-      <Expander Header="{Binding Workspace.Strings[PublicationHistory]}" AutomationProperties.Name="{Binding Workspace.Strings[PublicationHistory]}">
-        <ItemsControl Name="PublicationHistory" ItemsSource="{Binding Publisher.PublicationHistoryText}">
+      </Border>
+
+      <Border Name="CreateOnlySaveCard" Classes="m3-card" Padding="14">
+        <StackPanel Spacing="8">
+          <TextBlock Text="{Binding Workspace.Strings[CreateOnlySaveCardTitle]}" Classes="m3-section" />
+          <TextBlock Text="{Binding Workspace.Strings[CreateOnlySaveCardDescription]}"
+                     Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
+          <StackPanel IsVisible="{Binding Publisher.IsSingleSelection}">
+            <TextBlock Text="{Binding Workspace.Strings[FileName]}" />
+            <TextBox Name="FileName" Text="{Binding Publisher.FileName, Mode=TwoWay}" FlowDirection="LeftToRight" AutomationProperties.Name="{Binding Workspace.Strings[FileName]}" />
+          </StackPanel>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <StackPanel>
+              <TextBlock Text="{Binding Workspace.Strings[OutputDirectory]}" />
+              <TextBox Name="OutputDirectory" Text="{Binding Publisher.OutputDirectory, Mode=TwoWay}" FlowDirection="LeftToRight"
+                       AutomationProperties.Name="{Binding Workspace.Strings[OutputDirectory]}" />
+            </StackPanel>
+            <Button Grid.Column="1" Name="SelectOutput" Content="{Binding Workspace.Strings[ChooseFolder]}"
+                    Command="{Binding Publisher.SelectOutputDirectoryCommand}" AutomationProperties.Name="{Binding Workspace.Strings[ChooseFolder]}"
+                    VerticalAlignment="Bottom" />
+          </Grid>
+          <WrapPanel>
+            <Button Name="SaveSelection" Classes="m3-primary" Content="{Binding Workspace.Strings[SaveSelection]}"
+                    Command="{Binding Publisher.SaveSelectionCommand}" />
+          </WrapPanel>
+          <TextBlock Text="{Binding Workspace.Strings[PublicationFacts]}" FontWeight="SemiBold" />
+          <TextBlock Name="PublicationReceipt" Text="{Binding Publisher.PublicationSummary}" TextWrapping="Wrap"
+                     AutomationProperties.Name="{Binding Workspace.Strings[PublicationFacts]}"
+                     AutomationProperties.HelpText="{Binding Workspace.Strings[PublicationHelp]}" />
+          <Expander Header="{Binding Workspace.Strings[PublicationHistory]}" AutomationProperties.Name="{Binding Workspace.Strings[PublicationHistory]}">
+            <ItemsControl Name="PublicationHistory" ItemsSource="{Binding Publisher.PublicationHistoryText}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:String">
+                  <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,4" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Expander>
+        </StackPanel>
+      </Border>
+      <TextBlock Name="OutputWorkflowStatus" Text="{Binding Workspace.OutputStatus}" TextWrapping="Wrap"
+                 AutomationProperties.Name="{Binding Workspace.Strings[OutputTaskStatus]}" />
+      <StackPanel IsVisible="{Binding Workspace.HasNextActions}" Spacing="8">
+        <TextBlock Text="{Binding Workspace.Strings[NextActionsTitle]}" FontWeight="SemiBold" />
+        <ItemsControl Name="ProposedNextActions" ItemsSource="{Binding Workspace.ProposedNextActions}">
           <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="x:String">
-              <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,4" />
+            <DataTemplate x:DataType="vm:DesktopNextActionViewModel">
+              <StackPanel Spacing="4">
+                <Button Content="{Binding Title}" AutomationProperties.Name="{Binding Title}"
+                        Command="{Binding ReviewCommand}" />
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+              </StackPanel>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
-      </Expander>
+      </StackPanel>
+      <TextBlock Text="{Binding Workspace.TransferStatus}" TextWrapping="Wrap" />
     </StackPanel>
 </UserControl>

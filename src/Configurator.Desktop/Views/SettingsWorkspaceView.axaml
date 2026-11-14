@@ -47,6 +47,28 @@
           </ComboBox>
         </StackPanel>
         <StackPanel Spacing="4">
+          <TextBlock Text="{Binding Workspace.Strings[SettingsDensityLabel]}" FontWeight="SemiBold" />
+          <ComboBox Name="SettingsDensitySelector"
+                    SelectedIndex="{Binding DensityIndex, Mode=TwoWay}"
+                    AutomationProperties.Name="{Binding Workspace.Strings[SettingsDensityLabel]}"
+                    HorizontalAlignment="Left" MinWidth="180">
+            <ComboBoxItem Content="{Binding Workspace.Strings[DensitySpacious]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[DensityComfortable]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[DensityCompact]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[DensityDense]}" />
+          </ComboBox>
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Text="{Binding Workspace.Strings[SettingsDefaultNamingLabel]}" FontWeight="SemiBold" />
+          <ComboBox Name="SettingsDefaultNamingSelector"
+                    SelectedIndex="{Binding DefaultNamingModeIndex, Mode=TwoWay}"
+                    AutomationProperties.Name="{Binding Workspace.Strings[SettingsDefaultNamingLabel]}"
+                    HorizontalAlignment="Left" MinWidth="220">
+            <ComboBoxItem Content="{Binding Workspace.Strings[NamingHumanized]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[NamingTechnical]}" />
+          </ComboBox>
+        </StackPanel>
+        <StackPanel Spacing="4">
           <TextBlock Text="{Binding Workspace.Strings[SettingsContrastLabel]}" FontWeight="SemiBold" />
           <TextBlock Text="{Binding HighContrastStatus}"
                      Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
@@ -90,7 +112,27 @@
             Background="{DynamicResource ConfiguratorSurfaceBrush}"
             BorderThickness="1" Padding="16"
             IsVisible="{Binding Navigation.IsKeyboardSettings}">
-      <TextBlock Text="{Binding Workspace.Strings[SettingsShortcutsHelp]}" TextWrapping="Wrap" />
+      <StackPanel Spacing="12">
+        <Button Name="SettingsShortcutsButton"
+                AutomationProperties.AutomationId="SettingsShortcutsButton"
+                Content="{Binding Workspace.Strings[OpenShortcutsHelpLabel]}"
+                Command="{Binding OpenShortcutsHelpCommand}"
+                HorizontalAlignment="Left" />
+        <TextBlock Text="{Binding Workspace.Strings[SettingsShortcutsHelp]}" TextWrapping="Wrap" />
+        <Border Name="ShortcutsSheetPanel"
+                IsVisible="{Binding ShortcutsDialogOpen}"
+                Classes="m3-card"
+                BorderBrush="{DynamicResource ConfiguratorFocusBrush}"
+                BorderThickness="2">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{Binding Workspace.Strings[ShortcutsDialogTitle]}" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding Workspace.Strings[SettingsShortcutsHelp]}" TextWrapping="Wrap" />
+            <Button Content="{Binding Workspace.Strings[CloseShortcutsLabel]}"
+                    Command="{Binding CloseShortcutsHelpCommand}"
+                    HorizontalAlignment="Left" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
     </Border>
 
     <Border BorderBrush="{DynamicResource ConfiguratorBorderBrush}"

@@ -1,0 +1,29 @@
+Change-Id: CHG-01M7E03FQXXJAW7C2BA3DSP33G
+Title: "Connect Desktop guided, compact and document workspace views"
+Type: feat
+Scope: self-hosting
+Summary: "Integrate shared workspace projections with native section navigation, rich widgets, read-only definition exploration, compact settings, document editing, inspector and keyboard commands."
+Group: desktop-workspace-integration
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "The workspace shares accepted-answer authority across guided, compact and document views, masks private compact rows and keeps inspection metadata-only."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Section navigation, naming, density, keyboard commands, document adoption and explicit task-transfer review use the same workspace."
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Definitions can be inspected before editing. Guided, compact and document views share review and create-only output controls."

@@ -1,0 +1,110 @@
+<UserControl
+    x:Class="Configurator.Desktop.Views.DocumentEditorView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:p="using:Configurator.Presentation"
+    xmlns:vm="using:Configurator.Desktop.ViewModels"
+    x:DataType="vm:DocumentEditorViewModel"
+    x:CompileBindings="True">
+  <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+    <!-- Toolbar -->
+    <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemSpacing="8" LineSpacing="6">
+      <ComboBox Name="DocumentRepresentationPicker"
+                ItemsSource="{Binding RepresentationOptions}"
+                SelectedIndex="{Binding RepresentationIndex, Mode=TwoWay}"
+                AutomationProperties.Name="{Binding Strings[DocumentRepresentationLabel]}" />
+      <ComboBox Name="DocumentEnvironmentArtifactPicker"
+                IsVisible="{Binding IsEnvironmentRepresentation}"
+                ItemsSource="{Binding EnvironmentArtifacts}"
+                SelectedItem="{Binding SelectedEnvironmentArtifactId, Mode=TwoWay}"
+                AutomationProperties.Name="{Binding Strings[DocumentArtifactLabel]}" />
+      <ComboBox Name="DocumentApplyModePicker"
+                ItemsSource="{Binding ApplyModeOptions}"
+                SelectedIndex="{Binding ApplyModeIndex, Mode=TwoWay}"
+                AutomationProperties.Name="{Binding Strings[DocumentApplyModeLabel]}" />
+      <Button Name="DocumentReloadButton"
+              Content="{Binding Strings[DocumentReloadLabel]}"
+              Command="{Binding ReloadFromWorkspaceCommand}" />
+      <Button Name="DocumentPreviewButton"
+              Content="{Binding Strings[DocumentPreviewLabel]}"
+              Command="{Binding PreviewChangesCommand}" />
+      <Button Name="DocumentApplyButton"
+              Classes="m3-primary"
+              Content="{Binding Strings[DocumentApplyLabel]}"
+              Command="{Binding ApplyPreviewCommand}" />
+    </WrapPanel>
+
+    <!-- Split source editor + pre-apply diff preview -->
+    <Grid Grid.Row="1" ColumnDefinitions="3*,2*" ColumnSpacing="12">
+      <TextBox Grid.Column="0" Name="DocumentSourceTextBox"
+               AcceptsReturn="True"
+               TextWrapping="NoWrap"
+               FontFamily="monospace"
+               Text="{Binding DocumentText, Mode=TwoWay}"
+               AutomationProperties.Name="{Binding Strings[DocumentEditorLabel]}" />
+
+      <Border Grid.Column="1" Classes="m3-surface-subtle" Padding="10">
+        <ScrollViewer>
+          <StackPanel Spacing="8">
+            <TextBlock Text="{Binding Strings[DocumentPreviewHeading]}" FontWeight="SemiBold" />
+            <TextBlock Name="DocumentStaleBanner"
+                       Text="{Binding Strings[DocumentStaleWarning]}"
+                       IsVisible="{Binding IsStale}"
+                       Foreground="{DynamicResource ConfiguratorErrorBrush}"
+                       TextWrapping="Wrap" />
+            <TextBlock Name="DocumentErrorCode"
+                       Text="{Binding LastErrorCode}"
+                       IsVisible="{Binding HasErrorCode}"
+                       Foreground="{DynamicResource ConfiguratorErrorBrush}"
+                       TextWrapping="Wrap" />
+            <TextBlock Name="DocumentChangesSummary"
+                       Text="{Binding ChangesCountSummary}"
+                       IsVisible="{Binding HasPreview}"
+                       Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+            <TextBlock Text="{Binding Strings[DocumentNoChanges]}"
+                       Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}">
+              <TextBlock.IsVisible>
+                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                  <Binding Path="HasPreview" />
+                  <Binding Path="!HasPendingChanges" />
+                </MultiBinding>
+              </TextBlock.IsVisible>
+            </TextBlock>
+
+            <ItemsControl Name="DocumentPendingChanges" ItemsSource="{Binding PendingChanges}"
+                          IsVisible="{Binding HasPendingChanges}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:DocumentChangePreviewItem">
+                  <WrapPanel Orientation="Horizontal" ItemSpacing="8" Margin="0,2">
+                    <TextBlock Text="{Binding KindText}" FontWeight="SemiBold" Foreground="{DynamicResource ConfiguratorAccentBrush}" />
+                    <TextBlock Text="{Binding PathText}" TextWrapping="Wrap" />
+                  </WrapPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <ItemsControl Name="DocumentDiagnostics" ItemsSource="{Binding Diagnostics}"
+                          IsVisible="{Binding HasDiagnostics}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="p:DefinitionDocumentDiagnostic">
+                  <TextBlock Foreground="{DynamicResource ConfiguratorErrorBrush}" TextWrapping="Wrap">
+                    <TextBlock.Text>
+                      <MultiBinding StringFormat="{}[{0}:{1}] {2}">
+                        <Binding Path="Line" />
+                        <Binding Path="Column" />
+                        <Binding Path="Code" />
+                      </MultiBinding>
+                    </TextBlock.Text>
+                  </TextBlock>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <TextBlock Grid.Row="2" Text="{Binding Strings[DocumentConsentRequired]}"
+               IsVisible="False" />
+  </Grid>
+</UserControl>

@@ -737,3 +737,12 @@ identities separately from recovery status. Target output uses protected saving.
 `DefinitionSecretGeneratorSession`. The field factory carries the optional
 service to secret fields; the dialog view model validates options, manages
 transient previews and applies only through the current session authority.
+
+## Connected native editing views
+
+The shell coordinates section navigation, compact settings, document editing
+and a metadata-only inspector over one shared form. Field projections consume
+typed widget hints and declared ordering. Workspace commands preserve accepted
+answer authority; document application and task transfers require explicit
+adoption. Definition exploration reads public schema metadata before editing.
+Native delivery acknowledgements are recorded by the publisher integration.

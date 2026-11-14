@@ -13,9 +13,9 @@ public sealed class ObjectFieldViewModel : FieldViewModel
     {
         _isExpanded = parent is null or RootFieldViewModel;
         VisibleChildren = new(_visibleChildren);
-        Children = Array.AsReadOnly(schema.Properties
-            .Select(property => FormFieldFactory.Project(property.Value, property.Key,
-                schema.Required.Contains(property.Key, StringComparer.Ordinal), this, false)).ToArray());
+        Children = Array.AsReadOnly(schema.OrderedPropertyNames
+            .Select(name => FormFieldFactory.Project(schema.Properties[name], name,
+                schema.Required.Contains(name, StringComparer.Ordinal), this, false)).ToArray());
     }
     public IReadOnlyList<FieldViewModel> Children { get; }
     public ReadOnlyObservableCollection<FieldViewModel> VisibleChildren { get; }

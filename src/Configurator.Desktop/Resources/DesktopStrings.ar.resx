@@ -1,20 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <root>
-  <data name="OpenGeneratorLabel" xml:space="preserve"><value>خيارات المولّد…</value></data>
-  <data name="SecretGeneratorTitle" xml:space="preserve"><value>مولّد الأسرار المحلي</value></data>
-  <data name="SecretGeneratorPrivacyNote" xml:space="preserve"><value>تبقى القيم المولّدة محلية في مساحة العمل هذه ولا تُطبَّق إلا عند اختيار تطبيق.</value></data>
-  <data name="SecretLengthLabel" xml:space="preserve"><value>الطول</value></data>
-  <data name="SecretByteLengthLabel" xml:space="preserve"><value>الطول بالبايت</value></data>
-  <data name="SecretIncludeLowercase" xml:space="preserve"><value>أحرف صغيرة (a–z)</value></data>
-  <data name="SecretIncludeUppercase" xml:space="preserve"><value>أحرف كبيرة (A–Z)</value></data>
-  <data name="SecretIncludeDigits" xml:space="preserve"><value>أرقام (0–9)</value></data>
-  <data name="SecretIncludeSymbols" xml:space="preserve"><value>رموز</value></data>
-  <data name="SecretForbiddenCharsLabel" xml:space="preserve"><value>أحرف إضافية مستبعدة</value></data>
-  <data name="SecretEntropyLabel" xml:space="preserve"><value>الإنتروبيا المقدّرة: {0:F0} بت (الحد الأدنى: 128 بت)</value></data>
-  <data name="SecretGeneratePreview" xml:space="preserve"><value>توليد معاينة</value></data>
-  <data name="SecretPreviewLabel" xml:space="preserve"><value>المعاينة المولّدة</value></data>
-  <data name="SecretApplyGenerated" xml:space="preserve"><value>تطبيق السر</value></data>
-  <data name="SecretDialogCancelLabel" xml:space="preserve"><value>إلغاء</value></data>
   <data name="ProfileTitle" xml:space="preserve"><value>الملفات المحلية والاسترداد</value></data>
   <data name="ProfileRevisionHelp" xml:space="preserve"><value>تعرض كل نسخة محفوظة معرف الملف ومعرف النسخة ونوعها. تظل القائمة غير موثقة حتى الفتح الموثق.</value></data>
   <data name="ProfileModeLabel" xml:space="preserve"><value>وضع الحماية</value></data>
@@ -48,6 +33,12 @@
   <data name="ProfileRekeyHelp" xml:space="preserve"><value>يحافظ حفظ ملف مفتوح على وضعه وينشئ نسخة جديدة بمفاتيح تشفير وقيمة فريدة جديدة. تحتفظ النسخ القديمة بإمكانية الوصول القديمة. لا يغير ذلك بيانات اعتماد الهدف.</value></data>
   <data name="ProfileUninstallHelp" xml:space="preserve"><value>لا تكفي نسخة الملف المشفر دون مستلم يعمل. لا تعيد إعادة التثبيت أو خدمة الدعم بناء المفاتيح المفقودة. قد تبقى الملفات أو مدخلات المفاتيح بعد الإزالة أو إعادة الضبط لكن بقاءها غير مضمون.</value></data>
   <data name="ProfileStatusHelp" xml:space="preserve"><value>تعرض الحالة التقنية أدناه نتيجة العملية. عند قفل المفاتيح أو رفض الوصول أو غيابها اختر المستلم المحمول صراحة وأعد المحاولة؛ لا يوجد بديل تلقائي. التثبيت والتحقق والتنظيف حقائق مستقلة.</value></data>
+  <data name="OutputTask" xml:space="preserve"><value>مهمة الإخراج</value></data>
+  <data name="OutputTaskStatus" xml:space="preserve"><value>تقدم مهام الإخراج</value></data>
+  <data name="NextActionsTitle" xml:space="preserve"><value>المهام التالية</value></data>
+  <data name="TransferReviewTitle" xml:space="preserve"><value>مراجعة القيم لإعادة استخدامها</value></data>
+  <data name="TransferSwitchWithoutCopy" xml:space="preserve"><value>التبديل دون نسخ</value></data>
+  <data name="TransferCancel" xml:space="preserve"><value>إلغاء</value></data>
   <data name="Settings" xml:space="preserve"><value>الإعدادات</value></data>
   <data name="OutputNotEvaluated" xml:space="preserve"><value>لم يُقيّم الاكتمال بعد</value></data>
   <data name="OutputPreparedComplete" xml:space="preserve"><value>مجهّز؛ المخرج مكتمل</value></data>
@@ -272,10 +263,140 @@
   <data name="SettingsKeyboardDescription" xml:space="preserve"><value>اختصارات التنقل في سطح المكتب ومحددات الملفات المُدارة عبر الأنظمة.</value></data>
   <data name="SettingsShortcutsHelp" xml:space="preserve"><value>Ctrl+O (أو Cmd+O): الانتقال إلى الفتح والتركيز على مسار التعريف المحلي
 Ctrl+Enter (أو Cmd+Enter): الانتقال إلى المراجعة وتجهيز المخرجات المحددة
+Ctrl+Z / Ctrl+Shift+Z: التراجع عن التعديلات أو إعادتها
+Ctrl+Shift+K: التبديل بين التسميات المقروءة والمفاتيح التقنية
+Ctrl+Shift+E: التبديل إلى محرر المستند (JSON / .env)
+Ctrl+K: البحث والتصفية أو تنفيذ أوامر مساحة العمل
+F2: إظهار أو إخفاء مفتش المخطط السياقي (بيانات المخطط فقط)
+?: عرض مرجع اختصارات لوحة المفاتيح
 Escape: إغلاق النافذة المنبثقة أو إلغاء العملية النشطة
 تستخدم محددات الملفات والمجلدات حوارات Avalonia المُدارة على X11 وWayland وmacOS وWindows.</value></data>
+  <data name="SettingsDensityLabel" xml:space="preserve"><value>كثافة التخطيط</value></data>
+  <data name="DensitySpacious" xml:space="preserve"><value>واسع</value></data>
+  <data name="DensityComfortable" xml:space="preserve"><value>مريح</value></data>
+  <data name="DensityCompact" xml:space="preserve"><value>مدمج</value></data>
+  <data name="DensityDense" xml:space="preserve"><value>كثيف</value></data>
+  <data name="SettingsDefaultNamingLabel" xml:space="preserve"><value>تسمية الحقول الافتراضية</value></data>
+  <data name="NamingHumanized" xml:space="preserve"><value>تسميات مقروءة</value></data>
+  <data name="NamingTechnical" xml:space="preserve"><value>المفاتيح التقنية</value></data>
+  <data name="ToggleNamingLabel" xml:space="preserve"><value>التسمية</value></data>
+  <data name="OpenShortcutsHelpLabel" xml:space="preserve"><value>اختصارات لوحة المفاتيح (؟)</value></data>
+  <data name="CloseShortcutsLabel" xml:space="preserve"><value>إغلاق الاختصارات</value></data>
+  <data name="ShortcutsDialogTitle" xml:space="preserve"><value>اختصارات لوحة المفاتيح</value></data>
+  <data name="ConfigureModeGuided" xml:space="preserve"><value>موجّه</value></data>
+  <data name="ConfigureModeCompact" xml:space="preserve"><value>جدول مدمج</value></data>
+  <data name="ConfigureModeDocument" xml:space="preserve"><value>محرر المستند (JSON)</value></data>
+  <data name="UndoLabel" xml:space="preserve"><value>تراجع</value></data>
+  <data name="RedoLabel" xml:space="preserve"><value>إعادة</value></data>
+  <data name="PreviousStepLabel" xml:space="preserve"><value>الخطوة السابقة</value></data>
+  <data name="NextStepLabel" xml:space="preserve"><value>الخطوة التالية</value></data>
+  <data name="JumpNextErrorLabel" xml:space="preserve"><value>المشكلة التالية</value></data>
+  <data name="JumpNextRequiredLabel" xml:space="preserve"><value>المطلوب التالي</value></data>
+  <data name="SectionStatusInvalid" xml:space="preserve"><value>يتطلب تصحيحًا</value></data>
+  <data name="SectionStatusMissing" xml:space="preserve"><value>حقول مطلوبة ناقصة</value></data>
+  <data name="SectionStatusReady" xml:space="preserve"><value>جاهز</value></data>
+  <data name="SectionStatusOptional" xml:space="preserve"><value>اختياري</value></data>
+  <data name="SectionStatusDeferred" xml:space="preserve"><value>أسرار مؤجلة</value></data>
+  <data name="SectionStatusOutsideScope" xml:space="preserve"><value>غير نشط</value></data>
+  <data name="SectionCoverageReviewed" xml:space="preserve"><value>تمت المراجعة</value></data>
+  <data name="SectionCoverageOpened" xml:space="preserve"><value>تم الفتح</value></data>
+  <data name="SectionCoverageUnvisited" xml:space="preserve"><value>لم يُفتح</value></data>
+  <data name="UnitsPrefix" xml:space="preserve"><value>الوحدة: {0}</value></data>
+  <data name="DeprecatedPrefix" xml:space="preserve"><value>مهمل: {0}</value></data>
+  <data name="DeprecatedBadge" xml:space="preserve"><value>مهمل</value></data>
+  <data name="ControllerBadge" xml:space="preserve"><value>يتحكم بإعدادات أخرى</value></data>
+  <data name="CopyWireKeyLabel" xml:space="preserve"><value>نسخ المفتاح</value></data>
+  <data name="OmitSwitchLabel" xml:space="preserve"><value>تخطي</value></data>
+  <data name="SwitchOmittedStatus" xml:space="preserve"><value>غير مزود (متخطى)</value></data>
+  <data name="UniqueDuplicateWarning" xml:space="preserve"><value>يوجد مفتاح مكرر؛ يجب أن تكون العناصر فريدة.</value></data>
+  <data name="InspectProjectLabel" xml:space="preserve"><value>معاينة المخطط</value></data>
+  <data name="ExplorerTitle" xml:space="preserve"><value>مستكشف التعريف (للقراءة فقط)</value></data>
+  <data name="ExplorerCloseLabel" xml:space="preserve"><value>إغلاق المعاينة</value></data>
+  <data name="ExplorerSectionsHeading" xml:space="preserve"><value>أقسام وحقول المخطط</value></data>
+  <data name="ExplorerOutputsHeading" xml:space="preserve"><value>مهام المخرجات المعلنة</value></data>
+  <data name="ExplorerReadOnlyNote" xml:space="preserve"><value>معاينة للقراءة فقط — لا تُنشأ أي إجابات قبل اختيار التكوين.</value></data>
+  <data name="ExplorerSensitivityPublic" xml:space="preserve"><value>عام</value></data>
+  <data name="ExplorerSensitivityPrivate" xml:space="preserve"><value>خاص / سري</value></data>
+  <data name="BoundedConfigureNote" xml:space="preserve"><value>تعمل أدوات الجدول المدمج والمحرر مباشرة على مساحة العمل النشطة.</value></data>
   <data name="SettingsPrivacyTitle" xml:space="preserve"><value>الخصوصية ومخرجات النظام</value></data>
   <data name="SettingsPrivacyDescription" xml:space="preserve"><value>ضمانات الحفظ المحلي دون اتصال وقدرة الحفظ المحمي على هذا الجهاز.</value></data>
   <data name="SettingsPrivacyHelp" xml:space="preserve"><value>تبقى الإجابات في الذاكرة المحلية دون قياس خلفي أو تطبيق مباشر على التطبيق المستهدف. لا تُجلب روابط HTTPS الخارجية إلا بإجراء صريح من المستخدم مع حجب العناوين الخاصة والمحلية ومنع إعادة التوجيه وبحد أقصى 4 ميجابايت.</value></data>
   <data name="SettingsWorkstationHostLabel" xml:space="preserve"><value>قدرة الحفظ المحمي على هذا الجهاز</value></data>
+  <data name="CompactSearchLabel" xml:space="preserve"><value>تصفية الجدول</value></data>
+  <data name="CompactSortLabel" xml:space="preserve"><value>ترتيب حسب</value></data>
+  <data name="CompactSortLabelOption" xml:space="preserve"><value>الإعداد</value></data>
+  <data name="CompactSortSectionOption" xml:space="preserve"><value>القسم</value></data>
+  <data name="CompactSortStatusOption" xml:space="preserve"><value>الحالة</value></data>
+  <data name="CompactSortOriginOption" xml:space="preserve"><value>المصدر</value></data>
+  <data name="CompactSortAscendingLabel" xml:space="preserve"><value>تصاعدي</value></data>
+  <data name="CompactSortDescendingLabel" xml:space="preserve"><value>تنازلي</value></data>
+  <data name="CompactCurrentSectionOnly" xml:space="preserve"><value>القسم الحالي فقط</value></data>
+  <data name="CompactRowsCount" xml:space="preserve"><value>{0} إعدادات معروضة</value></data>
+  <data name="CompactCommitLabel" xml:space="preserve"><value>تطبيق</value></data>
+  <data name="CompactOpenGuidedLabel" xml:space="preserve"><value>الموجه</value></data>
+  <data name="CompactInspectLabel" xml:space="preserve"><value>فحص</value></data>
+  <data name="CompactMaskedValue" xml:space="preserve"><value>•••••• (مقيد)</value></data>
+  <data name="CompactUnsetValue" xml:space="preserve"><value>غير مزود (متجاهل)</value></data>
+  <data name="CompactSecretInputHelp" xml:space="preserve"><value>أدخل قيمة مقيدة جديدة لتطبيقها</value></data>
+  <data name="DocumentRepresentationLabel" xml:space="preserve"><value>التنسيق</value></data>
+  <data name="DocumentCanonicalOption" xml:space="preserve"><value>JSON القياسي</value></data>
+  <data name="DocumentEnvironmentOption" xml:space="preserve"><value>البيئة (.env)</value></data>
+  <data name="DocumentArtifactLabel" xml:space="preserve"><value>ملف البيئة</value></data>
+  <data name="DocumentApplyModeLabel" xml:space="preserve"><value>وضع التطبيق</value></data>
+  <data name="DocumentMergeOption" xml:space="preserve"><value>دمج التحديثات</value></data>
+  <data name="DocumentReplaceScopeOption" xml:space="preserve"><value>استبدال النطاق الممثل</value></data>
+  <data name="DocumentReloadLabel" xml:space="preserve"><value>إعادة التحميل من مساحة العمل</value></data>
+  <data name="DocumentPreviewLabel" xml:space="preserve"><value>معاينة التغييرات</value></data>
+  <data name="DocumentApplyLabel" xml:space="preserve"><value>تطبيق الفروقات</value></data>
+  <data name="DocumentPreviewHeading" xml:space="preserve"><value>معاينة التغييرات المعلقة</value></data>
+  <data name="DocumentChangesCounts" xml:space="preserve"><value>تعيين: {0} | إعادة تعيين: {1} | تجاهل: {2}</value></data>
+  <data name="DocumentStaleWarning" xml:space="preserve"><value>تغيرت مساحة العمل منذ هذه المعاينة. أعد المعاينة قبل التطبيق.</value></data>
+  <data name="DocumentEditorLabel" xml:space="preserve"><value>مصدر المستند</value></data>
+  <data name="DocumentConsentRequired" xml:space="preserve"><value>يلزم منح الموافقة قبل تحرير المستندات المقيدة.</value></data>
+  <data name="DocumentNoChanges" xml:space="preserve"><value>لا توجد تغييرات معلقة مقارنة بمساحة العمل الحالية.</value></data>
+  <data name="InspectorTitle" xml:space="preserve"><value>المفتش (بيانات المخطط فقط)</value></data>
+  <data name="InspectorToggleLabel" xml:space="preserve"><value>المفتش (F2)</value></data>
+  <data name="InspectorCloseLabel" xml:space="preserve"><value>إغلاق المفتش</value></data>
+  <data name="InspectorNoSelection" xml:space="preserve"><value>اختر أي إعداد أو ركّز عليه لفحص قواعد المخطط وحدود التحقق وارتباطات المخرجات.</value></data>
+  <data name="InspectorMetadataNotice" xml:space="preserve"><value>بيانات المخطط فقط — لا تُعرض قيم الإجابات هنا مطلقاً.</value></data>
+  <data name="InspectorPathLabel" xml:space="preserve"><value>مسار المخطط</value></data>
+  <data name="InspectorWireKeyLabel" xml:space="preserve"><value>المفتاح التقني</value></data>
+  <data name="InspectorTypeLabel" xml:space="preserve"><value>النوع</value></data>
+  <data name="InspectorSensitivityLabel" xml:space="preserve"><value>الحساسية</value></data>
+  <data name="InspectorUnitsLabel" xml:space="preserve"><value>الوحدة</value></data>
+  <data name="InspectorDefaultLabel" xml:space="preserve"><value>القيمة الافتراضية</value></data>
+  <data name="InspectorOmittedLabel" xml:space="preserve"><value>عند التجاهل</value></data>
+  <data name="InspectorConstraintsLabel" xml:space="preserve"><value>القيود</value></data>
+  <data name="InspectorControllerImpactLabel" xml:space="preserve"><value>تأثير المتحكم</value></data>
+  <data name="InspectorControlledByLabel" xml:space="preserve"><value>مفعّل بواسطة</value></data>
+  <data name="InspectorOutputsLabel" xml:space="preserve"><value>ارتباطات المخرجات</value></data>
+  <data name="InspectorLinksLabel" xml:space="preserve"><value>روابط الإرشاد</value></data>
+  <data name="DiscoveryFilterAll" xml:space="preserve"><value>الكل</value></data>
+  <data name="DiscoveryFilterInvalid" xml:space="preserve"><value>أخطاء</value></data>
+  <data name="DiscoveryFilterMissing" xml:space="preserve"><value>مطلوب</value></data>
+  <data name="DiscoveryFilterModified" xml:space="preserve"><value>معدّل</value></data>
+  <data name="DiscoveryFilterDeferred" xml:space="preserve"><value>أسرار مؤجلة</value></data>
+  <data name="CommandPaletteHeading" xml:space="preserve"><value>أوامر مساحة العمل</value></data>
+  <data name="CommandRunLabel" xml:space="preserve"><value>تشغيل</value></data>
+  <data name="CommandPaletteToggleLabel" xml:space="preserve"><value>الأوامر (Ctrl+K)</value></data>
+  <data name="CommandPaletteCloseLabel" xml:space="preserve"><value>إغلاق الأوامر</value></data>
+  <data name="ReviewPrepareCardTitle" xml:space="preserve"><value>1. مراجعة المخرجات وتجهيزها</value></data>
+  <data name="ReviewPrepareCardDescription" xml:space="preserve"><value>راجع الجاهزية وتبعات المخرجات وجهز الحزم غير القابلة للتعديل قبل الحفظ.</value></data>
+  <data name="CreateOnlySaveCardTitle" xml:space="preserve"><value>2. الحفظ الصريح للإنشاء فقط</value></data>
+  <data name="CreateOnlySaveCardDescription" xml:space="preserve"><value>يكتب الحفظ ملفاً جديداً مملوكاً للمستخدم فقط ولا يستبدل الملفات الموجودة ولا يطبق التغييرات على الأهداف.</value></data>
+  <data name="OpenGeneratorLabel" xml:space="preserve"><value>خيارات المولّد…</value></data>
+  <data name="SecretGeneratorTitle" xml:space="preserve"><value>مولّد الأسرار المحلي</value></data>
+  <data name="SecretGeneratorPrivacyNote" xml:space="preserve"><value>تبقى القيم المولّدة محلية في مساحة العمل هذه ولا تُطبَّق إلا عند اختيار تطبيق.</value></data>
+  <data name="SecretLengthLabel" xml:space="preserve"><value>الطول</value></data>
+  <data name="SecretByteLengthLabel" xml:space="preserve"><value>الطول بالبايت</value></data>
+  <data name="SecretIncludeLowercase" xml:space="preserve"><value>أحرف صغيرة (a–z)</value></data>
+  <data name="SecretIncludeUppercase" xml:space="preserve"><value>أحرف كبيرة (A–Z)</value></data>
+  <data name="SecretIncludeDigits" xml:space="preserve"><value>أرقام (0–9)</value></data>
+  <data name="SecretIncludeSymbols" xml:space="preserve"><value>رموز</value></data>
+  <data name="SecretForbiddenCharsLabel" xml:space="preserve"><value>أحرف إضافية مستبعدة</value></data>
+  <data name="SecretEntropyLabel" xml:space="preserve"><value>الإنتروبيا المقدّرة: {0:F0} بت (الحد الأدنى: 128 بت)</value></data>
+  <data name="SecretGeneratePreview" xml:space="preserve"><value>توليد معاينة</value></data>
+  <data name="SecretPreviewLabel" xml:space="preserve"><value>المعاينة المولّدة</value></data>
+  <data name="SecretApplyGenerated" xml:space="preserve"><value>تطبيق السر</value></data>
+  <data name="SecretDialogCancelLabel" xml:space="preserve"><value>إلغاء</value></data>
 </root>

@@ -32,6 +32,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
     [NotifyCanExecuteChangedFor(nameof(SelectDefinitionCommand))]
     [NotifyCanExecuteChangedFor(nameof(FetchDefinitionCommand))]
     [NotifyCanExecuteChangedFor(nameof(ConfigureStoreProjectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InspectStoreProjectCommand))]
     private bool _isBusy;
 
     [ObservableProperty]
@@ -87,6 +88,12 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
 
         StoreCatalog = new StoreCatalogViewModel(_storeProvider);
         StoreCatalog.PropertyChanged += OnStoreCatalogPropertyChanged;
+        Explorer = new DefinitionExplorerViewModel(definition =>
+        {
+            if (_disposed) return;
+            ClearDefinition();
+            Admit(definition, _generation);
+        });
 
         messenger.Register<DefinitionLoaderViewModel, OperationStateMessage>(this,
             static (loader, message) => loader.IsBusy = message.IsBusy);
@@ -96,6 +103,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
 
     public bool CanSelectPath => !_disposed && !IsBusy;
     public StoreCatalogViewModel StoreCatalog { get; }
+    public DefinitionExplorerViewModel Explorer { get; }
 
     public string StoreSearchQuery
     {
@@ -181,6 +189,40 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
             operation.Dispose();
             if (!accepted && !_disposed && focusGeneration == _generation)
                 _messenger.Send(new FocusRequestedMessage("DefinitionUrl"));
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanConfigureStoreProject))]
+    public async Task<bool> InspectStoreProjectAsync(
+        StoreProjectCardViewModel? card,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!CanSelectPath) return false;
+        if (card.LatestRevision < 1)
+        {
+            _messenger.Send(new StatusChangedMessage("store-revision-not-found", _generation, DesktopStatusGuidance.StoreOpenFailed));
+            return false;
+        }
+
+        using DesktopOperation? operation = DesktopOperation.Begin(_messenger, "store-inspect", cancellationToken);
+        if (operation is null) return false;
+
+        try
+        {
+            DefinitionStoreResult result = await _storeProvider.OpenAsync(card.ProjectId, card.LatestRevision, operation.Token);
+            if (!operation.IsCurrent) return false;
+            if (result is DefinitionStoreResult.Success(var definition))
+            {
+                Explorer.Show(definition, new DesktopStrings(_locale));
+                return true;
+            }
+            return ApplyStoreResult(result, operation.Generation);
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
         }
     }
 
@@ -355,6 +397,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
 
     private bool Admit(Definition definition, long generation)
     {
+        Explorer.Close();
         _definition = definition;
         _messenger.Send(new DefinitionLoadedMessage(definition));
         _messenger.Send(new StatusChangedMessage("definition-loaded", generation));
@@ -367,6 +410,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
     {
         if (_disposed) return;
         _disposed = true;
+        Explorer.Close();
         _definition = null;
         StoreCatalog.PropertyChanged -= OnStoreCatalogPropertyChanged;
         StoreCatalog.Dispose();
@@ -377,6 +421,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
         SelectDefinitionCommand.NotifyCanExecuteChanged();
         FetchDefinitionCommand.NotifyCanExecuteChanged();
         ConfigureStoreProjectCommand.NotifyCanExecuteChanged();
+        InspectStoreProjectCommand.NotifyCanExecuteChanged();
     }
 
     public override string ToString() => nameof(DefinitionLoaderViewModel);

@@ -36,7 +36,12 @@ public sealed class StringFieldViewModel : FieldViewModel
         });
     }
     public int MaxLength => 65_536;
-    public bool AcceptsReturn => Schema.Secret is { Kind: DefinitionSecretKind.PrivateKey, Encoding: DefinitionSecretEncoding.Pkcs8Pem };
+    public DefinitionFieldWidget Widget => Presentation?.Widget ?? DefinitionFieldWidget.Auto;
+    public bool IsCodeOrMarkdown => !RequiresMasking && Widget is DefinitionFieldWidget.Code or DefinitionFieldWidget.Markdown;
+    public bool AcceptsReturn =>
+        Schema.Secret is { Kind: DefinitionSecretKind.PrivateKey, Encoding: DefinitionSecretEncoding.Pkcs8Pem } ||
+        (!RequiresMasking && Widget is DefinitionFieldWidget.MultiLine or DefinitionFieldWidget.Code or DefinitionFieldWidget.Markdown);
+    public double EditorMinHeight => AcceptsReturn ? Math.Max(84d, (Presentation?.Rows ?? 3) * 22d) : 0d;
     public bool HasSecretPolicy => Schema.Secret is not null;
     public bool HasSecretGeneration => Schema.Secret is { Acquisition: DefinitionSecretAcquisition.Local, Generation: not null };
     public bool RequiresSecretInput => Schema.Secret is { Kind: DefinitionSecretKind.PasswordHash or DefinitionSecretKind.Digest, Generation.Input: DefinitionSecretInput.Entered };
@@ -131,6 +136,10 @@ public sealed class StringFieldViewModel : FieldViewModel
         }
         _isRevealed = false;
         _passwordRevealed = false;
+        OnPropertyChanged(nameof(Widget));
+        OnPropertyChanged(nameof(IsCodeOrMarkdown));
+        OnPropertyChanged(nameof(AcceptsReturn));
+        OnPropertyChanged(nameof(EditorMinHeight));
         NotifySecretState();
     }
 

@@ -34,6 +34,8 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     private DefinitionEditorPresentation? _presentation;
     private readonly string _name;
     private string _id;
+    private string? _dynamicItemTitle;
+    private string _wireKeyStatus = string.Empty;
 
     protected FieldViewModel(DefinitionNode schema, string name, bool required,
         FieldViewModel? parent, bool listItem, bool inheritedMasking = false)
@@ -64,6 +66,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
             else if (Parent is MapFieldViewModel map) map.RemoveEntryCommand.Execute(this);
         }, () => !IsDisposed && (Parent is ListFieldViewModel list && list.RemoveItemCommand.CanExecute(this) ||
             Parent is MapFieldViewModel map && map.RemoveEntryCommand.CanExecute(this)));
+        CopyWireKeyCommand = new AsyncRelayCommand(CopyWireKeyAsync, () => !IsDisposed && HasCopyableWireToken);
     }
 
     protected DefinitionNode Schema { get; }
@@ -85,6 +88,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     internal DefinitionPath EditorPath => FullPath();
     internal FieldViewModel RootEditor => Root;
     internal event Action<FieldViewModel>? FocusRequested;
+    internal Action<DefinitionPath>? SuggestionReviewRequested { get; set; }
     internal bool IsFocusRequestCurrent => !IsDisposed && Root._form is { } form &&
         form.InputRevision == _focusInputRevision && form.GetEditorIdentity(FullPath()) == _focusIdentity;
     public string Id => _id;
@@ -98,6 +102,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
                 string key = string.IsNullOrWhiteSpace(_name) || _name.Any(char.IsControl) ? JsonSerializer.Serialize(_name) : _name;
                 return key.Length <= 256 ? key : key[..256];
             }
+            if (IsListItem && !string.IsNullOrWhiteSpace(_dynamicItemTitle)) return _dynamicItemTitle;
             if (IsListItem && ReadMetadata("title").Length == 0) return Strings.Format("ItemTitle", Parent!.Title);
             if (_presentation?.Title is { Length: > 0 } localized) return localized;
             if (Parent is null && _input is not null) return _input.Definition.Title;
@@ -107,6 +112,14 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
             if (inferred.Any(char.IsControl)) inferred = JsonSerializer.Serialize(inferred);
             return inferred.Length <= 256 ? inferred : inferred[..256];
         }
+    }
+    internal void SetItemDisplayTitle(string? title)
+    {
+        string? normalized = string.IsNullOrWhiteSpace(title) ? null : title.Trim();
+        if (string.Equals(_dynamicItemTitle, normalized, StringComparison.Ordinal)) return;
+        _dynamicItemTitle = normalized;
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(Name));
     }
     public string Name => Title;
     public string ClearLabel => Strings.ClearLabel;
@@ -138,6 +151,27 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         : RemoveItemName;
     public string RemoveItemName => Strings.Format("RemoveItemName", Parent?.Title ?? Title);
     public string Help => _presentation?.Description ?? ReadMetadata("description");
+    public string Instructions => _presentation?.Instructions ?? string.Empty;
+    public string Units => _presentation?.Units ?? string.Empty;
+    public string UnitsDisplay => Units.Length > 0 ? Strings.UnitsText(Units) : string.Empty;
+    public string PlaceholderText => _presentation?.Placeholder ?? string.Empty;
+    public string IfOmittedDisplay => _presentation?.IfOmittedDisplay ?? string.Empty;
+    public bool IsDeprecated => _presentation?.IsDeprecated == true;
+    public string DeprecationGuidance => _presentation?.DeprecationGuidance ?? string.Empty;
+    public string DeprecationDisplay => DeprecationGuidance.Length > 0
+        ? Strings.DeprecatedText(DeprecationGuidance)
+        : IsDeprecated ? Strings["DeprecatedBadge"] : string.Empty;
+    public bool HasDeprecationBanner => IsDeprecated || DeprecationGuidance.Length > 0;
+    public bool IsController => _presentation?.IsController == true;
+    public string ControllerImpactSummary => _presentation?.ControllerImpactSummary ?? string.Empty;
+    public string WireToken => IsPublic && !RequiresMasking ? (_presentation?.WireToken ?? string.Empty) : string.Empty;
+    public bool HasCopyableWireToken => IsPublic && !RequiresMasking &&
+        _presentation?.HasCopyableWireToken == true && WireToken.Length > 0;
+    public string CopyWireKeyLabel => Strings.CopyWireKeyLabel;
+    public string CopyWireKeyName => $"{Strings.CopyWireKeyLabel}: {Title}";
+    public string WireKeyStatus => _wireKeyStatus;
+    public IAsyncRelayCommand CopyWireKeyCommand { get; }
+    protected DefinitionEditorPresentation? Presentation => _presentation;
     public string HelpText
     {
         get
@@ -359,7 +393,23 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(Name));
         OnPropertyChanged(nameof(Help));
+        OnPropertyChanged(nameof(Instructions));
+        OnPropertyChanged(nameof(Units));
+        OnPropertyChanged(nameof(UnitsDisplay));
+        OnPropertyChanged(nameof(PlaceholderText));
+        OnPropertyChanged(nameof(IfOmittedDisplay));
+        OnPropertyChanged(nameof(IsDeprecated));
+        OnPropertyChanged(nameof(DeprecationGuidance));
+        OnPropertyChanged(nameof(DeprecationDisplay));
+        OnPropertyChanged(nameof(HasDeprecationBanner));
+        OnPropertyChanged(nameof(IsController));
+        OnPropertyChanged(nameof(ControllerImpactSummary));
+        OnPropertyChanged(nameof(WireToken));
+        OnPropertyChanged(nameof(HasCopyableWireToken));
+        OnPropertyChanged(nameof(CopyWireKeyLabel));
+        OnPropertyChanged(nameof(CopyWireKeyName));
         OnPropertyChanged(nameof(HelpText));
+        CopyWireKeyCommand.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(ClearName));
         OnPropertyChanged(nameof(SupplyName));
         OnPropertyChanged(nameof(SuggestionName));
@@ -404,8 +454,13 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     private void ApplySuggestion()
     {
         if (IsDisposed || !HasSuggestion) return;
-        Form.ApplySuggestion(FullPath());
-        RequestFocus();
+        if (Schema.PresentationMetadata.SuggestedSource is not null)
+            Root.SuggestionReviewRequested?.Invoke(FullPath());
+        else
+        {
+            Form.ApplySuggestion(FullPath());
+            RequestFocus();
+        }
     }
     private void Supply()
     {
@@ -413,6 +468,15 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         bool supplied = Schema.Type == DefinitionNodeType.Mapping ? Form.SupplyObject(FullPath()) : Form.SupplyList(FullPath());
         if (supplied) RequestFocus();
     }
+    private async Task CopyWireKeyAsync()
+    {
+        if (IsDisposed || !HasCopyableWireToken || SecretClipboard is not { } clipboard) return;
+        bool copied = await clipboard.CopyAsync(WireToken);
+        if (IsDisposed) return;
+        _wireKeyStatus = copied ? Strings.Read("WireKeyCopiedStatus") : string.Empty;
+        OnPropertyChanged(nameof(WireKeyStatus));
+    }
+
     private string ReadMetadata(string name) => Schema.Keywords.TryGetProperty(name, out var value) ? value.GetString() ?? "" : "";
     private static bool HasNonPublicSchema(DefinitionNode schema) =>
         DefinitionSensitivityPolicy.SensitivityOf(schema) != FieldSensitivity.Public ||
@@ -432,11 +496,13 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         _root = null;
         _text = string.Empty;
         FocusRequested = null;
+        SuggestionReviewRequested = null;
         ClearCommand.NotifyCanExecuteChanged();
         SupplyCommand.NotifyCanExecuteChanged();
         ApplySuggestionCommand.NotifyCanExecuteChanged();
         ResetCommand.NotifyCanExecuteChanged();
         SetNullCommand.NotifyCanExecuteChanged();
+        CopyWireKeyCommand.NotifyCanExecuteChanged();
         GC.SuppressFinalize(this);
     }
 }

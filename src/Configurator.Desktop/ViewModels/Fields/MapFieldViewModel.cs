@@ -22,9 +22,9 @@ public sealed class MapFieldViewModel : FieldViewModel
         : base(schema, name, required, parent, listItem, inheritedMasking)
     {
         _isExpanded = parent is null or RootFieldViewModel;
-        Children = Array.AsReadOnly(schema.Properties
-            .Select(property => FormFieldFactory.Project(property.Value, property.Key,
-                schema.Required.Contains(property.Key, StringComparer.Ordinal), this, false)).ToArray());
+        Children = Array.AsReadOnly(schema.OrderedPropertyNames
+            .Select(name => FormFieldFactory.Project(schema.Properties[name], name,
+                schema.Required.Contains(name, StringComparer.Ordinal), this, false)).ToArray());
         Entries = new(_entries);
         VisibleChildren = new(_visibleChildren);
         VisibleEntries = new(_visibleEntries);
