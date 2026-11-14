@@ -3,6 +3,10 @@
     <x:Double x:Key="ConfiguratorBodyFontSize">14</x:Double>
     <x:Double x:Key="ConfiguratorHeadingFontSize">24</x:Double>
     <x:Double x:Key="ConfiguratorTitleFontSize">26</x:Double>
+    <x:Double x:Key="ConfiguratorControlMinHeight">36</x:Double>
+    <x:Double x:Key="ConfiguratorSpacing">14</x:Double>
+    <x:Double x:Key="ConfiguratorTableRowHeight">40</x:Double>
+    <Thickness x:Key="ConfiguratorCardPadding">12</Thickness>
   </Styles.Resources>
   <Style Selector="Window">
     <Setter Property="FontSize" Value="{DynamicResource ConfiguratorBodyFontSize}" />
@@ -12,8 +16,32 @@
   <Style Selector="TextBlock">
     <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
+  <Style Selector="TextBlock.code-font">
+    <Setter Property="FontFamily" Value="Consolas, Liberation Mono, Menlo, monospace" />
+  </Style>
+  <Style Selector="TextBox.code-editor">
+    <Setter Property="FontFamily" Value="Consolas, Liberation Mono, Menlo, monospace" />
+  </Style>
+  <Style Selector="TextBox.multiline-editor">
+    <Setter Property="MinHeight" Value="88" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style Selector="Border.m3-card">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="{DynamicResource ConfiguratorCardPadding}" />
+  </Style>
+  <Style Selector="Border.tonal-pill">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSurfaceContainerHighBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorOutlineVariantBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
   <Style Selector="TextBox, ComboBox, Button">
-    <Setter Property="MinHeight" Value="36" />
+    <Setter Property="MinHeight" Value="{DynamicResource ConfiguratorControlMinHeight}" />
     <Setter Property="MinWidth" Value="32" />
   </Style>
   <Style Selector="CheckBox, RadioButton, MenuItem">
@@ -29,7 +57,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorBorderBrush}" />
   </Style>
   <Style Selector="Button:pointerover, Button:pressed, ComboBox:pointerover, TextBox:pointerover">
-    <Setter Property="Background" Value="{DynamicResource ConfiguratorSurfaceBrush}" />
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSurfaceContainerBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource ConfiguratorTextBrush}" />
     <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorFocusBrush}" />
   </Style>
@@ -54,6 +82,10 @@
   </Style>
   <Style Selector="TextBlock.error">
     <Setter Property="Foreground" Value="{DynamicResource ConfiguratorErrorBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.warning">
+    <Setter Property="Foreground" Value="{DynamicResource ConfiguratorWarningBrush}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
   <Style Selector="Grid.header-bar Button, Grid.header-bar ComboBox">

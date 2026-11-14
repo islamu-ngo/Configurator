@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Configurator.Presentation;
 
 /// <summary>Applies session appearance with native high contrast taking precedence.</summary>
 public sealed class DesktopTheme : IDisposable
@@ -14,6 +15,7 @@ public sealed class DesktopTheme : IDisposable
     private bool _disposed;
     private bool _highContrast;
     private DesktopAppearance _preference;
+    private WorkspaceDensity _density = WorkspaceDensity.Comfortable;
 
     public bool IsHighContrast => _highContrast;
     public event EventHandler? HighContrastChanged;
@@ -27,6 +29,18 @@ public sealed class DesktopTheme : IDisposable
             if (_disposed || _preference == value) return;
             _preference = value;
             ApplyVariant();
+        }
+    }
+
+    public WorkspaceDensity Density
+    {
+        get => _density;
+        set
+        {
+            Dispatcher.UIThread.VerifyAccess();
+            if (_disposed || _density == value) return;
+            _density = value;
+            DesktopDensity.Apply(_application, value);
         }
     }
 
@@ -51,6 +65,7 @@ public sealed class DesktopTheme : IDisposable
         _application = application;
         _unsubscribe = subscribe(Changed);
         ApplyVariant();
+        DesktopDensity.Apply(_application, _density);
     }
 
     private void Changed(PlatformColorValues values)

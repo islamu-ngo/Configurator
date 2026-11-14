@@ -383,3 +383,9 @@ Phase 10 typed v2 control documentation does not qualify a physical native host
 or installed package. Headless window/control tests cannot establish those
 properties, native assistive-technology behavior or translation quality.
 Definition-standard-redesign Phase 12 qualification remains separate.
+
+## Appearance resources
+
+Desktop supports light, dark and high-contrast palettes. Its four density
+presets change control spacing and row sizes while preserving text scaling.
+Host and assistive-technology qualification remain separate checks.

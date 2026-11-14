@@ -713,3 +713,11 @@ startup/locale/keyboard/close behavior; the attempted native file dialog could
 not be qualified because the isolated GNOME portal lacked desktop services.
 Screen-reader speech, other scales/platforms and a complete manual picker flow
 remain separate evidence requirements.
+
+## Shared density resources
+
+`DesktopDensity` maps the four shared density presets to control height,
+spacing, card padding and table row resources. `DesktopTheme` applies these
+on the UI thread alongside the existing light/dark/high-contrast palette.
+Density changes do not replace font-size resources. Settings and workspace
+controls consume this resource mechanism in their own integration.

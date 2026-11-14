@@ -25,6 +25,7 @@ public sealed partial class App : Application, IDisposable
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             if (PlatformSettings is { } settings) _theme = new DesktopTheme(this, settings);
+            else DesktopDensity.Apply(this, Configurator.Presentation.WorkspaceDensity.Comfortable);
             var services = new ServiceCollection();
             if (_theme is not null) services.AddSingleton(_theme);
             services.AddSingleton<IProtectedArtifactWriter, ProtectedArtifactWriter>();

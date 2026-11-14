@@ -24,28 +24,28 @@
   <Application.Styles>
     <FluentTheme>
       <FluentTheme.Palettes>
-        <ColorPaletteResources x:Key="Light" Accent="#1E66F5" RegionColor="#EFF1F5"
-            BaseHigh="#4C4F69" BaseMediumHigh="#5C5F77" BaseMedium="#6C6F85"
-            BaseMediumLow="#7C7F93" BaseLow="#9CA0B0"
-            AltHigh="#FFFFFF" AltMediumHigh="#EFF1F5" AltMedium="#E6E9EF"
-            AltMediumLow="#DCE0E8" AltLow="#EFF1F5"
-            ChromeHigh="#EFF1F5" ChromeMedium="#E6E9EF" ChromeMediumLow="#DCE0E8"
-            ChromeLow="#EFF1F5" ChromeAltLow="#FFFFFF" ChromeGray="#6C6F85"
-            ChromeDisabledHigh="#6C6F85" ChromeDisabledLow="#DCE0E8"
-            ChromeBlackHigh="#4C4F69" ChromeBlackMedium="#5C5F77"
-            ChromeBlackMediumLow="#6C6F85" ChromeBlackLow="#9CA0B0" ChromeWhite="#FFFFFF"
-            ListLow="#E6E9EF" ListMedium="#DCE0E8" ErrorText="#B01838" />
-        <ColorPaletteResources x:Key="Dark" Accent="#8AADF4" RegionColor="#24273A"
-            BaseHigh="#CAD3F5" BaseMediumHigh="#B8C0E0" BaseMedium="#A5ADCB"
-            BaseMediumLow="#939AB7" BaseLow="#8087A2"
-            AltHigh="#24273A" AltMediumHigh="#363A4F" AltMedium="#494D64"
-            AltMediumLow="#5B6078" AltLow="#24273A"
-            ChromeHigh="#363A4F" ChromeMedium="#494D64" ChromeMediumLow="#363A4F"
-            ChromeLow="#24273A" ChromeAltLow="#1E2030" ChromeGray="#A5ADCB"
-            ChromeDisabledHigh="#939AB7" ChromeDisabledLow="#363A4F"
-            ChromeBlackHigh="#CAD3F5" ChromeBlackMedium="#B8C0E0"
-            ChromeBlackMediumLow="#A5ADCB" ChromeBlackLow="#8087A2" ChromeWhite="#24273A"
-            ListLow="#363A4F" ListMedium="#494D64" ErrorText="#ED8796" />
+        <ColorPaletteResources x:Key="Light" Accent="#1B5EBE" RegionColor="#FAF9FD"
+            BaseHigh="#1A1B20" BaseMediumHigh="#44474F" BaseMedium="#5C5F6A"
+            BaseMediumLow="#757882" BaseLow="#A3A6B0"
+            AltHigh="#FFFFFF" AltMediumHigh="#F3F2F8" AltMedium="#EDECF4"
+            AltLow="#E6E5EF" AltMediumLow="#E3E2EA"
+            ChromeHigh="#F3F2F8" ChromeMedium="#EDECF4" ChromeMediumLow="#E6E5EF"
+            ChromeLow="#FAF9FD" ChromeAltLow="#FFFFFF" ChromeGray="#5C5F6A"
+            ChromeDisabledHigh="#4F525C" ChromeDisabledLow="#E3E2EA"
+            ChromeBlackHigh="#1A1B20" ChromeBlackMedium="#44474F"
+            ChromeBlackMediumLow="#5C5F6A" ChromeBlackLow="#A3A6B0" ChromeWhite="#FFFFFF"
+            ListLow="#EDECF4" ListMedium="#E3E2EA" ErrorText="#BA1A1A" />
+        <ColorPaletteResources x:Key="Dark" Accent="#A8C7FA" RegionColor="#111318"
+            BaseHigh="#E2E2E9" BaseMediumHigh="#C4C6D0" BaseMedium="#A7AAB4"
+            BaseMediumLow="#8E9099" BaseLow="#5C5F6A"
+            AltHigh="#111318" AltMediumHigh="#1E2027" AltMedium="#252730"
+            AltMediumLow="#2C2F3A" AltLow="#111318"
+            ChromeHigh="#1E2027" ChromeMedium="#252730" ChromeMediumLow="#1E2027"
+            ChromeLow="#111318" ChromeAltLow="#15171D" ChromeGray="#A7AAB4"
+            ChromeDisabledHigh="#8E9099" ChromeDisabledLow="#272A32"
+            ChromeBlackHigh="#E2E2E9" ChromeBlackMedium="#C4C6D0"
+            ChromeBlackMediumLow="#A7AAB4" ChromeBlackLow="#5C5F6A" ChromeWhite="#111318"
+            ListLow="#1E2027" ListMedium="#252730" ErrorText="#FFB4AB" />
       </FluentTheme.Palettes>
     </FluentTheme>
     <StyleInclude Source="/Resources/DesignTokens.axaml" />

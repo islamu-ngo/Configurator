@@ -52,7 +52,11 @@ public sealed class DesktopAppearanceTests
                             pinArabic: shell.Loader.DefinitionPin.Any(character => character is >= '\u0600' and <= '\u06ff'),
                             culture: CultureInfo.CurrentUICulture.Name);
                     }
-                    finally { window.Close(); }
+                    finally
+                {
+                    DesktopDensity.Apply(Application.Current, Configurator.Presentation.WorkspaceDensity.Comfortable);
+                    window.Close();
+                }
                 }
                 finally { CultureInfo.CurrentUICulture = previous; }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
@@ -113,7 +117,11 @@ public sealed class DesktopAppearanceTests
                         preserved: revision == shell.Workspace.Form.InputRevision &&
                             preparation is not null && ReferenceEquals(preparation, shell.Publisher.Preparation));
                 }
-                finally { window.Close(); }
+                finally
+                {
+                    DesktopDensity.Apply(Application.Current, Configurator.Presentation.WorkspaceDensity.Comfortable);
+                    window.Close();
+                }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
             await Assert.That(result.present).IsTrue();
             await Assert.That(result.startsSystem).IsTrue();
@@ -170,7 +178,11 @@ public sealed class DesktopAppearanceTests
                     }
                     return true;
                 }
-                finally { window.Close(); }
+                finally
+                {
+                    DesktopDensity.Apply(Application.Current, Configurator.Presentation.WorkspaceDensity.Comfortable);
+                    window.Close();
+                }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
             await Assert.That(readable).IsTrue();
         }

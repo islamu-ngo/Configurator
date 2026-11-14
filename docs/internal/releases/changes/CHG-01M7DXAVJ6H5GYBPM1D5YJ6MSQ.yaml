@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7DXAVJ6H5GYBPM1D5YJ6MSQ
+Title: "Apply Desktop tonal palettes and shared density resources"
+Type: feat
+Scope: self-hosting
+Summary: "Map shared density presets to Avalonia spacing resources without changing text scaling and provide tonal light, dark and high-contrast palette resources."
+Group: desktop-appearance-resources
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: documented
+    Detail: "Shared density presets map to control height, spacing, padding and table-row resources without replacing font-size settings."
+  OpenAPI:
+    Reference: docs/internal/DESKTOP_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/desktop.md
+    Disposition: documented
+    Detail: "Desktop appearance retains light, dark and high-contrast palettes; actual host and assistive-technology qualification remain separate."
