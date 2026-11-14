@@ -143,6 +143,7 @@ internal sealed partial class TerminalWindow
         if (disposing && !_disposed)
         {
             _disposed = true;
+            _profileDialog?.Retire();
             ClearSecretDialog();
             _transferDialog?.Retire();
             _secretCancellation.Cancel();

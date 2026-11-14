@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7E0D821B2G5W5GG3GQWZAA9
+Title: "Manage encrypted profiles through an explicit Terminal dialog"
+Type: feat
+Scope: privacy
+Summary: "Expose native immutable profile operations and independent recovery checks through a deliberate Terminal dialog with masked passphrase buffers and retirement on close."
+Group: terminal-profiles
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: documented
+    Detail: "Passphrases use bounded masked buffers. Explicit operations retain native profile custody, immutable revisions and independent recovery verification."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/terminal.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/TERMINAL_CLIENT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/terminal.md
+    Disposition: documented
+    Detail: "Ctrl+P opens explicit profile operations and closes with secret-buffer retirement. Lost recipient material cannot be reconstructed."

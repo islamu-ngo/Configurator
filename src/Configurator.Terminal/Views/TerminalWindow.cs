@@ -557,6 +557,7 @@ internal sealed partial class TerminalWindow : Window
             }
             if (key == Key.F3) { OpenDiscoveryDialog(); return true; }
             if (key == Key.E.WithCtrl) { OpenDocumentDialog(); return true; }
+            if (key == Key.P.WithCtrl) { OpenProfiles(); return true; }
         }
         return base.OnKeyDown(key);
     }

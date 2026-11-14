@@ -501,3 +501,10 @@ settings and explicit document editing over one shared form. Choice and
 discovery dialogs consume bounded schema metadata; local secret options use
 the transient shared generator session. Task-transfer dialogs retain captured
 review authority and retire with edits, replacement or window disposal.
+
+## Explicit profile dialog
+
+`TerminalWindow.Profiles` owns a deliberate `TerminalProfileDialog` lifetime.
+The dialog uses masked bounded passphrase buffers and native immutable vault
+operations. It retains saved reference identity separately from independent
+recovery checks and retires its buffers when the window or dialog closes.

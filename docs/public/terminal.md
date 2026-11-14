@@ -325,3 +325,9 @@ Use the section navigator and guided, compact or document views to edit one
 local workspace. Discovery and command controls help reach settings. Preview
 document changes or suggested transfers before adopting them; private compact
 values remain masked and target saving remains a deliberate native action.
+
+## Local profiles
+
+Press Ctrl+P to open profile operations. Choose an immutable revision explicitly
+and check portable recovery for that exact revision. Retained values require
+deliberate retirement before replacement. Closing the dialog clears its buffers.
