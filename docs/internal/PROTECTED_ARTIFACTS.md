@@ -73,6 +73,47 @@ cancellation can leave an installed prefix. Dispose private preparation
 buffers, preserve the receipt and recover in a fresh private directory. Never
 infer that failure means no file was installed.
 
+## Immutable local profile revisions
+
+`LocalProfileVaultStore` publishes `.cfgvault` and `.cfgcompare.json` revisions
+under an adapter-selected absolute root. Names contain only canonical opaque
+profile/snapshot IDs and the fixed suffix; application/environment labels never
+grant path authority. There is no mutable index, inferred latest revision or
+automatic pruning. Each save snapshots caller bytes and delegates both
+preparation and commit to `IProtectedArtifactWriter`. Encrypted and stripped
+comparison bytes both use the restricted boundary.
+
+`ProfileFileReader` walks root components through held Linux descriptors.
+Creation uses descriptor-relative `mkdirat`; no symlink component is followed.
+Trusted intermediate directories use the existing owner/write floor, including
+the root-owned sticky-directory exception. The final root must belong to the
+effective user with mode `0700`; files must be regular, single-link, same-user
+`0600` files. Root traversal permits explicit mount boundaries while retaining
+no-symlink/no-magic-link/beneath resolution; revision opens remain within the
+held root. Only Linux x64/arm64 descriptor ABIs are admitted.
+
+Discovery enumerates the held root through its own procfs descriptor and checks
+named/opened file identities before returning a descriptor. Reopen binds that
+descriptor to the same root and file, checks size/mode/owner/link count, reads
+bounded bytes and rechecks file/name/root identities before publication. Failed
+reads clear owned bytes. Listings are unverified metadata; successful reading
+does not authenticate the encrypted profile or its filename IDs. The opening
+owner must check authenticated payload identity before adoption.
+
+Root paths are bounded to 4096 characters and 64 components. An inventory scans
+at most 4096 entries, counting unknown names; exceeding the limit refuses rather
+than reporting a complete listing. Per-file bounds are 4 MiB encrypted and 2 MiB
+comparison data. No crypto-header scanner is used for discovery. These are
+resource limits, not a filesystem-latency or historical-authenticity guarantee.
+
+The returned one-file `ProtectedArtifactBundleResult` preserves installation,
+immediate verification, cleanup and cancellation independently. Cancellation
+after installation remains cancelled with the installation fact intact.
+Root replacement or failed post-install inspection cannot become a fictional
+not-installed result. A vault/comparison pair is not a transaction. Native owner
+regressions passed on the executing Linux host; this does not qualify Windows,
+macOS, every Linux filesystem, keyring recovery or actual release packages.
+
 ## Bounded native input lifetime
 
 `Configurator.Artifacts.Composition.CompositionDirectoryCompiler` owns bounded

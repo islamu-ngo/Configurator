@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7D0X5Y054A1474HFDECFNVK
+Title: "Save immutable profile revisions with restricted native access"
+Type: feat
+Scope: privacy
+Summary: "Publish create-only opaque revisions through the protected writer and reopen bounded files through identity-checked Linux descriptors, preserving truthful installation and cancellation facts."
+Group: profile-protected-storage
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: documented
+    Detail: "Use create-only protected publication, opaque revision names and bounded Linux descriptor-relative traversal. Recheck root/file/name identities, effective ownership, modes, link count and size; clear failed reads. Unsupported protected-save hosts refuse without ordinary-file fallback."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PROTECTED_ARTIFACTS.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/import-and-compare.md
+    Disposition: documented
+    Detail: "Listings are unverified metadata, not authenticated profile facts. Preserve installation, verification, cleanup and cancellation independently; cancellation may follow installation. History is not pruned or overwritten, and saving a pair is not an atomic transaction."

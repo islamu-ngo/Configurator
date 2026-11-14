@@ -213,6 +213,23 @@ prepared. Missing old definitions or incomplete comparison data must show
 unavailable results, not an unchanged or ready configuration. Target application
 validation and authorization remain separate.
 
+### Immutable Native Revisions
+
+The native store writes a new revision under opaque profile and snapshot IDs.
+It never overwrites an existing revision or automatically prunes history.
+Encrypted snapshots and stripped comparisons both require protected native
+output. An unsupported host refuses without an ordinary-file fallback.
+
+A listing is unverified file metadata. Opening must authenticate the payload
+and check its identity before adopting settings. Inventory and file limits can
+refuse an oversized store; that refusal does not mean no revisions exist.
+
+Installation, immediate verification, cleanup and cancellation are separate
+facts. A cancelled or uncertain operation may already have installed its file;
+keep the receipt and inspect that exact revision before retrying. Saving a vault
+and comparison file does not make them an atomic pair. A successful save alone
+does not verify portable recovery.
+
 ## Keep Private Input Local
 
 Treat every configuration file as potentially secret-bearing, even when its

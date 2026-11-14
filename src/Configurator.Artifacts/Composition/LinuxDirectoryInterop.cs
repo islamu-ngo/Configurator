@@ -74,6 +74,14 @@ internal static partial class LinuxDirectoryInterop
             identity.Validate();
             return identity;
         }
+
+        internal static NativeIdentity ReadRelative(SafeFileHandle directory, string name)
+        {
+            if (StatHandle(directory, name, 0x100, 0x7ff, out NativeIdentity identity) != 0)
+                throw new CompositionException(CompositionFailureCode.UnsafeEntry);
+            identity.Validate();
+            return identity;
+        }
     }
 
     internal static class NativeMethods
@@ -87,13 +95,14 @@ internal static partial class LinuxDirectoryInterop
             return new SafeFileHandle((IntPtr)descriptor, ownsHandle: true);
         }
 
-        internal static SafeFileHandle OpenRelative(SafeFileHandle root, string relative, bool directory)
+        internal static SafeFileHandle OpenRelative(SafeFileHandle root, string relative, bool directory,
+            bool allowMountCrossing = false, bool nonBlocking = false)
         {
             var flags = GetOpenFlags(RuntimeInformation.ProcessArchitecture);
             var how = new OpenHow
             {
-                Flags = (ulong)(0x80000 | flags.NoFollow | (directory ? flags.Directory : 0)),
-                Resolve = 0x01 | 0x02 | 0x04 | 0x08
+                Flags = (ulong)(0x80000 | flags.NoFollow | (directory ? flags.Directory : 0) | (nonBlocking ? 0x800 : 0)),
+                Resolve = 0x02UL | 0x04UL | 0x08UL | (allowMountCrossing ? 0UL : 0x01UL)
             };
             long descriptor = SystemCall(437, root, relative, ref how, 24);
             if (descriptor < 0)

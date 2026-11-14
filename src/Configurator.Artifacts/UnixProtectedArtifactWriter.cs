@@ -206,7 +206,7 @@ internal static partial class UnixProtectedArtifactWriter
         }
     }
 
-    private static readonly uint CurrentEffectiveUserId = GetEffectiveUserId();
+    internal static readonly uint CurrentEffectiveUserId = GetEffectiveUserId();
 
     private static uint GetEffectiveUserId() => EffectiveUserId();
 
