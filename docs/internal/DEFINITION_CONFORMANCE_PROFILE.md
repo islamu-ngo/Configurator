@@ -373,6 +373,19 @@ pointers use static root schema references; duplicate pointers within a section
 reject. Presentation does not change validation or require every property to be
 in exactly one section.
 
+Output options admit optional descriptions and ordered closed `nextActions`.
+An action requires `targetOption` and `title`; description, proposedWhen and
+priority are optional. The default priority is available; recommended and
+optional are the other tokens. With at most 64 options and 63 distinct non-self
+targets each, the graph has at most 4032 edges. Unknown targets reject;
+navigation cycles are inert and allowed. Nonempty lists derive
+`presentation.next-actions`. Named predicates lower at proposedWhen; runtime
+validates the ordinary predicate AST and its references. Immutable action
+snapshots expose Core's three-valued `EvaluateProposal` over validation state.
+Numeric localization pointers address existing titles and descriptions;
+option values do not form a keyed localization grammar. Post-export proposal
+display, history and value-transfer behavior remain planned outside Core.
+
 `ValidateLocalization` computes the ordinal locale set and permits overrides of
 existing public string members ending in title, description, instructions,
 label, explanation, or units. Pointers traverse the runtime document, not the

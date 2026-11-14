@@ -1199,6 +1199,7 @@
               "environment.compose",
               "predicate.item",
               "predicate.root",
+              "presentation.next-actions",
               "projection.copy",
               "projection.index",
               "projection.list",

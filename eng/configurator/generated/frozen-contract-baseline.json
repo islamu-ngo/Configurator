@@ -1,8 +1,8 @@
 {
   "schemaVersion": "0.0.1",
-  "definitionSchemaSha256": "b2a872549fdb777b1e94c9bf046b23d1d923b4c100774e24536b4ebbc86d6d18",
-  "authoringSchemaSha256": "107f237a6aac51df651777661522ce60a03ae61a833ec7c1cf6233cc4141ceab",
-  "commandSchemaSha256": "e4f1040497078dcb9c46ad6d38f6519667383d0e15dcd924476321ad06180237",
+  "definitionSchemaSha256": "b0bc22eeb9260530898e2c6e66790a651fac5240f322dab9911ae33dad203831",
+  "authoringSchemaSha256": "27629d9fae6e0b497434a83f9a327edc7e2c12130db326ee23893c66c911180b",
+  "commandSchemaSha256": "5e6392e436f19c1bffec9bb9441dcda0c136fc26568893775732773c5fb4e4c8",
   "commandFamilies": [
     "catalogue",
     "artifact",

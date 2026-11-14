@@ -1,0 +1,28 @@
+Change-Id: CHG-01M7D2GARGH9NVMGB99Q7JCXAB
+Title: "Declare conditional follow-up output tasks"
+Type: feat
+Scope: self-hosting
+Summary: "Admit bounded output-option descriptions and ordered conditional next actions without navigating, copying values, executing commands or granting target acceptance."
+Group: definition-output-next-actions
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DEFINITION_CONFORMANCE_PROFILE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Actions are bounded inert metadata, not executable commands or target authority. Admit closed fields, known distinct targets and ordinary bounded predicates; clone metadata and preserve authored ordering without copying answers or automatically navigating."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/definition-reference.md
+    Disposition: documented
+    Detail: "Output options may declare descriptions and at most 63 ordered next actions. Nonempty lists derive presentation.next-actions; absent and empty lists leave capabilities unchanged. Conditions lower through the existing authoring predicate compiler."
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definition-reference.md
+    Disposition: not-applicable

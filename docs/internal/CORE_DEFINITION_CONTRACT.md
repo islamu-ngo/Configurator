@@ -716,6 +716,23 @@ another activation evaluator. Initialization still belongs to Core; explicit
 answers and omissions retain precedence. `DefinitionOutputSelector` snapshots
 the path and read-only option/artifact collections.
 
+`DefinitionOutputOption.Description` is optional public text (2048).
+`NextActions` snapshots authored order as a read-only collection of
+`DefinitionOutputNextAction`: `TargetOption`, `Title`, optional `Description`,
+`Priority` (recommended/available/optional, default available), and optional
+cloned `ProposedWhen` runtime AST. `EvaluateProposal(validation)` uses Core's
+three-valued predicate evaluation without changing answers.
+Admission permits at most 63 actions per option (4032 overall), rejects unknown,
+self and repeated targets, and accepts navigation cycles without traversal.
+Action titles/descriptions use the existing 128/2048 text budgets. Conditions
+reuse root predicate admission and budgets; authoring lowers named and inline
+predicates at these positions. Only nonempty action lists add
+`presentation.next-actions`, recomputed exactly by direct runtime admission.
+Localization uses actual numeric option/action coordinates, including
+`/presentation/outputSelector/options/0/nextActions/0/title`; value-keyed option
+coordinates are unsupported. This grammar supplies neither export history nor
+automatic navigation or copying; client workflow remains planned.
+
 Guidance has optional instructions (4096), four links, sixteen distinct search
 terms (64 each). Multiline instructions permit technical plain text, not template
 expansion. Links have bounded titles/URLs, static public credential-free HTTPS,

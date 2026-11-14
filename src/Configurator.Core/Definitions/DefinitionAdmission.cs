@@ -347,7 +347,7 @@ internal static partial class DefinitionAdmission
         if (journeys.Count is < 1 or > 16 || !journeys.Contains(presentation.GetProperty("defaultJourney").GetString()!))
             throw new DefinitionException("presentation-default");
         if (presentation.TryGetProperty("outputSelector", out var selector))
-            ValidateOutputSelector(selector, root, artifacts);
+            ValidateOutputSelector(selector, root, artifacts, capabilities);
     }
 
     /// <summary>Validates shared title, description, disclosure and applicability of sections, groups and journeys.</summary>
@@ -377,7 +377,8 @@ internal static partial class DefinitionAdmission
         return paths;
     }
 
-    private static void ValidateOutputSelector(JsonElement selector, DefinitionNode root, JsonElement artifacts)
+    private static void ValidateOutputSelector(JsonElement selector, DefinitionNode root, JsonElement artifacts,
+        SortedSet<string> capabilities)
     {
         Only(selector, "pointer", "options");
         DefinitionPath pointer = DefinitionPath.Parse(selector.GetProperty("pointer").GetString()!);
@@ -389,12 +390,45 @@ internal static partial class DefinitionAdmission
         JsonElement options = selector.GetProperty("options");
         if (remaining.Count is < 1 or > 64 || options.GetArrayLength() is < 1 or > 64)
             throw new DefinitionException("output-selector-limit");
+        var optionValues = options.EnumerateArray().Select(option => option.GetProperty("value").GetString()!)
+            .ToHashSet(StringComparer.Ordinal);
+        int optionIndex = 0;
         foreach (JsonElement option in options.EnumerateArray())
         {
-            Only(option, "value", "title", "artifactIds");
+            Only(option, "value", "title", "description", "artifactIds", "nextActions");
             string value = option.GetProperty("value").GetString()!;
             if (!remaining.Remove(value)) throw new DefinitionException("output-selector-value");
             Text(option.GetProperty("title"), 128);
+            if (option.TryGetProperty("description", out var description)) Text(description, 2048);
+            if (option.TryGetProperty("nextActions", out var actions))
+            {
+                if (actions.GetArrayLength() > 63) throw new DefinitionException("next-action-limit");
+                if (actions.GetArrayLength() > 0) capabilities.Add("presentation.next-actions");
+                var targets = new HashSet<string>(StringComparer.Ordinal);
+                int actionIndex = 0;
+                foreach (JsonElement action in actions.EnumerateArray())
+                {
+                    try
+                    {
+                        Only(action, "targetOption", "title", "description", "proposedWhen", "priority");
+                        string target = action.GetProperty("targetOption").GetString()!;
+                        if (!optionValues.Contains(target) || target == value)
+                            throw new DefinitionException("next-action-target");
+                        if (!targets.Add(target)) throw new DefinitionException("next-action-duplicate");
+                        Text(action.GetProperty("title"), 128);
+                        if (action.TryGetProperty("description", out var actionDescription)) Text(actionDescription, 2048);
+                        if (action.TryGetProperty("priority", out _)) Choice(action, "priority", "recommended", "available", "optional");
+                        if (action.TryGetProperty("proposedWhen", out var condition)) ValidateCondition(condition, root, capabilities);
+                    }
+                    catch (DefinitionException exception)
+                    {
+                        throw exception.AtSchemaPath("/presentation/outputSelector/options/"
+                            + optionIndex.ToString(CultureInfo.InvariantCulture) + "/nextActions/"
+                            + actionIndex.ToString(CultureInfo.InvariantCulture));
+                    }
+                    actionIndex++;
+                }
+            }
             JsonElement artifactIds = option.GetProperty("artifactIds");
             Strings(artifactIds, 64, 128, nonempty: true);
             foreach (JsonElement id in artifactIds.EnumerateArray())
@@ -410,6 +444,7 @@ internal static partial class DefinitionAdmission
                     || guard.GetProperty("value").GetString() != value)
                     throw new DefinitionException("output-selector-artifact");
             }
+            optionIndex++;
         }
         if (remaining.Count != 0) throw new DefinitionException("output-selector-value");
     }

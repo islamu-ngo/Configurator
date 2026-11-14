@@ -290,6 +290,23 @@ nullable, protected or read-only selector fields reject. The metadata does not
 supply answers: use `x-configurator.initialValue` for a benign fresh-workspace
 choice; deliberate values and explicit omissions still win.
 
+Options may include a public `description` (2048 characters) and ordered
+`nextActions` (at most 63). Each action has an existing, different `targetOption`,
+`title` (128), optional `description` (2048), optional `proposedWhen`, and optional
+`priority`: `recommended`, `available` (default), or `optional`. Targets cannot
+repeat within an option. Navigation cycles are allowed; metadata never navigates,
+copies values, executes commands or grants target acceptance. Consumers order
+qualifying proposals by priority, then authored order. Single-option and
+simultaneous-output definitions need no follow-up declarations.
+
+Authoring accepts inline conditions or named predicate references in
+`proposedWhen`; runtime contains only lowered predicates. Nonempty action lists
+require `presentation.next-actions`; absence and empty lists do not. Translate
+existing text through numeric paths such as
+`/presentation/outputSelector/options/0/nextActions/0/title` and the corresponding
+description path. Option values are not localization array indices.
+Post-export guidance and reviewed value transfer remain planned client behavior.
+
 `x-configurator.guidance` accepts optional instructions (4096 characters), up to
 four static HTTPS links and sixteen distinct search terms. Instructions support
 plain-text multiline technical punctuation, not executable markup or templates.

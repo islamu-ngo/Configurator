@@ -55,6 +55,29 @@ public sealed class DefinitionSourceMap
             FixedMembers("/identity", identityMap, ["familyId", "revision"]);
         if (root.Entries.TryGetValue("project", out CompositionNode? project) && project is CompositionMap projectMap)
             FixedMembers("/project", projectMap, ["id", "name", "publisher", "description", "repository", "definitionLicense"]);
+        if (root.Entries.TryGetValue("presentation", out CompositionNode? presentation) && presentation is CompositionMap layout
+            && layout.Entries.TryGetValue("outputSelector", out CompositionNode? selector) && selector is CompositionMap selectorMap)
+        {
+            const string selectorPath = "/presentation/outputSelector";
+            Add(selectorPath, selector);
+            FixedMembers(selectorPath, selectorMap, ["pointer", "options"]);
+            if (selectorMap.Entries.TryGetValue("options", out CompositionNode? options) && options is CompositionSequence optionList)
+                for (int index = 0; index < optionList.Entries.Count; index++)
+                {
+                    string optionPath = selectorPath + "/options/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    CompositionNode option = optionList.Entries[index];
+                    if (!Add(optionPath, option) || option is not CompositionMap optionMap) continue;
+                    FixedMembers(optionPath, optionMap, ["value", "title", "description", "artifactIds", "nextActions"]);
+                    if (optionMap.Entries.TryGetValue("nextActions", out CompositionNode? actions) && actions is CompositionSequence actionList)
+                        for (int actionIndex = 0; actionIndex < actionList.Entries.Count; actionIndex++)
+                        {
+                            string actionPath = optionPath + "/nextActions/" + actionIndex.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                            CompositionNode action = actionList.Entries[actionIndex];
+                            if (Add(actionPath, action) && action is CompositionMap actionMap)
+                                FixedMembers(actionPath, actionMap, ["targetOption", "title", "description", "priority", "proposedWhen"]);
+                        }
+                }
+        }
         if (root.Entries.TryGetValue("artifacts", out CompositionNode? artifacts) && artifacts is CompositionSequence sequence)
             for (int index = 0; index < sequence.Entries.Count; index++) Artifact(index, sequence.Entries[index]);
         // Source output names lower to deterministic artifact ordinals, not native paths.

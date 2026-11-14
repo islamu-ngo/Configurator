@@ -43,6 +43,11 @@ internal sealed class DefinitionPredicateLowering
                 }
         if (root["presentation"] is JsonObject presentation)
         {
+            if (presentation["outputSelector"]?["options"] is JsonArray options)
+                foreach (JsonNode? option in options)
+                    if (option?["nextActions"] is JsonArray actions)
+                        foreach (JsonNode? action in actions)
+                            if (action is JsonObject nextAction) lowering.Replace(nextAction, "proposedWhen");
             foreach (string collection in new[] { "sections", "journeys" })
                 if (presentation[collection] is JsonArray items)
                     foreach (JsonNode? item in items)

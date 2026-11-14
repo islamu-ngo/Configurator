@@ -31,7 +31,7 @@ internal static class CliContractSpecification
         });
 
     internal static readonly IReadOnlySet<string> Capabilities = new HashSet<string>(
-        ["predicate.item", "predicate.root", "projection.copy", "projection.index", "projection.list", "projection.literal", "projection.object",
+        ["predicate.item", "predicate.root", "presentation.next-actions", "projection.copy", "projection.index", "projection.list", "projection.literal", "projection.object",
             "projection.omit", "projection.repeat", "relationship.presence", "schema.array", "schema.boolean", "schema.bounds", "schema.const",
             "schema.enum", "schema.integer", "schema.notBlank", "schema.nullable", "schema.number", "schema.object",
             "schema.string", "schema.uniqueBy", "schema.map", "schema.variant", "schema.localRef",

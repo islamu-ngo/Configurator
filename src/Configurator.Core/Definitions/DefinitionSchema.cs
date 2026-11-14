@@ -514,6 +514,20 @@ public static class DefinitionSchema
                     {
                         ["value"] = new JsonObject { ["type"] = "string", ["maxLength"] = 65536 },
                         ["title"] = Text(128),
+                        ["description"] = Text(2048),
+                        ["nextActions"] = new JsonObject
+                        {
+                            ["type"] = "array",
+                            ["maxItems"] = 63,
+                            ["items"] = Closed(new JsonObject
+                            {
+                                ["targetOption"] = Text(65536),
+                                ["title"] = Text(128),
+                                ["description"] = Text(2048),
+                                ["proposedWhen"] = Ref("predicate"),
+                                ["priority"] = Choice("recommended", "available", "optional")
+                            }, "targetOption", "title")
+                        },
                         ["artifactIds"] = Strings(64, 128)
                     }, "value", "title", "artifactIds")
                 }
