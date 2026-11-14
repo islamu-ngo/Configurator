@@ -535,3 +535,10 @@ Deploy Configurator Browser as a Docker service in Coolify with these settings:
 | **Domain & HTTPS** | Configure your custom domain in Coolify |
 
 For advanced integration details, see the [launch integration guide](launch-integration.md) and [packaging guide](packaging.md).
+
+## Density and naming
+
+Appearance settings offer Spacious, Comfortable, Compact and Dense spacing,
+plus Humanized and Technical naming. These local view preferences accompany
+theme and direction; they contain no configuration answers and do not change
+the accepted answer revision.

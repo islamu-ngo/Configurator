@@ -20,6 +20,22 @@
             <option value="rtl">@T("RightToLeft")</option>
         </select>
     </div>
+    <div class="theme-quick-switcher__control">
+        <label for="appearance-density">@T("Density")</label>
+        <select id="appearance-density" value="@Appearance.Current.Density" @onchange="DensityChanged">
+            <option value="spacious">@T("Spacious")</option>
+            <option value="comfortable">@T("Comfortable")</option>
+            <option value="compact">@T("Compact")</option>
+            <option value="dense">@T("Dense")</option>
+        </select>
+    </div>
+    <div class="theme-quick-switcher__control">
+        <label for="appearance-naming">@T("NamingMode")</label>
+        <select id="appearance-naming" value="@Appearance.Current.NamingMode" @onchange="NamingChanged">
+            <option value="humanized">@T("Humanized")</option>
+            <option value="technical">@T("Technical")</option>
+        </select>
+    </div>
 </div>
 
 @code {
@@ -29,8 +45,10 @@
 
     private void AppearanceChanged(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);
 
-    private async Task ModeChanged(ChangeEventArgs args) => await Appearance.SetAsync(args.Value?.ToString() ?? "system", Appearance.Current.Direction);
-    private async Task DirectionChanged(ChangeEventArgs args) => await Appearance.SetAsync(Appearance.Current.ThemeMode, args.Value?.ToString() ?? "auto");
+    private Task ModeChanged(ChangeEventArgs args) => Appearance.SetAsync(args.Value?.ToString() ?? "system", Appearance.Current.Direction).AsTask();
+    private Task DirectionChanged(ChangeEventArgs args) => Appearance.SetAsync(Appearance.Current.ThemeMode, args.Value?.ToString() ?? "auto").AsTask();
+    private Task DensityChanged(ChangeEventArgs args) => Appearance.SetDensityAsync(args.Value?.ToString() ?? "comfortable").AsTask();
+    private Task NamingChanged(ChangeEventArgs args) => Appearance.SetNamingModeAsync(args.Value?.ToString() ?? "humanized").AsTask();
 
     public void Dispose() => Appearance.Changed -= AppearanceChanged;
 }

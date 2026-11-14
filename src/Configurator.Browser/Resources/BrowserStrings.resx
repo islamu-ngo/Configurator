@@ -543,4 +543,9 @@
   <data name="InspectorBindingsBoundary" xml:space="preserve"><value>These are declared references, not a guarantee that a conditional output is included.</value></data>
   <data name="InspectorPublicBoundary" xml:space="preserve"><value>Help contains public definition and interface guidance, never your answers. Preparation does not grant target acceptance or apply permission.</value></data>
   <data name="InspectorCloseHelp" xml:space="preserve"><value>Close field help</value></data>
+  <data name="Spacious" xml:space="preserve"><value>Spacious</value></data>
+  <data name="Dense" xml:space="preserve"><value>Dense</value></data>
+  <data name="NamingMode" xml:space="preserve"><value>Naming mode</value></data>
+  <data name="Humanized" xml:space="preserve"><value>Humanized</value></data>
+  <data name="Technical" xml:space="preserve"><value>Technical</value></data>
 </root>

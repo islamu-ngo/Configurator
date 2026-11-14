@@ -1,0 +1,29 @@
+Change-Id: CHG-01M7DX18RMV15K5KAXWWHZ1GAQ
+Title: "Persist bounded Browser density and naming preferences"
+Type: feat
+Scope: self-hosting
+Summary: "Offer four density presets and humanized or technical naming with bounded public appearance preferences, synchronized runtime controls and updated theme surfaces."
+Group: browser-appearance-preferences
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Persist only closed public appearance fields within the existing UTF-8 byte budget. Appearance preferences contain no configuration answers or prepared output."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "Appearance controls expose four density presets and humanized or technical naming alongside theme and direction."
+  OpenAPI:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/browser.md
+    Disposition: documented
+    Detail: "View preferences remain local and do not change the accepted-answer revision."

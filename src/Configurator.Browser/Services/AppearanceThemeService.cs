@@ -38,7 +38,7 @@ public sealed class AppearanceThemeService(IJSRuntime javascript) : IAsyncDispos
             if (generation == _generation) Current = preference;
             _reference = DotNetObjectReference.Create(this);
             await _module.InvokeVoidAsync("watch", _reference);
-            await _module.InvokeVoidAsync("apply", Current.ThemeMode, Current.Direction);
+            await _module.InvokeVoidAsync("apply", Current.ThemeMode, Current.Direction, Current.Density, Current.NamingMode);
         }
         catch (JSException)
         {
@@ -47,18 +47,32 @@ public sealed class AppearanceThemeService(IJSRuntime javascript) : IAsyncDispos
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    public async ValueTask SetAsync(string mode, string direction)
+    public ValueTask SetDensityAsync(string density) =>
+        AppearanceState.IsDensity(density)
+            ? SetAsync(Current.ThemeMode, Current.Direction, density, Current.NamingMode)
+            : ValueTask.CompletedTask;
+
+    public ValueTask SetNamingModeAsync(string namingMode) =>
+        AppearanceState.IsNamingMode(namingMode)
+            ? SetAsync(Current.ThemeMode, Current.Direction, Current.Density, namingMode)
+            : ValueTask.CompletedTask;
+
+    public async ValueTask SetAsync(string mode, string direction, string? density = null, string? namingMode = null)
     {
-        if (_disposed || !AppearanceState.IsThemeMode(mode) || !AppearanceState.IsDirection(direction)) return;
+        string targetDensity = density ?? Current.Density;
+        string targetNaming = namingMode ?? Current.NamingMode;
+        if (_disposed || !AppearanceState.IsThemeMode(mode) || !AppearanceState.IsDirection(direction)
+            || !AppearanceState.IsDensity(targetDensity) || !AppearanceState.IsNamingMode(targetNaming))
+            return;
         long generation = ++_generation;
-        Current = new(mode, direction);
+        Current = new(mode, direction, targetDensity, targetNaming);
         Changed?.Invoke(this, EventArgs.Empty);
         if (_module is null) return;
         try
         {
-            await _module.InvokeVoidAsync("write", mode, direction);
+            await _module.InvokeVoidAsync("write", mode, direction, targetDensity, targetNaming);
             if (_disposed || generation != _generation) return;
-            await _module.InvokeVoidAsync("apply", mode, direction);
+            await _module.InvokeVoidAsync("apply", mode, direction, targetDensity, targetNaming);
         }
         catch (JSException)
         {
@@ -86,7 +100,7 @@ public sealed class AppearanceThemeService(IJSRuntime javascript) : IAsyncDispos
                 PrimaryContrastText = "#FFFFFF",
                 Secondary = "#52525B",
                 SecondaryContrastText = "#FFFFFF",
-                Background = contrast ? "#FFFFFF" : "#F5F5F7",
+                Background = contrast ? "#FFFFFF" : "#F0F2F5",
                 Surface = "#FFFFFF",
                 AppbarBackground = "#FFFFFF",
                 AppbarText = "#18181B",
@@ -106,15 +120,15 @@ public sealed class AppearanceThemeService(IJSRuntime javascript) : IAsyncDispos
             PaletteDark = new PaletteDark
             {
                 Primary = contrast ? "#FAFAFA" : "#2DD4BF",
-                PrimaryContrastText = "#0D1117",
+                PrimaryContrastText = contrast ? "#000000" : "#0D1117",
                 Secondary = "#A1A1AA",
                 SecondaryContrastText = "#0D1117",
-                Background = contrast ? "#000000" : "#141415",
-                Surface = contrast ? "#000000" : "#19191B",
-                BackgroundGray = "#1F1F23",
-                AppbarBackground = contrast ? "#000000" : "#141415",
+                Background = contrast ? "#000000" : "#141519",
+                Surface = contrast ? "#000000" : "#1B1C21",
+                BackgroundGray = contrast ? "#141415" : "#23242A",
+                AppbarBackground = contrast ? "#000000" : "#141519",
                 AppbarText = "#EDEDED",
-                DrawerBackground = contrast ? "#000000" : "#141415",
+                DrawerBackground = contrast ? "#000000" : "#141519",
                 DrawerText = "#EDEDED",
                 DrawerIcon = "#85858B",
                 TextPrimary = "#EDEDED",

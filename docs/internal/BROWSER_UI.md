@@ -619,3 +619,12 @@ late decisions. `NavigationLock` retains browser-managed external unload prompts
 See [Presentation state](PRESENTATION_STATE.md) for generation ownership and
 [Operations](OPERATIONS.md#browser-custody-and-offline-verification) for actual
 published-browser evidence.
+
+## Bounded appearance preferences
+
+`AppearanceState` admits only theme, direction, density and naming mode within
+256 UTF-8 bytes. `AppearanceThemeService` synchronizes the existing JS module
+and local controls. The public preference contains no answers or output.
+Four density presets map to shared workspace presentation options; humanized
+and technical naming remain view choices. Theme surfaces, density tokens and
+the named controls are checked independently of profile/workspace integration.
