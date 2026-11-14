@@ -832,3 +832,12 @@ packages, every native host, any target application's acceptance, translations,
 or measured operator usability. Use the [packaging guide](packaging.md) and
 client capability references for separately recorded qualification. I-VSD
 findings are not closed by publishing this page.
+
+## Output quality advisories
+
+`definition lint --quality` reports missing option descriptions and an entirely
+absent next-action graph for selectors with multiple output choices. These
+advisories do not require authors to invent relationships between independent
+tasks. Machine consumers must accept the new advisory codes. Additional findings
+can reach the existing report limit sooner; an incomplete bounded report returns
+the documented Data outcome rather than success.

@@ -1,0 +1,29 @@
+Change-Id: CHG-01M7DXR7HKRTP38KKP5M860B82
+Title: "Report structural output guidance gaps in quality lint"
+Type: feat
+Scope: self-hosting
+Summary: "Add advisory codes for missing descriptions and entirely absent next-action graphs in multi-option selectors, preserving intentional independent-task authoring."
+Group: output-quality-advisories
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/definitions.md
+    Disposition: documented
+    Detail: "Quality lint adds two diagnostic codes. Additional findings can exhaust the existing bounded report budget for inputs that previously fit, producing the documented incomplete Data outcome."
+  Security:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: not-applicable
+  Migration:
+    Reference: docs/public/definitions.md
+    Disposition: documented
+    Detail: "Accept output-option-missing-description and output-selector-missing-next-actions, and handle incomplete quality reports rather than relying on previous warning counts."
+  Configuration:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definitions.md
+    Disposition: documented
+    Detail: "Advisories describe observable metadata gaps; independent tasks may deliberately have no follow-up graph."

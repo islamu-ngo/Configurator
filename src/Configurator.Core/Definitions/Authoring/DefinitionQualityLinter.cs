@@ -17,7 +17,7 @@ public static class DefinitionQualityLinter
     {
         "raw-identifier-title", "verbatim-choice-label", "jsonpath-description", "exporter-diagnostic-description",
         "missing-deprecation-message", "missing-section-description", "required-secret-missing-guidance",
-        "unreferenced-journey-section"
+        "unreferenced-journey-section", "output-option-missing-description", "output-selector-missing-next-actions"
     });
 
     private static readonly string[] ExporterPhrases = ["Host validator:", "Host restart:", "startup-owned:"];
@@ -45,6 +45,15 @@ public static class DefinitionQualityLinter
         }
         if (definition.Presentation is { } presentation)
         {
+            if (presentation.OutputSelector is { Options.Count: > 1 } selector)
+            {
+                if (selector.Options.All(option => option.NextActions.Count == 0))
+                    advisories.Add(new("output-selector-missing-next-actions", "/presentation/outputSelector"));
+                for (int index = 0; index < selector.Options.Count; index++)
+                    if (selector.Options[index].Description is null)
+                        advisories.Add(new("output-option-missing-description",
+                            "/presentation/outputSelector/options/" + index.ToString(CultureInfo.InvariantCulture)));
+            }
             var reachable = presentation.Experiences.SelectMany(journey => journey.Sections).ToHashSet(StringComparer.Ordinal);
             for (int index = 0; index < presentation.Sections.Count; index++)
             {

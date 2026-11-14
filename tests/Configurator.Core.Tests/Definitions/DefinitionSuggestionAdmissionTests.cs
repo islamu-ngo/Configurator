@@ -214,6 +214,22 @@ public sealed class DefinitionSuggestionAdmissionTests
     }
 
     [Test]
+    public async Task QualityFindingsDescribeOnlyObservableWorkflowMetadataGaps()
+    {
+        JsonObject source = Source();
+        Definition definition = Compile(source);
+        var findings = DefinitionQualityLinter.Lint(definition);
+        await Assert.That(findings.Any(finding => finding.Code == "output-selector-missing-next-actions"
+            && finding.SchemaPath == "/presentation/outputSelector")).IsTrue();
+        await Assert.That(findings.Count(finding => finding.Code == "output-option-missing-description")).IsEqualTo(2);
+        JsonArray options = source["presentation"]!["outputSelector"]!["options"]!.AsArray();
+        foreach (JsonNode? option in options) option!["description"] = "A separate editable task.";
+        options[0]!["nextActions"] = JsonNode.Parse("""[{"targetOption":"identity","title":"Continue"}]""");
+        findings = DefinitionQualityLinter.Lint(Compile(source));
+        await Assert.That(findings.Any(finding => finding.Code.StartsWith("output-", StringComparison.Ordinal))).IsFalse();
+    }
+
+    [Test]
     public async Task RetainedPublicStoreReleasesRemainAdmissibleWithoutRewritingBytes()
     {
         DirectoryInfo? root = new(AppContext.BaseDirectory);

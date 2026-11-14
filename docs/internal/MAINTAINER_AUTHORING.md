@@ -90,6 +90,14 @@ predicates and lowers to runtime AST. `values.suggested-from` is derived exactly
 when a link is present. Statically resolved endpoints, scalar-domain containment,
 ancestor sensitivity floors and a bounded acyclic link graph are admission
 requirements, not evidence that a source answer is currently usable.
+`definition lint --quality` reports structural workflow metadata gaps; it never
+infers semantic equivalence from labels or requires authors to invent links.
+For selectors with multiple options, `output-option-missing-description`
+identifies absent option descriptions and `output-selector-missing-next-actions`
+identifies an entirely absent follow-up graph. Both are advisories: independent
+tasks may intentionally have no follow-up relationship.
+Consumers must accept the added advisory codes and the existing bounded-report
+Data outcome if additional findings exhaust the report budget.
 
 Typed `secret` metadata establishes a secret sensitivity floor. Local `$ref`
 overrides cannot downgrade that floor or replace a conflicting secret policy.
