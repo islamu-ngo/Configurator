@@ -12,6 +12,8 @@ public sealed record DefinitionNode
     private static readonly JsonElement EmptyKeywords =
         JsonSerializer.SerializeToElement(new JsonObject(), CoreJsonContext.Default.JsonObject);
     private readonly string _keywordIdentity;
+    private string[]? _cachedRootReferences;
+    private string[]? _cachedItemReferences;
 
     public DefinitionNode(DefinitionNodeType type, bool nullable = false,
         IEnumerable<KeyValuePair<string, DefinitionNode>>? properties = null,
@@ -142,6 +144,19 @@ public sealed record DefinitionNode
     internal int ExpandedNodes { get; }
     internal int ScalarCharacters { get; }
     internal int Depth { get; }
+
+    internal string[]? GetCachedReferences(string scope) => scope switch
+    {
+        "root" => Volatile.Read(ref _cachedRootReferences),
+        "item" => Volatile.Read(ref _cachedItemReferences),
+        _ => null
+    };
+
+    internal void CacheReferences(string scope, string[] references)
+    {
+        if (scope == "root") Volatile.Write(ref _cachedRootReferences, references);
+        else if (scope == "item") Volatile.Write(ref _cachedItemReferences, references);
+    }
 
     public bool Equals(DefinitionNode? other) => other is not null
         && Type == other.Type && IsNullable == other.IsNullable

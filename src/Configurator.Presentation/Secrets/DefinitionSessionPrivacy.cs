@@ -82,7 +82,16 @@ internal static class DefinitionSecretPolicy
         {
             JsonElement value = JsonSerializer.SerializeToElement(node);
             if (DefinitionValidator.SelectVariant(schema, value) is { } branch)
-                return RemoveSecrets(branch, node);
+            {
+                node = RemoveSecrets(branch, node);
+                if (node is JsonObject variantMapping)
+                    foreach (DefinitionNode other in schema.Variants.Where(candidate => !ReferenceEquals(candidate, branch)))
+                        foreach (string name in variantMapping.Select(property => property.Key).Where(key => !branch.Properties.ContainsKey(key)).ToArray())
+                            if (other.Properties.TryGetValue(name, out DefinitionNode? inactiveChild) &&
+                                (IsSecret(inactiveChild) || variantMapping[name] is not null && RemoveSecrets(inactiveChild, variantMapping[name]) is null))
+                                variantMapping.Remove(name);
+                return node;
+            }
             foreach (DefinitionNode variant in schema.Variants)
                 node = RemoveSecrets(variant, node);
             return node;

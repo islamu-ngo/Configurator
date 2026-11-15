@@ -9,7 +9,7 @@ using Configurator.Core.Definitions;
 public enum DefinitionAnswerOrigin { Omitted, Defaulted, Imported, Explicit, Generated }
 
 /// <summary>Controls ordinary disclosure only; activation, selected experience and edit authority remain authoritative.</summary>
-public enum DefinitionEditorVisibilityPolicy { Authored, Direct }
+public enum DefinitionEditorVisibilityPolicy { Authored, Direct, Continuous }
 
 public sealed partial class DefinitionFormModel
 {
@@ -304,11 +304,24 @@ public sealed partial class DefinitionFormModel
     internal bool TryCorrectionPath(string fieldId, DefinitionCorrectionLocation location,
         DefinitionValidationResult validation, out IReadOnlyList<string> path)
     {
-        var resolved = new List<string>();
+        if (location.Segments.Count == 0 && fieldId.Length > 0)
+        {
+            FieldDefinition? rootField = validation.FindField(fieldId)?.Definition;
+            if (rootField is null)
+            {
+                path = Array.Empty<string>();
+                return false;
+            }
+            path = _index is not null && _index.TryGetRootDataSegments(fieldId, out IReadOnlyList<string>? cached)
+                ? cached
+                : [rootField.Name];
+            return true;
+        }
+        var resolved = new List<string>(location.Segments.Count + (fieldId.Length > 0 ? 1 : 0));
         path = resolved;
         if (fieldId.Length > 0)
         {
-            FieldDefinition? field = validation.Fields.FirstOrDefault(item => item.Id == fieldId)?.Definition;
+            FieldDefinition? field = validation.FindField(fieldId)?.Definition;
             if (field is null) return false;
             resolved.Add(field.Name);
         }
@@ -384,7 +397,8 @@ public sealed partial class DefinitionFormModel
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!TryEditorMetadata(path, out _, out _) || !IsEditorActive(path)) return false;
         DefinitionFormSection? section = path.Segments.Count > 0 ? _index!.ResolveSection(path) : null;
-        if (section is not null && !Experiences.Single(item => item.Id == SelectedExperienceId).Sections.Contains(section.Id) &&
+        if (_view.EditorVisibility != DefinitionEditorVisibilityPolicy.Continuous &&
+            section is not null && !Experiences.Single(item => item.Id == SelectedExperienceId).Sections.Contains(section.Id) &&
             Experiences.FirstOrDefault(item => item.Sections.Contains(section.Id)) is { } experience)
             SelectExperience(experience.Id);
         if (!preserveDiscovery)
@@ -393,6 +407,13 @@ public sealed partial class DefinitionFormModel
             _discovery = null;
             OnPropertyChanged(nameof(DiscoveryQuery));
             OnPropertyChanged(nameof(DiscoverySelection));
+        }
+        if (section is not null && path.Segments.Count > 0)
+        {
+            string rootFieldId = DefinitionProfile.FieldId(path.Segments[0]);
+            foreach (DefinitionFormSectionGroup group in section.Groups)
+                if (group.Fields.Contains(rootFieldId, StringComparer.Ordinal))
+                    _view.GroupExpansion[(section.Id, group.Id)] = true;
         }
         for (int length = 0; length <= path.Segments.Count; length++)
             _view.PromotedPaths.Add(GetEditorIdentity(DefinitionPath.FromSegments(path.Segments.Take(length))));

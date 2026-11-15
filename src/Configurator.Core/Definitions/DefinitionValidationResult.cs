@@ -5,6 +5,9 @@ using System.Text.Json;
 
 public sealed class DefinitionValidationResult
 {
+    private IReadOnlyDictionary<string, IReadOnlyList<DefinitionDiagnostic>>? _diagnosticsByField;
+    private IReadOnlyDictionary<string, FieldState>? _fieldsById;
+
     internal DefinitionValidationResult(IEnumerable<FieldState> fields,
         IEnumerable<DefinitionDiagnostic> diagnostics, Dictionary<string, JsonElement> values,
         IReadOnlySet<string>? deferred = null, IReadOnlySet<string>? unresolved = null,
@@ -30,6 +33,49 @@ public sealed class DefinitionValidationResult
 
     public IReadOnlyList<FieldState> Fields { get; }
     public IReadOnlyList<DefinitionDiagnostic> Diagnostics { get; }
+
+    /// <summary>Returns indexed validation diagnostics targeting <paramref name="fieldId"/> in O(1) lookup time.</summary>
+    public IReadOnlyList<DefinitionDiagnostic> DiagnosticsForField(string fieldId)
+    {
+        ArgumentNullException.ThrowIfNull(fieldId);
+        if (Diagnostics.Count == 0) return [];
+        IReadOnlyDictionary<string, IReadOnlyList<DefinitionDiagnostic>> index = _diagnosticsByField ?? BuildDiagnosticsByField();
+        return index.GetValueOrDefault(fieldId) ?? [];
+    }
+
+    /// <summary>Returns the <see cref="FieldState"/> for <paramref name="fieldId"/> in O(1) lookup time, or null when absent.</summary>
+    public FieldState? FindField(string fieldId)
+    {
+        ArgumentNullException.ThrowIfNull(fieldId);
+        if (Fields.Count == 0) return null;
+        IReadOnlyDictionary<string, FieldState> index = _fieldsById ?? BuildFieldsById();
+        return index.GetValueOrDefault(fieldId);
+    }
+
+    private IReadOnlyDictionary<string, IReadOnlyList<DefinitionDiagnostic>> BuildDiagnosticsByField()
+    {
+        var grouped = new Dictionary<string, List<DefinitionDiagnostic>>(StringComparer.Ordinal);
+        foreach (DefinitionDiagnostic diagnostic in Diagnostics)
+        {
+            if (!grouped.TryGetValue(diagnostic.FieldId, out List<DefinitionDiagnostic>? bucket))
+                grouped.Add(diagnostic.FieldId, bucket = []);
+            bucket.Add(diagnostic);
+        }
+        var result = new Dictionary<string, IReadOnlyList<DefinitionDiagnostic>>(grouped.Count, StringComparer.Ordinal);
+        foreach (var (key, list) in grouped)
+            result.Add(key, Array.AsReadOnly(list.ToArray()));
+        var ro = new ReadOnlyDictionary<string, IReadOnlyList<DefinitionDiagnostic>>(result);
+        return Interlocked.CompareExchange(ref _diagnosticsByField, ro, null) ?? _diagnosticsByField;
+    }
+
+    private IReadOnlyDictionary<string, FieldState> BuildFieldsById()
+    {
+        var map = new Dictionary<string, FieldState>(Fields.Count, StringComparer.Ordinal);
+        foreach (FieldState field in Fields)
+            map[field.Id] = field;
+        var ro = new ReadOnlyDictionary<string, FieldState>(map);
+        return Interlocked.CompareExchange(ref _fieldsById, ro, null) ?? _fieldsById;
+    }
     public IReadOnlyList<DefinitionNodeState> Nodes { get; }
     public DefinitionConfigurationContext? ConfigurationContext { get; }
     public bool IsReady => Diagnostics.Count == 0;
@@ -70,14 +116,42 @@ public sealed class DefinitionValidationResult
     public bool TryGetEffectiveValue(DefinitionPath location, out JsonElement value)
     {
         ArgumentNullException.ThrowIfNull(location);
-        JsonElement reference = JsonSerializer.SerializeToElement(new { scope = "root", path = location.ToPointer() });
-        if (DefinitionValidator.TryResolveReference(reference, Values, null, out JsonElement resolved))
+        if (location.Segments.Count == 0)
         {
-            value = resolved.Clone();
+            var root = new System.Text.Json.Nodes.JsonObject();
+            foreach ((string name, JsonElement supplied) in Values)
+                root.Add(name, System.Text.Json.Nodes.JsonNode.Parse(supplied.GetRawText()));
+            value = JsonSerializer.SerializeToElement(root, CoreJsonContext.Default.JsonObject);
             return true;
         }
-        value = default;
-        return false;
+        if (!Values.TryGetValue(location.Segments[0], out JsonElement current))
+        {
+            value = default;
+            return false;
+        }
+        for (int index = 1; index < location.Segments.Count; index++)
+        {
+            if (current.ValueKind == JsonValueKind.Object)
+            {
+                if (!current.TryGetProperty(location.Segments[index], out current))
+                {
+                    value = default;
+                    return false;
+                }
+            }
+            else if (current.ValueKind == JsonValueKind.Array && location.TryGetArrayIndex(index, out int position)
+                && position < current.GetArrayLength())
+            {
+                current = current[position];
+            }
+            else
+            {
+                value = default;
+                return false;
+            }
+        }
+        value = current.Clone();
+        return true;
     }
     public override string ToString() => $"{nameof(DefinitionValidationResult)}:Ready={IsReady}:Diagnostics={Diagnostics.Count}";
 }

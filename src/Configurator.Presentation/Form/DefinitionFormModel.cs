@@ -21,10 +21,14 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     private HashSet<DefinitionPath> Omitted => _editing.Omitted;
     private DefinitionFormIndex? _index;
     private DefinitionFormFacts? _facts;
+    private AnswerSnapshot? _snapshot;
+    private IReadOnlyList<DefinitionFormSection>? _displaySections;
+    private IReadOnlyList<DefinitionFormExperience>? _displayExperiences;
     private Lazy<IReadOnlyList<DefinitionDiscoveryEntry>>? _orderedEntries;
     private Lazy<IReadOnlyList<DefinitionDiscoveryEntry>>? _relevantEntries;
     private Lazy<DefinitionDiscoverySnapshot>? _discovery;
     private bool _promotionPending;
+    private long _bulkStateEpoch;
     private DefinitionFormProjection? _projection;
     private readonly DefinitionFormUndoHistory _undoHistory = new();
     private DefinitionAcceptedEditingState? _undoBaseline;
@@ -100,6 +104,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         _view = new(definition.Presentation?.DefaultExperience ?? "configure")
         {
             Locale = _localization.DefaultLocale,
+            InitialEditorVisibility = editorVisibility,
             EditorVisibility = editorVisibility
         };
         _index = new DefinitionFormIndex(definition, Sections, Experiences);
@@ -115,39 +120,81 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     public Definition Definition { get; }
     public IReadOnlyList<DefinitionFormExperience> Experiences { get; }
     public IReadOnlyList<DefinitionFormSection> Sections { get; }
-    public IReadOnlyList<DefinitionFormSection> DisplaySections => Array.AsReadOnly(Sections.Select(section =>
+    public IReadOnlyList<DefinitionFormSection> DisplaySections
     {
-        int index = Definition.Presentation?.Sections.ToList().FindIndex(item => item.Id == section.Id) ?? -1;
-        string prefix = "/presentation/sections/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if (index < 0)
+        get
         {
-            return new DefinitionFormSection(section.Id, PresentationStrings.Get("Configure", Locale),
-                section.Description, section.Fields, section.Disclosure, section.Pointers, section.Groups, section.IsApplicable);
-        }
-        DefinitionFormSectionGroup[] localizedGroups = section.Groups.Select((group, groupIndex) =>
-        {
-            string gPrefix = prefix + "/groups/" + groupIndex.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            return group with
+            lock (_gate)
             {
-                Title = _localization.Text(Locale, gPrefix + "/title", group.Title)!,
-                Description = _localization.Text(Locale, gPrefix + "/description", group.Description)
-            };
-        }).ToArray();
-        return new DefinitionFormSection(section.Id,
-            _localization.Text(Locale, prefix + "/title", section.Title)!,
-            _localization.Text(Locale, prefix + "/description", section.Description),
-            section.Fields, section.Disclosure, section.Pointers, localizedGroups, section.IsApplicable);
-    }).ToArray());
-    public IReadOnlyList<DefinitionFormExperience> DisplayExperiences => Array.AsReadOnly(Experiences.Select(experience =>
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                if (_displaySections is not null) return _displaySections;
+                IReadOnlyList<DefinitionSection>? authored = Definition.Presentation?.Sections;
+                var indices = authored is null ? null : new Dictionary<string, int>(authored.Count, StringComparer.Ordinal);
+                if (authored is not null && indices is not null)
+                    for (int i = 0; i < authored.Count; i++)
+                        indices.TryAdd(authored[i].Id, i);
+                var result = new DefinitionFormSection[Sections.Count];
+                for (int s = 0; s < Sections.Count; s++)
+                {
+                    DefinitionFormSection section = Sections[s];
+                    int index = indices is not null && indices.TryGetValue(section.Id, out int found) ? found : -1;
+                    string prefix = "/presentation/sections/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (index < 0)
+                    {
+                        result[s] = new DefinitionFormSection(section.Id, PresentationStrings.Get("Configure", Locale),
+                            section.Description, section.Fields, section.Disclosure, section.Pointers, section.Groups, section.IsApplicable);
+                        continue;
+                    }
+                    DefinitionFormSectionGroup[] localizedGroups = new DefinitionFormSectionGroup[section.Groups.Count];
+                    for (int g = 0; g < section.Groups.Count; g++)
+                    {
+                        DefinitionFormSectionGroup group = section.Groups[g];
+                        string gPrefix = prefix + "/groups/" + g.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        localizedGroups[g] = group with
+                        {
+                            Title = _localization.Text(Locale, gPrefix + "/title", group.Title)!,
+                            Description = _localization.Text(Locale, gPrefix + "/description", group.Description)
+                        };
+                    }
+                    result[s] = new DefinitionFormSection(section.Id,
+                        _localization.Text(Locale, prefix + "/title", section.Title)!,
+                        _localization.Text(Locale, prefix + "/description", section.Description),
+                        section.Fields, section.Disclosure, section.Pointers, localizedGroups, section.IsApplicable);
+                }
+                return _displaySections = Array.AsReadOnly(result);
+            }
+        }
+    }
+    public IReadOnlyList<DefinitionFormExperience> DisplayExperiences
     {
-        int index = Definition.Presentation?.Experiences.ToList().FindIndex(item => item.Id == experience.Id) ?? -1;
-        string prefix = "/presentation/journeys/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        return index < 0 ? new DefinitionFormExperience(experience.Id, PresentationStrings.Get("Configure", Locale),
-            experience.InitialDisclosure, experience.Navigation, experience.Sections, experience.Description) : new DefinitionFormExperience(experience.Id,
-            _localization.Text(Locale, prefix + "/title", experience.Title)!, experience.InitialDisclosure,
-            experience.Navigation, experience.Sections, _localization.Text(Locale, prefix + "/description", experience.Description));
-    }).ToArray());
+        get
+        {
+            lock (_gate)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                if (_displayExperiences is not null) return _displayExperiences;
+                IReadOnlyList<DefinitionExperience>? authored = Definition.Presentation?.Experiences;
+                var indices = authored is null ? null : new Dictionary<string, int>(authored.Count, StringComparer.Ordinal);
+                if (authored is not null && indices is not null)
+                    for (int i = 0; i < authored.Count; i++)
+                        indices.TryAdd(authored[i].Id, i);
+                var result = new DefinitionFormExperience[Experiences.Count];
+                for (int e = 0; e < Experiences.Count; e++)
+                {
+                    DefinitionFormExperience experience = Experiences[e];
+                    int index = indices is not null && indices.TryGetValue(experience.Id, out int found) ? found : -1;
+                    string prefix = "/presentation/journeys/" + index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    result[e] = index < 0 ? new DefinitionFormExperience(experience.Id, PresentationStrings.Get("Configure", Locale),
+                        experience.InitialDisclosure, experience.Navigation, experience.Sections, experience.Description) : new DefinitionFormExperience(experience.Id,
+                        _localization.Text(Locale, prefix + "/title", experience.Title)!, experience.InitialDisclosure,
+                        experience.Navigation, experience.Sections, _localization.Text(Locale, prefix + "/description", experience.Description));
+                }
+                return _displayExperiences = Array.AsReadOnly(result);
+            }
+        }
+    }
     public string SelectedExperienceId => _view.SelectedExperienceId;
+    public DefinitionEditorVisibilityPolicy EditorVisibility => _view.EditorVisibility;
     public string Locale => _view.Locale;
     public string Direction => _localization.Direction(Locale);
 
@@ -169,6 +216,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         if (!_localization.Locales.Contains(locale, StringComparer.Ordinal)) return false;
         if (Locale == locale) return true;
         _view.Locale = locale;
+        _displaySections = null;
+        _displayExperiences = null;
         _orderedEntries = null;
         _relevantEntries = null;
         _discovery = null;
@@ -243,7 +292,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         ArgumentNullException.ThrowIfNull(sectionId);
         using var mutation = BeginMutation();
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (!Experiences.Single(experience => experience.Id == SelectedExperienceId).Sections.Contains(sectionId))
+        if (_view.EditorVisibility == DefinitionEditorVisibilityPolicy.Continuous
+            ? !Sections.Any(section => section.Id == sectionId)
+            : !Experiences.Single(experience => experience.Id == SelectedExperienceId).Sections.Contains(sectionId))
             return false;
         _view.SectionExpansion[sectionId] = expanded;
         foreach (string rootId in Sections.Single(section => section.Id == sectionId).Fields)
@@ -265,11 +316,33 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (!TryEditorMetadata(path, out DefinitionFormIndex.Node indexed, out _)) return false;
-            bool ordinary = TryOrdinaryRootPath(path.Segments, out string[] fieldPath);
-            if (ordinary && IsConfigurationSelector(fieldPath)) return false;
+            if (path.Segments.Count == 1 && Definition.Deployment is not null &&
+                _index!.FieldIdsByName.TryGetValue(path.Segments[0], out string? selectorFieldId) &&
+                IsConfigurationSelectorRoot(selectorFieldId, Facts.Validation))
+                return false;
             DefinitionFormFacts facts = Facts;
             if (!IsEditorActive(path)) return false;
             bool needsCorrection = facts.NeedsCorrection(path);
+            if (_view.EditorVisibility == DefinitionEditorVisibilityPolicy.Continuous)
+            {
+                DefinitionFormSection? continuousSection = path.Segments.Count > 0 ? _index!.ResolveSection(path) : null;
+                if (continuousSection is not null)
+                {
+                    DefinitionSection? authoredSection = FindAuthoredSection(continuousSection.Id);
+                    if (authoredSection is not null && !authoredSection.IsApplicable(facts.Validation))
+                        return false;
+                }
+                if (needsCorrection || facts.HasRequiredDescendant(path) ||
+                    _view.PromotedPaths.Count > 0 && _view.PromotedPaths.Contains(GetEditorIdentity(path)))
+                    return true;
+                if (_view.EditorExpansion.Count > 0 && TryLocalExpansion(path, out bool continuousExpanded))
+                    return continuousExpanded;
+                if (continuousSection is not null &&
+                    _view.SectionExpansion.TryGetValue(continuousSection.Id, out bool continuousSectionExpanded) &&
+                    !continuousSectionExpanded)
+                    return false;
+                return true;
+            }
             if (needsCorrection || facts.HasRequiredDescendant(path) || indexed.HasEssentialDecision ||
                 _view.PromotedPaths.Count > 0 && _view.PromotedPaths.Contains(GetEditorIdentity(path))) return true;
             if (_view.EditorExpansion.Count > 0 && TryLocalExpansion(path, out bool locallyExpanded))
@@ -288,9 +361,94 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
+    internal bool IsRootFieldEditorVisible(
+        string fieldId,
+        DefinitionFormFacts facts,
+        bool isContinuous,
+        DefinitionFormExperience activeExperience,
+        Dictionary<string, bool>? continuousSectionApplicability)
+    {
+        if (Definition.Deployment is not null && IsConfigurationSelectorRoot(fieldId, facts.Validation))
+            return false;
+        if (!_index!.TryGetRootDataPath(fieldId, out DefinitionPath? path) ||
+            !_index.Roots.TryGetValue(fieldId, out DefinitionFormIndex.Node? indexed))
+            return false;
+        if (facts.Validation.ConfigurationContext is { } context && !context.RelevantLocations.Contains(path))
+            return false;
+        if (facts.EditorState(path) is { IsActive: false })
+            return false;
+        DefinitionFormSection? section = _index.SectionsByField.GetValueOrDefault(fieldId) ?? _index.ResolveSection(path);
+        bool needsCorrection = facts.NeedsCorrection(path);
+        if (isContinuous)
+        {
+            if (section is not null && continuousSectionApplicability is not null &&
+                continuousSectionApplicability.TryGetValue(section.Id, out bool isApplicable) && !isApplicable)
+                return false;
+            if (needsCorrection || facts.HasRequiredDescendant(path) ||
+                (_view.PromotedPaths.Count > 0 && _view.PromotedPaths.Contains(_index.RootIdentities[fieldId])))
+                return true;
+            if (_view.EditorExpansion.Count > 0 && TryLocalExpansion(path, out bool continuousExpanded))
+                return continuousExpanded;
+            if (section is not null &&
+                _view.SectionExpansion.TryGetValue(section.Id, out bool continuousSectionExpanded) &&
+                !continuousSectionExpanded)
+                return false;
+            return true;
+        }
+        if (needsCorrection || facts.HasRequiredDescendant(path) || indexed.HasEssentialDecision ||
+            (_view.PromotedPaths.Count > 0 && _view.PromotedPaths.Contains(_index.RootIdentities[fieldId])))
+            return true;
+        if (_view.EditorExpansion.Count > 0 && TryLocalExpansion(path, out bool locallyExpanded))
+            return locallyExpanded || facts.HasRequiredDescendant(path);
+        if (section is not null && !activeExperience.Sections.Contains(section.Id))
+            return false;
+        if (_view.EditorVisibility == DefinitionEditorVisibilityPolicy.Direct && CanEdit(path))
+            return true;
+        bool expanded = OptionalEditorsExpanded;
+        if (section is not null && _view.SectionExpansion.TryGetValue(section.Id, out bool sectionExpanded))
+            expanded = sectionExpanded;
+        if (expanded) return true;
+        FieldDisclosure disclosure = indexed.Disclosure;
+        return disclosure == FieldDisclosure.Essential || disclosure <= EffectiveDisclosure &&
+            (section is null || section.Disclosure <= EffectiveDisclosure);
+    }
+
+    internal DefinitionAnswerOrigin RootFieldAnswerOrigin(
+        string fieldId,
+        DefinitionPath literalPath,
+        bool inputError,
+        DefinitionValidationResult validation)
+    {
+        if (inputError || !_index!.Roots.ContainsKey(fieldId))
+            return DefinitionAnswerOrigin.Omitted;
+        DefinitionFieldInput input = Fields[_index.FieldPositions[fieldId]];
+        if (input.HasRootInputError() || !validation.TryGetEffectiveValue(literalPath, out _))
+            return DefinitionAnswerOrigin.Omitted;
+        if (input.Value is null)
+            return DefinitionAnswerOrigin.Defaulted;
+        DefinitionAnswerOrigin origin = input.OriginAtRoot();
+        return origin == DefinitionAnswerOrigin.Omitted ? DefinitionAnswerOrigin.Defaulted : origin;
+    }
+
+    private long _scalarStampEpoch;
+
+    public long ScalarStampEpoch => Volatile.Read(ref _scalarStampEpoch);
+
+    internal void BumpScalarStampEpoch() => System.Threading.Interlocked.Increment(ref _scalarStampEpoch);
+
     private void OnViewChanged(bool discoveryOnly = false)
     {
-        _projection = discoveryOnly ? _projection?.WithDiscovery(CurrentDiscovery) : null;
+        if (!discoveryOnly)
+        {
+            BumpPresentationEpoch();
+            BumpScalarStampEpoch();
+        }
+        OnViewChanged(discoveryOnly ? _projection?.WithDiscovery(CurrentDiscovery) : null);
+    }
+
+    private void OnViewChanged(DefinitionFormProjection? updatedProjection)
+    {
+        _projection = updatedProjection;
         _promotionPending = true;
         OnPropertyChanged(nameof(Projection));
         OnPropertyChanged(nameof(VisibleFields));
@@ -304,6 +462,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     {
         get
         {
+            if (_view.EditorVisibility == DefinitionEditorVisibilityPolicy.Continuous)
+                return DisplaySections;
             var display = DisplaySections.ToDictionary(section => section.Id, StringComparer.Ordinal);
             return Array.AsReadOnly(_index!.ExperienceSections[SelectedExperienceId]
                 .Select(section => display[section.Id]).ToArray());
@@ -336,8 +496,22 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private static Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> SelectRelevantEntries(
         Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> entries, Lazy<IReadOnlySet<DefinitionPath>> paths, DefinitionFormIndex index) =>
-        new(() => Array.AsReadOnly(entries.Value.Where(entry =>
-            paths.Value.Contains(index.PathKey([entry.FieldId, .. entry.RelativePath]))).ToArray()));
+        new(() =>
+        {
+            IReadOnlyList<DefinitionDiscoveryEntry> all = entries.Value;
+            IReadOnlySet<DefinitionPath> relevant = paths.Value;
+            if (relevant.Count == 0) return Array.Empty<DefinitionDiscoveryEntry>();
+            var selected = new List<DefinitionDiscoveryEntry>(Math.Min(all.Count, relevant.Count));
+            foreach (DefinitionDiscoveryEntry entry in all)
+            {
+                DefinitionPath key = entry.RelativePath.Count == 0
+                    ? index.PathKey(index.RootPaths.TryGetValue(entry.FieldId, out IReadOnlyList<string>? root) ? root : [entry.FieldId])
+                    : index.PathKey([entry.FieldId, .. entry.RelativePath]);
+                if (relevant.Contains(key))
+                    selected.Add(entry);
+            }
+            return Array.AsReadOnly(selected.ToArray());
+        });
 
     public DefinitionFormProjection Projection
     {
@@ -346,9 +520,91 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             lock (_gate)
             {
                 ObjectDisposedException.ThrowIf(_disposed, this);
+                if (_projection is not null) return _projection;
                 ReconcileReviewSignatures(Facts);
                 return _projection ??= DefinitionFormProjection.Create(this);
             }
+        }
+    }
+
+    internal bool HasField(string fieldId) => _index!.FieldPositions.ContainsKey(fieldId);
+
+    internal DefinitionSection? FindAuthoredSection(string sectionId) =>
+        _index!.AuthoredSectionsById.GetValueOrDefault(sectionId);
+
+    internal DefinitionPath[] GetGroupPointerPaths(string sectionId, string groupId) =>
+        _index!.GroupPointers.TryGetValue((sectionId, groupId), out DefinitionPath[]? paths) ? paths : [];
+
+    /// <summary>Returns the cached root path segment list for a top-level field.</summary>
+    public IReadOnlyList<string> GetRootFieldPath(string fieldId)
+    {
+        ArgumentNullException.ThrowIfNull(fieldId);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _index!.RootPaths.TryGetValue(fieldId, out IReadOnlyList<string>? path) ? path : [fieldId];
+        }
+    }
+
+    /// <summary>Returns the declared artifact IDs and binding keys for an editor path in O(1) time.</summary>
+    public (IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys) GetEditorBindings(IReadOnlyList<string> path)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (path.Count == 0 || !TryMetadataNode(path, out _, out _)) return ([], []);
+            if (Facts.EditorState(DataPath(path)) is not { } state || state.FieldId.Length == 0)
+                return _index!.Bindings.TryGetValue(path[0], out var direct) ? direct : ([], []);
+            return _index!.Bindings.TryGetValue(state.FieldId, out var binding) ? binding : ([], []);
+        }
+    }
+
+    /// <summary>Returns a value-free render stamp for a single field slice so sibling fields can skip unchanged UI updates.</summary>
+    public DefinitionScalarFieldStamp GetScalarFieldRenderStamp(IReadOnlyList<string> path, bool inheritedSecret)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (path.Count == 0 || !_index!.FieldPositions.TryGetValue(path[0], out int position))
+                return default;
+            if (!TryMetadataNode(path, out DefinitionFormIndex.Node node, out bool inheritedMetaSecret, out bool inheritedProtected))
+                return default;
+            DefinitionFormFacts facts = Facts;
+            DefinitionPath dataPath = DataPath(path);
+            DefinitionFieldInput fieldInput = Fields[position];
+            DefinitionNodeState? nodeState = facts.EditorState(dataPath);
+            bool isSecret = DefinitionSecretPolicy.IsSecret(node.Schema, inheritedSecret || inheritedMetaSecret);
+            bool masking = inheritedProtected || node.IsProtected ||
+                (nodeState?.Sensitivity is { } sensitivity && sensitivity != FieldSensitivity.Public);
+            return new DefinitionScalarFieldStamp(
+                Exists: true,
+                SupportsSkip: !node.HasVariants && facts.Validation.ConfigurationContext is null &&
+                    node.Schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence),
+                FieldVersion: fieldInput.Version,
+                BulkEpoch: _bulkStateEpoch,
+                Locale: Locale,
+                NamingMode: WorkspaceNamingMode,
+                SessionPrivacy: SessionPrivacy,
+                OptionalEditorsExpanded: OptionalEditorsExpanded,
+                IsVisible: IsEditorVisible(dataPath),
+                HasNodeState: nodeState is not null,
+                NodeActive: nodeState?.IsActive ?? false,
+                NodeRequired: nodeState?.IsRequired ?? false,
+                NodeProvided: nodeState?.IsProvided ?? false,
+                NodeReady: nodeState?.IsReady ?? false,
+                NodeHasError: nodeState?.HasError ?? false,
+                NodeObligation: nodeState?.IsObligation ?? false,
+                NodeObligationReady: nodeState?.IsObligationReady ?? false,
+                NodeMissing: nodeState?.IsMissing ?? false,
+                NodeSensitivity: nodeState?.Sensitivity ?? FieldSensitivity.Public,
+                Origin: AnswerOrigin(path, facts.Validation),
+                HasInputError: HasInputError(path),
+                IsSecretBlocked: SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets && isSecret,
+                ProfileBlocks: ProfileBlocks(dataPath),
+                RequiresMasking: masking,
+                BrowserProfile: BrowserProfile);
         }
     }
     public DefinitionDiscoverySelection DiscoverySelection => _view.DiscoverySelection;
@@ -604,13 +860,20 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         lock (_gate)
         {
             if (_disposed) return false;
-            return GetFieldValidation(path).CanEdit;
+            return CanEditCore(path, literal: false);
         }
     }
 
     public bool CanEdit(DefinitionPath path)
     {
-        lock (_gate) return !_disposed && GetFieldValidation(path).CanEdit;
+        ArgumentNullException.ThrowIfNull(path);
+        lock (_gate)
+        {
+            if (_disposed) return false;
+            return TryOrdinaryRootPath(path.Segments, out string[] ordinary)
+                ? CanEditCore(ordinary, literal: false)
+                : CanEditCore(path.Segments, literal: true);
+        }
     }
 
     // Mutation custody remains independent of the current display affordance.
@@ -1189,7 +1452,11 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            return new AnswerSnapshot(InputRevision, _editing.Root, Omitted);
+            if (_snapshot is { } cached && _mutationDepth == 0 && cached.InputRevision == InputRevision)
+                return cached;
+            AnswerSnapshot built = new(InputRevision, _editing.Root, Omitted);
+            if (_mutationDepth == 0) _snapshot = built;
+            return built;
         }
     }
 
@@ -1300,6 +1567,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
 
     private void OnInputChanged()
     {
+        BumpScalarStampEpoch();
         _discardBrowserProfileOutput?.Invoke();
         RetireProfilePreparation();
         if (_undoBaseline is not null && !_undoReplayActive && !_privacyClearingActive)
@@ -1307,6 +1575,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         RetireSecretResult();
         RetireDocument();
         RetireImportComparison();
+        _snapshot = null;
         _facts = null;
         _orderedEntries = null;
         _relevantEntries = null;
@@ -1355,6 +1624,9 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             RetireImportComparison();
             _editing.Clear();
             Omitted.Clear();
+            _snapshot = null;
+            _displaySections = null;
+            _displayExperiences = null;
             _facts = null;
             _index = null;
             _orderedEntries = null;
@@ -1479,6 +1751,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         _undoReplayActive = true;
         try
         {
+            ++_bulkStateEpoch;
             DefinitionAcceptedEditingState previous = _editing.Capture();
             target.InputRevision = previous.InputRevision;
             target.NextRow = Math.Max(target.NextRow, previous.NextRow);
@@ -1528,17 +1801,45 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    public void SetWorkspaceLayoutMode(WorkspaceLayoutMode mode)
+    public void SetWorkspaceLayoutMode(WorkspaceLayoutMode mode, DefinitionEditorVisibilityPolicy? editorVisibility = null)
     {
         if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
+        if (editorVisibility is { } explicitVisibility && !Enum.IsDefined(explicitVisibility))
+            throw new ArgumentOutOfRangeException(nameof(editorVisibility));
         using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (_view.PresentationOptions.LayoutMode == mode) return;
-            _view.PresentationOptions = _view.PresentationOptions with { LayoutMode = mode };
-            OnPropertyChanged(nameof(PresentationOptions));
-            OnPropertyChanged(nameof(WorkspaceLayoutMode));
+            DefinitionEditorVisibilityPolicy targetVisibility = editorVisibility
+                ?? (mode == WorkspaceLayoutMode.Guided && _view.EditorVisibility == DefinitionEditorVisibilityPolicy.Continuous
+                    ? _view.InitialEditorVisibility
+                    : _view.EditorVisibility);
+            bool layoutChanged = _view.PresentationOptions.LayoutMode != mode;
+            bool visibilityChanged = _view.EditorVisibility != targetVisibility;
+            if (!layoutChanged && !visibilityChanged) return;
+            if (layoutChanged)
+            {
+                _view.PresentationOptions = _view.PresentationOptions with { LayoutMode = mode };
+                OnPropertyChanged(nameof(PresentationOptions));
+                OnPropertyChanged(nameof(WorkspaceLayoutMode));
+            }
+            if (visibilityChanged)
+            {
+                _view.EditorVisibility = targetVisibility;
+                _orderedEntries = null;
+                _relevantEntries = null;
+                _discovery = null;
+                OnPropertyChanged(nameof(EditorVisibility));
+            }
             OnViewChanged();
+        }
+    }
+
+    public DefinitionDiagnostic? GetNextActionableDiagnostic(string? preferredSectionId = null)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return Facts.GetNextActionableDiagnostic(this, preferredSectionId ?? _view.CurrentSectionId);
         }
     }
 
@@ -1548,11 +1849,13 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!Sections.Any(section => section.Id == sectionId)) return false;
+            if (!_index!.SectionsById.ContainsKey(sectionId)) return false;
+            bool changed = !string.Equals(_view.CurrentSectionId, sectionId, StringComparison.Ordinal);
+            changed |= _view.OpenedSections.Add(sectionId);
             _view.CurrentSectionId = sectionId;
-            _view.OpenedSections.Add(sectionId);
+            if (!changed) return true;
             OnPropertyChanged(nameof(CurrentSectionId));
-            OnViewChanged();
+            OnViewChanged(_projection?.WithNavigation(this, sectionId));
             return true;
         }
     }
@@ -1563,7 +1866,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!Sections.Any(section => section.Id == sectionId)) return false;
+            if (!_index!.SectionsById.ContainsKey(sectionId)) return false;
             _view.CurrentSectionId = sectionId;
             _view.OpenedSections.Add(sectionId);
             if (reviewed)
@@ -1591,10 +1894,12 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         using (BeginMutation())
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            DefinitionFormSection? section = Sections.FirstOrDefault(s => s.Id == sectionId);
-            if (section is null || !section.Groups.Any(g => g.Id == groupId)) return false;
+            if (!_index!.SectionsById.TryGetValue(sectionId, out DefinitionFormSection? section) ||
+                !section.Groups.Any(g => g.Id == groupId)) return false;
+            if (_view.GroupExpansion.TryGetValue((sectionId, groupId), out bool current) && current == expanded)
+                return true;
             _view.GroupExpansion[(sectionId, groupId)] = expanded;
-            OnViewChanged();
+            OnViewChanged(_projection?.WithGroupExpansion(sectionId, groupId, expanded));
             return true;
         }
     }

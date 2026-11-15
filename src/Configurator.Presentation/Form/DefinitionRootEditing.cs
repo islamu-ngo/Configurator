@@ -151,7 +151,9 @@ public sealed partial class DefinitionFormModel
         // Core marks descendants inactive while their container is absent. Its active owner permits supply.
         for (int length = 1; length <= path.Segments.Count; length++)
         {
-            DefinitionPath prefix = DefinitionPath.FromSegments(path.Segments.Take(length));
+            DefinitionPath prefix = length == path.Segments.Count
+                ? path
+                : DefinitionPath.FromSegments(path.Segments.Take(length));
             if (facts.EditorState(prefix) is not { } state) continue;
             if (!state.IsActive) return false;
             if (!state.IsProvided && TryRootMetadata(prefix.Segments, out DefinitionFormIndex.Node owner, out _, facts.Validation) &&

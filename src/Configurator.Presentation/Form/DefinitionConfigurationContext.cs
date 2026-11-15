@@ -32,12 +32,14 @@ public sealed partial class DefinitionFormModel
     }
 
     /// <summary>Accepts a compatible pair as one input edit; clients resolve pending document edits first.</summary>
-    public bool SelectConfigurationContext(string recipeId, string scopeId)
+    public bool SelectConfigurationContext(string recipeId, string scopeId, long? expectedInputRevision = null)
     {
         ArgumentNullException.ThrowIfNull(recipeId);
         ArgumentNullException.ThrowIfNull(scopeId);
         using var mutation = BeginMutation(PresentationStrings.Get("UndoActionSelectContext", Locale));
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (expectedInputRevision is { } expected && expected != InputRevision)
+            return false;
         if (Definition.Deployment is not { } deployment || ConfigurationContext is null ||
             !deployment.Recipes.Any(recipe => recipe.Id == recipeId && recipe.Scopes.Any(scope => scope.Id == scopeId)))
             return false;
@@ -150,10 +152,17 @@ public sealed partial class DefinitionFormModel
 
     internal bool IsConfigurationSelector(IReadOnlyList<string> path, DefinitionValidationResult? validation = null)
     {
-        if (path.Count != 1 || Definition.Deployment is not { } deployment ||
-            (validation ?? Validate()).ConfigurationContext is null)
+        if (path.Count != 1) return false;
+        return IsConfigurationSelectorRoot(path[0], validation);
+    }
+
+    internal bool IsConfigurationSelectorRoot(string fieldId, DefinitionValidationResult? validation = null)
+    {
+        if (Definition.Deployment is not { } deployment ||
+            (validation ?? Validate()).ConfigurationContext is null ||
+            !_index!.FieldPositions.TryGetValue(fieldId, out int position))
             return false;
-        string name = Fields[_index!.FieldPositions[path[0]]].Definition.Name;
+        string name = Fields[position].Definition.Name;
         return name == DefinitionPath.Parse(deployment.RecipePointer).Segments[0] ||
             name == DefinitionPath.Parse(deployment.ScopePointer).Segments[0];
     }

@@ -22,6 +22,7 @@ internal sealed record DefinitionEvaluationInput(long InputRevision,
 
 internal static class DefinitionValidationSession
 {
+    private static readonly IReadOnlySet<string> EmptyUnknownSet = new HashSet<string>(0, StringComparer.Ordinal);
     internal static ValueTask<DefinitionValidationResult> RunAsync(Definition definition, AnswerSnapshot answers,
         bool draft, CancellationToken cancellationToken, DefinitionImportEvidence? observations = null,
         DefinitionImportWork? work = null, Func<DefinitionDiagnostic, ValueTask>? diagnosticObserved = null,
@@ -61,10 +62,11 @@ internal static class DefinitionValidationSession
         IReadOnlyList<FieldDefinition> rootFields = ReferenceEquals(rootSchema, definition.Configuration) ? definition.Fields
             : Array.AsReadOnly(rootSchema.Properties.Select(property => new FieldDefinition(property.Key, property.Value,
                 rootSchema.Required.Contains(property.Key, StringComparer.Ordinal), rootSensitivity)).ToArray());
-        var effective = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        var diagnostics = new List<DefinitionDiagnostic>();
-        var states = new Dictionary<string, FieldState>(StringComparer.Ordinal);
-        var nodes = new List<DefinitionNodeState>();
+        var effective = new Dictionary<string, JsonElement>(rootFields.Count, StringComparer.Ordinal);
+        var diagnostics = new List<DefinitionDiagnostic>(Math.Min(rootFields.Count, 64));
+        var states = new Dictionary<string, FieldState>(rootFields.Count, StringComparer.Ordinal);
+        var nodes = new List<DefinitionNodeState>(rootFields.Count);
+        var emptyRootLocation = new DefinitionCorrectionLocation(answers.InputRevision, []);
         var deferred = new HashSet<string>(StringComparer.Ordinal);
         var deferredLocations = new HashSet<DefinitionPath>();
         var unresolved = new HashSet<string>(StringComparer.Ordinal);
@@ -75,12 +77,14 @@ internal static class DefinitionValidationSession
         var unresolvedLocations = new HashSet<DefinitionPath>();
         var invalidControllers = new HashSet<string>(StringComparer.Ordinal);
         var invalidLocations = new HashSet<DefinitionPath>();
-        var uncertainLocations = new HashSet<DefinitionPath>();
-        var fields = rootFields.ToDictionary(field => field.Name, StringComparer.Ordinal);
+        var uncertainLocations = new HashSet<DefinitionPath>(Math.Min(rootFields.Count, 64));
+        var fields = new Dictionary<string, FieldDefinition>(rootFields.Count, StringComparer.Ordinal);
+        foreach (FieldDefinition rootField in rootFields)
+            fields.Add(rootField.Name, rootField);
         var visiting = new HashSet<string>(StringComparer.Ordinal);
         (string Name, JsonObject Value)? currentRoot = null;
         CompositionBudget budget = sharedBudget ?? new(CompositionLimits.Default);
-        var missing = new List<(string Root, string Id, string[] Path, DefinitionLocationSegment[] Correction)>();
+        var missing = new List<(string Root, string Id, string[] Path, DefinitionLocationSegment[] Correction)>(Math.Min(rootFields.Count, 64));
         DefinitionConfigurationContext? configurationContext = null;
         try
         {
@@ -159,25 +163,92 @@ internal static class DefinitionValidationSession
             if (!visiting.Add(field.Name)) throw new DefinitionException("activation-cycle");
             foreach (string dependency in await SchemaReferencesAsync(field.Node, "root", work))
                 if (dependency != field.Name && fields.TryGetValue(dependency, out FieldDefinition? controller)) await Activate(controller);
-            var unknown = Unknown();
-            bool? applies = field.ActiveWhen is { } condition ? await Evaluate(condition, unknown) : true;
-            if (applies is null && InScope([field.Name]))
+            bool inScope = InScope([field.Name]);
+            bool? applies = field.ActiveWhen is { } condition ? await Evaluate(condition, Unknown()) : true;
+            if (applies is null && inScope)
             {
                 unresolved.Add(field.Name);
                 uncertainLocations.Add(DefinitionPath.FromSegments([field.Name]));
             }
-            bool active = applies == true && InScope([field.Name]);
+            bool active = applies == true && inScope;
             bool supplied = answers.Values.TryGetValue(field.Name, out JsonElement source);
-            JsonNode? value = supplied ? JsonNode.Parse(source.GetRawText()) : null;
             int before = diagnostics.Count;
-            var resolved = await Resolve(field.Node, value, supplied, [field.Name], field.Id, [], active,
-                active && field.Required, rootSensitivity);
-            currentRoot = null;
-            if (active && resolved.Present) effective.Add(field.Name, await ElementAsync(resolved.Value, work));
-            bool error = diagnostics.Count != before;
-            if (error) invalidControllers.Add(field.Name);
-            states.Add(field.Name, new(field, active, active && field.Required, active && resolved.Present, error));
+            if (observations is null && work is null &&
+                field.Node.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence) &&
+                field.Node.Variants.Count == 0)
+            {
+                ResolveRootScalar(field, source, supplied, active, active && field.Required);
+            }
+            else
+            {
+                JsonNode? value = supplied ? JsonNode.Parse(source.GetRawText()) : null;
+                var resolved = await Resolve(field.Node, value, supplied, [field.Name], field.Id, [], active,
+                    active && field.Required, rootSensitivity);
+                currentRoot = null;
+                if (active && resolved.Present) effective.Add(field.Name, await ElementAsync(resolved.Value, work));
+                states.Add(field.Name, new(field, active, active && field.Required, active && resolved.Present, diagnostics.Count != before));
+            }
+            if (diagnostics.Count != before) invalidControllers.Add(field.Name);
             visiting.Remove(field.Name);
+        }
+
+        void ResolveRootScalar(FieldDefinition field, JsonElement scalarElement, bool present, bool active, bool required)
+        {
+            DefinitionNode schema = field.Node;
+            budget.Node(1);
+            DefinitionPath? observedPath = null;
+            DefinitionPath GetPath() => observedPath ??= DefinitionPath.FromSegments([field.Name]);
+
+            if (!active || (answers.Omitted.Count > 0 && answers.Omitted.Contains(GetPath())))
+            {
+                present = false;
+            }
+            else if (!present && schema.Keywords.TryGetProperty("x-configurator", out JsonElement metadata)
+                && metadata.TryGetProperty("initialValue", out JsonElement initial))
+            {
+                scalarElement = initial;
+                present = true;
+            }
+
+            var sensitivity = (FieldSensitivity)Math.Max((int)rootSensitivity, (int)FieldDefinition.SensitivityOf(schema));
+            bool missingSecret = active && !present && draft && sensitivity == FieldSensitivity.Secret;
+            if (missingSecret)
+            {
+                DefinitionPath path = GetPath();
+                deferred.Add(field.Name);
+                rootDeferred.Add(field.Name);
+                deferredLocations.Add(path);
+            }
+
+            if (active && !present && required && !missingSecret)
+            {
+                uncertainLocations.Add(GetPath());
+                missing.Add((field.Name, field.Id, [], []));
+            }
+
+            bool valid = true;
+            if (active && present)
+            {
+                effective.Add(field.Name, scalarElement.Clone());
+                valid = LocalScalarValueValid(schema, scalarElement);
+                if (!valid)
+                {
+                    invalidLocations.Add(GetPath());
+                    IReadOnlyList<string> secretFailures = schema.Secret is { } secret && scalarElement.ValueKind == JsonValueKind.String
+                        ? SecretValueValidator.Validate(secret, scalarElement.GetString()!) : [];
+                    IReadOnlyList<string> codes = secretFailures.Count != 0 ? secretFailures
+                        : FormatInvalid(schema, scalarElement) ? ["format-invalid"] : ["value-invalid"];
+                    foreach (string code in codes)
+                        diagnostics.Add(new(code, field.Id, emptyRootLocation));
+                }
+            }
+
+            bool obligation = active && required;
+            bool obligationReady = present && valid;
+            nodes.Add(new(field.Id, [], active, required, active && present, valid,
+                obligation, obligationReady, !present, FieldDefinition.EffectiveSensitivity(schema, rootSensitivity),
+                emptyRootLocation));
+            states.Add(field.Name, new(field, active, required, active && present, !valid));
         }
 
         async ValueTask<(bool Present, JsonNode? Value, bool Valid)> Resolve(DefinitionNode schema,
@@ -490,7 +561,7 @@ internal static class DefinitionValidationSession
 
         async ValueTask SettleRequirements()
         {
-            var unknown = Unknown();
+            var unknown = CreateUnknownSet();
             var relationshipRequired = new HashSet<string>(StringComparer.Ordinal);
             var witnesses = new HashSet<string>(StringComparer.Ordinal);
             await CloseUncertainty();
@@ -525,16 +596,15 @@ internal static class DefinitionValidationSession
                     else
                     {
                         witnesses.Add(name);
-                        await Emit(new("value-required", fields[name].Id,
-                            new DefinitionCorrectionLocation(answers.InputRevision, [])));
+                        await Emit(new("value-required", fields[name].Id, emptyRootLocation));
                     }
                 }
             }
             unknown.UnionWith(witnesses);
             unknown.UnionWith(rootDeferred);
             await CloseUncertainty();
-            var diagnosticFields = new HashSet<string>(StringComparer.Ordinal);
-            var diagnosticPaths = new HashSet<(string FieldId, DefinitionPath Path)>();
+            var diagnosticFields = new HashSet<string>(diagnostics.Count, StringComparer.Ordinal);
+            var diagnosticPaths = new HashSet<(string FieldId, DefinitionPath Path)>(diagnostics.Count);
             foreach (DefinitionDiagnostic diagnostic in diagnostics)
             {
                 if (work is not null) await work.VisitAsync();
@@ -547,7 +617,9 @@ internal static class DefinitionValidationSession
                 if (work is not null) await work.VisitAsync();
                 if (node.RelativePath.Count > 0 && node.IsObligation) childObligations.Add(node.FieldId);
             }
-            var fieldsById = rootFields.ToDictionary(field => field.Id, StringComparer.Ordinal);
+            var fieldsById = new Dictionary<string, FieldDefinition>(rootFields.Count, StringComparer.Ordinal);
+            foreach (FieldDefinition rootField in rootFields)
+                fieldsById.Add(rootField.Id, rootField);
             foreach (FieldDefinition field in rootFields)
             {
                 FieldState previous = states[field.Name];
@@ -671,7 +743,14 @@ internal static class DefinitionValidationSession
                 foreach (JsonElement item in value.EnumerateArray()) await CheckStructure(schema.Items!, item, fieldId, depth + 1);
         }
 
-        HashSet<string> Unknown() => rootDeferred.Concat(unresolved)
+        IReadOnlySet<string> Unknown()
+        {
+            if (rootDeferred.Count == 0 && unresolved.Count == 0 && (observations is not null || invalidControllers.Count == 0))
+                return EmptyUnknownSet;
+            return CreateUnknownSet();
+        }
+
+        HashSet<string> CreateUnknownSet() => rootDeferred.Concat(unresolved)
             .Concat(observations is null ? invalidControllers : []).ToHashSet(StringComparer.Ordinal);
 
         async ValueTask<bool?> Evaluate(JsonElement condition, IReadOnlySet<string> unknown, JsonElement? item = null,

@@ -43,7 +43,12 @@ internal sealed class DefinitionEditingState
     internal void AdvanceRevision() => _accepted.InputRevision = checked(InputRevision + 1);
 
     internal DefinitionAcceptedEditingState Capture() => _accepted.Copy();
-    internal void Adopt(DefinitionAcceptedEditingState accepted) => _accepted = accepted;
+    internal void Adopt(DefinitionAcceptedEditingState accepted)
+    {
+        for (int index = 0; index < accepted.Inputs.Length; index++) accepted.Inputs[index].Touch();
+        accepted.RootInput.Touch();
+        _accepted = accepted;
+    }
 
     internal void CopyRowsTo(DefinitionAcceptedEditingState replacement, IReadOnlySet<string> retired)
     {
@@ -99,19 +104,11 @@ internal sealed class DefinitionAcceptedEditingState
     internal DefinitionAcceptedEditingState(string[] names)
     {
         _names = names;
-        Inputs = names.Select(name => new DefinitionFieldState(
-            () => Root.TryGetValue(name, out JsonElement value) ? value : null,
-            value =>
-            {
-                if (value is { } supplied) Root[name] = supplied;
-                else Root.Remove(name);
-            })).ToArray();
-        RootInput = new(() => JsonSerializer.SerializeToElement(Root), value =>
-        {
-            Root.Clear();
-            if (value is { ValueKind: JsonValueKind.Object } mapping)
-                foreach (JsonProperty property in mapping.EnumerateObject()) Root.Add(property.Name, property.Value.Clone());
-        });
+        var inputs = new DefinitionFieldState[names.Length];
+        for (int index = 0; index < names.Length; index++)
+            inputs[index] = new DefinitionFieldState(Root, names[index]);
+        Inputs = inputs;
+        RootInput = new(Root, null);
     }
 
     internal Dictionary<string, JsonElement> Root { get; } = new(StringComparer.Ordinal);
@@ -150,13 +147,58 @@ internal sealed class DefinitionAcceptedEditingState
     }
 }
 
-internal sealed class DefinitionFieldState(Func<JsonElement?> readValue, Action<JsonElement?> writeValue)
+internal sealed class DefinitionFieldState
 {
+    private static long s_nextVersion;
+    private readonly Dictionary<string, JsonElement> _root;
+    private readonly string? _name;
+    private List<string[]>? _invalidPaths;
+    private List<(string[] Path, string Text)>? _draftTexts;
+    private List<(string[] Path, DefinitionAnswerOrigin Origin)>? _origins;
+
+    internal DefinitionFieldState(Dictionary<string, JsonElement> root, string? name)
+    {
+        _root = root;
+        _name = name;
+    }
+
     internal string Text = string.Empty;
-    internal JsonElement? Value { get => readValue(); set => writeValue(value); }
-    internal List<string[]> InvalidPaths { get; } = [];
-    internal List<(string[] Path, string Text)> DraftTexts { get; } = [];
-    internal List<(string[] Path, DefinitionAnswerOrigin Origin)> Origins { get; } = [];
+    internal long Version { get; private set; }
+    internal JsonElement? Value
+    {
+        get
+        {
+            if (_name is null) return JsonSerializer.SerializeToElement(_root);
+            return _root.TryGetValue(_name, out JsonElement value) ? value : null;
+        }
+        set
+        {
+            Touch();
+            if (_name is null)
+            {
+                _root.Clear();
+                if (value is { ValueKind: JsonValueKind.Object } mapping)
+                    foreach (JsonProperty property in mapping.EnumerateObject())
+                        _root.Add(property.Name, property.Value.Clone());
+            }
+            else if (value is { } supplied)
+            {
+                _root[_name] = supplied;
+            }
+            else
+            {
+                _root.Remove(_name);
+            }
+        }
+    }
+
+    internal void Touch() => Version = System.Threading.Interlocked.Increment(ref s_nextVersion);
+    internal bool HasInvalidPaths => _invalidPaths is { Count: > 0 };
+    internal bool HasDraftTexts => _draftTexts is { Count: > 0 };
+    internal bool HasOrigins => _origins is { Count: > 0 };
+    internal List<string[]> InvalidPaths => _invalidPaths ??= [];
+    internal List<(string[] Path, string Text)> DraftTexts => _draftTexts ??= [];
+    internal List<(string[] Path, DefinitionAnswerOrigin Origin)> Origins => _origins ??= [];
     internal DefinitionAnswerOrigin Origin = DefinitionAnswerOrigin.Omitted;
     internal string? InputDiagnosticCode;
 
@@ -165,19 +207,54 @@ internal sealed class DefinitionFieldState(Func<JsonElement?> readValue, Action<
         copy.Text = Text;
         copy.Origin = Origin;
         copy.InputDiagnosticCode = InputDiagnosticCode;
-        copy.InvalidPaths.AddRange(InvalidPaths.Select(path => path.ToArray()));
-        copy.DraftTexts.AddRange(DraftTexts.Select(draft => (draft.Path.ToArray(), draft.Text)));
-        copy.Origins.AddRange(Origins.Select(origin => (origin.Path.ToArray(), origin.Origin)));
+        if (_invalidPaths is { Count: > 0 })
+            foreach (string[] path in _invalidPaths) copy.InvalidPaths.Add(path.ToArray());
+        if (_draftTexts is { Count: > 0 })
+            foreach ((string[] path, string text) in _draftTexts) copy.DraftTexts.Add((path.ToArray(), text));
+        if (_origins is { Count: > 0 })
+            foreach ((string[] path, DefinitionAnswerOrigin origin) in _origins) copy.Origins.Add((path.ToArray(), origin));
+        copy.Version = Version;
     }
 
     internal void Retire()
     {
         Text = string.Empty;
         Value = null;
-        InvalidPaths.Clear();
-        DraftTexts.Clear();
-        Origins.Clear();
+        _invalidPaths?.Clear();
+        _draftTexts?.Clear();
+        _origins?.Clear();
         Origin = DefinitionAnswerOrigin.Omitted;
         InputDiagnosticCode = null;
+        Touch();
+    }
+
+    internal void ScrubPrivate(Func<IReadOnlyList<string>, bool> isPrivatePath)
+    {
+        _draftTexts?.RemoveAll(draft => isPrivatePath(draft.Path));
+        _invalidPaths?.RemoveAll(path => isPrivatePath(path));
+        _origins?.RemoveAll(origin => isPrivatePath(origin.Path));
+    }
+
+    internal static bool EqualCollections(DefinitionFieldState left, DefinitionFieldState right)
+    {
+        int leftDrafts = left._draftTexts?.Count ?? 0;
+        int rightDrafts = right._draftTexts?.Count ?? 0;
+        if (leftDrafts != rightDrafts) return false;
+        int leftInvalid = left._invalidPaths?.Count ?? 0;
+        int rightInvalid = right._invalidPaths?.Count ?? 0;
+        if (leftInvalid != rightInvalid) return false;
+        for (int index = 0; index < leftDrafts; index++)
+        {
+            (string[] path, string text) a = left._draftTexts![index];
+            (string[] path, string text) b = right._draftTexts![index];
+            if (!string.Equals(a.text, b.text, StringComparison.Ordinal) || !a.path.SequenceEqual(b.path))
+                return false;
+        }
+        for (int index = 0; index < leftInvalid; index++)
+        {
+            if (!left._invalidPaths![index].SequenceEqual(right._invalidPaths![index]))
+                return false;
+        }
+        return true;
     }
 }

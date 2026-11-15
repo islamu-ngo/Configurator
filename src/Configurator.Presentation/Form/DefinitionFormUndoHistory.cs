@@ -272,14 +272,10 @@ public sealed class DefinitionFormUndoHistory
                 fieldState.Origin = DefinitionAnswerOrigin.Omitted;
             }
 
-            fieldState.DraftTexts.RemoveAll(draft => isPrivatePath(draft.Path));
-            fieldState.InvalidPaths.RemoveAll(path => isPrivatePath(path));
-            fieldState.Origins.RemoveAll(origin => isPrivatePath(origin.Path));
+            fieldState.ScrubPrivate(isPrivatePath);
         }
 
-        state.RootInput.DraftTexts.RemoveAll(draft => isPrivatePath(draft.Path));
-        state.RootInput.InvalidPaths.RemoveAll(path => isPrivatePath(path));
-        state.RootInput.Origins.RemoveAll(origin => isPrivatePath(origin.Path));
+        state.RootInput.ScrubPrivate(isPrivatePath);
         state.Omitted.RemoveWhere(path => isPrivatePath(path.Segments));
     }
 
@@ -317,10 +313,7 @@ public sealed class DefinitionFormUndoHistory
         a.Text == b.Text &&
         a.Origin == b.Origin &&
         a.InputDiagnosticCode == b.InputDiagnosticCode &&
-        a.DraftTexts.Count == b.DraftTexts.Count &&
-        a.InvalidPaths.Count == b.InvalidPaths.Count &&
-        a.DraftTexts.Zip(b.DraftTexts).All(pair => pair.First.Text == pair.Second.Text && pair.First.Path.SequenceEqual(pair.Second.Path)) &&
-        a.InvalidPaths.Zip(b.InvalidPaths).All(pair => pair.First.SequenceEqual(pair.Second));
+        DefinitionFieldState.EqualCollections(a, b);
 
     private sealed class UndoEntry(
         DefinitionAcceptedEditingState before,

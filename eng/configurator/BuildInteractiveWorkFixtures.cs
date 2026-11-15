@@ -33,7 +33,9 @@ internal static class InteractiveFixtures
         new("wide-nested-object", "ea050002-4ef0-4c80-9f10-000000000002", 1, 514, 514, 512, 0, 0, 1),
         new("large-map-list", "ea050003-4ef0-4c80-9f10-000000000003", 2, 9, 1539, 1024, 512, 0, 1),
         new("many-active-corrections", "ea050004-4ef0-4c80-9f10-000000000004", 1, 258, 258, 256, 0, 256, 1),
-        new("multi-artifact", "ea050005-4ef0-4c80-9f10-000000000005", 1, 130, 130, 128, 0, 0, 8)
+        new("multi-artifact", "ea050005-4ef0-4c80-9f10-000000000005", 1, 130, 130, 128, 0, 0, 8),
+        new("compact-101", "ea050006-4ef0-4c80-9f10-000000000006", 101, 102, 100, 99, 0, 0, 1),
+        new("compact-600", "ea050007-4ef0-4c80-9f10-000000000007", 600, 601, 601, 600, 0, 0, 1)
     ];
 
     internal static int Run(string[] args)
@@ -54,7 +56,7 @@ internal static class InteractiveFixtures
             if (args is ["--self-test"]) return SelfTest(fixtures);
             WriteDirectory(args[1], fixtures);
             foreach (Fixture fixture in fixtures) Console.WriteLine(fixture.Receipt.ToJsonString());
-            Console.WriteLine("INTERACTIVE_FIXTURES_COMPLETE fixtures=5");
+            Console.WriteLine("INTERACTIVE_FIXTURES_COMPLETE fixtures=" + fixtures.Length);
             return 0;
         }
         catch (DefinitionException exception)
@@ -124,10 +126,21 @@ internal static class InteractiveFixtures
                 properties["settings"] = IntegerObject(128);
                 answers["settings"] = IntegerAnswers(128);
                 break;
+            case "compact-101":
+                BuildCompact101(properties, answers);
+                break;
+            case "compact-600":
+                BuildCompactIntegerProperties(properties, answers, 600);
+                break;
             default:
                 throw new InvalidOperationException("fixture-specification");
         }
-        schema["required"] = new JsonArray(properties.Select(pair => (JsonNode?)JsonValue.Create(pair.Key)).ToArray());
+        string[] requiredNames = spec.Id == "compact-101"
+            ? properties.Select(pair => pair.Key)
+                .Where(name => name is not ("providerEndpoint" or "providerSecret"))
+                .ToArray()
+            : properties.Select(pair => pair.Key).ToArray();
+        schema["required"] = new JsonArray(requiredNames.Select(name => (JsonNode?)JsonValue.Create(name)).ToArray());
         var outputs = new JsonObject();
         int outputCount = spec.Id == "multi-artifact" ? 8 : 1;
         for (int index = 0; index < outputCount; index++)
@@ -158,6 +171,8 @@ internal static class InteractiveFixtures
                 }
             }
         };
+        if (CompactPresentation(spec.Id) is { } presentation)
+            source["presentation"] = presentation;
         byte[] sourceBytes = Bytes(source);
         Definition definition = DefinitionAuthoringCompiler.Compile(DefinitionAuthoringCodec.ParseJson(sourceBytes));
         Definition admitted = DefinitionCodec.ParseJson(definition.CanonicalBytes);
@@ -247,6 +262,152 @@ internal static class InteractiveFixtures
         return schema;
     }
 
+    private static void BuildCompactIntegerProperties(JsonObject properties, JsonObject answers, int count)
+    {
+        for (int index = 0; index < count; index++)
+        {
+            string name = "p" + Number(index, "D3");
+            JsonObject field = Node("integer", "Public setting " + Number(index));
+            field["minimum"] = 0;
+            field["maximum"] = 9;
+            properties[name] = field;
+            answers[name] = 7;
+        }
+    }
+
+    private static void BuildCompact101(JsonObject properties, JsonObject answers)
+    {
+        BuildCompactIntegerProperties(properties, answers, 98);
+        JsonObject provider = Node("string", "Provider mode");
+        provider["enum"] = new JsonArray("local", "external");
+        provider["x-configurator"] = new JsonObject
+        {
+            ["sensitivity"] = "public",
+            ["initialValue"] = "local",
+            ["choices"] = new JsonArray(
+                new JsonObject { ["value"] = "local", ["explanation"] = "Use local defaults without remote provider settings." },
+                new JsonObject { ["value"] = "external", ["explanation"] = "Reveal external endpoint and credential settings." })
+        };
+        properties["provider"] = provider;
+        answers["provider"] = "local";
+
+        JsonObject endpoint = Node("string", "External provider endpoint");
+        endpoint["minLength"] = 1;
+        endpoint["x-configurator"] = new JsonObject
+        {
+            ["sensitivity"] = "public",
+            ["applicableWhen"] = new JsonObject
+            {
+                ["op"] = "equals",
+                ["reference"] = new JsonObject { ["scope"] = "root", ["path"] = "/provider" },
+                ["value"] = "external"
+            }
+        };
+        properties["providerEndpoint"] = endpoint;
+
+        JsonObject secret = Node("string", "External provider secret");
+        secret["minLength"] = 1;
+        secret["x-configurator"] = new JsonObject
+        {
+            ["sensitivity"] = "secret",
+            ["applicableWhen"] = new JsonObject
+            {
+                ["op"] = "equals",
+                ["reference"] = new JsonObject { ["scope"] = "root", ["path"] = "/provider" },
+                ["value"] = "external"
+            },
+            ["secret"] = new JsonObject
+            {
+                ["kind"] = "password",
+                ["acquisition"] = "local"
+            }
+        };
+        properties["providerSecret"] = secret;
+    }
+
+    private static JsonObject? CompactPresentation(string fixtureId)
+    {
+        if (fixtureId == "compact-101")
+        {
+            var sections = new JsonArray(
+                CompactSection("sec01", "General settings", 0, 25, groupStart: 16, groupCount: 8, collapsed: false),
+                CompactSection("sec02", "Network settings", 25, 25),
+                CompactSection("sec03", "Storage settings", 50, 25, groupStart: 65, groupCount: 10, collapsed: true),
+                CompactSection("sec04", "Worker settings", 75, 23),
+                new JsonObject
+                {
+                    ["id"] = "provider",
+                    ["title"] = "Provider and secret access",
+                    ["pointers"] = new JsonArray("/provider", "/providerEndpoint", "/providerSecret")
+                });
+            return new JsonObject
+            {
+                ["defaultJourney"] = "compact",
+                ["navigation"] = "sections",
+                ["sections"] = sections,
+                ["journeys"] = new JsonArray(new JsonObject
+                {
+                    ["id"] = "compact",
+                    ["title"] = "Compact walkthrough",
+                    ["sections"] = new JsonArray("sec01", "sec02", "sec03", "sec04", "provider")
+                })
+            };
+        }
+        if (fixtureId == "compact-600")
+        {
+            var sections = new JsonArray();
+            var journeySections = new JsonArray();
+            for (int s = 0; s < 6; s++)
+            {
+                string id = "sec" + Number(s + 1, "D2");
+                sections.Add(CompactSection(id, "Section " + Number(s + 1), s * 100, 100,
+                    groupStart: s * 100 + 80, groupCount: 20, collapsed: s % 2 == 1));
+                journeySections.Add(id);
+            }
+            return new JsonObject
+            {
+                ["defaultJourney"] = "compact",
+                ["navigation"] = "sections",
+                ["sections"] = sections,
+                ["journeys"] = new JsonArray(new JsonObject
+                {
+                    ["id"] = "compact",
+                    ["title"] = "Compact scale walkthrough",
+                    ["sections"] = journeySections
+                })
+            };
+        }
+        return null;
+    }
+
+    private static JsonObject CompactSection(string id, string title, int startIndex, int count,
+        int groupStart = -1, int groupCount = 0, bool collapsed = false)
+    {
+        var pointers = new JsonArray();
+        for (int index = startIndex; index < startIndex + count; index++)
+            pointers.Add("/p" + Number(index, "D3"));
+        var section = new JsonObject
+        {
+            ["id"] = id,
+            ["title"] = title,
+            ["pointers"] = pointers
+        };
+        if (groupCount > 0)
+        {
+            var groupPointers = new JsonArray();
+            for (int index = groupStart; index < groupStart + groupCount; index++)
+                groupPointers.Add("/p" + Number(index, "D3"));
+            section["groups"] = new JsonArray(new JsonObject
+            {
+                ["id"] = id + "-group",
+                ["title"] = title + " advanced",
+                ["collapsed"] = collapsed,
+                ["pointers"] = groupPointers
+            });
+        }
+        return section;
+    }
+
     private static JsonObject IntegerObject(int count)
     {
         JsonObject schema = ObjectSchema("Public settings");
@@ -311,6 +472,8 @@ internal static class InteractiveFixtures
                     .Select(index => "\"entry" + index.ToString("D3", CultureInfo.InvariantCulture) + "\":" + row)) + "}}",
             "many-active-corrections" => """{"settings":{""" + Members(256) + "}}",
             "multi-artifact" => """{"settings":{""" + Members(128) + "}}",
+            "compact-101" => "{" + Members(98) + ",\"provider\":\"local\"}",
+            "compact-600" => "{" + Members(600) + "}",
             _ => throw new InvalidOperationException("fixture-specification")
         });
     }
@@ -376,8 +539,9 @@ internal static class InteractiveFixtures
 
     private static int SelfTest(Fixture[] fixtures)
     {
-        Require(fixtures.Length == 5 && fixtures.Select(fixture => fixture.Id).Distinct(StringComparer.Ordinal).Count() == 5);
-        Require(Specifications.Select(spec => spec.Family).Distinct(StringComparer.Ordinal).Count() == 5);
+        Require(fixtures.Length == Specifications.Length
+            && fixtures.Select(fixture => fixture.Id).Distinct(StringComparer.Ordinal).Count() == Specifications.Length);
+        Require(Specifications.Select(spec => spec.Family).Distinct(StringComparer.Ordinal).Count() == Specifications.Length);
         foreach (Specification spec in Specifications)
         {
             Fixture original = fixtures.Single(fixture => fixture.Id == spec.Id);
@@ -397,6 +561,7 @@ internal static class InteractiveFixtures
             Require(changedBundle.Succeeded && changedBundle.Artifacts.Count == spec.OutputCount
                 && changedBundle.Artifacts.All(artifact => !artifact.Bytes.Span.SequenceEqual(ExpectedOutput(spec.Id))));
             if (spec.Id == "large-map-list") VerifyCollectionActions(original);
+            if (spec.Id == "compact-101") VerifyCompactProviderDisclosure(original);
             Console.WriteLine("FIXTURE_SELF_TEST fixture=" + spec.Id + " passed=true");
         }
         string scratch = Path.Combine(Path.GetTempPath(), "interactive-fixtures-" + Guid.NewGuid().ToString("N"));
@@ -427,8 +592,22 @@ internal static class InteractiveFixtures
             Require(refused && File.ReadAllBytes(collision).AsSpan().SequenceEqual("synthetic-sentinel"u8));
         }
         finally { Directory.Delete(scratch, recursive: true); }
-        Console.WriteLine("FIXTURE_SELF_TEST_COMPLETE fixtures=5 deterministic=true createOnly=true failures=0");
+        Console.WriteLine($"FIXTURE_SELF_TEST_COMPLETE fixtures={fixtures.Length} deterministic=true createOnly=true failures=0");
         return 0;
+    }
+
+    private static void VerifyCompactProviderDisclosure(Fixture fixture)
+    {
+        Definition definition = DefinitionCodec.ParseJson(fixture.Files["definition.json"]);
+        JsonObject external = JsonNode.Parse(fixture.Files["answers.json"])!.AsObject();
+        external["provider"] = "external";
+        DefinitionValidationResult localResult = DefinitionValidator.Validate(definition, Snapshot(fixture.Files["answers.json"]));
+        DefinitionValidationResult externalResult = DefinitionValidator.Validate(definition, Snapshot(Bytes(external)));
+        Require(localResult.IsReady && externalResult.IsReady);
+        Require(!localResult.Fields.Single(field => field.Id == "providerEndpoint").IsActive
+            && externalResult.Fields.Single(field => field.Id == "providerEndpoint").IsActive);
+        Require(!localResult.Fields.Single(field => field.Id == "providerSecret").IsActive
+            && externalResult.Fields.Single(field => field.Id == "providerSecret").IsActive);
     }
 
     private static void VerifyCollectionActions(Fixture fixture)

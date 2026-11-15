@@ -126,6 +126,209 @@ public sealed class SectionStatusAndNavigationTests
         await Assert.That(form.Projection.Navigation.WizardStepIndex).IsEqualTo(2);
     }
 
+    [Test]
+    public async Task ContextSummaryAndNextActionableDiagnosticReflectAtomicScopeTransitionsAndRejectStaleRevision()
+    {
+        using var form = new DefinitionFormModel(DeploymentScopeDefinition());
+        var initialSummary = form.Projection.ContextSummary;
+        await Assert.That(initialSummary).IsNotNull();
+        await Assert.That(initialSummary!.RecipeId).IsEqualTo("standalone");
+        await Assert.That(initialSummary.ScopeId).IsEqualTo("all");
+        await Assert.That(initialSummary.Summary).IsEqualTo("Standalone · All components");
+        await Assert.That(string.Join("|", initialSummary.ComponentTitles)).IsEqualTo("Worker|Dashboard");
+        await Assert.That(string.Join("|", initialSummary.ArtifactFileNames)).IsEqualTo("dashboard.json|worker.json");
+
+        // Next actionable diagnostic prioritizes active missing required work.
+        var nextDiag = form.GetNextActionableDiagnostic();
+        await Assert.That(nextDiag).IsNotNull();
+        await Assert.That(nextDiag!.FieldId).IsEqualTo("worker");
+
+        long staleRevision = form.InputRevision;
+        await Assert.That(form.SelectConfigurationContext("split", "dashboard")).IsTrue();
+        await Assert.That(form.Projection.ContextSummary!.Summary).IsEqualTo("Separate processes · Dashboard only");
+        await Assert.That(string.Join("|", form.Projection.ContextSummary.ComponentTitles)).IsEqualTo("Dashboard");
+        await Assert.That(string.Join("|", form.Projection.ContextSummary.ArtifactFileNames)).IsEqualTo("dashboard.json");
+        await Assert.That(form.Projection.ProgressSummary.TotalRequired).IsEqualTo(0);
+        await Assert.That(form.Projection.ProgressSummary.RequiredPercent).IsNull();
+        await Assert.That(form.Projection.SectionStatuses["configure"].Progress.Percent).IsNull();
+        await Assert.That(form.GetNextActionableDiagnostic()).IsNull();
+
+        // Late context confirmation from a superseded revision is rejected without mutating state.
+        long currentRevision = form.InputRevision;
+        await Assert.That(form.SelectConfigurationContext("standalone", "all", expectedInputRevision: staleRevision)).IsFalse();
+        await Assert.That(form.InputRevision).IsEqualTo(currentRevision);
+        await Assert.That(form.Projection.ContextSummary.ScopeId).IsEqualTo("dashboard");
+    }
+
+    [Test]
+    public async Task ContinuousVisibilityExposesAllSectionsAndLockedSecretsWhilePreservingSelectedExperienceOnRoundTrip()
+    {
+        Definition definition = ContinuousExperienceDefinition();
+        using var form = new DefinitionFormModel(
+            definition,
+            DefinitionSessionPrivacy.BrowserNoSecrets,
+            editorVisibility: DefinitionEditorVisibilityPolicy.Authored);
+        form.SetDisclosureOverride(FieldDisclosure.Essential);
+
+        await Assert.That(form.SelectedExperienceId).IsEqualTo("essential");
+        await Assert.That(form.EditorVisibility).IsEqualTo(DefinitionEditorVisibilityPolicy.Authored);
+        await Assert.That(form.IsEditorVisible(["hostName"])).IsTrue();
+        await Assert.That(form.IsEditorVisible(["securityToken"])).IsFalse();
+        await Assert.That(form.IsEditorVisible(["advancedAudit"])).IsFalse();
+        await Assert.That(form.IsEditorVisible(["clusterNode"])).IsFalse();
+
+        // Transition atomically to Compact + Continuous visibility.
+        form.SetWorkspaceLayoutMode(WorkspaceLayoutMode.Compact, DefinitionEditorVisibilityPolicy.Continuous);
+
+        await Assert.That(form.WorkspaceLayoutMode).IsEqualTo(WorkspaceLayoutMode.Compact);
+        await Assert.That(form.EditorVisibility).IsEqualTo(DefinitionEditorVisibilityPolicy.Continuous);
+        await Assert.That(form.SelectedExperienceId).IsEqualTo("essential");
+        await Assert.That(string.Join("|", form.Projection.Sections.Select(section => section.Id)))
+            .IsEqualTo("general|security|cluster");
+
+        // Active fields in sections outside "essential", including locked secret fields under BrowserNoSecrets, are visible.
+        await Assert.That(form.IsEditorVisible(["hostName"])).IsTrue();
+        await Assert.That(form.IsEditorVisible(["securityToken"])).IsTrue();
+        await Assert.That(form.IsEditorVisible(["advancedAudit"])).IsTrue();
+        // Inapplicable sections remain invisible.
+        await Assert.That(form.IsEditorVisible(["clusterNode"])).IsFalse();
+
+        // Focusing an editor in a section outside SelectedExperienceId expands its group without mutating SelectedExperienceId.
+        await Assert.That(form.Projection.Sections.Single(s => s.Id == "security").Groups.Single(g => g.Id == "audit-group").IsExpanded).IsFalse();
+        await Assert.That(form.FocusEditor(["advancedAudit"], preserveDiscovery: true)).IsTrue();
+        await Assert.That(form.SelectedExperienceId).IsEqualTo("essential");
+        await Assert.That(form.Projection.Sections.Single(s => s.Id == "security").Groups.Single(g => g.Id == "audit-group").IsExpanded).IsTrue();
+
+        await Assert.That(form.EditValue(["advancedAudit"], "strict-audit")).IsTrue();
+
+        // Returning to Guided restores Authored visibility and original SelectedExperienceId while keeping edited answers.
+        form.SetWorkspaceLayoutMode(WorkspaceLayoutMode.Guided);
+
+        await Assert.That(form.WorkspaceLayoutMode).IsEqualTo(WorkspaceLayoutMode.Guided);
+        await Assert.That(form.EditorVisibility).IsEqualTo(DefinitionEditorVisibilityPolicy.Authored);
+        await Assert.That(form.SelectedExperienceId).IsEqualTo("essential");
+        await Assert.That(form.Snapshot().Values["advancedAudit"].GetString()).IsEqualTo("strict-audit");
+    }
+
+    private static Definition ContinuousExperienceDefinition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+    {
+      "schemaVersion": "0.0.1",
+      "profile": "bounded-v0.0.1",
+      "familyId": "7f84708c-227a-42db-a9a2-f5870a1eb202",
+      "revision": 1,
+      "project": { "id": "continuous-test", "publisher": "example", "name": "Continuous Experience Test" },
+      "applicationVersions": ["1.0.0"],
+      "entryPoints": ["setup"],
+      "locales": ["en"],
+      "configuration": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-configurator": { "sensitivity": "public" },
+        "required": ["hostName"],
+        "properties": {
+          "hostName": {
+            "type": "string",
+            "title": "Host Name",
+            "x-configurator": { "sensitivity": "public", "detail": "basic" }
+          },
+          "enableCluster": {
+            "type": "boolean",
+            "title": "Enable Cluster",
+            "x-configurator": { "sensitivity": "public", "detail": "basic", "initialValue": false }
+          },
+          "securityToken": {
+            "type": "string",
+            "title": "Security Token",
+            "x-configurator": {
+              "sensitivity": "secret",
+              "detail": "advanced",
+              "secret": { "kind": "password", "acquisition": "local" }
+            }
+          },
+          "advancedAudit": {
+            "type": "string",
+            "title": "Advanced Audit Mode",
+            "x-configurator": { "sensitivity": "public", "detail": "advanced" }
+          },
+          "clusterNode": {
+            "type": "string",
+            "title": "Cluster Node",
+            "x-configurator": {
+              "sensitivity": "public",
+              "detail": "standard",
+              "applicableWhen": { "op": "equals", "reference": { "scope": "root", "path": "/enableCluster" }, "value": true }
+            }
+          }
+        }
+      },
+      "presentation": {
+        "defaultJourney": "essential",
+        "navigation": "sections",
+        "sections": [
+          { "id": "general", "title": "General", "detail": "basic", "pointers": ["/hostName", "/enableCluster"] },
+          {
+            "id": "security",
+            "title": "Security",
+            "detail": "advanced",
+            "pointers": ["/securityToken", "/advancedAudit"],
+            "groups": [
+              {
+                "id": "audit-group",
+                "title": "Audit Settings",
+                "detail": "advanced",
+                "collapsed": true,
+                "pointers": ["/advancedAudit"]
+              }
+            ]
+          },
+          {
+            "id": "cluster",
+            "title": "Cluster",
+            "detail": "standard",
+            "applicableWhen": { "op": "equals", "reference": { "scope": "root", "path": "/enableCluster" }, "value": true },
+            "pointers": ["/clusterNode"]
+          }
+        ],
+        "journeys": [
+          { "id": "essential", "title": "Essential", "sections": ["general"] },
+          { "id": "full", "title": "Full", "sections": ["security", "general", "cluster"] }
+        ]
+      },
+      "artifacts": [
+        { "id": "out", "format": "json", "fileName": "out.json", "targetUpdateMode": "create", "restartRequirement": "none", "projection": { "op": "literal", "value": {} } }
+      ],
+      "requiredCapabilities": [
+        "predicate.root", "projection.literal", "schema.boolean", "schema.object", "schema.secret", "schema.string", "values.initial"
+      ]
+    }
+    """));
+
+    private static Definition DeploymentScopeDefinition() => DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes("""
+        {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+         "identity":{"familyId":"d66d02af-6a66-4396-9717-452e8eb9541b","revision":1},
+         "project":{"id":"example.scope","name":"Worker and dashboard"},"applicationVersions":["1.0"],
+         "entryPoints":["worker","dashboard"],
+         "configuration":{"type":"object","additionalProperties":false,"required":["worker"],"x-configurator":{"sensitivity":"public"},
+          "properties":{
+           "recipe":{"type":"string","enum":["standalone","split"],"x-configurator":{"sensitivity":"public","initialValue":"standalone"}},
+           "scope":{"type":"string","enum":["all","worker","dashboard"],"x-configurator":{"sensitivity":"public","initialValue":"all"}},
+           "worker":{"type":"string","x-configurator":{"sensitivity":"secret"}},
+           "dashboard":{"type":"string","x-configurator":{"sensitivity":"public","initialValue":"synthetic-dashboard"}}}},
+         "deployment":{"recipePointer":"/recipe","scopePointer":"/scope",
+          "components":[{"id":"worker","title":"Worker"},{"id":"dashboard","title":"Dashboard"}],
+          "recipes":[{"id":"standalone","title":"Standalone","scopes":[
+           {"id":"all","title":"All components","componentIds":["worker","dashboard"],"artifactIds":["worker","dashboard"]}]},
+           {"id":"split","title":"Separate processes","scopes":[
+            {"id":"all","title":"All components","componentIds":["worker","dashboard"],"artifactIds":["worker","dashboard"]},
+            {"id":"worker","title":"Worker only","componentIds":["worker"],"artifactIds":["worker"]},
+            {"id":"dashboard","title":"Dashboard only","componentIds":["dashboard"],"artifactIds":["dashboard"]}]}]},
+         "outputs":{
+          "worker.json":{"id":"worker","format":"json","consumerIds":["worker"],"projection":{"op":"object","members":{
+           "value":{"op":"copy","reference":{"scope":"root","path":"/worker"}}}}},
+          "dashboard.json":{"id":"dashboard","format":"json","consumerIds":["dashboard"],"projection":{"op":"object","members":{
+           "value":{"op":"copy","reference":{"scope":"root","path":"/dashboard"}}}}}}}
+        """));
+
     private static Definition SplitPointerWizardDefinition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {
       "schemaVersion": "0.0.1",

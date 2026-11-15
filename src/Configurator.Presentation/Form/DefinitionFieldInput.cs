@@ -43,13 +43,14 @@ public sealed class DefinitionFieldInput : ObservableObject
             lock (_gate)
             {
                 DefinitionFieldState state = State;
-                return state.InputDiagnosticCode ?? (state.InvalidPaths.Count > 0 ? "input-type-invalid" : null);
+                return state.InputDiagnosticCode ?? (state.HasInvalidPaths ? "input-type-invalid" : null);
             }
         }
     }
     internal JsonElement? Value => State.Value;
+    internal long Version => State.Version;
     internal bool IsPristineDefault => State.Value is null && State.Origin == DefinitionAnswerOrigin.Omitted
-        && State.Origins.Count == 0 && InputDiagnosticCode is null;
+        && !State.HasOrigins && InputDiagnosticCode is null;
     public IReadOnlyList<string> Choices =>
         Array.AsReadOnly(Definition.Choices.Select(Display).ToArray());
 
@@ -60,6 +61,7 @@ public sealed class DefinitionFieldInput : ObservableObject
             DefinitionFieldState state = State;
             if (state.InputDiagnosticCode is not null)
                 yield return new(state.InputDiagnosticCode, Definition.Id);
+            if (!state.HasInvalidPaths) yield break;
             foreach (string[] path in state.InvalidPaths)
                 if (state.InputDiagnosticCode is null || path.Length > 1)
                     yield return new("input-type-invalid", Definition.Id, path.Skip(1).ToArray());
@@ -89,6 +91,7 @@ public sealed class DefinitionFieldInput : ObservableObject
                 RecordOrigin([Definition.Id], parsed is null ? DefinitionAnswerOrigin.Omitted : DefinitionAnswerOrigin.Explicit);
             }
             SetProperty(ref State.Text, value);
+            State.Touch();
             return true;
         });
     }
@@ -110,6 +113,7 @@ public sealed class DefinitionFieldInput : ObservableObject
                     value is null ? DefinitionAnswerOrigin.Omitted : DefinitionAnswerOrigin.Explicit);
                 SetInputDiagnostic(null);
                 if (!SetProperty(ref State.Text, text, nameof(Text))) OnPropertyChanged(nameof(Text));
+                State.Touch();
             }
             return true;
         });
@@ -119,8 +123,8 @@ public sealed class DefinitionFieldInput : ObservableObject
     internal void SetImported(JsonElement value)
     {
         SetInputDiagnostic(null);
-        State.InvalidPaths.Clear();
-        State.DraftTexts.Clear();
+        if (State.HasInvalidPaths) State.InvalidPaths.Clear();
+        if (State.HasDraftTexts) State.DraftTexts.Clear();
         RecordOrigin([Definition.Id], DefinitionAnswerOrigin.Imported);
         RetainValue(value);
     }
@@ -134,17 +138,20 @@ public sealed class DefinitionFieldInput : ObservableObject
     internal IEnumerable<string[]> PrivateStatePaths()
     {
         if (State.InputDiagnosticCode is not null) yield return [Definition.Id];
-        foreach ((string[] path, _) in State.DraftTexts) yield return path;
-        foreach (string[] path in State.InvalidPaths) yield return path;
-        foreach ((string[] path, _) in State.Origins) yield return path;
+        if (State.HasDraftTexts)
+            foreach ((string[] path, _) in State.DraftTexts) yield return path;
+        if (State.HasInvalidPaths)
+            foreach (string[] path in State.InvalidPaths) yield return path;
+        if (State.HasOrigins)
+            foreach ((string[] path, _) in State.Origins) yield return path;
     }
 
     internal void RetainPublic(JsonElement? value, Func<string[], bool> clearDraft, Func<string[], bool> forgetOrigin)
     {
         State.Value = value?.Clone();
-        State.DraftTexts.RemoveAll(draft => clearDraft(draft.Path));
-        State.InvalidPaths.RemoveAll(path => clearDraft(path));
-        State.Origins.RemoveAll(origin => forgetOrigin(origin.Path));
+        if (State.HasDraftTexts) State.DraftTexts.RemoveAll(draft => clearDraft(draft.Path));
+        if (State.HasInvalidPaths) State.InvalidPaths.RemoveAll(path => clearDraft(path));
+        if (State.HasOrigins) State.Origins.RemoveAll(origin => forgetOrigin(origin.Path));
         string text = value is { } retained ? Display(retained) : string.Empty;
         if (!SetProperty(ref State.Text, text, nameof(Text))) OnPropertyChanged(nameof(Text));
         if (clearDraft([Definition.Id])) SetInputDiagnostic(null);
@@ -159,8 +166,8 @@ public sealed class DefinitionFieldInput : ObservableObject
     internal void Clear()
     {
         State.Value = null;
-        State.InvalidPaths.Clear();
-        State.DraftTexts.Clear();
+        if (State.HasInvalidPaths) State.InvalidPaths.Clear();
+        if (State.HasDraftTexts) State.DraftTexts.Clear();
         RecordOrigin([Definition.Id], DefinitionAnswerOrigin.Omitted);
         if (!SetProperty(ref State.Text, string.Empty, nameof(Text))) OnPropertyChanged(nameof(Text));
         SetInputDiagnostic(null);
@@ -183,43 +190,64 @@ public sealed class DefinitionFieldInput : ObservableObject
     }
 
     internal bool HasInputError(IReadOnlyList<string> path) =>
-        path.Count == 1 && State.InputDiagnosticCode is not null || State.InvalidPaths.Any(existing => existing.SequenceEqual(path));
+        path.Count == 1 && State.InputDiagnosticCode is not null ||
+        State.HasInvalidPaths && State.InvalidPaths.Any(existing => existing.SequenceEqual(path));
+
+    internal bool HasRootInputError()
+    {
+        if (State.InputDiagnosticCode is not null) return true;
+        if (!State.HasInvalidPaths) return false;
+        foreach (string[] existing in State.InvalidPaths)
+        {
+            if (existing.Length == 1 && string.Equals(existing[0], Definition.Id, StringComparison.Ordinal))
+                return true;
+        }
+        return false;
+    }
+
+    internal DefinitionAnswerOrigin OriginAtRoot() => State.Origin;
 
     internal void SetDraftValidity(IReadOnlyList<string> path, bool valid)
     {
-        State.InvalidPaths.RemoveAll(existing => existing.SequenceEqual(path));
+        if (valid && !State.HasInvalidPaths) return;
+        if (State.HasInvalidPaths) State.InvalidPaths.RemoveAll(existing => existing.SequenceEqual(path));
         if (!valid) State.InvalidPaths.Add(path.ToArray());
+        State.Touch();
         OnPropertyChanged(nameof(InputDiagnosticCode));
     }
 
     internal bool ClearDrafts(IReadOnlyList<string> path)
     {
-        State.DraftTexts.RemoveAll(existing => existing.Path.Take(path.Count).SequenceEqual(path));
-        bool changed = State.InvalidPaths.RemoveAll(existing => existing.Take(path.Count).SequenceEqual(path)) > 0;
+        int removedDrafts = State.HasDraftTexts ? State.DraftTexts.RemoveAll(existing => existing.Path.Take(path.Count).SequenceEqual(path)) : 0;
+        bool changed = State.HasInvalidPaths && State.InvalidPaths.RemoveAll(existing => existing.Take(path.Count).SequenceEqual(path)) > 0;
+        if (removedDrafts > 0 || changed) State.Touch();
         if (changed) OnPropertyChanged(nameof(InputDiagnosticCode));
         return changed;
     }
 
     internal void ClearDeniedDrafts(Func<IReadOnlyList<string>, bool> canEdit)
     {
-        State.DraftTexts.RemoveAll(existing => !canEdit(existing.Path));
-        if (State.InvalidPaths.RemoveAll(path => !canEdit(path)) > 0) OnPropertyChanged(nameof(InputDiagnosticCode));
+        int removedDrafts = State.HasDraftTexts ? State.DraftTexts.RemoveAll(existing => !canEdit(existing.Path)) : 0;
+        bool changed = State.HasInvalidPaths && State.InvalidPaths.RemoveAll(path => !canEdit(path)) > 0;
+        if (removedDrafts > 0 || changed) State.Touch();
+        if (changed) OnPropertyChanged(nameof(InputDiagnosticCode));
     }
 
     internal string? DraftText(IReadOnlyList<string> path) =>
         path.Count == 1 && HasInputError(path) ? State.Text :
-            State.DraftTexts.FirstOrDefault(existing => existing.Path.SequenceEqual(path)).Text;
+            State.HasDraftTexts ? State.DraftTexts.FirstOrDefault(existing => existing.Path.SequenceEqual(path)).Text : null;
 
     internal void RetainDraft(IReadOnlyList<string> path, string? text)
     {
-        State.DraftTexts.RemoveAll(existing => existing.Path.SequenceEqual(path));
+        if (State.HasDraftTexts) State.DraftTexts.RemoveAll(existing => existing.Path.SequenceEqual(path));
         if (text is not null && text.Length <= 65_536 &&
-            State.DraftTexts.Sum(existing => existing.Text.Length) + text.Length <= 65_536)
+            (!State.HasDraftTexts || State.DraftTexts.Sum(existing => existing.Text.Length) + text.Length <= 65_536))
             State.DraftTexts.Add((path.ToArray(), text));
+        State.Touch();
     }
 
     internal DefinitionAnswerOrigin OriginAt(IReadOnlyList<string> path) =>
-        path.Count == 1 || State.Origins.Count == 0 ? State.Origin :
+        path.Count == 1 || !State.HasOrigins ? State.Origin :
         State.Origins.Where(existing => path.Take(existing.Path.Length).SequenceEqual(existing.Path))
             .OrderByDescending(existing => existing.Path.Length).Select(existing => existing.Origin)
             .FirstOrDefault(State.Origin);
@@ -228,35 +256,47 @@ public sealed class DefinitionFieldInput : ObservableObject
     {
         if (clearDescendants && origin != DefinitionAnswerOrigin.Defaulted)
             _recordOverride(path, origin == DefinitionAnswerOrigin.Omitted);
-        State.Origins.RemoveAll(existing => existing.Path.SequenceEqual(path) ||
-            clearDescendants && existing.Path.Take(path.Count).SequenceEqual(path));
+        if (State.HasOrigins)
+            State.Origins.RemoveAll(existing => existing.Path.SequenceEqual(path) ||
+                clearDescendants && existing.Path.Take(path.Count).SequenceEqual(path));
         if (path.Count == 1) State.Origin = origin;
         else State.Origins.Add((path.ToArray(), origin));
+        State.Touch();
     }
 
     internal void ForgetOrigin(IReadOnlyList<string> path)
     {
-        State.Origins.RemoveAll(existing => existing.Path.Take(path.Count).SequenceEqual(path));
+        if (State.HasOrigins) State.Origins.RemoveAll(existing => existing.Path.Take(path.Count).SequenceEqual(path));
         if (path.Count == 1) State.Origin = DefinitionAnswerOrigin.Omitted;
+        State.Touch();
     }
 
     internal void RemoveItemDrafts(IReadOnlyList<string> path, int index)
     {
         RemoveItemDrafts(State, path, index);
+        State.Touch();
         OnPropertyChanged(nameof(InputDiagnosticCode));
     }
 
     internal static void RemoveItemDrafts(DefinitionFieldState state, IReadOnlyList<string> path, int index)
     {
+        if (!state.HasDraftTexts && !state.HasOrigins && !state.HasInvalidPaths) return;
         static bool IsRow(string[] candidate, IReadOnlyList<string> prefix, int row) =>
             candidate.Length > prefix.Count && candidate.Take(prefix.Count).SequenceEqual(prefix) &&
             candidate[prefix.Count] == row.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        state.DraftTexts.RemoveAll(existing => IsRow(existing.Path, path, index));
-        state.Origins.RemoveAll(existing => IsRow(existing.Path, path, index));
-        foreach (string[] existing in state.DraftTexts.Select(draft => draft.Path).Concat(state.Origins.Select(origin => origin.Path)))
-            if (existing.Length > path.Count && existing.Take(path.Count).SequenceEqual(path) &&
-                int.TryParse(existing[path.Count], out int row) && row > index)
-                existing[path.Count] = (row - 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (state.HasDraftTexts) state.DraftTexts.RemoveAll(existing => IsRow(existing.Path, path, index));
+        if (state.HasOrigins) state.Origins.RemoveAll(existing => IsRow(existing.Path, path, index));
+        if (state.HasDraftTexts)
+            foreach ((string[] existing, _) in state.DraftTexts)
+                if (existing.Length > path.Count && existing.Take(path.Count).SequenceEqual(path) &&
+                    int.TryParse(existing[path.Count], out int row) && row > index)
+                    existing[path.Count] = (row - 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (state.HasOrigins)
+            foreach ((string[] existing, _) in state.Origins)
+                if (existing.Length > path.Count && existing.Take(path.Count).SequenceEqual(path) &&
+                    int.TryParse(existing[path.Count], out int row) && row > index)
+                    existing[path.Count] = (row - 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (!state.HasInvalidPaths) return;
         state.InvalidPaths.RemoveAll(existing => existing.Length > path.Count &&
             existing.Take(path.Count).SequenceEqual(path) && existing[path.Count] == index.ToString(System.Globalization.CultureInfo.InvariantCulture));
         foreach (string[] existing in state.InvalidPaths.Where(existing => existing.Length > path.Count &&
@@ -269,6 +309,7 @@ public sealed class DefinitionFieldInput : ObservableObject
     {
         if (State.InputDiagnosticCode == code) return;
         State.InputDiagnosticCode = code;
+        State.Touch();
         OnPropertyChanged(nameof(InputDiagnosticCode));
         OnPropertyChanged(nameof(HasAnswerBudgetError));
     }

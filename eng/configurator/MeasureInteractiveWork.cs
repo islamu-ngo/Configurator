@@ -24,6 +24,22 @@ internal static class Measurement
         "obscure-correction", "import-compare", "deferred-draft",
         "bulk-edit-malformed-recovery", "consent-revoke-editor"
     ];
+    private static readonly string[] CompactSelfTestJourneys =
+    [
+        "compact-101", "compact-600", "compact-section-jump", "compact-edit-during-admission",
+        "compact-search-filter", "compact-provider-reveal", "compact-group-toggle", "compact-inline-panel"
+    ];
+    private static readonly int[] SelfTestRates = [1, 4];
+    private static readonly string[] SelfTestDirections = ["forward", "reverse"];
+    private static readonly string[] ExtendedScaleJourneys =
+    [
+        "few-root-deep-tree", "wide-nested-object", "large-map-list",
+        "multi-artifact", "many-active-corrections",
+        "compact-101", "compact-600",
+        "compact-section-jump", "compact-edit-during-admission",
+        "compact-search-filter", "compact-provider-reveal",
+        "compact-group-toggle", "compact-inline-panel"
+    ];
 
     internal static int Run(string[] args)
     {
@@ -76,7 +92,7 @@ internal static class Measurement
                 && root.GetProperty("payload").GetString() == payload
                 && root.GetProperty("host").GetString() == host);
             JsonElement cohorts = root.GetProperty("cohorts");
-            Require(cohorts.ValueKind == JsonValueKind.Array && cohorts.GetArrayLength() is >= 36 and <= 128);
+            Require(cohorts.ValueKind == JsonValueKind.Array && cohorts.GetArrayLength() is >= 36 and <= 160);
             var keys = new HashSet<(string Journey, string Direction, int Rate)>();
             var reports = new List<object>();
             bool passed = true;
@@ -86,8 +102,7 @@ internal static class Measurement
                 string journey = cohort.GetProperty("journey").GetString()!;
                 string direction = cohort.GetProperty("direction").GetString()!;
                 int rate = cohort.GetProperty("rate").GetInt32();
-                Require((Journeys.Contains(journey) || journey is "few-root-deep-tree" or "wide-nested-object"
-                    or "large-map-list" or "multi-artifact" or "many-active-corrections")
+                Require((Journeys.Contains(journey) || ExtendedScaleJourneys.Contains(journey))
                     && direction is "forward" or "reverse" && rate is 1 or 4
                     && keys.Add((journey, direction, rate))
                     && cohort.GetProperty("status").GetString() == "complete"
@@ -333,6 +348,50 @@ internal static class Measurement
             Console.WriteLine($"SELF_TEST case=statistics-and-all-outliers-retained passed={passed}");
             if (!passed) failures++;
         }
+        static void AddSyntheticCohort(JsonArray cohorts, string journey, string direction, int rate, double offsetBase, double feedbackMs, double contentMs, double taskMs)
+        {
+            var samples = new JsonArray();
+            for (int i = 0; i < 46; i++)
+                samples.Add(new JsonObject
+                {
+                    ["phase"] = i == 0 ? "first" : i <= 5 ? "warmup" : "measured",
+                    ["index"] = i == 0 ? 1 : i <= 5 ? i : i - 5,
+                    ["trusted"] = true, ["status"] = "complete",
+                    ["startMs"] = offsetBase + i * 1000, ["feedbackMs"] = offsetBase + i * 1000 + feedbackMs,
+                    ["contentMs"] = offsetBase + i * 1000 + contentMs, ["completionMs"] = offsetBase + i * 1000 + contentMs + 50,
+                    ["settledMs"] = offsetBase + i * 1000 + contentMs + 60, ["maximumTaskMs"] = taskMs
+                });
+            cohorts.Add(new JsonObject
+            {
+                ["journey"] = journey, ["direction"] = direction, ["rate"] = rate,
+                ["status"] = "complete", ["warmups"] = 5, ["contentBudgetMs"] = 100 * rate,
+                ["samples"] = samples
+            });
+        }
+        Check("compact-extended-cohorts-pass", root =>
+        {
+            JsonArray cohorts = root["cohorts"]!.AsArray();
+            double cursor = 100_000;
+            foreach (string compactJourney in CompactSelfTestJourneys)
+            foreach (int rate in SelfTestRates)
+            foreach (string direction in SelfTestDirections)
+            {
+                AddSyntheticCohort(cohorts, compactJourney, direction, rate, cursor, 12 * rate, 24 * rate, 18 * rate);
+                cursor += 50_000;
+            }
+        }, 0);
+        Check("compact-600-slow-content-fails", root =>
+        {
+            JsonArray cohorts = root["cohorts"]!.AsArray();
+            AddSyntheticCohort(cohorts, "compact-600", "forward", 1, 100_000, 10, 105, 30);
+            AddSyntheticCohort(cohorts, "compact-600", "reverse", 1, 150_000, 10, 20, 20);
+            AddSyntheticCohort(cohorts, "compact-600", "forward", 4, 200_000, 20, 40, 20);
+            AddSyntheticCohort(cohorts, "compact-600", "reverse", 4, 250_000, 20, 40, 20);
+        }, 2);
+        Check("compact-unknown-journey-rejected", root =>
+        {
+            AddSyntheticCohort(root["cohorts"]!.AsArray(), "compact-unlisted", "forward", 1, 100_000, 10, 20, 20);
+        }, 1);
         Console.WriteLine($"SELF_TEST_COMPLETE failures={failures}");
         return failures == 0 ? 0 : 1;
     }

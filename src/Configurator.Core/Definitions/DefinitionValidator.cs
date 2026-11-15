@@ -149,17 +149,9 @@ public static class DefinitionValidator
         DefinitionImportWork? work = null)
     {
         if (work is not null) await work.VisitAsync();
-        bool compatible = value.ValueKind == JsonValueKind.Null ? schema.IsNullable : schema.Type switch
-        {
-            DefinitionNodeType.Text => value.ValueKind == JsonValueKind.String,
-            DefinitionNodeType.Boolean => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
-            DefinitionNodeType.WholeNumber => value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out _),
-            DefinitionNodeType.Number => value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out _),
-            DefinitionNodeType.Mapping => value.ValueKind == JsonValueKind.Object,
-            DefinitionNodeType.Sequence => value.ValueKind == JsonValueKind.Array,
-            _ => false
-        };
-        if (!compatible) return false;
+        if (work is null && schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence))
+            return LocalScalarValueValid(schema, value);
+        if (!IsNodeValueTypeCompatible(schema, value)) return false;
         JsonElement keywords = schema.Keywords;
         if (keywords.TryGetProperty("const", out JsonElement fixedValue) && !JsonElement.DeepEquals(value, fixedValue)) return false;
         if (keywords.TryGetProperty("enum", out JsonElement choices))
@@ -174,26 +166,8 @@ public static class DefinitionValidator
             }
             if (!found) return false;
         }
-        if (value.ValueKind == JsonValueKind.String)
-        {
-            string text = value.GetString()!;
-            if (schema.Secret is { } secret && SecretValueValidator.Validate(secret, text).Count != 0) return false;
-            int length = text.EnumerateRunes().Count();
-            if (keywords.TryGetProperty("minLength", out JsonElement minimum) && length < minimum.GetInt32()
-                || keywords.TryGetProperty("maxLength", out JsonElement maximum) && length > maximum.GetInt32()
-                || keywords.TryGetProperty("x-configurator", out JsonElement extension)
-                    && extension.TryGetProperty("notBlank", out JsonElement notBlank) && notBlank.GetBoolean() && string.IsNullOrWhiteSpace(text)) return false;
-            if (FormatInvalid(schema, value)) return false;
-        }
-        if (value.ValueKind == JsonValueKind.Number)
-        {
-            if (!value.TryGetDecimal(out decimal number)
-                || keywords.TryGetProperty("minimum", out JsonElement minimum) && number < minimum.GetDecimal()
-                || keywords.TryGetProperty("maximum", out JsonElement maximum) && number > maximum.GetDecimal()
-                || keywords.TryGetProperty("exclusiveMinimum", out JsonElement exclusiveMinimum) && number <= exclusiveMinimum.GetDecimal()
-                || keywords.TryGetProperty("exclusiveMaximum", out JsonElement exclusiveMaximum) && number >= exclusiveMaximum.GetDecimal()
-                || keywords.TryGetProperty("multipleOf", out JsonElement multiple) && number % multiple.GetDecimal() != 0) return false;
-        }
+        if (value.ValueKind == JsonValueKind.String && StringValueInvalid(schema, value, keywords)) return false;
+        if (value.ValueKind == JsonValueKind.Number && NumberValueInvalid(value, keywords)) return false;
         if (value.ValueKind == JsonValueKind.Array && keywords.TryGetProperty("uniqueItems", out JsonElement unique) &&
             unique.GetBoolean())
         {
@@ -217,6 +191,60 @@ public static class DefinitionValidator
         if (value.ValueKind == JsonValueKind.Object && !PropertyCountValid(schema, value.EnumerateObject().Count(), complete)) return false;
         return true;
     }
+
+    internal static bool LocalScalarValueValid(DefinitionNode schema, JsonElement value)
+    {
+        if (!IsNodeValueTypeCompatible(schema, value)) return false;
+        JsonElement keywords = schema.Keywords;
+        if (keywords.TryGetProperty("const", out JsonElement fixedValue) && !JsonElement.DeepEquals(value, fixedValue)) return false;
+        if (keywords.TryGetProperty("enum", out JsonElement choices))
+        {
+            bool found = false;
+            foreach (JsonElement choice in choices.EnumerateArray())
+            {
+                if (!JsonElement.DeepEquals(value, choice)) continue;
+                found = true;
+                break;
+            }
+            if (!found) return false;
+        }
+        if (value.ValueKind == JsonValueKind.String && StringValueInvalid(schema, value, keywords)) return false;
+        if (value.ValueKind == JsonValueKind.Number && NumberValueInvalid(value, keywords)) return false;
+        return true;
+    }
+
+    private static bool IsNodeValueTypeCompatible(DefinitionNode schema, JsonElement value) =>
+        value.ValueKind == JsonValueKind.Null ? schema.IsNullable : schema.Type switch
+        {
+            DefinitionNodeType.Text => value.ValueKind == JsonValueKind.String,
+            DefinitionNodeType.Boolean => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
+            DefinitionNodeType.WholeNumber => value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out _),
+            DefinitionNodeType.Number => value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out _),
+            DefinitionNodeType.Mapping => value.ValueKind == JsonValueKind.Object,
+            DefinitionNodeType.Sequence => value.ValueKind == JsonValueKind.Array,
+            _ => false
+        };
+
+    private static bool StringValueInvalid(DefinitionNode schema, JsonElement value, JsonElement keywords)
+    {
+        string text = value.GetString()!;
+        if (schema.Secret is { } secret && SecretValueValidator.Validate(secret, text).Count != 0) return true;
+        int length = text.EnumerateRunes().Count();
+        if (keywords.TryGetProperty("minLength", out JsonElement minimum) && length < minimum.GetInt32()
+            || keywords.TryGetProperty("maxLength", out JsonElement maximum) && length > maximum.GetInt32()
+            || keywords.TryGetProperty("x-configurator", out JsonElement extension)
+                && extension.TryGetProperty("notBlank", out JsonElement notBlank) && notBlank.GetBoolean() && string.IsNullOrWhiteSpace(text))
+            return true;
+        return FormatInvalid(schema, value);
+    }
+
+    private static bool NumberValueInvalid(JsonElement value, JsonElement keywords) =>
+        !value.TryGetDecimal(out decimal number)
+        || keywords.TryGetProperty("minimum", out JsonElement minimum) && number < minimum.GetDecimal()
+        || keywords.TryGetProperty("maximum", out JsonElement maximum) && number > maximum.GetDecimal()
+        || keywords.TryGetProperty("exclusiveMinimum", out JsonElement exclusiveMinimum) && number <= exclusiveMinimum.GetDecimal()
+        || keywords.TryGetProperty("exclusiveMaximum", out JsonElement exclusiveMaximum) && number >= exclusiveMaximum.GetDecimal()
+        || keywords.TryGetProperty("multipleOf", out JsonElement multiple) && number % multiple.GetDecimal() != 0;
 
     internal static bool PropertyCountValid(DefinitionNode schema, int count, bool complete = true) =>
         (!complete || !schema.Keywords.TryGetProperty("minProperties", out JsonElement minimum) || count >= minimum.GetInt32()) &&
@@ -376,15 +404,21 @@ public static class DefinitionValidator
         DefinitionImportWork? work = null)
     {
         if (work is not null) await work.VisitAsync();
+        else if (schema.GetCachedReferences(scope) is { } cached) return cached;
         var references = new List<string>();
         foreach (JsonElement condition in NodeConditions(schema))
             references.AddRange(await ScopedReferencesAsync(condition, scope, work));
-        IEnumerable<DefinitionNode> children = schema.Properties.Values.Concat(schema.Variants)
-            .Concat(schema.AdditionalProperties is null ? [] : new[] { schema.AdditionalProperties })
-            .Concat(scope == "root" && schema.Items is not null ? new[] { schema.Items } : []);
-        foreach (DefinitionNode child in children)
+        foreach (DefinitionNode child in schema.Properties.Values)
             references.AddRange(await SchemaReferencesAsync(child, scope, work));
-        return references.Distinct(StringComparer.Ordinal).ToArray();
+        foreach (DefinitionNode variant in schema.Variants)
+            references.AddRange(await SchemaReferencesAsync(variant, scope, work));
+        if (schema.AdditionalProperties is not null)
+            references.AddRange(await SchemaReferencesAsync(schema.AdditionalProperties, scope, work));
+        if (scope == "root" && schema.Items is not null)
+            references.AddRange(await SchemaReferencesAsync(schema.Items, scope, work));
+        string[] result = references.Count == 0 ? [] : references.Distinct(StringComparer.Ordinal).ToArray();
+        if (work is null) schema.CacheReferences(scope, result);
+        return result;
     }
 
     /// <summary>

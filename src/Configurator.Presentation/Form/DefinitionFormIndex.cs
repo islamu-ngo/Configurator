@@ -144,6 +144,14 @@ internal sealed class DefinitionFormIndex
             foreach (string pointer in section.Pointers)
                 byPointer.TryAdd(DefinitionPath.Parse(pointer), section);
         SectionsByPointer = byPointer;
+        SectionsById = sections.ToDictionary(section => section.Id, StringComparer.Ordinal);
+        AuthoredSectionsById = definition.Presentation?.Sections.ToDictionary(section => section.Id, StringComparer.Ordinal)
+            ?? new Dictionary<string, DefinitionSection>(StringComparer.Ordinal);
+        var groupPointers = new Dictionary<(string SectionId, string GroupId), DefinitionPath[]>();
+        foreach (DefinitionFormSection section in sections)
+            foreach (DefinitionFormSectionGroup group in section.Groups)
+                groupPointers[(section.Id, group.Id)] = group.Pointers.Select(DefinitionPath.Parse).ToArray();
+        GroupPointers = groupPointers;
         _fallbackSection = sections.Count > 0 ? sections[0] : null;
         DependentsByController = CollectControllerDependents(Root, ResolveSection);
         ExperienceSections = experiences.ToDictionary(experience => experience.Id, experience =>
@@ -171,6 +179,9 @@ internal sealed class DefinitionFormIndex
     internal Dictionary<string, IReadOnlyList<string>> RootPaths { get; }
     internal Dictionary<string, string> RootIdentities { get; }
     private Dictionary<string, DefinitionPath> RootPathKeys { get; }
+    internal Dictionary<string, DefinitionFormSection> SectionsById { get; }
+    internal Dictionary<string, DefinitionSection> AuthoredSectionsById { get; }
+    internal Dictionary<(string SectionId, string GroupId), DefinitionPath[]> GroupPointers { get; }
     internal Dictionary<string, DefinitionFormSection> SectionsByField { get; }
     internal IReadOnlyDictionary<DefinitionPath, DefinitionFormSection> SectionsByPointer { get; }
     internal IReadOnlyDictionary<DefinitionPath, (int FieldCount, int SectionCount)> DependentsByController { get; }
@@ -179,10 +190,22 @@ internal sealed class DefinitionFormIndex
 
     internal DefinitionFormSection? ResolveSection(DefinitionPath dataPath)
     {
-        for (int length = dataPath.Segments.Count; length >= 1; length--)
+        if (SectionsByPointer.Count > 0)
         {
-            if (SectionsByPointer.TryGetValue(DefinitionPath.FromSegments(dataPath.Segments.Take(length)), out DefinitionFormSection? owner))
-                return owner;
+            for (int length = dataPath.Segments.Count; length >= 1; length--)
+            {
+                DefinitionPath probe;
+                if (length == dataPath.Segments.Count)
+                    probe = dataPath;
+                else
+                {
+                    var prefix = new string[length];
+                    for (int i = 0; i < length; i++) prefix[i] = dataPath.Segments[i];
+                    probe = DefinitionPath.FromSegments(prefix);
+                }
+                if (SectionsByPointer.TryGetValue(probe, out DefinitionFormSection? owner))
+                    return owner;
+            }
         }
         if (dataPath.Segments.Count > 0 &&
             FieldIdsByName.TryGetValue(dataPath.Segments[0], out string? fieldId) &&
@@ -223,13 +246,61 @@ internal sealed class DefinitionFormIndex
         }
     }
 
+    private Dictionary<string, DefinitionPath>? _rootDataPaths;
+    private Dictionary<string, IReadOnlyList<string>>? _rootDataSegments;
+
     internal DefinitionPath PathKey(IReadOnlyList<string> path) =>
         path.Count == 1 && RootPathKeys.TryGetValue(path[0], out DefinitionPath? key)
             ? key : DefinitionPath.FromSegments(path);
 
-    internal DefinitionPath DataPath(IReadOnlyList<string> path) => path.Count > 0 &&
-        FieldNames.TryGetValue(path[0], out string? name) ? DefinitionPath.FromSegments([name, .. path.Skip(1)])
-            : DefinitionPath.FromSegments(path);
+    internal DefinitionPath DataPath(IReadOnlyList<string> path)
+    {
+        if (path.Count == 1 && FieldNames.ContainsKey(path[0]))
+        {
+            Dictionary<string, DefinitionPath> cache =
+                System.Threading.LazyInitializer.EnsureInitialized(ref _rootDataPaths, BuildRootDataPaths);
+            if (cache.TryGetValue(path[0], out DefinitionPath? rootDataPath))
+                return rootDataPath;
+        }
+        if (path.Count > 0 && FieldNames.TryGetValue(path[0], out string? name))
+        {
+            string[] segments = new string[path.Count];
+            segments[0] = name;
+            for (int index = 1; index < path.Count; index++) segments[index] = path[index];
+            return DefinitionPath.FromSegments(segments);
+        }
+        return DefinitionPath.FromSegments(path);
+    }
+
+    internal bool TryGetRootDataSegments(string fieldId, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IReadOnlyList<string>? segments)
+    {
+        Dictionary<string, IReadOnlyList<string>> cache =
+            System.Threading.LazyInitializer.EnsureInitialized(ref _rootDataSegments, BuildRootDataSegments);
+        return cache.TryGetValue(fieldId, out segments);
+    }
+
+    internal bool TryGetRootDataPath(string fieldId, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out DefinitionPath? path)
+    {
+        Dictionary<string, DefinitionPath> cache =
+            System.Threading.LazyInitializer.EnsureInitialized(ref _rootDataPaths, BuildRootDataPaths);
+        return cache.TryGetValue(fieldId, out path);
+    }
+
+    private Dictionary<string, DefinitionPath> BuildRootDataPaths()
+    {
+        var map = new Dictionary<string, DefinitionPath>(FieldNames.Count, StringComparer.Ordinal);
+        foreach ((string fieldId, string name) in FieldNames)
+            map[fieldId] = DefinitionPath.FromSegments([name]);
+        return map;
+    }
+
+    private Dictionary<string, IReadOnlyList<string>> BuildRootDataSegments()
+    {
+        var map = new Dictionary<string, IReadOnlyList<string>>(FieldNames.Count, StringComparer.Ordinal);
+        foreach ((string fieldId, string name) in FieldNames)
+            map[fieldId] = [name];
+        return map;
+    }
 
     private static void CollectBindings(JsonElement projection, string artifact, string[] keys,
         Dictionary<string, (HashSet<string> Artifacts, HashSet<string> Keys)> bindings,

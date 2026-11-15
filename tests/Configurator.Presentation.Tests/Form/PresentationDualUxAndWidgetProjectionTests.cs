@@ -137,6 +137,29 @@ public sealed class PresentationDualUxAndWidgetProjectionTests
         await Assert.That(commands.Any(command => command.Id == WorkspaceCommandId.SwitchToCompact)).IsTrue();
     }
 
+    [Test]
+    public async Task FocusEditorExpandsObstructingGroupAndRejectsStaleCorrectionRevisions()
+    {
+        using var form = new DefinitionFormModel(RichMetadataDefinition(), DefinitionSessionPrivacy.NativeComplete);
+        form.EditValue(["tlsEnabled"], "true");
+
+        DefinitionFormSection security = form.Projection.Sections.Single(section => section.Id == "security");
+        DefinitionFormSectionGroup collapsedHealthy = security.Groups.Single(group => group.Id == "healthy-collapsed");
+        await Assert.That(collapsedHealthy.IsExpanded).IsFalse();
+
+        bool focused = form.FocusEditor(["optionalBroken"]);
+        await Assert.That(focused).IsTrue();
+
+        security = form.Projection.Sections.Single(section => section.Id == "security");
+        collapsedHealthy = security.Groups.Single(group => group.Id == "healthy-collapsed");
+        await Assert.That(collapsedHealthy.IsExpanded).IsTrue();
+
+        long staleRevision = form.InputRevision;
+        var staleLocation = new DefinitionCorrectionLocation(staleRevision, []);
+        form.EditValue(["optionalBroken"], "42");
+        await Assert.That(form.FocusCorrection("optionalBroken", staleLocation)).IsFalse();
+    }
+
     private static Definition RichMetadataDefinition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {
       "schemaVersion": "0.0.1",
