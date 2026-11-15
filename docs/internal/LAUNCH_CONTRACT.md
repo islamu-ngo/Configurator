@@ -10,7 +10,10 @@
 
 `BrowserLaunchSelection` admits an explicit closed editing-capability set before
 answers and resolves the declared localization default, not the first locale in
-sorted order. Launch/Open pass that initial locale into `ConfigurationEditor`.
+sorted order. Launch/Open pass that initial locale and optional public task
+`mode` (`fresh`, `import`, or `profile`) into `ConfigurationEditor`. Public
+entry intent opens the import or portable profile panel only after admission
+and startup complete, without auto-enabling secret consent or reading files.
 Resolution also retains whether `entry` was explicit. Launch/Open pass only an
 explicit entry to the new form: if it matches an admitted output-selector option,
 `DefinitionFormModel.SelectOutput` supplies that enum value through the ordinary
@@ -50,7 +53,10 @@ encoded-text inspector; changing that metadata closes stale dialogs.
 Core validation and local draft diagnostics expose typed safe correction
 locations. The renderer explicitly resolves current private coordinates through
 the shared form before focusing a map entry; it does not reinterpret ordinals as
-private keys or infer coordinates after a revision change.
+private keys or infer coordinates after a revision change. `FocusEditor`
+promotes ancestor paths and expands any collapsed section group containing the
+target root field, while locked secret actions route to the single
+`#secret-consent` disclosure without enabling `SessionPrivacy`.
 
 ## Owners and dependency closure
 
@@ -164,9 +170,11 @@ preflight byte count and ZIP capacity is the 4 MiB delivery ceiling. This avoids
 untracked private arrays from stream growth; source, export and framework
 allocations remain separate and require actual WASM peak-memory measurement.
 Owned assembly buffers are cleared on completion/failure; exposure uses
-`BrowserArtifactExport` generation fencing. Per-file recovery remains available
-if delivery overhead exceeds the aggregate ceiling. Managed strings and bytes
-already transferred to an external clipboard/download cannot be recalled.
+`BrowserArtifactExport` generation fencing. Per-file recovery (`[data-action="retry-file-export"]`)
+remains available if delivery overhead exceeds the aggregate ceiling or if an individual
+clipboard/download action fails, and `ConfigurationFilesPanel` surfaces `data-files-state="invalidated"`
+(`[data-files-invalidated]`) when edits or consent revocation retire a previously prepared bundle.
+Managed strings and bytes already transferred to an external clipboard/download cannot be recalled.
 
 `ConfigurationEditor` requires the registered `BrowserOfflinePolicy`; missing
 wiring fails component construction rather than granting readiness. Public app

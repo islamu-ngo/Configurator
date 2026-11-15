@@ -40,18 +40,6 @@ Configurator runs 100% locally on your workstation. It requires no background da
 
 ---
 
-## 💡 The Historical Paradox: Why Hasn't This Existed Before?
-
-Given the universal agony of self-hosted configuration, why did the industry remain trapped in raw `.env.example` files and fragmented `docker-compose.x.yaml` permutations for 15 years? Five converging barriers blocked previous attempts:
-
-1. **The DevOps Tragedy of the Commons:** Application authors view deployment as an operations concern outside their scope; sysadmins write bespoke local scripts. Neither side owned the universal abstraction layer.
-2. **The Commercial Walled-Garden Trap:** Platforms like Unraid, TrueNAS, CasaOS, and Portainer built graphical setup templates, but deliberately locked them into their own proprietary background daemons and OS distributions to protect their platform moats.
-3. **The Web SaaS Privacy Paradox:** Operators rightfully refuse to paste production database passwords and API tokens into third-party cloud SaaS websites. Only the recent maturity of static, client-side WebAssembly (WASM) and zero-network execution allows an air-gapped web browser to serve as a zero-trust configuration engine.
-4. **The Failure of Robotic JSON Schema UIs:** Generic form generators produced rigid, unusable enterprise UIs lacking humanized explanations, wire-token toggles, and conditional defaults.
-5. **The Pre-AI Authoring Bottleneck:** Hand-crafting schemas for 300 variables required 40+ hours of tedious manual engineering per app. Modern AI agent skills with physical Docker boot verification collapse this authoring time to 3 minutes.
-
----
-
 ## 🎯 Who It Serves: Choose Your Path
 
 ### 1. For Application Operators (Self-Hosters, Sysadmins & SREs)
@@ -89,6 +77,18 @@ Why open-source maintainers and software teams adopt Configurator:
 * 🌐 **Embeddable Quickstart Widgets:** Embed the configuration wizard directly inside your documentation pages (Docusaurus, VitePress, GitBook) using a lightweight sandboxed iframe.
 
 Start with [the integration guide](docs/public/integrating.md), [definition cookbook](docs/public/definition-cookbook.md) or [examples](examples/README.md).
+
+---
+
+## 💡 The Historical Paradox: Why Hasn't This Existed Before?
+
+Given the universal agony of self-hosted configuration, why did the industry remain trapped in raw `.env.example` files and fragmented `docker-compose.x.yaml` permutations for 15 years? Five converging barriers blocked previous attempts:
+
+1. **The DevOps Tragedy of the Commons:** Application authors view deployment as an operations concern outside their scope; sysadmins write bespoke local scripts. Neither side owned the universal abstraction layer.
+2. **The Commercial Walled-Garden Trap:** Platforms like Unraid, TrueNAS, CasaOS, and Portainer built graphical setup templates, but deliberately locked them into their own proprietary background daemons and OS distributions to protect their platform moats.
+3. **The Web SaaS Privacy Paradox:** Operators rightfully refuse to paste production database passwords and API tokens into third-party cloud SaaS websites. Only the recent maturity of static, client-side WebAssembly (WASM) and zero-network execution allows an air-gapped web browser to serve as a zero-trust configuration engine.
+4. **The Failure of Robotic JSON Schema UIs:** Generic form generators produced rigid, unusable enterprise UIs lacking humanized explanations, wire-token toggles, and conditional defaults.
+5. **The Pre-AI Authoring Bottleneck:** Hand-crafting schemas for 300 variables required 40+ hours of tedious manual engineering per app. Modern AI agent skills with physical Docker boot verification collapse this authoring time to 3 minutes.
 
 ---
 

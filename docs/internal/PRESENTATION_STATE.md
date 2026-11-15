@@ -200,17 +200,25 @@ stakeholder/usability or scholarly proof, or target acceptance. See the
 
 `DefinitionFormModel.ConfigurationContext` projects the Core evaluation for the
 current input revision. Its recipe and scope IDs identify ordinary public
-answers; `ConfigurationRecipes`, `ConfigurationScopes` and `EligibleArtifacts`
-expose admitted choices without creating another answer store. A null context
-means deployment selection does not apply to the current task. An unresolved
-context retains its correction controls while readiness and output remain blocked.
+answers; `ConfigurationRecipes`, `ConfigurationScopes`, `EligibleArtifacts` and
+`DefinitionFormProjection.ContextSummary` (`WorkspaceContextProjection`:
+localized recipe/scope titles, active component titles and eligible artifact
+file names) expose admitted choices without creating another answer store. A
+null context means deployment selection does not apply to the current task. An
+unresolved context retains its correction controls while readiness and output
+remain blocked. `DefinitionFormModel.GetNextActionableDiagnostic` and
+`DefinitionFormProjection.NextActionableDiagnostic` project the next active
+input/validation/required diagnostic from `DefinitionFormFacts` so client
+toolbar actions focus the next actionable setting without a client-local
+requiredness evaluator.
 
-`SelectConfigurationContext` validates the complete compatible pair before
-adopting either selector. Acceptance advances one input revision and raises one
-`InputChanged` notification. Rejection preserves accepted answers, omissions,
-document leases and prepared output. Clients resolve pending document edits
-through their existing Apply/Discard/Stay interaction before calling this
-mutation; Stay never reaches it. Detail and locale remain view state.
+`SelectConfigurationContext` validates the complete compatible pair (and an
+optional `expectedInputRevision` fence) before adopting either selector.
+Acceptance advances one input revision and raises one `InputChanged`
+notification. Rejection preserves accepted answers, omissions, document leases
+and prepared output. Clients resolve pending document edits through their
+existing Apply/Discard/Stay interaction before calling this mutation; Stay never
+reaches it. Detail and locale remain view state.
 
 The accepted edit uses the same document/import retirement and operation
 generation fences as any other input change. A late preparation or comparison
@@ -410,7 +418,12 @@ used by Browser. It exposes ordinary editable fields without a per-field expansi
 step; it does not supply values, change provenance or create containers. The
 Authored default retains the live native-client disclosure policy. Direct
 visibility still checks the selected experience, active metadata, edit authority
-and explicit group expansion. Required/correction paths keep their existing
+and explicit group expansion. `DefinitionEditorVisibilityPolicy.Continuous` is
+used when Browser switches to `WorkspaceLayoutMode.Compact`: it exposes all
+applicable sections and active fields across the definition without mutating
+`SelectedExperienceId` or `DisclosureOverride`, and `SetWorkspaceLayoutMode`
+restores `InitialEditorVisibility` when returning to `WorkspaceLayoutMode.Guided`.
+Required/correction paths keep their existing
 reachability rules. A visibility policy is not secret consent or target authority.
 
 Each form owns one metadata-only `DefinitionFormIndex` for its pinned definition:

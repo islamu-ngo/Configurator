@@ -94,7 +94,7 @@ Platform support for protected native file output differs by operating system:
   staging and procfs descriptor linking. Linux x64 evidence does not qualify
   every architecture, libc, filesystem or container mount.
 - **macOS & Windows:** Currently fail closed for protected writes (`doctor` reports exit code `4`).
-- **Browser WebAssembly:** The browser client operates under a separate user-directed custody model (deliberate file download) and does not promise filesystem ACL protections.
+- **Browser WebAssembly:** The browser client operates under a separate user-directed custody model (deliberate file download or clipboard copy) and surfaces explicit download custody notes (`[data-download-custody-note]`) explaining that browser downloads do not promise native `0600` filesystem ACL protections or target-host apply authority.
 
 > [!WARNING]
 > Running the CLI or Desktop client on Windows or macOS does not enable protected file output. Use Linux hosts or container environments when kernel-enforced create-only guarantees are required.

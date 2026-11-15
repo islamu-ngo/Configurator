@@ -39,11 +39,14 @@ must show unsupported or incomplete coverage rather than guess missing values.
 
 ## Compare Before Filling Fields
 
-In Browser, **Start from an existing configuration** defaults to **Fill fields**
+In Browser, **Start from an existing configuration** (reachable directly from
+the **Use an existing configuration** entry flow) defaults to **Fill fields**
 and selects the current output when it identifies exactly one file. Choose a
 format explicitly when the output is ambiguous. Choose **Compare with this
-definition** to inspect a file without adopting it. Comparison leaves your
-current answers, pending editor text, omissions and prepared output unchanged.
+definition** to inspect a file without adopting it. Comparison review renders
+the read-only assessment and findings separately from the deliberate
+**Fill fields from comparison** adoption section, leaving your current answers,
+pending editor text, omissions and prepared output unchanged.
 Imported-file problems are separate from the validity of your current form.
 
 The assessment distinguishes:

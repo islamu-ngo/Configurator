@@ -112,11 +112,16 @@ provider's English/Arabic interface translations.
 Unsupported required editing capabilities refuse before answer collection.
 Required or invalid work remains reachable even when optional settings or a
 journey are hidden. Correction links resolve typed property/row/map-entry
-coordinates only for their current input revision. Private map keys and values
+coordinates only for their current input revision and automatically expand any
+collapsed section group containing the target setting. Private map keys and values
 are not diagnostic or URL identifiers.
 Each field reads the correction reasons for its current coordinates. Editing a
 value, reordering map entries or removing a row replaces those reasons; a
 message from an earlier revision does not follow a different key or row.
+Locked secret fields link to the single workspace consent disclosure
+(`Review workspace secret consent`) without automatically enabling consent, and
+the password-manager independent custody explanation appears once at that
+consent disclosure rather than repeating on every secret field.
 
 ---
 
@@ -197,8 +202,9 @@ the same shared eligibility and masking rules.
 Start at **Choose a project**. One search covers definitions available in the
 local workspace and the bundled [Definition Store](definition-store.md). A card identifies
 the application and whether its primary definition is available locally or comes
-from the directory. **Configure** admits an exact directory snapshot and opens
-it directly. **Source details** preserves alternate families and revisions;
+from the directory. **Configure**, **Use an existing configuration**, and
+**Open a saved profile** admit an exact directory snapshot and open the
+requested entry flow after workspace startup. **Source details** preserves alternate families and revisions;
 ambiguous sources require a deliberate choice. Projects group by exact
 application identifier, never by title alone.
 Matching family, revision and digest identify the same content; a publisher label
@@ -208,7 +214,12 @@ does not establish authenticity or target approval.
 Local `.json` or `.yaml` files are limited to 4 MiB; compact maintainer sources
 compile locally. Public links use the bounded, credential-free HTTPS admission
 flow before answer collection. Source details expose title, publisher, family,
-revision and computed digest without making that metadata the main editing task.
+revision and computed digest without making that metadata the main editing task,
+and offer **Open workspace**, **Use an existing configuration**, and **Open a saved profile**
+actions once the definition is admitted. Inside the workspace, returning-user
+entry controls (**Start fresh**, **Use an existing configuration**, and **Open a saved profile**)
+open the corresponding import or profile vault task in place without auto-enabling
+secret consent or reading any file before user selection.
 
 ### Workspace Layout & Appearance
 
@@ -225,15 +236,20 @@ Scalar controls remain in the document while the browser can defer their
 offscreen layout. Keyboard focus and browser search reveal those controls;
 this does not change which answers are required or ready.
 
-The workspace keeps the **Output task** selector visible before the active panel.
-Definitions with multiple languages expose a separate **Language** disclosure
-after the panel. Its three panels are
-**Configure**, **Review** and **Files**. Only the current panel mounts interactive
-controls. Changing panels, sections or language preserves accepted answers,
-unfinished inputs, secret consent and the pinned definition. **Editor tools and detail**
-contains Guided/Compact/Developer mode switching, Humanized/Technical field
-naming (`Ctrl + Shift + K`), profile and density controls, Undo/Redo (`Ctrl + Z`
-/ `Ctrl + Shift + Z` with transient feedback), and the `?` keyboard shortcuts dialog.
+The workspace header displays the definition title, active recipe/scope summary,
+and secret-consent status alongside **Guided**, **Compact**, **Review**, and
+**Files** mode controls. Concise deployment context and **Output task**
+selectors precede the active section heading and first editable question so
+questions lead the initial viewport at `1366 x 768` and `1440 x 900`. In
+**Guided**, **Configure**, **Review** and **Files** mount one active stage at a
+time. Changing stages, sections or language preserves accepted answers,
+unfinished inputs, secret consent and the pinned definition. After the active
+panel, **Editor tools and detail** contains Form/Developer document switching,
+Humanized/Technical field naming (`Ctrl + Shift + K`), experience/detail profile
+and density controls, Undo/Redo (`Ctrl + Z` / `Ctrl + Shift + Z` with transient
+feedback), schema inspector toggle, and the `?` keyboard shortcuts dialog,
+followed by portable profile tools, **Language** (when multiple locales are
+declared), and the secret-consent disclosure.
 Wide viewports (`>= 1280px`) show schema help in a docked inspector panel beside
 the editor instead of blocking modal overlays, while narrower screens use a drawer
 or dialog. Local Previous/Next actions move between sections; the final section leads to Review.
@@ -281,9 +297,9 @@ Inputs dynamically adapt to their declared data types:
 - **List Rows:** Use bounded row controls to add or remove list items. Removed rows are excluded from output bundles.
 - **Explicit Omission:** Use **Actions for...** to explicitly omit a setting without affecting sibling fields. Empty strings (`""`) and `false` are valid supplied values distinct from omission.
 
-### Compact Table Editing & Definition Explorer
+### Continuous Compact Editing & Definition Explorer
 
-- **Compact Table View:** Switch to **Compact** in Configure to scan, filter (`All`, `Supplied`, `Required Missing`, `Errors`, `Changed`, `Private`, `Optional`), search (`150 ms` debounced), and inline-edit every active setting in a dense keyboard-accessible table (`role="table"`). Column sorting excludes secret/private columns, secret rows honor workspace consent locks without revealing masked values, and omitted optional or `DefaultText` fields remain omitted until explicitly edited. Choose **Guided** on any row to jump back and focus that field in the guided form.
+- **Continuous Compact Mode:** Switch to **Compact** in Configure to scan and edit all applicable sections in a single continuous vertical flow (`ConfigurationCompactWorkspace`) with a section jump bar, a **Show matches only** filter paired with the appbar search (`Ctrl+K` / `/`), and concise icon-plus-label field status badges. Secret fields remain locked until workspace secret consent is explicitly enabled, and omitted optional or `DefaultText` fields remain omitted until explicitly edited. Opening **Review** or **Files** while in Compact mode opens an inline panel above the continuous workspace without unmounting your active form controls.
 - **Definition Explorer (`/explore/{FamilyId}`):** Inspect catalog definitions, revisions, sections, fields, validation constraints, and declared output tasks in a read-only Explorer from the catalog or Open menu before starting a configuration workspace or entering answers.
 
 ### Developer Editing
@@ -381,8 +397,9 @@ counts required answers, optional settings without a value and deferred secrets.
 It does not display private answer values.
 
 - **Active Corrections:** Displays validation errors before output decisions, with direct links to jump to the affected field. Files uses the same corrections when preparation fails.
-- **Configuration Inventory:** Inspect active settings, filter by provenance **Origin** (`All`, `Explicit`, `Generated`, `Defaulted`, `Imported`), inspect authored-default origins, supplied/omitted states, deferred secrets and declared output bindings, and click any active row to jump straight back to that setting in Configure.
-- **Output Inspection:** Review the selected task's declared filenames, formats and restart guidance. Origins and output bindings are available in details. Preparation determines which conditional files are actually included.
+- **Deployment Scope Summary:** When a definition declares deployment recipes and scopes, the Review summary (`[data-review-scope]`) displays the active recipe, scope, and eligible output filenames before preparation.
+- **Configuration Inventory:** Inspect active settings, filter by provenance **Origin** (`All`, `Explicit`, `Generated`, `Defaulted`, `Imported`), inspect authored-default origins, supplied/omitted states, deferred secrets and declared output bindings, and click any active row to jump straight back to that setting in Configure. In Compact's inline Review panel, entries render concise status-and-origin badges (`[data-review-compact-status]`) while keeping the continuous workspace mounted.
+- **Output Inspection & Delivery Boundaries:** Review the selected task's declared filenames, formats and restart guidance. In **Files**, prepared artifacts distinguish `complete`, `deferred` (drafts with `[data-deferred-secret-summary]` and per-field completion coordinates `[data-completion-field]`), and `invalidated` (`[data-files-invalidated]` when subsequent edits or consent changes retire a previous bundle), remind operators that browser downloads write to the local browser download folder without native `0600` file-permission guarantees (`[data-download-custody-note]`), and offer per-file retry (`[data-action="retry-file-export"]`) if a clipboard or download action fails.
 
 When ready, prepare complete files directly from the summary. If only secrets
 remain unresolved, the summary offers a clearly incomplete draft instead.

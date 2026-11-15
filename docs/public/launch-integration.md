@@ -196,7 +196,8 @@ https://<configurator-origin>/launch/4d8950ad-972c-4357-8605-7a7c89c05a17?appVer
 ```
 
 - **Path:** Must contain the canonical lowercase D-format family GUID.
-- **Query Parameters:** Supports `appVersion`, `entry`, `locale`, and `digest`.
+- **Query Parameters:** Supports `appVersion`, `entry`, `locale`, `digest`, and optional returning-user `mode` (`fresh`, `import`, or `profile`).
+- `mode` opens the requested workspace task panel after definition admission and startup complete; it never auto-enables secret consent, opens a file chooser, or reads local files automatically.
 - With `appVersion`, resolution chooses the highest compatible registered
   revision, subject to any digest pin. If both version and digest are omitted,
   exactly one registered revision is required; ambiguous selection rejects.

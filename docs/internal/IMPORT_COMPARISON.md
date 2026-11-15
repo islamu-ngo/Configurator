@@ -267,7 +267,9 @@ Fill fields rechecks current conflicts, drafts, revision, consent and eligibilit
 and is Browser's initial reuse purpose. The current output selector supplies a
 default import artifact only when its declared option identifies one artifact;
 otherwise the operator must choose a format. Compare remains an explicit
-read-only purpose. Both use the same consent and generation checks. Adoption
+read-only purpose, and `ConfigurationImportReview` separates its read-only
+assessment (`[data-import-stage="comparison"]`) from the deliberate field-adoption
+action (`[data-import-stage="adoption"]`). Both use the same consent and generation checks. Adoption
 then performs one existing form mutation. Only untouched initialization may be
 replaced. Explicit answers, explicit omissions and pending drafts are protected.
 Missing required work may remain unfinished; invalid, unrecognized, structurally

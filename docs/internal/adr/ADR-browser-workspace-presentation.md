@@ -40,8 +40,9 @@ second answer buffer or duplicate blur edit.
 when unchanged parameter-driven visual output can be skipped. Internal popup
 events keep their renders; the adapter retains no second answer snapshot.
 
-Keep current-section mounting separate from answer ownership.
-`ConfigurationSectionFields` retains mounted controls and introduces only
+Keep current-section mounting in Guided mode and continuous multi-section mounting in
+Compact mode (`ConfigurationCompactWorkspace`) separate from answer ownership.
+`ConfigurationSectionFields` and `ConfigurationCompactWorkspace` retain mounted controls and introduce only
 metadata root-ID sets, a pending count and a mount generation. New roots arrive
 through bounded frame-separated batches; a correction target can mount directly.
 Form replacement, view supersession and disposal fence every awaited continuation.
@@ -110,8 +111,12 @@ budgets or claim speech, physical-device or browser-zoom qualification from
 emulated screenshots.
 
 This decision established editor foundations, subsequently completed by the
-configuration workspace redesign (`rev-3`): Material 3 surface tokens and 4-step
-density scale, Guided / Compact (`ConfigurationCompactTable`) / Developer modes,
+configuration workspace redesign (`rev-3`) and task-first hierarchy (`r2`):
+Material 3 surface tokens and 4-step density scale, `WorkspaceHeader` with
+definition title, scope/consent chips and Guided / Compact / Review / Files mode
+controls preceding the active section heading and first editable question while
+secondary editor tools, portable profile vault, language and consent disclosures
+follow the primary questions, Developer mode,
 Humanized / Technical field naming (`Ctrl+Shift+K`), collapsible error-opening
 groups, docked/dialog schema inspector (`ConfigurationInspectorPane`), modal
 secret generator (`ConfigurationSecretGeneratorDialog`), Undo/Redo history with

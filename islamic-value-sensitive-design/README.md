@@ -77,7 +77,7 @@ disposition and replacement evidence.
 | [Configuration workspace, rich schema widgets, and dual-UX redesign](workstreams/i-vsd-configuration-workspace-redesign.md) | current / plan-aligned; r3 revalidated & implementation authorized | 2026-11-13 |
 | [Output guidance and cross-form value transfer](workstreams/i-vsd-output-guidance-and-value-transfer.md) | exact-input freshness pending; historical R3 assessment and execution receipt retained | 2026-11-14 |
 | [Encrypted local configuration profiles and Day-2 schema comparison](workstreams/i-vsd-encrypted-local-profiles.md) | exact-input freshness pending; historical R8 assessment and qualification limits retained | 2026-11-14 |
-| [Configuration experience across Browser, Desktop and Terminal](workstreams/i-vsd-configuration-experience.md) | exact-input freshness pending; historical planning assessment retained | 2026-11-14 |
+| [Configuration experience across Browser, Desktop and Terminal](workstreams/i-vsd-configuration-experience.md) | current / plan-aligned for Compact-only r2; implementation awaiting approval; history retained | 2026-11-14 |
 
 For each assessment, read its reviewed input, claim boundary, validation gaps,
 finding and mitigation IDs, and lifecycle before reusing a conclusion. A

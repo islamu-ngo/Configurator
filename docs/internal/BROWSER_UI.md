@@ -11,8 +11,12 @@
 ## Portable profile integration
 
 `ConfigurationVaultPanel` owns the deliberate upload, unlock, public comparison,
-private download, new-snapshot and exact-copy recovery interactions. It remains
-mounted across Configure/Review/Prepare stages. Its English/Arabic resource pair
+private download, new-snapshot and exact-copy recovery interactions. It renders
+after the active stage panel and remains mounted across Configure/Review/Prepare
+stages while `WorkspaceHeader` leads with the definition title, scope chip,
+consent chip, and Guided/Compact/Review/Files stage controls and secondary
+editor tools (`details.configuration-editor__view-options`) follow the active
+questions. Its English/Arabic resource pair
 labels modes, the single reviewed algorithm, recipient selection, recovery limits
 and value-free findings; declared paths and protocol identifiers use bidi isolation.
 
@@ -62,8 +66,14 @@ one active profile operation. Recovery can therefore use fresh custody without
 retiring an idle opened profile. Cancellation preserves the cancellation token
 when worker termination rejects the transport promise. Profile inputs reuse
 `form-control`; retained ordinary fields explain profile custody rather than
-asking for consent that is already granted. None of these UI affordances changes
-the shared form's edit or disclosure authority.
+asking for consent that is already granted. Locked secret fields invoke the
+cascaded `WorkspaceConsentAction` to open and focus `#secret-consent` without
+mutating `SessionPrivacy`, and `#secret-consent-help` owns the single
+password-manager custody notice so individual secret fields render only their
+concise acquisition hint (`CredentialIssuerHelp`, `CredentialCreateHelp`, or
+`CredentialExistingHelp`). `DefinitionFormModel.FocusEditor` expands any
+collapsed `DefinitionFormSectionGroup` containing the target root field. None of
+these UI affordances changes the shared form's edit or disclosure authority.
 
 `BrowserProfileVaultTests` covers safe adoption, edit blocking, asynchronous
 replacement fencing, mode-specific disclosure, revocation, stripped readiness,
@@ -683,8 +693,10 @@ navigation buttons to jump back to Configure for any inspected setting. Files re
 component and revision-bound correction callbacks after failed preparation;
 answers and input drafts survive while previous export eligibility is retired.
 Review lists the current output selector's artifact set, retaining the declared
-set for definitions without output selection. Origins and bindings are secondary
-details. The effects region mounts at Review and pages 50 entries
+set for definitions without output selection, and surfaces `Form.Projection.ContextSummary`
+(`[data-review-scope]`) when deployment recipes/scopes apply. Origins and bindings are secondary
+details, and Compact's inline Review panel passes `CompactPresentation=true` to render
+concise `[data-review-compact-status]` badges. The effects region mounts at Review and pages 50 entries
 at a time. Its default selection includes active required work, corrections,
 deferred secrets and supplied/defaulted entries; separate controls inspect
 omitted optional and inactive metadata without enabling it. Diagnostic correction
@@ -693,20 +705,26 @@ or the diagnosed collection row. Explicit field focus permits native scrolling,
 so a correction below a long results list becomes visible rather than merely
 receiving off-screen focus. Secret recovery also covers required secret
 descendants inside optional supplied objects. Draft and complete preparation
-remain distinct; filenames and completion locations come from shared artifacts.
+remain distinct; filenames and completion locations (`[data-deferred-secret-summary]`,
+`[data-completion-field]`, `[data-completion-output]`) come from shared artifacts.
 Reveal, copy and download remain deliberate operations owned by
-`BrowserArtifactExport`, while `ConfigurationFilesPanel` renders `[data-custody-disclosure]`
-explaining browser-local transient custody and edits, revocation and disposal invalidate output.
+`BrowserArtifactExport` with per-file retry (`[data-action="retry-file-export"]`),
+while `ConfigurationFilesPanel` renders `data-files-state` (`complete`, `deferred`, `blocked`,
+or `invalidated`), `[data-files-invalidated]`, `[data-custody-disclosure]`, and
+`[data-download-custody-note]` explaining browser-local transient custody and download limits.
 
-`ConfigurationCompactTable` implements the dense **Compact** editing mode inside
-`ConfigurationConfigurePanel`: it renders an accessible `role="table"` over
-`DefinitionFormModel.GetCompactRows`, filters with `DefinitionDiscoveryFilter` chips
-and `TimeProvider`-backed `150 ms` debounced search, sorts only non-private columns,
-enforces `IsSecretLocked` without granting consent, edits through
-`DefinitionFormModel.EditCompactValue` without materializing omitted/`DefaultText` fields,
-and maps row identity via `EditorIdentity` for private dynamic map entries so private
-keys are never exposed in DOM attributes. Up to 40 visible rows render directly for
-deterministic virtualization-free focus/testing, switching to `<Virtualize>` above 40 rows.
+`ConfigurationCompactWorkspace` implements the continuous **Compact** editing mode inside
+`ConfigurationConfigurePanel`: switching to Compact transitions `DefinitionFormModel` to
+`(WorkspaceLayoutMode.Compact, DefinitionEditorVisibilityPolicy.Continuous)` while preserving
+`SelectedExperienceId` for Guided round-trip. It renders all applicable sections in a single
+vertical flow under one `ConfigurationMountPlan` admission budget (`6` initial / `10` per yield),
+provides a section jump bar (`revealHeading`), hides collapsed groups and non-matching
+`Show matches only` slots via DOM `hidden` and `inert` attributes without disposing admitted
+`ConfigurationField` instances, and renders concise status badges (`CompactPresentation=true`,
+`[data-compact-status]`, `data-field-state`, `data-field-origin`) on each field. Opening
+**Review** or **Files** while in Compact renders inline panels (`[data-compact-inline-panel]`)
+while keeping `ConfigurationCompactWorkspace` mounted; closing the inline Files panel calls
+`RetireCompactFilesPanel()` to synchronously cancel and invalidate preview/export state.
 
 Supporting workspace surfaces cover `ConfigurationInspectorPane` (docked inspector at
 `>= 1280px` with dialog fallback below), `ConfigurationSecretGeneratorDialog` (modal recipe
