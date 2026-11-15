@@ -51,6 +51,7 @@
         },
         "properties": {
           "recipe": {
+            "description": "Select how Event components are deployed so only applicable addresses and files are prepared.",
             "enum": [
               "standalone",
               "separate-images",
@@ -65,6 +66,7 @@
             }
           },
           "scope": {
+            "description": "Select whether to prepare configuration for all components, the API process only, or the Blazor process only.",
             "enum": [
               "all",
               "api",
@@ -7842,7 +7844,7 @@
   ],
   "identity": {
     "familyId": "f79259e8-af23-49b0-8d8d-6e371cc96080",
-    "revision": 5
+    "revision": 6
   },
   "localization": {
     "defaultLocale": "en",
@@ -7870,8 +7872,11 @@
           "/artifacts/4/title": "مدخلات Compose لمكوّن Blazor",
           "/artifacts/5/title": "مدخلات Compose لجميع المكونات",
           "/artifacts/6/title": "بيئة عملية التطبيق الموحّد",
+          "/configuration/properties/deployment/properties/recipe/description": "اختر طريقة نشر مكونات Event لإعداد العناوين والملفات المنطبقة فقط.",
           "/configuration/properties/deployment/properties/recipe/title": "طريقة النشر",
+          "/configuration/properties/deployment/properties/scope/description": "اختر ما إذا كنت تريد إعداد التكوين لجميع المكونات أو لعملية API فقط أو لعملية Blazor فقط.",
           "/configuration/properties/deployment/properties/scope/title": "المكونات المراد إعدادها",
+          "/configuration/properties/platform/description": "مضمّنة افتراضيا. احذف هذه المجموعة لإبقاء إعداداتها خارج الملفات المعدّة.",
           "/configuration/properties/integrations/properties/ai/properties/provider/x-configurator/choices/0/label": "بدون مزود",
           "/configuration/properties/integrations/properties/ai/properties/provider/x-configurator/choices/1/label": "محاكاة",
           "/configuration/properties/integrations/properties/ai/properties/provider/x-configurator/choices/2/label": "OPENAI_COMPATIBLE",

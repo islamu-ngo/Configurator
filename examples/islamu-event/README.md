@@ -159,14 +159,14 @@ dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuratio
   --output .tmp/deployment-aware-configuration/event-example-next.json
 dotnet run --project src/Configurator.Cli/Configurator.Cli.csproj --configuration Release -- \
   definition revise --source store/islamu-event/configurator.json \
-  --against store/islamu-event/releases/4.json \
+  --against store/islamu-event/releases/6.json \
   --output .tmp/deployment-aware-configuration/event-store-next.json
 ```
 
 These destinations are create-only. Review both native receipts and candidates,
 then adopt each candidate as its corresponding handwritten source. Never
 hand-increment identity or change historical snapshots. The store command above
-uses the current revision-4 anchor; use the matching immutable anchor when
+uses the current revision-6 anchor; use the matching immutable anchor when
 revising a later release.
 
 Regenerate the local current runtime and append the store release through their
