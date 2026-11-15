@@ -314,6 +314,32 @@ public sealed class BrowserImportComparisonTests
         await Assert.That(component.FindComponent<ConfigurationImportReview>().Instance.Form.ImportComparison).IsNull();
     }
 
+    [Test]
+    public async Task ReturningImportEntryAndComparisonReviewSeparateInspectionFromDeliberateAdoption()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await Assert.That(component.Find("details[data-import-panel]").HasAttribute("open")).IsFalse();
+
+        await component.Find("[data-entry-choice='import']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("details[data-import-panel]").HasAttribute("open")).IsTrue();
+        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        using var stream = new MemoryStream("""{"mode":"single","hostname":"adopted.test","credential":"synthetic-adopted-secret"}"""u8.ToArray());
+        await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
+
+        var review = component.Find("[data-import-comparison]");
+        await Assert.That(review.QuerySelector("[data-import-stage='comparison']")).IsNotNull();
+        await Assert.That(review.QuerySelector("[data-import-stage='adoption']")).IsNotNull();
+        await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
+
+        await component.Find("[data-action='adopt-import-comparison']").ClickAsync(new MouseEventArgs());
+        await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("adopted.test");
+    }
+
     private static Definition Definition(string configuration, string projection, params string[] capabilities)
     {
         JsonObject source = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!.AsObject();

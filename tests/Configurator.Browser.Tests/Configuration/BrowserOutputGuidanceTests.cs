@@ -267,6 +267,43 @@ public sealed class BrowserOutputGuidanceTests
             .IsEqualTo(DefinitionOutputExportStatus.NotExported);
     }
 
+    [Test]
+    public async Task PreparedDraftAndInvalidatedFilesSurfaceDeferredSecretSummaryCustodyBoundaryAndPerFileRetry()
+    {
+        await using var context = BrowserFixture.Context();
+        var module = context.JSInterop.SetupModule("./js/browser-artifacts.js");
+        module.Setup<bool>("copy", _ => true).SetResult(false);
+
+        var component = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        var form = component.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
+        component.Find("[data-field='hostname'] input").Input("example.test");
+
+        // Prepare draft while secret is deferred:
+        await BrowserFixture.PrepareAsync(component, draft: true);
+        await Assert.That(component.Find("[data-files-state]").GetAttribute("data-files-state")).IsEqualTo("deferred");
+        await Assert.That(component.FindAll("[data-deferred-secret-summary]").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-completion-field]").Count).IsGreaterThan(0);
+        await Assert.That(component.FindAll("[data-download-custody-note]").Count).IsEqualTo(1);
+
+        // First copy attempt fails -> exposes per-file retry button [data-action='retry-file-export'], which succeeds on retry:
+        await component.Find("[data-action='copy-file']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-file-status]").GetAttribute("data-file-status")).IsEqualTo("clipboard-unavailable");
+        module.Setup<bool>("copy", _ => true).SetResult(true);
+        await component.Find("[data-action='retry-file-export']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-file-status]").GetAttribute("data-file-status")).IsEqualTo("copied");
+
+        // Subsequent edit invalidates prepared files and surfaces [data-files-invalidated] state:
+        await component.InvokeAsync(() =>
+        {
+            form.SetSecretEntryEnabled(true);
+            form.EditValue(["credential"], "synthetic-updated-secret");
+        });
+        await Assert.That(component.Find("[data-files-state]").GetAttribute("data-files-state")).IsEqualTo("invalidated");
+        await Assert.That(component.FindAll("[data-files-invalidated]").Count).IsEqualTo(1);
+    }
+
     internal static Definition Definition() => DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes("""
         {
           "$schema":"urn:islamu:configurator:authoring:v0.0.1",

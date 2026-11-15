@@ -16,6 +16,39 @@ using Microsoft.JSInterop;
 
 public partial class ConfigurationEditor
 {
+    private bool _importOpen;
+    private string _initialMode = "fresh";
+
+    private void SelectReturningEntry(string mode)
+    {
+        if (_disposed || _form is null) return;
+        if (mode == "import" && ImportArtifacts.Length > 0)
+        {
+            if (_developerMode)
+            {
+                RetireDeveloper();
+                _developerMode = false;
+            }
+            if (_activeWorkflowStage != WorkflowStage.Configure)
+                SelectWorkflowStage(WorkflowStage.Configure);
+            _importOpen = true;
+            _profileOpen = false;
+            RequestFocus(FocusTarget.Import);
+            return;
+        }
+        if (mode == "profile")
+        {
+            OpenProfileEntry();
+            return;
+        }
+        _importOpen = false;
+        _profileOpen = false;
+        if (_activeWorkflowStage != WorkflowStage.Configure)
+            SelectWorkflowStage(WorkflowStage.Configure);
+        else
+            RequestFocus(FocusTarget.Configure);
+    }
+
     private void ChangeImportFormat(ChangeEventArgs args)
     {
         string? artifactId = args.Value?.ToString();
@@ -129,12 +162,27 @@ public partial class ConfigurationEditor
         }
         return true;
     }
-    private Task ImportAsync(InputFileChangeEventArgs args) =>
-        LoadAsync(async (buffer, token) =>
+    private Task ImportAsync(InputFileChangeEventArgs args)
+    {
+        if (!_disposed && _ready && args.File.Size > MaximumImportBytes)
+        {
+            InvalidateImport(releaseFileControl: false);
+            if (CanReadImport())
+            {
+                SetStatus("ImportTooLargeStatus");
+                _statusCode = "import-too-large";
+            }
+            ++_fileKey;
+            RequestFocus(FocusTarget.Import);
+            StateHasChanged();
+            return Task.CompletedTask;
+        }
+        return LoadAsync(async (buffer, token) =>
         {
             await using Stream stream = args.File.OpenReadStream(MaximumImportBytes, token);
             return await ReadBoundedAsync(stream, buffer, token);
         });
+    }
 
     public Task LoadAsync(Stream stream) =>
         LoadAsync((buffer, token) => ReadBoundedAsync(stream, buffer, token));

@@ -1,0 +1,99 @@
+@using System.Globalization
+@using Configurator.Browser.Resources
+@using Configurator.Core.Definitions
+@using Configurator.Presentation
+
+@{
+    RecordRenderedState();
+    string headingId = HeadingId;
+    string? descriptionId = string.IsNullOrWhiteSpace(Section.Description) ? null : headingId + "-description";
+}
+
+<section class="configuration-compact-workspace__section"
+         data-compact-section="@Section.Id"
+         aria-labelledby="@headingId"
+         aria-describedby="@descriptionId"
+         hidden="@SectionHidden" inert="@SectionHidden">
+    <header class="configuration-compact-workspace__section-header">
+        <h3 id="@headingId" class="configuration-compact-workspace__heading" tabindex="-1"><bdi>@Section.Title</bdi></h3>
+        <span class="configuration-compact-workspace__section-count"
+              data-compact-section-count
+              aria-label="@SectionCountLabel()">@SectionCountText()</span>
+    </header>
+    @if (!string.IsNullOrWhiteSpace(Section.Description))
+    {
+        <p id="@descriptionId" class="configuration-compact-workspace__description">@Section.Description</p>
+    }
+    @foreach (int index in Layout.Ungrouped)
+    {
+        FieldState state = ActiveFields[index];
+        ConfigurationMountNode node = PlanRoots[index];
+        var editor = Form.GetFieldEditor(state.Id);
+        bool slotHidden = IsFieldHiddenByFilter(state.Id);
+        bool focused = string.Equals(FocusField, state.Id, StringComparison.Ordinal);
+        <div @key="editor.Input" class="configuration-section-fields__slot"
+             data-compact-slot="@state.Id" hidden="@slotHidden" inert="@slotHidden">
+            @RenderFieldContent(state, node, editor.Schema, focused)
+        </div>
+    }
+    @if (Section.Groups.Count > 0)
+    {
+        <div class="configuration-section-fields__groups">
+            @foreach (var group in Section.Groups)
+            {
+                if (!group.IsApplicable) continue;
+                if (!Layout.Groups.TryGetValue(group.Id, out int[]? groupIndices) || groupIndices.Length == 0) continue;
+                bool groupHidden = IsGroupHiddenByFilter(groupIndices);
+                <section @key="group.Id" class="configuration-section-group" data-group="@group.Id"
+                         data-group-expanded="@(group.IsExpanded ? "true" : "false")"
+                         hidden="@groupHidden" inert="@groupHidden">
+                    <button type="button" class="configuration-section-group__toggle" data-group-toggle
+                            aria-expanded="@(group.IsExpanded ? "true" : "false")"
+                            aria-label="@string.Format(CultureInfo.GetCultureInfo(Form.Locale), BrowserStrings.Get(group.IsExpanded ? "GroupCollapseLabel" : "GroupExpandLabel", Form.Locale), group.Title)"
+                            @onclick="() => Form.SetGroupExpanded(Section.Id, group.Id, !group.IsExpanded)">
+                        <span>@group.Title</span>
+                        <span aria-hidden="true">@(group.IsExpanded ? "−" : "+")</span>
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(group.Description))
+                    {
+                        <p class="configuration-section-group__description" hidden="@(!group.IsExpanded)" inert="@(!group.IsExpanded)">@group.Description</p>
+                    }
+                    <div class="configuration-section-group__fields" hidden="@(!group.IsExpanded)" inert="@(!group.IsExpanded)">
+                        @foreach (int index in groupIndices)
+                        {
+                            FieldState state = ActiveFields[index];
+                            ConfigurationMountNode node = PlanRoots[index];
+                            var editor = Form.GetFieldEditor(state.Id);
+                            bool slotHidden = IsFieldHiddenByFilter(state.Id);
+                            bool focused = string.Equals(FocusField, state.Id, StringComparison.Ordinal);
+                            <div @key="editor.Input" class="configuration-section-fields__slot"
+                                 data-compact-slot="@state.Id" hidden="@slotHidden" inert="@slotHidden">
+                                @RenderFieldContent(state, node, editor.Schema, focused)
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private RenderFragment RenderFieldContent(FieldState state, ConfigurationMountNode node, DefinitionNode schema, bool focused) =>
+        @<text>
+            @if (node.Admitted)
+            {
+                <ConfigurationField @key="state.Id" Form="Form" Schema="schema" Path="@Form.GetRootFieldPath(state.Id)"
+                                    MountNode="node" MountRevision="PlanRevision" Validation="Validation" RequiredOverride="state.IsRequired"
+                                    CompactPresentation="true"
+                                    FocusFirstControl="@focused" FocusGeneration="@(focused ? FocusGeneration : 0L)"
+                                    FocusPath="@(focused ? FocusPath : Array.Empty<string>())" />
+            }
+            else
+            {
+                <div class="configuration-section-fields__placeholder" aria-hidden="true">
+                    @ResolveFieldTitle(state)
+                </div>
+            }
+        </text>;
+}

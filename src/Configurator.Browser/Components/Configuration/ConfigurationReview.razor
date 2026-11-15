@@ -8,21 +8,38 @@
         <h3 id="configuration-review-heading">@Ui("ReviewPreparationTitle")</h3>
         @if (Validation?.IsReady == false || InvalidFields.Count > 0 || DiagnosticCodes.Count > 0)
         {
+            Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>? diagTitleLookup = BuildDiagnosticTitleLookup();
+            IReadOnlyList<DefinitionDiagnostic> validationDiagnostics = Validation?.Diagnostics ?? [];
+            int totalCorrections = validationDiagnostics.Count + InvalidFields.Count;
+            int correctionsPageCount = Math.Max(1, (totalCorrections + CorrectionsPageSize - 1) / CorrectionsPageSize);
+            int currentCorrectionPage = Math.Clamp(_correctionsPage, 0, correctionsPageCount - 1);
+            int start = currentCorrectionPage * CorrectionsPageSize;
+            int end = Math.Min(totalCorrections, start + CorrectionsPageSize);
             <p>@Ui("ReviewCorrectionsHelp")</p>
             <ul>
-                @foreach (var diagnostic in Validation?.Diagnostics ?? [])
+                @for (int index = start; index < end; index++)
                 {
+                    bool fromValidation = index < validationDiagnostics.Count;
+                    DefinitionDiagnostic diagnostic = fromValidation
+                        ? validationDiagnostics[index]
+                        : InvalidFields[index - validationDiagnostics.Count];
+                    string code = fromValidation ? diagnostic.Code : "input-type-invalid";
+                    string diagTitle = FieldTitle(diagnostic, diagTitleLookup);
                     <li><button type="button" class="button button--secondary" data-correction="@diagnostic.FieldId"
-                                aria-label="@UiFormat("ReviewCorrectField", FieldTitle(diagnostic))" @onclick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</button>
-                        <span>@DescribeDiagnostic(diagnostic.Code)</span></li>
-                }
-                @foreach (DefinitionDiagnostic diagnostic in InvalidFields)
-                {
-                    <li><button type="button" class="button button--secondary" data-correction="@diagnostic.FieldId"
-                                aria-label="@UiFormat("ReviewCorrectField", FieldTitle(diagnostic))" @onclick="() => CorrectField.InvokeAsync(diagnostic)">@FieldTitle(diagnostic)</button>
-                        <span>@DescribeDiagnostic("input-type-invalid")</span></li>
+                                aria-label="@UiFormat("ReviewCorrectField", diagTitle)" @onclick="() => CorrectField.InvokeAsync(diagnostic)">@diagTitle</button>
+                        <span>@DescribeDiagnostic(code)</span></li>
                 }
             </ul>
+            @if (totalCorrections > CorrectionsPageSize)
+            {
+                <nav class="actions" aria-label="@Ui("ReviewPages")">
+                    <button type="button" class="button button--secondary" data-action="review-corrections-previous"
+                            disabled="@(currentCorrectionPage == 0)" @onclick="() => _correctionsPage = Math.Max(0, currentCorrectionPage - 1)">@Ui("ReviewPrevious")</button>
+                    <span role="status">@UiFormat("ReviewPage", currentCorrectionPage + 1, correctionsPageCount)</span>
+                    <button type="button" class="button button--secondary" data-action="review-corrections-next"
+                            disabled="@(currentCorrectionPage + 1 >= correctionsPageCount)" @onclick="() => _correctionsPage = Math.Min(correctionsPageCount - 1, currentCorrectionPage + 1)">@Ui("ReviewNext")</button>
+                </nav>
+            }
             @if (DiagnosticCodes.Count > 0)
             {
                 <details><summary>@Ui("ReviewDetails")</summary><ul>@foreach (string diagnosticCode in DiagnosticCodes.Distinct(StringComparer.Ordinal)) { <li>@diagnosticCode</li> }</ul></details>
@@ -69,22 +86,37 @@
             }
         </div>
         <p data-review-count="@_entries.Count">@UiFormat("ReviewSettingsCount", _entries.Count)</p>
+        @{
+            Dictionary<(string FieldId, string RelKey), DefinitionNodeState>? reviewNodes = GetReviewNodes();
+            Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>? entryTitleLookup = BuildDiagnosticTitleLookup();
+        }
         <ul class="configuration-review__answers">
             @foreach (var entry in _entries.Skip(_page * PageSize).Take(PageSize))
             {
-                var node = Form.Validate().Nodes.Single(node => node.FieldId == entry.FieldId && node.RelativePath.SequenceEqual(entry.RelativePath));
+                var node = reviewNodes![(entry.FieldId, string.Join('\0', entry.RelativePath))];
                 var diagnostic = new DefinitionDiagnostic("review-change", entry.FieldId, node.Location);
+                string entryTitle = FieldTitle(diagnostic, entryTitleLookup);
                 <li @key="(entry.FieldId, node.Location)"
                     data-review-path="@string.Join(".", entry.FieldId.Length == 0 ? entry.RelativePath : new[] { entry.FieldId }.Concat(entry.RelativePath))" data-origin="@entry.Origin">
                     <div class="configuration-review__answer">
-                        <strong>@FieldTitle(diagnostic)</strong>
+                        <strong>@entryTitle</strong>
+                        @if (CompactPresentation)
+                        {
+                            <span class="configuration-review__compact-status" data-review-compact-status
+                                  data-entry-state="@EntryStateToken(entry)" data-entry-origin="@entry.Origin.ToString().ToLowerInvariant()">
+                                @StateText(entry) · @OriginText(entry.Origin)
+                            </span>
+                        }
                         @if (entry.IsActive)
                         {
                             <button type="button" class="button button--secondary" data-action="review-focus-row" @onclick="() => ChangeField.InvokeAsync(diagnostic)"
-                                    aria-label="@UiFormat("ReviewChangeField", FieldTitle(diagnostic))">@Ui("ReviewChange")</button>
+                                    aria-label="@UiFormat("ReviewChangeField", entryTitle)">@Ui("ReviewChange")</button>
                         }
                     </div>
-                    <p>@StateText(entry)</p>
+                    @if (!CompactPresentation)
+                    {
+                        <p>@StateText(entry)</p>
+                    }
                     @if (entry.Sensitivity != FieldSensitivity.Public && entry.Origin != DefinitionAnswerOrigin.Omitted)
                     {
                         <p>@Ui("ReviewPrivateMasked")</p>
@@ -123,9 +155,11 @@
     [Parameter] public IReadOnlyList<string> DiagnosticCodes { get; set; } = [];
     [Parameter] public IReadOnlyList<DefinitionDiagnostic> InvalidFields { get; set; } = [];
     [Parameter] public bool SecretsEnabled { get; set; }
+    [Parameter] public bool CompactPresentation { get; set; }
     [Parameter] public EventCallback<DefinitionDiagnostic> CorrectField { get; set; }
     [Parameter] public EventCallback EnableSecrets { get; set; }
     private const int PageSize = 50;
+    private const int CorrectionsPageSize = 25;
     private static readonly DefinitionAnswerOrigin[] OriginFilters =
     [
         DefinitionAnswerOrigin.Explicit,
@@ -141,7 +175,12 @@
     private bool _includeInactive;
     private DefinitionAnswerOrigin? _originFilter;
     private int _page;
+    private int _correctionsPage;
     private IReadOnlyList<DefinitionDiscoveryEntry> _entries = [];
+    private DefinitionFormProjection? _cachedEntryProjection;
+    private Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>? _cachedEntryLookup;
+    private DefinitionValidationResult? _cachedNodeValidation;
+    private Dictionary<(string FieldId, string RelKey), DefinitionNodeState>? _cachedReviewNodes;
     private int PageCount => Math.Max(1, (_entries.Count + PageSize - 1) / PageSize);
     protected override void OnParametersSet()
     {
@@ -157,8 +196,16 @@
             _includeInactive = false;
             _originFilter = null;
             _page = 0;
+            _correctionsPage = 0;
         }
-        if (_observedExperience != Form?.SelectedExperienceId) _page = 0;
+        if (_observedExperience != Form?.SelectedExperienceId)
+        {
+            _page = 0;
+            _correctionsPage = 0;
+        }
+        int totalCorrections = (Validation?.Diagnostics.Count ?? 0) + InvalidFields.Count;
+        int correctionsPageCount = Math.Max(1, (totalCorrections + CorrectionsPageSize - 1) / CorrectionsPageSize);
+        _correctionsPage = Math.Min(_correctionsPage, correctionsPageCount - 1);
         _observedExperience = Form?.SelectedExperienceId;
         SelectEntries();
     }
@@ -186,7 +233,7 @@
         if (ShowEffects && Form is not null)
         {
             var projection = Form.Projection;
-            var relevant = projection.RelevantEntries.ToHashSet();
+            var relevant = new HashSet<DefinitionDiscoveryEntry>(projection.RelevantEntries, ReferenceEqualityComparer.Instance);
             string? selectorField = Definition.Presentation?.OutputSelector is { } selector
                 ? DefinitionProfile.FieldId(selector.Location.Segments[0]) : null;
             _entries = projection.Entries.Where(entry =>
@@ -220,11 +267,45 @@
         : entry.NeedsAttention ? "ReviewStateCorrection"
         : entry.IsProvided && entry.IsReady ? "ReviewStateReady"
         : entry.IsRequired ? "ReviewStateRequiredMissing" : "ReviewStateOptionalMissing");
+    private static string EntryStateToken(DefinitionDiscoveryEntry entry) => !entry.IsActive ? "inactive"
+        : entry.IsDeferred ? "deferred"
+        : entry.NeedsAttention ? "correction"
+        : entry.IsProvided && entry.IsReady ? "ready"
+        : entry.IsRequired ? "missing-required" : "optional-missing";
     private string DescribeDiagnostic(string code) => ConfigurationDiagnosticText.Describe(code, Form?.Locale ?? "en");
-    private string FieldTitle(DefinitionDiagnostic diagnostic)
+    private Dictionary<(string FieldId, string RelKey), DefinitionNodeState>? GetReviewNodes()
     {
-        var entry = Form?.Projection.Entries.FirstOrDefault(entry => entry.FieldId == diagnostic.FieldId &&
-            entry.RelativePath.SequenceEqual(diagnostic.RelativePath));
+        if (Form is null) return null;
+        DefinitionValidationResult validation = Validation ?? Form.Validate();
+        if (ReferenceEquals(_cachedNodeValidation, validation) && _cachedReviewNodes is not null)
+            return _cachedReviewNodes;
+        var map = new Dictionary<(string FieldId, string RelKey), DefinitionNodeState>(validation.Nodes.Count);
+        foreach (var node in validation.Nodes)
+            map[(node.FieldId, node.RelativePath.Count == 0 ? string.Empty : string.Join('\0', node.RelativePath))] = node;
+        _cachedNodeValidation = validation;
+        return _cachedReviewNodes = map;
+    }
+
+    private Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>? BuildDiagnosticTitleLookup()
+    {
+        if (Form is null) return null;
+        DefinitionFormProjection projection = Form.Projection;
+        if (ReferenceEquals(_cachedEntryProjection, projection) && _cachedEntryLookup is not null)
+            return _cachedEntryLookup;
+        var entries = projection.Entries;
+        var map = new Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>(entries.Count);
+        foreach (var entry in entries)
+            map.TryAdd((entry.FieldId, entry.RelativePath.Count == 0 ? string.Empty : string.Join('\0', entry.RelativePath)), entry);
+        _cachedEntryProjection = projection;
+        return _cachedEntryLookup = map;
+    }
+
+    private string FieldTitle(DefinitionDiagnostic diagnostic, Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>? lookup = null)
+    {
+        var entry = lookup is not null
+            ? lookup.GetValueOrDefault((diagnostic.FieldId, string.Join('\0', diagnostic.RelativePath)))
+            : Form?.Projection.Entries.FirstOrDefault(entry => entry.FieldId == diagnostic.FieldId &&
+                entry.RelativePath.SequenceEqual(diagnostic.RelativePath));
         if (entry is not null) return entry.Title;
         if (!_fieldsById.TryGetValue(diagnostic.FieldId, out var field)) return Ui("ReviewPreparation");
         var titles = new List<string> { Form?.GetEditorPresentation([diagnostic.FieldId])?.Title ?? DefinitionDisplayText.Resolve(field.Title, field.Name) };

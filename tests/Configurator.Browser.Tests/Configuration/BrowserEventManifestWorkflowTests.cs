@@ -82,16 +82,13 @@ public sealed class BrowserEventManifestWorkflowTests
         await Assert.That(definition.Revision).IsEqualTo(4);
         await Assert.That(definition.FamilyId).IsEqualTo(EventFamilyId);
 
-        var clock = new ManualClock();
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([definition]));
-        context.Services.AddSingleton<TimeProvider>(clock);
         await using var developerBridge = new DeveloperBridge(context.JSInterop.JSRuntime);
         context.Services.AddSingleton<IJSRuntime>(developerBridge);
         var artifacts = context.JSInterop.SetupModule("./js/browser-artifacts.js");
         artifacts.Setup<bool>("copy", _ => true).SetResult(true);
 
         var layout = BrowserFixture.RenderWorkspace(context, definition);
-        var editor = layout.FindComponent<ConfigurationEditor>();
         var form = layout.FindComponents<ConfigurationField>()[0].Instance.Form;
 
         await layout.InvokeAsync(() => form.SelectLocale(locale));
@@ -121,13 +118,11 @@ public sealed class BrowserEventManifestWorkflowTests
         await layout.Find("[data-action='redo']").ClickAsync(new MouseEventArgs());
         await Assert.That(form.Snapshot().Values["apiEndpoint"].GetString()).IsEqualTo("https://api-two.example.org");
 
-        // Compact table round-trip without prematurely unlocking secrets.
+        // Compact continuous workspace round-trip without prematurely unlocking secrets.
         await layout.Find("[data-layout-mode='compact']").ClickAsync(new MouseEventArgs());
-        await Assert.That(layout.FindAll("[data-compact-table]").Count).IsEqualTo(1);
+        await Assert.That(layout.FindAll("[data-compact-workspace]").Count).IsEqualTo(1);
         await Assert.That(form.SessionPrivacy).IsEqualTo(DefinitionSessionPrivacy.BrowserNoSecrets);
-        await layout.Find("[data-compact-search]").InputAsync(new ChangeEventArgs { Value = "API" });
-        await clock.AdvanceAsync(TimeSpan.FromMilliseconds(150), editor);
-        await Assert.That(layout.FindAll("[data-compact-row='apiEndpoint']").Count).IsEqualTo(1);
+        await Assert.That(layout.FindAll("[data-field='apiEndpoint']").Count).IsEqualTo(1);
 
         await layout.Find("[data-layout-mode='guided']").ClickAsync(new MouseEventArgs());
         await Assert.That(layout.Find("[data-field='apiEndpoint'] input").GetAttribute("value"))
@@ -174,11 +169,8 @@ public sealed class BrowserEventManifestWorkflowTests
         await Assert.That(grafana.FamilyId).IsEqualTo(GrafanaFamilyId);
         await Assert.That(grafana.Deployment).IsNull();
 
-        var clock = new ManualClock();
         await using var grafanaContext = BrowserFixture.Context(new BrowserDefinitionRegistry([grafana]));
-        grafanaContext.Services.AddSingleton<TimeProvider>(clock);
         var grafanaLayout = BrowserFixture.RenderWorkspace(grafanaContext, grafana);
-        var grafanaEditor = grafanaLayout.FindComponent<ConfigurationEditor>();
         var grafanaForm = grafanaLayout.FindComponents<ConfigurationField>()[0].Instance.Form;
 
         var nav = BrowserFixture.SectionNavigation(grafanaContext, grafanaLayout);
@@ -195,9 +187,8 @@ public sealed class BrowserEventManifestWorkflowTests
         await grafanaLayout.Find("[data-action='redo']").ClickAsync(new MouseEventArgs());
 
         await grafanaLayout.Find("[data-layout-mode='compact']").ClickAsync(new MouseEventArgs());
-        await grafanaLayout.Find("[data-compact-search]").InputAsync(new ChangeEventArgs { Value = "domain" });
-        await clock.AdvanceAsync(TimeSpan.FromMilliseconds(150), grafanaEditor);
-        await Assert.That(grafanaLayout.FindAll("[data-compact-row='server.domain']").Count).IsEqualTo(1);
+        await Assert.That(grafanaLayout.FindAll("[data-compact-workspace]").Count).IsEqualTo(1);
+        await Assert.That(grafanaLayout.FindAll("[data-field='server.domain']").Count).IsEqualTo(1);
         await grafanaLayout.Find("[data-layout-mode='guided']").ClickAsync(new MouseEventArgs());
 
         await grafanaLayout.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "guided" });
@@ -234,62 +225,6 @@ public sealed class BrowserEventManifestWorkflowTests
         if (current is null) throw new InvalidOperationException("Repository root not found.");
         string fullPath = Path.Combine(current.FullName, relativePath);
         return DefinitionCodec.ParseJson(File.ReadAllBytes(fullPath));
-    }
-
-    private sealed class ManualClock : TimeProvider
-    {
-        private DateTimeOffset _utcNow = new(2026, 11, 13, 10, 0, 0, TimeSpan.Zero);
-        private readonly List<ManualTimer> _timers = [];
-
-        public override DateTimeOffset GetUtcNow() => _utcNow;
-
-        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
-        {
-            var timer = new ManualTimer(callback, state, dueTime, _utcNow);
-            lock (_timers) _timers.Add(timer);
-            return timer;
-        }
-
-        public async Task AdvanceAsync(TimeSpan delta, IRenderedComponent<ConfigurationEditor> host)
-        {
-            _utcNow += delta;
-            List<ManualTimer> due = [];
-            lock (_timers)
-            {
-                foreach (ManualTimer timer in _timers)
-                    if (timer.IsDue(_utcNow)) due.Add(timer);
-            }
-            if (due.Count == 0) return;
-            await host.InvokeAsync(() =>
-            {
-                foreach (ManualTimer timer in due) timer.Fire();
-            });
-        }
-
-        private sealed class ManualTimer(TimerCallback callback, object? state, TimeSpan dueTime, DateTimeOffset createdAt) : ITimer
-        {
-            private DateTimeOffset? _dueAt = dueTime == Timeout.InfiniteTimeSpan ? null : createdAt + dueTime;
-            private bool _disposed;
-            public bool Change(TimeSpan dueTime, TimeSpan period)
-            {
-                if (_disposed) return false;
-                _dueAt = dueTime == Timeout.InfiniteTimeSpan ? null : DateTimeOffset.UtcNow;
-                return true;
-            }
-            public bool IsDue(DateTimeOffset now) => !_disposed && _dueAt is { } at && now >= at;
-            public void Fire()
-            {
-                if (_disposed) return;
-                _dueAt = null;
-                callback(state);
-            }
-            public void Dispose() => _disposed = true;
-            public ValueTask DisposeAsync()
-            {
-                _disposed = true;
-                return ValueTask.CompletedTask;
-            }
-        }
     }
 
     private sealed class DeveloperBridge(IJSRuntime fallback) : IJSRuntime, IJSInProcessObjectReference

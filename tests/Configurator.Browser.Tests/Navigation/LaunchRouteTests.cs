@@ -251,4 +251,43 @@ public sealed class LaunchRouteTests
         await Assert.That(failure?.Code).IsEqualTo("revision-conflict");
         await Assert.That(registry.Current.Resolve(first.FamilyId).Digest).IsEqualTo(current.Digest);
     }
+
+    [Test]
+    [Arguments("fresh")]
+    [Arguments("import")]
+    [Arguments("profile")]
+    public async Task PublicEntryModeIntentOpensRequestedTaskAfterAdmissionWithoutAutoConsentOrFileReads(string mode)
+    {
+        var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
+        var selection = BrowserLaunchSelection.Resolve(registry.Current, BrowserFixture.Family, $"?appVersion=1.0&mode={mode}");
+        await Assert.That(selection.Mode).IsEqualTo(mode);
+
+        await using var context = BrowserFixture.Context(registry);
+        context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0&mode={mode}");
+        var component = context.Render<App>();
+
+        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+        await Assert.That(component.FindAll("[data-returning-entry] [data-entry-choice]").Count).IsEqualTo(3);
+        var importPanel = component.Find("details[data-import-panel]");
+        var profilePanel = component.Find("details[data-profile-panel]");
+        await Assert.That(importPanel.HasAttribute("open")).IsEqualTo(mode == "import");
+        await Assert.That(profilePanel.HasAttribute("open")).IsEqualTo(mode == "profile");
+
+        if (mode == "fresh")
+        {
+            await component.Find("[data-entry-choice='import']").ClickAsync(new MouseEventArgs());
+            await Assert.That(component.Find("details[data-import-panel]").HasAttribute("open")).IsTrue();
+            await Assert.That(component.Find("details[data-profile-panel]").HasAttribute("open")).IsFalse();
+            await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+
+            await component.Find("[data-entry-choice='profile']").ClickAsync(new MouseEventArgs());
+            await Assert.That(component.Find("details[data-profile-panel]").HasAttribute("open")).IsTrue();
+            await Assert.That(component.Find("details[data-import-panel]").HasAttribute("open")).IsFalse();
+            await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+
+            await component.Find("[data-entry-choice='fresh']").ClickAsync(new MouseEventArgs());
+            await Assert.That(component.Find("details[data-import-panel]").HasAttribute("open")).IsFalse();
+            await Assert.That(component.Find("details[data-profile-panel]").HasAttribute("open")).IsFalse();
+        }
+    }
 }

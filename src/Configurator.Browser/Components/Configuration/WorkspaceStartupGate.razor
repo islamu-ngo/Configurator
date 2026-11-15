@@ -2,7 +2,9 @@
 {
     <div class="workspace-startup-gate" role="region" aria-labelledby="startup-gate-heading"
          aria-busy="@(Stage == WorkspaceStartupStage.Preparing ? "true" : null)"
-         data-startup-state="@StateToken">
+         data-workspace-phase="app-startup"
+         data-startup-state="@StateToken"
+         data-offline-state="@OfflineToken">
         <div class="workspace-startup-gate__card">
             <h3 id="startup-gate-heading" class="workspace-startup-gate__title">
                 <bdi>@(string.IsNullOrWhiteSpace(Title) ? T("WorkspaceTitle") : Title)</bdi>
@@ -15,8 +17,8 @@
             }
             else if (Stage == WorkspaceStartupStage.PreparationFailed)
             {
-                <p role="alert" class="notice" data-code="@(StatusCode ?? "app-preparation-incomplete")">
-                    @(string.IsNullOrWhiteSpace(StatusMessage) ? T("AppPreparationIncompleteStatus") : StatusMessage)
+                <p role="alert" class="notice" data-code="@(StatusCode ?? (IsOffline && !OfflineReady ? "app-preparation-offline" : "app-preparation-incomplete"))">
+                    @(string.IsNullOrWhiteSpace(StatusMessage) ? T(IsOffline && !OfflineReady ? "AppPreparationOfflineStatus" : "AppPreparationIncompleteStatus") : StatusMessage)
                 </p>
             }
 
@@ -26,6 +28,13 @@
                     <button @ref="_startButton" class="button" type="button" data-action="start-workspace"
                             @onclick="() => StartRequested.InvokeAsync()">
                         @T("StartWorkspace")
+                    </button>
+                }
+                else if (Stage == WorkspaceStartupStage.Preparing)
+                {
+                    <button type="button" class="button button--secondary" data-action="cancel-startup"
+                            @onclick="() => CancelRequested.InvokeAsync()">
+                        @T("Cancel")
                     </button>
                 }
                 else if (Stage == WorkspaceStartupStage.PreparationFailed)

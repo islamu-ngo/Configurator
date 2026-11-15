@@ -107,6 +107,18 @@
     background-color: var(--isl-color-success);
 }
 
+.catalogue__overview {
+    display: grid;
+    gap: var(--isl-space-1);
+    font-size: .8125rem;
+    color: var(--isl-color-text-secondary);
+}
+
+.catalogue__overview p {
+    margin: 0;
+    line-height: 1.45;
+}
+
 .catalogue__card-actions {
     margin-block-start: auto;
     padding-block-start: var(--isl-space-1);
@@ -114,6 +126,10 @@
     flex-wrap: wrap;
     gap: var(--isl-space-2);
     align-items: center;
+}
+
+.catalogue__card-actions [data-catalogue-entry] {
+    font-size: .8125rem;
 }
 
 .catalogue__details {

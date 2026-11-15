@@ -16,6 +16,7 @@
 .configuration-review__answers > li:hover { border-color: var(--isl-color-control-border); }
 .configuration-review__answer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--isl-space-3); }
 .configuration-review__answer > strong { font-size: .875rem; font-weight: 500; color: var(--isl-color-text); min-inline-size: 0; }
+.configuration-review__compact-status { font-size: .75rem; font-family: var(--isl-font-family-mono); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--isl-color-border); background: var(--isl-color-surface-muted); color: var(--isl-color-text-secondary); }
 .configuration-review__answers p { margin-block: var(--isl-space-1) 0; font-size: .8125rem; color: var(--isl-color-text-secondary); }
 .configuration-review__effects nav.actions { display: flex; align-items: center; justify-content: center; gap: var(--isl-space-3); margin-block-start: var(--isl-space-4); font-variant-numeric: tabular-nums; font-size: .8125rem; }
 

@@ -150,6 +150,41 @@ public sealed partial class BrowserProfileVaultTests
         await Assert.That(form.BrowserProfile).IsNull();
     }
 
+    [Test]
+    [Arguments(ProfileProtectionMode.ImportUpgradeOnly)]
+    [Arguments(ProfileProtectionMode.InspectableEncrypted)]
+    public async Task ProfileVaultSeparatesTaskBoundariesAndModeSpecificDisclosures(ProfileProtectionMode mode)
+    {
+        await using var context = BrowserFixture.Context();
+        using var runtime = new ProfileRuntime();
+        context.Services.AddSingleton<IJSRuntime>(runtime);
+        using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        var panel = RenderProfile(context, form);
+
+        await Assert.That(panel.FindAll("[data-profile-task='compare']").Count).IsEqualTo(1);
+        await Assert.That(panel.FindAll("[data-profile-task='open']").Count).IsEqualTo(1);
+        await Assert.That(panel.FindAll("[data-profile-task='save']").Count).IsEqualTo(1);
+        await Assert.That(panel.Find("[data-profile-recovery-state]").GetAttribute("data-profile-recovery-state")).IsEqualTo("unverified");
+
+        await OpenThroughUiAsync(panel, Container(form.Definition, mode));
+        var activeTask = panel.Find("[data-profile-task='active-profile']");
+        string expectedModeToken = mode == ProfileProtectionMode.InspectableEncrypted ? "inspectable-encrypted" : "upgrade-only";
+        await Assert.That(activeTask.QuerySelector("[data-profile-mode-disclosure]")?.GetAttribute("data-profile-mode-disclosure")).IsEqualTo(expectedModeToken);
+
+        await panel.Find("#profile-new-passphrase").InputAsync(new ChangeEventArgs { Value = PortablePassphrase });
+        await panel.Find("#profile-confirm-passphrase").InputAsync(new ChangeEventArgs { Value = PortablePassphrase });
+        await panel.Find("[data-action='profile-save']").ClickAsync(new MouseEventArgs());
+        await Assert.That(panel.FindAll("[data-profile-task='verify-recovery']").Count).IsEqualTo(1);
+        await Assert.That(panel.Find("[data-profile-recovery-state]").GetAttribute("data-profile-recovery-state")).IsEqualTo("unverified");
+
+        var input = panel.FindComponents<InputFile>().Single(component =>
+            component.Instance.AdditionalAttributes?["id"]?.ToString() == "profile-recovery-file");
+        await panel.InvokeAsync(() => input.UploadFiles(InputFileContent.CreateFromBinary(runtime.Downloads.Single(), "synthetic-saved.cfgvault")));
+        await panel.Find("#profile-recovery-passphrase").InputAsync(new ChangeEventArgs { Value = PortablePassphrase });
+        await panel.Find("[data-action='profile-recover']").ClickAsync(new MouseEventArgs());
+        await Assert.That(panel.Find("[data-profile-recovery-state]").GetAttribute("data-profile-recovery-state")).IsEqualTo("verified");
+    }
+
     private static IRenderedComponent<ConfigurationVaultPanel> RenderProfile(BunitContext context, DefinitionFormModel form)
     {
         Guid workspace = Guid.NewGuid();

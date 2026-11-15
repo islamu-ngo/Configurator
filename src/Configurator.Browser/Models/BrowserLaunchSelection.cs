@@ -6,7 +6,7 @@ using Configurator.Core.Definitions;
 using Configurator.Presentation;
 
 /// <summary>Captures the exact admitted document, not a mutable registry lookup.</summary>
-public sealed record BrowserLaunchSelection(Definition Definition, string Entry, string Locale, bool EntryExplicit)
+public sealed record BrowserLaunchSelection(Definition Definition, string Entry, string Locale, bool EntryExplicit, string Mode = "fresh")
 {
     internal static IReadOnlySet<string> EditingCapabilities { get; } = new[]
     {
@@ -44,10 +44,12 @@ public sealed record BrowserLaunchSelection(Definition Definition, string Entry,
                     "entry" => 128,
                     "locale" => 35,
                     "digest" => 64,
+                    "mode" => 16,
                     _ => 0
                 };
                 if (value.Length == 0 || value.Length > maximum
                     || !value.All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_')
+                    || (name == "mode" && value is not ("fresh" or "import" or "profile"))
                     || !selectors.TryAdd(name, value))
                     throw new BrowserLaunchException("query-invalid");
             }
@@ -73,11 +75,12 @@ public sealed record BrowserLaunchSelection(Definition Definition, string Entry,
             throw new BrowserLaunchException("capability-unsupported");
         string entry = selectors.GetValueOrDefault("entry") ?? definition.EntryPoints[0];
         string locale = selectors.GetValueOrDefault("locale") ?? new DefinitionLocalization(definition).DefaultLocale;
+        string mode = selectors.GetValueOrDefault("mode") ?? "fresh";
         if (!definition.EntryPoints.Contains(entry, StringComparer.Ordinal))
             throw new BrowserLaunchException("entry-unknown");
         if (!definition.Locales.Contains(locale, StringComparer.Ordinal))
             throw new BrowserLaunchException("locale-unsupported");
-        return new BrowserLaunchSelection(definition, entry, locale, selectors.ContainsKey("entry"));
+        return new BrowserLaunchSelection(definition, entry, locale, selectors.ContainsKey("entry"), mode);
     }
 
     private static bool ValidEscapes(string text)

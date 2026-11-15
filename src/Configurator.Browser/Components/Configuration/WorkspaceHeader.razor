@@ -5,6 +5,7 @@
 
 <header class="workspace-header" role="region" aria-label="@T("WorkspaceTitle")">
     <div class="workspace-header__identity">
+        <span class="workspace-header__title" data-workspace-title><bdi>@Form.Definition.Title</bdi></span>
         @if (!string.IsNullOrEmpty(ScopeSummary))
         {
             <button type="button" class="workspace-header__chip workspace-header__chip--scope"
@@ -13,10 +14,6 @@
                 <MudIcon Icon="@Icons.Material.Outlined.Tune" Size="Size.Small" aria-hidden="true" />
                 <span><bdi>@ScopeSummary</bdi> · @T("ScopeChangeAction")</span>
             </button>
-        }
-        else
-        {
-            <span class="workspace-header__title"><bdi>@Form.Definition.Title</bdi></span>
         }
         <button type="button" class="workspace-header__chip @(SecretsEnabled ? "workspace-header__chip--active" : "")"
                 data-workspace-consent-chip
@@ -48,27 +45,6 @@
             @T("WorkflowFiles")
         </button>
     </nav>
-    <div class="workspace-header__preferences">
-        <button type="button" class="workspace-header__chip workspace-header__naming"
-                data-action="toggle-naming-mode"
-                aria-pressed="@(NamingMode == WorkspaceNamingMode.Technical ? "true" : "false")"
-                title="@($"{T("NamingMode")} (Ctrl+Shift+K)")"
-                @onclick="ToggleNamingAsync">
-            <span>@T(NamingMode == WorkspaceNamingMode.Technical ? "Technical" : "Humanized")</span>
-            <kbd class="workspace-header__shortcut" dir="ltr">Ctrl+Shift+K</kbd>
-        </button>
-        <div class="workspace-header__density">
-            <label for="configuration-density" class="sr-only">@T("Density")</label>
-            <select id="configuration-density" aria-label="@T("Density")"
-                    value="@AppearanceState.FromWorkspaceDensity(Density)"
-                    @onchange="HandleDensityChanged">
-                <option value="spacious">@T("Spacious")</option>
-                <option value="comfortable">@T("Comfortable")</option>
-                <option value="compact">@T("Compact")</option>
-                <option value="dense">@T("Dense")</option>
-            </select>
-        </div>
-    </div>
 </header>
 
 @code {
@@ -76,8 +52,8 @@
     [Parameter, EditorRequired] public string Locale { get; set; } = "en";
     [Parameter, EditorRequired] public string ActiveStage { get; set; } = "configure";
     [Parameter, EditorRequired] public WorkspaceLayoutMode LayoutMode { get; set; } = WorkspaceLayoutMode.Guided;
-    [Parameter, EditorRequired] public WorkspaceDensity Density { get; set; } = WorkspaceDensity.Comfortable;
-    [Parameter, EditorRequired] public WorkspaceNamingMode NamingMode { get; set; } = WorkspaceNamingMode.Humanized;
+    [Parameter] public WorkspaceDensity Density { get; set; } = WorkspaceDensity.Comfortable;
+    [Parameter] public WorkspaceNamingMode NamingMode { get; set; } = WorkspaceNamingMode.Humanized;
     [Parameter] public bool DeveloperMode { get; set; }
     [Parameter] public string? ScopeSummary { get; set; }
     [Parameter] public EventCallback OnScopeRequested { get; set; }
@@ -88,21 +64,4 @@
 
     private bool SecretsEnabled => Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
     private string T(string key) => BrowserStrings.Get(key, Locale);
-
-    private Task ToggleNamingAsync() =>
-        NamingModeChanged.InvokeAsync(NamingMode == WorkspaceNamingMode.Technical
-            ? WorkspaceNamingMode.Humanized
-            : WorkspaceNamingMode.Technical);
-
-    private Task HandleDensityChanged(ChangeEventArgs args)
-    {
-        WorkspaceDensity target = args.Value?.ToString() switch
-        {
-            "spacious" => WorkspaceDensity.Spacious,
-            "compact" => WorkspaceDensity.Compact,
-            "dense" => WorkspaceDensity.Dense,
-            _ => WorkspaceDensity.Comfortable
-        };
-        return DensityChanged.InvokeAsync(target);
-    }
 }

@@ -10,7 +10,10 @@ using Configurator.Core.Definitions;
 using Configurator.Core.Definitions.Authoring;
 using Configurator.Core.Profiles;
 using Configurator.Presentation;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
 
 [NotInParallel]
 public sealed partial class BrowserProfileVaultTests
@@ -261,6 +264,32 @@ public sealed partial class BrowserProfileVaultTests
         await Assert.That(() => registry.AdmitHistoricalIdentity(Guid.NewGuid(), 1, original.Digest)).Throws<DefinitionException>();
         await Assert.That(() => registry.Admit(BrowserFixture.Revision(4097))).Throws<DefinitionException>();
         await Assert.That(registry.Current.Definitions.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task WorkspaceNavigationGuardExplainsTransientCustodyAndPreservesDirtyWorkOnCancel()
+    {
+        var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
+        await using var context = BrowserFixture.Context(registry);
+        var navigation = new RendererNavigationManager(context);
+        context.Services.AddSingleton<NavigationManager>(navigation);
+        navigation.NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0");
+        await navigation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        var component = context.Render<App>();
+        await Assert.That(component.Find("[data-session-loss-guard]").GetAttribute("data-session-loss-guard")).IsEqualTo("idle");
+
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
+        component.Find("[data-field='hostname'] input").Input("example.test");
+        await Assert.That(component.Find("[data-session-loss-guard]").GetAttribute("data-session-loss-guard")).IsEqualTo("active");
+
+        await component.InvokeAsync(() => navigation.NavigateTo("/"));
+        var dialog = component.Find("[role='dialog']");
+        await Assert.That(dialog.TextContent).Contains(".cfgvault");
+        await component.Find("[data-action='keep-workspace']").ClickAsync(new MouseEventArgs());
+        await navigation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("example.test");
+        await Assert.That(component.Find("[data-session-loss-guard]").GetAttribute("data-session-loss-guard")).IsEqualTo("active");
     }
 
     private static DefinitionFormModel Opened(ProfileProtectionMode mode, Action? retire = null)

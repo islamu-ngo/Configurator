@@ -4,14 +4,58 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Bunit;
 using Configurator.Browser.Layout;
+using Configurator.Browser.Services;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
 
 public sealed class BrowserExperienceWorkflowTests
 {
+    [Test]
+    public async Task GoingOfflineDuringLiveSessionAndRecoveringUrlEntryPreservesWork()
+    {
+        await using var context = BrowserFixture.Context();
+        var pwa = context.JSInterop.SetupModule("./pwa-lifecycle.js");
+        pwa.Setup<BrowserOfflineState>("initialize").SetResult(new(true, true, true));
+        pwa.Setup<long>("subscribeConnectivity", _ => true).SetResult(1L);
+        pwa.SetupVoid("unsubscribeConnectivity", 1L).SetVoidResult();
+        pwa.Setup<bool>("beginWorkspace", _ => true).SetResult(true);
+        pwa.SetupVoid("endWorkspace", _ => true).SetVoidResult();
+        await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
+        context.Services.AddSingleton(policy);
+
+        // Live session goes offline while editing; edits and local preparation succeed without network.
+        var editor = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await BrowserFixture.NotifyChoiceAsync(editor, "mode", "single");
+        await editor.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "offline-session.test" });
+        policy.ConnectivityChanged(false);
+        await Assert.That(policy.IsOffline).IsTrue();
+        await Assert.That(policy.CanFetchDefinition).IsFalse();
+        await Assert.That(editor.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("offline-session.test");
+        await BrowserFixture.PrepareAsync(editor, draft: true);
+        await Assert.That(editor.FindAll("[data-prepared-file]").Count).IsGreaterThan(0);
+        await editor.InvokeAsync(() => editor.Instance.DiscardAsync());
+        await Assert.That(policy.IsWorkspaceActive).IsFalse();
+
+        // On /open while offline, fetching preserves the user's entered URL and exposes Retry + Choose local file.
+        var sourceModule = context.JSInterop.SetupModule("./js/browser-definition-source.js");
+        var openPage = context.Render<Configurator.Browser.Pages.Open>();
+        await openPage.Find("#source-url").InputAsync(new ChangeEventArgs { Value = "https://publisher.example/definition.json" });
+        await openPage.Find("#load-public-source").ClickAsync(new MouseEventArgs());
+        await Assert.That(openPage.Find("[data-admission-state]").GetAttribute("data-admission-state")).IsEqualTo("rejected");
+        await Assert.That(openPage.Find("#source-url").GetAttribute("value")).IsEqualTo("https://publisher.example/definition.json");
+        await Assert.That(openPage.FindAll("[data-action='retry-source'], [data-action='choose-local-source']").Count).IsEqualTo(2);
+
+        sourceModule.Setup<byte[]>("fetchDefinition", _ => true).SetResult(BrowserFixture.Definition.CanonicalBytes.ToArray());
+        policy.ConnectivityChanged(true);
+        await openPage.Find("[data-action='retry-source']").ClickAsync(new MouseEventArgs());
+        await Assert.That(openPage.Find("[data-admission-state]").GetAttribute("data-admission-state")).IsEqualTo("admitted");
+    }
+
     [Test]
     public async Task IdenticalParametersPreserveFocusUntilANewFocusGenerationArrives()
     {
@@ -318,6 +362,89 @@ public sealed class BrowserExperienceWorkflowTests
         await Assert.That(link.GetAttribute("rel")).Contains("noopener");
         await Assert.That(link.GetAttribute("rel")).Contains("noreferrer");
         await Assert.That(link.GetAttribute("referrerpolicy")).IsEqualTo("no-referrer");
+    }
+
+    [Test]
+    public async Task TaskFirstHierarchyPlacesContextSectionAndFirstQuestionBeforeSecondaryToolsWhilePreservingGuidedStages()
+    {
+        await using var context = BrowserFixture.Context();
+        JsonNode source = JsonNode.Parse(Definition().CanonicalBytes.Span)!;
+        source["locales"] = new JsonArray("ar", "en");
+        source["localization"] = JsonNode.Parse("""{"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}""");
+        var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
+        var component = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, definition));
+
+        var allElements = component.FindAll("*").ToList();
+        int IndexOf(string selector)
+        {
+            var match = component.Find(selector);
+            return allElements.FindIndex(element => ReferenceEquals(element, match) || element.Equals(match));
+        }
+
+        int headerTitleIndex = IndexOf("[data-workspace-title]");
+        int sectionHeadingIndex = IndexOf("[data-section-panel='decisions'] h3");
+        int firstFieldIndex = IndexOf("[data-field='enabled']");
+
+        await Assert.That(headerTitleIndex).IsGreaterThanOrEqualTo(0);
+        await Assert.That(sectionHeadingIndex).IsGreaterThan(headerTitleIndex);
+        await Assert.That(firstFieldIndex).IsGreaterThan(sectionHeadingIndex);
+
+        foreach (string secondarySelector in new[]
+        {
+            "[data-action='toggle-naming-mode']",
+            "#configuration-density",
+            "[data-action='toggle-inspector']",
+            "[data-action='open-shortcuts']",
+            "[data-action='undo']",
+            "[data-action='redo']",
+            "[data-editing-mode='developer']",
+            "#configuration-detail",
+            "[data-profile-panel]",
+            "#configuration-locale",
+            "[data-secret-consent]"
+        })
+        {
+            int secondaryIndex = IndexOf(secondarySelector);
+            await Assert.That(secondaryIndex).IsGreaterThan(firstFieldIndex);
+        }
+
+        await Assert.That(component.FindAll("[data-section-panel]").Count).IsEqualTo(1);
+        await BrowserFixture.SelectPanelAsync(component, "review");
+        await Assert.That(component.FindAll("[data-section-panel]")).IsEmpty();
+        await BrowserFixture.SelectPanelAsync(component, "configure");
+        await Assert.That(component.FindAll("[data-section-panel='decisions']").Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task ContextSummaryAndActionableProgressFocusNextFieldwithoutFabricatingZeroRequiredPercent()
+    {
+        await using var context = BrowserFixture.Context();
+        var deploymentComponent = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserDeploymentScopeTests.Deployment()));
+
+        string summaryText = deploymentComponent.Find("[data-context-summary]").TextContent;
+        await Assert.That(summaryText).Contains("Worker");
+        await Assert.That(summaryText).Contains("Dashboard");
+        await Assert.That(summaryText).Contains("worker.json");
+        await Assert.That(summaryText).Contains("dashboard.json");
+
+        await deploymentComponent.Find("#configuration-recipe").ChangeAsync(new ChangeEventArgs { Value = "split" });
+        await deploymentComponent.Find("#configuration-scope").ChangeAsync(new ChangeEventArgs { Value = "dashboard" });
+        string narrowedText = deploymentComponent.Find("[data-context-summary]").TextContent;
+        await Assert.That(narrowedText).Contains("Dashboard");
+        await Assert.That(narrowedText).DoesNotContain("worker.json");
+
+        var wizardComponent = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, Definition()));
+        await BrowserFixture.SectionNavigation(context, wizardComponent).Find("[data-section='tuning']").ClickAsync(new MouseEventArgs());
+        await Assert.That(wizardComponent.FindAll("[data-section-panel='tuning']").Count).IsEqualTo(1);
+        await Assert.That(BrowserFixture.SectionNavigation(context, wizardComponent).Find("[data-section='tuning']").TextContent)
+            .DoesNotContain("%");
+
+        // Activating [data-action='review-required-work'] jumps back to 'decisions' and focuses the next actionable field.
+        await wizardComponent.Find("[data-action='review-required-work']").ClickAsync(new MouseEventArgs());
+        await Assert.That(wizardComponent.FindAll("[data-section-panel='decisions']").Count).IsEqualTo(1);
     }
 
     private static Definition Definition()

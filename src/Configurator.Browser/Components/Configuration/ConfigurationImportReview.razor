@@ -7,6 +7,7 @@
     <section class="configuration-import-review" data-import-comparison aria-labelledby="import-comparison-heading"
              data-import-compatibility="@report.Compatibility"
              data-import-file-autofill="@report.AutofillEligible.ToString().ToLowerInvariant()">
+        <div class="configuration-import-review__comparison" data-import-stage="comparison">
         <h3 id="import-comparison-heading">@Text("ImportComparisonTitle")</h3>
         <p>@Text("ImportComparisonScope")</p>
         <dl class="configuration-import-review__facts">
@@ -17,22 +18,6 @@
             <div><dt><strong>@Text("ImportFileAutofill")</strong></dt><dd>@Text(report.AutofillEligible ? "ImportEligible" : "ImportIneligible")</dd></div>
             <div><dt><strong>@Text("ImportTargetAcceptance")</strong></dt><dd>@Text("ImportNotAssessed")</dd></div>
         </dl>
-        <p id="import-workspace-autofill" data-import-workspace-autofill="@Form.ImportAutofillCode">
-            <strong>@Text("ImportFillWorkspace")</strong> @AutofillText(Form.ImportAutofillCode)
-            @if (Form.ImportAutofillCode is { } autofillCode) { <code>@($" ({autofillCode})")</code> }
-        </p>
-        @if (!report.AutofillEligible)
-        {
-            <p>@Text("ImportRepairCopy")</p>
-        }
-        else if (Form.ImportAutofillCode == "import-workspace-unsupported")
-        {
-            <p>@Text("ImportUnsupportedWorkspace")</p>
-        }
-        else if (!Form.CanAdoptImportComparison)
-        {
-            <p>@Text("ImportConflictHelp")</p>
-        }
         <p>@Text("ImportComparisonBoundary")</p>
         <ul class="configuration-import-review__findings">
             @foreach (var finding in report.Findings.Skip(_page * PageSize).Take(PageSize))
@@ -77,10 +62,29 @@
                 <p>@Text("ImportExplanationBoundary")</p>
             </section>
         }
+        </div>
+        <div class="configuration-import-review__adoption" data-import-stage="adoption">
+        <p id="import-workspace-autofill" data-import-workspace-autofill="@Form.ImportAutofillCode">
+            <strong>@Text("ImportFillWorkspace")</strong> @AutofillText(Form.ImportAutofillCode)
+            @if (Form.ImportAutofillCode is { } autofillCode) { <code>@($" ({autofillCode})")</code> }
+        </p>
+        @if (!report.AutofillEligible)
+        {
+            <p>@Text("ImportRepairCopy")</p>
+        }
+        else if (Form.ImportAutofillCode == "import-workspace-unsupported")
+        {
+            <p>@Text("ImportUnsupportedWorkspace")</p>
+        }
+        else if (!Form.CanAdoptImportComparison)
+        {
+            <p>@Text("ImportConflictHelp")</p>
+        }
         <div class="actions">
             <AppButton data-action="adopt-import-comparison" Disabled="@(!Form.CanAdoptImportComparison)"
                        aria-describedby="import-workspace-autofill" OnClick="() => FillFields.InvokeAsync(report)">@Text("ImportFillFields")</AppButton>
             <AppButton Variant="Variant.Outlined" data-action="clear-import-comparison" OnClick="() => Clear.InvokeAsync(report)">@Text("ImportClearComparison")</AppButton>
+        </div>
         </div>
     </section>
 }

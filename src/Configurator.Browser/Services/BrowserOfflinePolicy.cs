@@ -17,6 +17,7 @@ public sealed class BrowserOfflinePolicy(IJSRuntime javascript) : IAsyncDisposab
 
     public bool OfflineReady { get; private set; }
     public bool IsOffline { get; private set; }
+    public bool UpdateWaiting { get; private set; }
     public bool IsWorkspaceActive { get; private set; }
     public long WorkspaceGeneration => _generation;
     public bool CanFetchDefinition => !_disposed && !IsOffline && !IsWorkspaceActive;
@@ -24,6 +25,7 @@ public sealed class BrowserOfflinePolicy(IJSRuntime javascript) : IAsyncDisposab
     public ValueTask InitializeAsync()
     {
         if (_disposed) return ValueTask.CompletedTask;
+        if (_initialization?.IsCompleted == true && _module is null) _initialization = null;
         return new(_initialization ??= InitializeCoreAsync());
     }
 
@@ -36,13 +38,19 @@ public sealed class BrowserOfflinePolicy(IJSRuntime javascript) : IAsyncDisposab
             _module = module;
             BrowserOfflineState? state = await module.InvokeAsync<BrowserOfflineState?>("initialize");
             if (_disposed || state is null) return;
-            _appPrepared = state.AppPrepared;
-            OfflineReady = state.AppPrepared && state.OfflineReady;
-            IsOffline = !state.Online;
+            ApplyState(state);
             _reference = DotNetObjectReference.Create(this);
             _connectivitySubscription = await module.InvokeAsync<long>("subscribeConnectivity", _reference);
         }
         catch (JSException) { _appPrepared = false; OfflineReady = false; }
+    }
+
+    private void ApplyState(BrowserOfflineState state)
+    {
+        _appPrepared = state.AppPrepared;
+        OfflineReady = state.AppPrepared && state.OfflineReady;
+        IsOffline = !state.Online;
+        UpdateWaiting = state.UpdateWaiting;
     }
 
     /// <summary>Observes connection eligibility only; online status does not prove remote reachability or release custody.</summary>
@@ -60,6 +68,16 @@ public sealed class BrowserOfflinePolicy(IJSRuntime javascript) : IAsyncDisposab
         IsWorkspaceActive = true;
         await InitializeAsync();
         if (_disposed || generation != _generation) return false;
+        if (_module is not null && !_appPrepared)
+        {
+            try
+            {
+                BrowserOfflineState? refreshed = await _module.InvokeAsync<BrowserOfflineState?>("initialize");
+                if (_disposed || generation != _generation) return false;
+                if (refreshed is not null) ApplyState(refreshed);
+            }
+            catch (JSException) { _appPrepared = false; OfflineReady = false; }
+        }
         if (!_appPrepared || _module is null) { IsWorkspaceActive = false; return false; }
         bool accepted;
         try { accepted = await _module.InvokeAsync<bool>("beginWorkspace", generation); }

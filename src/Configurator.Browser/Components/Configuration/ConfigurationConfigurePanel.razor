@@ -6,11 +6,29 @@
 
 @if (!_disposed && !MountCancellation.IsCancellationRequested)
 {
+    _renderedStamp = CurrentRenderStamp();
+    _hasRendered = true;
+    bool compact = Form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact;
+    var experience = Form.DisplayExperiences.Single(item => item.Id == Form.SelectedExperienceId);
+    if (compact)
+    {
+        <SectionContent SectionName="configuration-sections"></SectionContent>
+        <div class="configuration-configure-panel configuration-configure-panel--single" data-navigation="@experience.Navigation" data-layout-active="compact">
+            <div class="configuration-configure-panel__fields">
+                <ConfigurationCompactWorkspace @ref="_compactWorkspace" @key="Form" Form="Form"
+                                               MountCancellation="MountCancellation" Validation="Validation"
+                                               FocusField="@FocusField" FocusGeneration="@(FocusField is not null ? FocusGeneration : 0L)" FocusPath="FocusPath"
+                                               ShowMatchesOnly="CompactShowMatchesOnly"
+                                               ShowMatchesOnlyChanged="CompactShowMatchesOnlyChanged" />
+            </div>
+        </div>
+    }
+    else
+    {
     var projection = Form.Projection;
     var actionForm = Form;
     long inputRevision = Form.InputRevision;
     var actionMount = MountCancellation;
-    var experience = Form.DisplayExperiences.Single(item => item.Id == Form.SelectedExperienceId);
     var states = Form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal);
     string? outputField = Form.Definition.Presentation?.OutputSelector is { } selector
         ? DefinitionProfile.FieldId(selector.Location.Segments[0]) : null;
@@ -23,20 +41,16 @@
               && (experience.Sections.Contains(section.Id) || projection.IsFieldVisible(fieldId))))?.Id
           ?? sections.FirstOrDefault()?.Id;
 <SectionContent SectionName="configuration-sections">
-    @if (Form.WorkspaceLayoutMode != WorkspaceLayoutMode.Compact && sections.Length > 1)
+    @if (sections.Length > 1)
     {
         <ConfigurationNavigation Sections="@(sections.Select(section => new ConfigurationSection(section.Id, section.Title, projection.SectionProgress[section.Id], projection.SectionStatuses.GetValueOrDefault(section.Id))).ToArray())"
                                  Selected="@selected" SelectedChanged="SelectedChanged" Locale="@Form.Locale"
                                  NavigationMode="@experience.Navigation" Navigation="@projection.Navigation" />
     }
 </SectionContent>
-<div class="configuration-configure-panel @(sections.Length == 1 || Form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact ? "configuration-configure-panel--single" : "")" data-navigation="@experience.Navigation" data-layout-active="@(Form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact ? "compact" : "guided")">
+<div class="configuration-configure-panel @(sections.Length == 1 ? "configuration-configure-panel--single" : "")" data-navigation="@experience.Navigation" data-layout-active="guided">
     <div class="configuration-configure-panel__fields">
-        @if (Form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact)
-        {
-            <ConfigurationCompactTable Form="Form" RequestSecretConsent="RequestSecretConsent" OpenFieldInGuided="OpenFieldInGuided" />
-        }
-        else if (!DefinitionEditingSupport.HasPropertyRoot(Form.Definition))
+        @if (!DefinitionEditingSupport.HasPropertyRoot(Form.Definition))
         {
             <ConfigurationRoot @ref="_root" Form="Form" Validation="Validation" MountCancellation="MountCancellation"
                                FocusFirstControl="@(FocusField == string.Empty)" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
@@ -115,6 +129,7 @@
         }
     </div>
 </div>
+    }
 }
 
 @code {
@@ -129,15 +144,75 @@
     [Parameter] public IReadOnlyList<string> FocusPath { get; set; } = [];
     [Parameter] public EventCallback ReviewRequested { get; set; }
     [Parameter] public EventCallback RequestSecretConsent { get; set; }
-    [Parameter] public EventCallback<DefinitionPath> OpenFieldInGuided { get; set; }
+    [Parameter] public bool CompactShowMatchesOnly { get; set; }
+    [Parameter] public EventCallback<bool> CompactShowMatchesOnlyChanged { get; set; }
     private ElementReference _heading;
     private ConfigurationRoot? _root;
+    private ConfigurationCompactWorkspace? _compactWorkspace;
     private bool _disposed;
+    private bool _hasRendered;
+    private RenderStamp _renderedStamp;
+
+    private readonly record struct RenderStamp(
+        bool Disposed,
+        bool Cancelled,
+        CancellationToken MountCancellation,
+        DefinitionFormModel Form,
+        DefinitionFormProjection? GuidedProjection,
+        IReadOnlyList<DefinitionFormSection> ProjectionSections,
+        DefinitionDiscoverySelection? CompactDiscoverySelection,
+        long InputRevision,
+        string Locale,
+        WorkspaceLayoutMode LayoutMode,
+        WorkspaceDensity Density,
+        WorkspaceNamingMode NamingMode,
+        string SelectedExperienceId,
+        FieldDisclosure? DisclosureOverride,
+        string? SelectedSection,
+        DefinitionValidationResult? Validation,
+        string? FocusField,
+        long FocusGeneration,
+        string? FocusPathKey,
+        bool CompactShowMatchesOnly);
+
+    private RenderStamp CurrentRenderStamp()
+    {
+        bool compact = Form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact;
+        DefinitionFormProjection projection = Form.Projection;
+        bool hasFocus = FocusField is not null;
+        return new RenderStamp(
+            _disposed,
+            MountCancellation.IsCancellationRequested,
+            MountCancellation,
+            Form,
+            compact ? null : projection,
+            projection.Sections,
+            compact && CompactShowMatchesOnly ? Form.DiscoverySelection : null,
+            Form.InputRevision,
+            Form.Locale,
+            Form.WorkspaceLayoutMode,
+            Form.WorkspaceDensity,
+            Form.WorkspaceNamingMode,
+            Form.SelectedExperienceId,
+            Form.DisclosureOverride,
+            compact ? null : SelectedSection,
+            Validation,
+            FocusField,
+            hasFocus ? FocusGeneration : 0L,
+            hasFocus && FocusPath.Count > 0 ? string.Join('\0', FocusPath) : null,
+            CompactShowMatchesOnly);
+    }
+
+    protected override bool ShouldRender() => !_hasRendered || !_renderedStamp.Equals(CurrentRenderStamp());
+
     protected override void OnParametersSet()
     {
         if (DefinitionEditingSupport.HasPropertyRoot(Form.Definition)) _root = null;
+        if (Form.WorkspaceLayoutMode != WorkspaceLayoutMode.Compact) _compactWorkspace = null;
     }
     public ElementReference? SectionHeading => _disposed ? null : _root?.Heading ?? _heading;
+    public bool IsCompactSettled => _compactWorkspace is { IsSettled: true };
+    public Task JumpToCompactSectionAsync(string sectionId) => _compactWorkspace?.JumpToSectionAsync(sectionId) ?? Task.CompletedTask;
     private string SectionId(string id) => "configuration-section-" + Array.FindIndex(Sections.ToArray(), section => section.Id == id);
-    public void Dispose() { _disposed = true; _heading = default; }
+    public void Dispose() { _disposed = true; _heading = default; _compactWorkspace = null; }
 }

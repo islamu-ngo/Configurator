@@ -25,12 +25,22 @@ public partial class ConfigurationEditor
             _statusCode = "profile-private-output-required";
             return;
         }
-        if (_activeWorkflowStage != WorkflowStage.Prepare) SelectWorkflowStage(WorkflowStage.Prepare);
+        bool compactInline = LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode;
+        if (compactInline)
+        {
+            _compactReviewOpen = false;
+            _reviewPanel = null;
+            _compactFilesOpen = true;
+            RetireView();
+        }
+        else if (_activeWorkflowStage != WorkflowStage.Prepare)
+            SelectWorkflowStage(WorkflowStage.Prepare);
         DefinitionFormModel form = _form!;
         long generation = _generation + 1;
         await InvalidateOutputAsync();
         if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
-        _activeWorkflowStage = WorkflowStage.Prepare;
+        if (compactInline) _compactFilesOpen = true;
+        else _activeWorkflowStage = WorkflowStage.Prepare;
         AnswerSnapshot answers;
         try { answers = form.Snapshot(); }
         catch (DefinitionException)
@@ -47,7 +57,9 @@ public partial class ConfigurationEditor
             _diagnostics.Add("answer-budget-exceeded");
             return;
         }
-        _validation = draft ? DefinitionValidator.ValidateDraft(Definition, answers) : form.Validate();
+        DefinitionValidationResult validation = draft ? DefinitionValidator.ValidateDraft(Definition, answers) : form.Validate();
+        if (compactInline) _reviewValidation = validation;
+        else _validation = validation;
         if (form.HasInputErrors)
         {
             _diagnostics.Add("input-type-invalid");
@@ -113,6 +125,7 @@ public partial class ConfigurationEditor
             DefinitionOutputExportContext exportContext = form.CaptureOutputExportContext(
                 answers.InputRevision, form.EligibleArtifacts.Select(artifact => artifact.Id));
             _prepared.AddRange(staged);
+            _hadPreparedOutput = true;
             _outputExportContext = exportContext;
             staged.Clear();
             _navigation?.RefreshWork(this, _navigationLease);
@@ -134,8 +147,9 @@ public partial class ConfigurationEditor
     {
         DefinitionFormModel form = _form!;
         long view = _viewGeneration;
-        if (!IsCurrentView(form, view) || !_ready || _activeWorkflowStage != WorkflowStage.Prepare
+        if (!IsCurrentView(form, view) || !_ready || !IsFilesSurfaceActive
             || _prepared.Count == 0 || _outputExportContext is not { } exportContext) return;
+        _lastAggregateExportWasArchive = archive;
         if (_prepared.Count == 1)
         {
             if (archive) await DownloadAsync(_prepared[0]);
@@ -215,5 +229,5 @@ public partial class ConfigurationEditor
         artifact.StatusCode = revealed ? "preview-revealed" : "preview-unavailable";
     }
     private bool IsCurrentExport(PreparedArtifact artifact, DefinitionFormModel form, long view) =>
-        IsCurrentView(form, view) && _ready && _activeWorkflowStage == WorkflowStage.Prepare && _prepared.Contains(artifact);
+        IsCurrentView(form, view) && _ready && IsFilesSurfaceActive && _prepared.Contains(artifact);
 }

@@ -8,6 +8,9 @@ using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.RenderTree;
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 
 public sealed class BrowserCredentialEntryTests
 {
@@ -165,6 +168,69 @@ public sealed class BrowserCredentialEntryTests
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
         await Assert.That(component.Find("[data-field='created'] input").GetAttribute("value")).IsEqualTo("");
         await Assert.That(component.Markup).DoesNotContain("synthetic-manager-value");
+    }
+
+    [Test]
+    public async Task SingleConsentDestinationConsolidatesCustodyHelpAndLockedFieldActionOpensWithoutEnablingConsent()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        string custodyHelp = Configurator.Browser.Resources.BrowserStrings.Get("CredentialCustodyHelp", "en");
+
+        await Assert.That(component.Find("details[data-secret-consent]").HasAttribute("open")).IsFalse();
+        await Assert.That(component.Find("#secret-consent-help").TextContent).Contains(custodyHelp);
+
+        await component.Find("[data-field='created'] [data-action='field-secret-consent']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("details[data-secret-consent]").HasAttribute("open")).IsTrue();
+        await Assert.That(form.SessionPrivacy).IsEqualTo(DefinitionSessionPrivacy.BrowserNoSecrets);
+        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await Assert.That(component.Find("[data-field='created'] .configuration-field__help").TextContent).DoesNotContain(custodyHelp);
+        await Assert.That(component.Find("[data-field='existing'] .configuration-field__help").TextContent).DoesNotContain(custodyHelp);
+    }
+
+    [Test]
+    public async Task SynchronousConsentRevocationAndVariantReplacementRejectInFlightSecretOperations()
+    {
+        await using var context = BrowserFixture.Context();
+        var javascript = new BrowserExportLifecycleTests.GatedJavascript(context.JSInterop.JSRuntime);
+        await using var module = new BrowserExportLifecycleTests.RecordingModule { HoldOpening = true };
+        javascript.Release.TrySetResult(module);
+        context.Services.AddSingleton<IJSRuntime>(javascript);
+
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find("[data-field='created'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-race-secret-value" });
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        var revoked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void Observe(object? sender, EventArgs args)
+        {
+            if (form.SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets) revoked.TrySetResult();
+        }
+        form.InputChanged += Observe;
+
+        Task copyInFlight = component.Find("[data-field='created'] [data-secret-action='copy']").ClickAsync(new MouseEventArgs());
+        Task revoking = Task.CompletedTask;
+        try
+        {
+            await module.OpeningStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            revoking = component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+            await revoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.That(form.Snapshot().Values.ContainsKey("created")).IsFalse();
+        }
+        finally
+        {
+            form.InputChanged -= Observe;
+            module.OpeningRelease.TrySetResult();
+            await Task.WhenAll(copyInFlight, revoking).WaitAsync(TimeSpan.FromSeconds(5));
+        }
+
+        await Assert.That(form.SessionPrivacy).IsEqualTo(DefinitionSessionPrivacy.BrowserNoSecrets);
+        await Assert.That(form.Snapshot().Values.ContainsKey("created")).IsFalse();
+        await Assert.That(module.ExposureCount).IsEqualTo(0);
+        await Assert.That(component.FindAll("[data-secret-status='copied']")).IsEmpty();
     }
 
     private static Definition Definition()

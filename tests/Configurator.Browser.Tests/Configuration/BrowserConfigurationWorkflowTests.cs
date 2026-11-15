@@ -395,4 +395,24 @@ public sealed class BrowserConfigurationWorkflowTests
         await Assert.That(component.Find(".configuration-editor__artifact [data-file-status]").GetAttribute("data-file-status"))
             .IsEqualTo("download-requested");
     }
+
+    [Test]
+    public async Task CorrectionRejectsStaleRevisionAfterSameSessionEdit()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        DefinitionDiagnostic staleDiagnostic = form.Validate().Diagnostics.Single(item => item.FieldId == "hostname");
+
+        await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "updated.test" });
+        await component.Find("[data-workflow-step='review']").ClickAsync(new MouseEventArgs());
+        EventCallback<DefinitionDiagnostic> reviewCorrection = component.FindComponent<ConfigurationReview>().Instance.CorrectField;
+
+        await component.InvokeAsync(() => reviewCorrection.InvokeAsync(staleDiagnostic));
+
+        await Assert.That(component.Find("[data-workflow-step='review']").GetAttribute("aria-current")).IsEqualTo("step");
+        await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("updated.test");
+    }
 }

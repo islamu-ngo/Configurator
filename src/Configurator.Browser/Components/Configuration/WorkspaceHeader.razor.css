@@ -3,9 +3,10 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: var(--isl-space-3);
-    padding: var(--isl-space-2) var(--isl-space-4);
-    margin-block-end: var(--isl-space-4);
+    gap: var(--isl-space-2);
+    padding-block: var(--isl-space-1);
+    padding-inline: var(--isl-space-3);
+    margin-block-end: var(--isl-space-2);
     background: var(--isl-surface-container-low);
     border: var(--isl-card-border);
     border-radius: var(--isl-radius-card);
@@ -13,8 +14,7 @@
 }
 
 .workspace-header__identity,
-.workspace-header__modes,
-.workspace-header__preferences {
+.workspace-header__modes {
     display: flex;
     flex-wrap: wrap;
     align-items: center;

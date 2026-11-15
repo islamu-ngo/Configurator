@@ -19,7 +19,7 @@
         </details>
     </section>
     <ConfigurationEditor @key="selected" @ref="_editor" Definition="@selected.Definition" InitialLocale="@selected.Locale"
-                         InitialEntry="@(selected.EntryExplicit ? selected.Entry : null)" />
+                         InitialEntry="@(selected.EntryExplicit ? selected.Entry : null)" InitialMode="@selected.Mode" />
 }
 else
 {

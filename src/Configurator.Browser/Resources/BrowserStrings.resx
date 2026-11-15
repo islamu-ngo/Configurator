@@ -152,7 +152,7 @@
   <data name="DefinitionOnlyLink" xml:space="preserve"><value>Definition-only link (no answers)</value></data>
   <data name="CopyDefinitionLink" xml:space="preserve"><value>Copy definition link</value></data>
   <data name="DiscardToChoose" xml:space="preserve"><value>Discard workspace and choose another definition</value></data>
-  <data name="DiscardConfirm" xml:space="preserve"><value>Discard this workspace's answers and output and continue? Choose Cancel to keep editing.</value></data>
+  <data name="DiscardConfirm" xml:space="preserve"><value>Discard this workspace's answers and output and continue? Browser sessions stay only in memory; save an encrypted portable profile (.cfgvault) first if you want to resume later, or choose Cancel to keep editing.</value></data>
   <data name="SourceReady" xml:space="preserve"><value>Choose a public publisher link or a local definition. Answers are never carried by this route.</value></data>
   <data name="SourceLoading" xml:space="preserve"><value>Reading public definition metadata before collecting answers…</value></data>
   <data name="SourceAdmitted" xml:space="preserve"><value>Definition admitted and pinned. Review its details before opening the workspace.</value></data>
@@ -307,6 +307,10 @@
   <data name="ReviewPreparation" xml:space="preserve"><value>Preparation</value></data>
   <data name="FilesTitle" xml:space="preserve"><value>Prepare and export files</value></data>
   <data name="FilesHelp" xml:space="preserve"><value>Prepare a complete configuration or an incomplete draft, then deliberately copy or download each file for target validation.</value></data>
+  <data name="FilesInvalidatedNotice" xml:space="preserve"><value>Settings or secret consent changed after preparation. Prepare updated files before copying or downloading.</value></data>
+  <data name="FilesDeferredCountSummary" xml:space="preserve"><value>{0} deferred secret(s) will remain placeholders until supplied on the target host or after enabling workspace secret consent.</value></data>
+  <data name="FilesDownloadCustodyNote" xml:space="preserve"><value>Browser downloads save to your browser's local download folder without native 0600 file-permission protection or target-host apply authority.</value></data>
+  <data name="RetryFileExport" xml:space="preserve"><value>Retry</value></data>
   <data name="ClearWorkspace" xml:space="preserve"><value>Clear workspace</value></data>
   <data name="PreviousSection" xml:space="preserve"><value>Previous section</value></data>
   <data name="NextSection" xml:space="preserve"><value>Next section</value></data>
@@ -703,4 +707,39 @@
   <data name="OutputTask" xml:space="preserve"><value>Output task</value></data>
   <data name="TransferAppliedStatus" xml:space="preserve"><value>Selected values applied. Review this output's settings before preparing files.</value></data>
   <data name="TransferRejectedStatus" xml:space="preserve"><value>The selected values could not be applied. Review them again; your answers are unchanged.</value></data>
+  <data name="CompactShowMatchesOnly" xml:space="preserve"><value>Show matches only</value></data>
+  <data name="CompactSectionJumpLabel" xml:space="preserve"><value>Jump to section</value></data>
+  <data name="CloseCompactPanel" xml:space="preserve"><value>Close panel</value></data>
+  <data name="CompactStateMissingRequired" xml:space="preserve"><value>Required answer missing</value></data>
+  <data name="CompactStateInvalid" xml:space="preserve"><value>Invalid value — needs correction</value></data>
+  <data name="CompactStateSecretLocked" xml:space="preserve"><value>Secret locked — enable workspace secret entry to edit</value></data>
+  <data name="CompactStateSupplied" xml:space="preserve"><value>Supplied ({0})</value></data>
+  <data name="CompactStateDefaulted" xml:space="preserve"><value>Initialized from definition default</value></data>
+  <data name="CompactStateOmitted" xml:space="preserve"><value>Optional — currently omitted</value></data>
+  <data name="CompactSectionAttentionCount" xml:space="preserve"><value>{0} need attention</value></data>
+  <data name="CompactSectionReadyCount" xml:space="preserve"><value>{0}/{1} required ready</value></data>
+  <data name="CompactSectionOptionalStatus" xml:space="preserve"><value>Optional settings</value></data>
+  <data name="ReturningUserEntry" xml:space="preserve"><value>Starting mode</value></data>
+  <data name="StartFreshEntry" xml:space="preserve"><value>Start fresh</value></data>
+  <data name="UseExistingConfigurationEntry" xml:space="preserve"><value>Use an existing configuration</value></data>
+  <data name="OpenSavedProfileEntry" xml:space="preserve"><value>Open a saved profile</value></data>
+  <data name="TransientSessionGuardNote" xml:space="preserve"><value>Browser answers stay in memory only for this session. Save an encrypted portable profile (.cfgvault) before leaving if you need to resume later.</value></data>
+  <data name="ProfileModeInspectableDisclosure" xml:space="preserve"><value>Inspectable-encrypted mode: retained values stay in the isolated profile worker until you explicitly confirm ordinary form inspection, which retires worker custody.</value></data>
+  <data name="ProfileModeUpgradeOnlyDisclosure" xml:space="preserve"><value>Import-upgrade-only mode: retained secret values stay sealed inside the isolated profile worker for blind upgrade composition and cannot be revealed or copied into ordinary form controls.</value></data>
+  <data name="ProfileRecoveryStateUnverified" xml:space="preserve"><value>Recovery status: unverified until the exact downloaded .cfgvault copy is opened with its portable passphrase.</value></data>
+  <data name="ProfileRecoveryStateVerified" xml:space="preserve"><value>Recovery status: verified against the exact saved .cfgvault copy.</value></data>
+  <data name="SourceCancelled" xml:space="preserve"><value>Definition loading cancelled. The URL is preserved so you can edit, retry, or choose a local file.</value></data>
+  <data name="RetrySource" xml:space="preserve"><value>Retry loading URL</value></data>
+  <data name="ChooseLocalDefinition" xml:space="preserve"><value>Choose local file</value></data>
+  <data name="RetryDirectory" xml:space="preserve"><value>Retry optional directory</value></data>
+  <data name="ClearSearch" xml:space="preserve"><value>Clear search</value></data>
+  <data name="AppPreparationOfflineStatus" xml:space="preserve"><value>No connection is available and offline workspace preparation is not finished yet. No answers were submitted or discarded; connect or finish preparing the app, then retry.</value></data>
+  <data name="RecoverCorrection" xml:space="preserve"><value>Go to setting to fix</value></data>
+  <data name="RecoverImport" xml:space="preserve"><value>Review import</value></data>
+  <data name="RecoverProfile" xml:space="preserve"><value>Open saved profile</value></data>
+  <data name="RecoverExportFiles" xml:space="preserve"><value>Review files</value></data>
+  <data name="SecretCancelled" xml:space="preserve"><value>Secret generation cancelled. Your existing value is unchanged.</value></data>
+  <data name="SecretGenerationFailed" xml:space="preserve"><value>Secret generation failed in this browser context. Your existing value is unchanged; you can retry or enter a value.</value></data>
+  <data name="RetrySecretGeneration" xml:space="preserve"><value>Retry secret generation</value></data>
+  <data name="RetryProfileTask" xml:space="preserve"><value>Reset profile message and retry</value></data>
 </root>

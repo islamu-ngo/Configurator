@@ -6,6 +6,7 @@ let initialization;
 let registration;
 let appPrepared = false;
 let offlineReady = false;
+let updateWaiting = false;
 let generation = 0;
 const appAssets = new Set();
 let abandoned = false;
@@ -42,6 +43,7 @@ export function canFetchDefinition() {
 window.configuratorPwa = Object.freeze({
     canFetchDefinition, prepareDefinitionFetch,
     canReadPublicAssets: () => !abandoned && !workspaceActive,
+    hasWaitingUpdate: () => !abandoned && updateWaiting,
     isAbandoned: () => abandoned
 });
 
@@ -140,10 +142,27 @@ function workerRequest(worker, type, active = false) {
 }
 
 async function initializeApp() {
-    if (!('serviceWorker' in navigator)) return { appPrepared: false, offlineReady: false, online: navigator.onLine };
+    if (!('serviceWorker' in navigator)) {
+        return { appPrepared: false, offlineReady: false, online: navigator.onLine, updateWaiting: false };
+    }
     try {
         registration = await navigator.serviceWorker.register(new URL('service-worker.js', document.baseURI),
             { scope: new URL('./', document.baseURI).pathname, updateViaCache: 'none' });
+        updateWaiting = Boolean(registration.waiting);
+        registration.addEventListener?.('updatefound', () => {
+            const installing = registration?.installing;
+            if (!installing) {
+                if (registration?.waiting) updateWaiting = true;
+                return;
+            }
+            const trackInstall = () => {
+                if (installing.state === 'installed' && navigator.serviceWorker?.controller) {
+                    updateWaiting = true;
+                }
+            };
+            installing.addEventListener?.('statechange', trackInstall);
+            trackInstall();
+        });
         const worker = registration.active ?? registration.installing;
         if (worker && worker.state !== 'activated') {
             await new Promise((resolve, reject) => {
@@ -162,12 +181,13 @@ async function initializeApp() {
         const state = await workerRequest(registration.active, 'status');
         appPrepared = state?.appPrepared === true;
         offlineReady = state?.offlineReady === true;
+        updateWaiting = updateWaiting || Boolean(registration.waiting);
         if (appPrepared) for (const url of state.assets ?? []) appAssets.add(url);
     } catch {
         appPrepared = false;
         offlineReady = false;
     }
-    return { appPrepared, offlineReady, online: navigator.onLine };
+    return { appPrepared, offlineReady, online: navigator.onLine, updateWaiting };
 }
 
 export function initialize() {

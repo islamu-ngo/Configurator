@@ -177,6 +177,43 @@ public sealed class BrowserRichWidgetsAndGroupsTests
         await Assert.That(component.FindAll("[data-shortcuts-dialog]").Count).IsEqualTo(1);
     }
 
+    [Test]
+    public async Task NavigatingToFieldInCollapsedGroupExpandsGroupAndPreservesTypedPresenceAndLogicalRowIdentity()
+    {
+        var definition = CreateRichDefinition();
+        await using var context = BrowserFixture.Context();
+        var component = BrowserFixture.RenderWorkspace(context, definition);
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+
+        await Assert.That(form.Snapshot().Values.ContainsKey("tlsEnabled")).IsFalse();
+        await component.Find("[data-field='tlsEnabled'] [role='switch']").ChangeAsync(new ChangeEventArgs { Value = false });
+        await Assert.That(form.Snapshot().Values["tlsEnabled"].GetBoolean()).IsFalse();
+        await Assert.That(component.Find("[data-field='tlsEnabled'] [role='switch']").GetAttribute("aria-checked")).IsEqualTo("false");
+
+        await Assert.That(form.Snapshot().Values.ContainsKey("tenants")).IsFalse();
+        await component.Find("[data-field='tenants'] [data-action='supply-list']").ClickAsync(new MouseEventArgs());
+        await Assert.That(form.Snapshot().Values["tenants"].GetArrayLength()).IsEqualTo(0);
+
+        await component.Find("[data-field='tenants'] [data-action='add-item']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-field='tenants.0.region'] input").InputAsync(new ChangeEventArgs { Value = "eu" });
+        await component.Find("[data-field='tenants.0.slug'] input").InputAsync(new ChangeEventArgs { Value = "alpha" });
+        await component.Find("[data-field='tenants'] [data-action='add-item']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-field='tenants.1.region'] input").InputAsync(new ChangeEventArgs { Value = "us" });
+        await component.Find("[data-field='tenants.1.slug'] input").InputAsync(new ChangeEventArgs { Value = "beta" });
+
+        IReadOnlyList<long> beforeIds = form.GetListRowIdentities(["tenants"]);
+        await Assert.That(beforeIds.Count).IsEqualTo(2);
+        await component.Find("[data-list-item-index='0'] [data-action='remove-item']").ClickAsync(new MouseEventArgs());
+        IReadOnlyList<long> afterIds = form.GetListRowIdentities(["tenants"]);
+        await Assert.That(afterIds.Count).IsEqualTo(1);
+        await Assert.That(afterIds[0]).IsEqualTo(beforeIds[1]);
+
+        await component.InvokeAsync(() => form.FocusEditor(["optionalNote"]));
+        await BrowserFixture.SectionNavigation(context, component).Find("[data-section='security']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-group='healthy-collapsed']").GetAttribute("data-group-expanded")).IsEqualTo("true");
+        await Assert.That(component.FindAll("[data-field='optionalNote']").Count).IsEqualTo(1);
+    }
+
     private static Definition CreateRichDefinition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {
       "schemaVersion": "0.0.1",

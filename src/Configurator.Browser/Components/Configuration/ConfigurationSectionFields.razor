@@ -59,36 +59,33 @@
                         <span>@group.Title</span>
                         <span aria-hidden="true">@(group.IsExpanded ? "−" : "+")</span>
                     </button>
-                    @if (!string.IsNullOrWhiteSpace(group.Description) && group.IsExpanded)
+                    @if (!string.IsNullOrWhiteSpace(group.Description))
                     {
-                        <p class="configuration-section-group__description">@group.Description</p>
+                        <p class="configuration-section-group__description" hidden="@(!group.IsExpanded)" inert="@(!group.IsExpanded)">@group.Description</p>
                     }
-                    @if (group.IsExpanded)
-                    {
-                        <div class="configuration-section-group__fields">
-                            @foreach (int index in groupIndices)
-                            {
-                                var state = _activeFields[index];
-                                var node = _plan.Roots[index];
-                                var editor = Form.GetFieldEditor(state.Id);
-                                <div @key="editor.Input" class="configuration-section-fields__slot">
-                                    @if (node.Admitted)
-                                    {
-                                        <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
-                                                            MountNode="node" MountRevision="_planRevision" Validation="Validation" RequiredOverride="state.IsRequired"
-                                                            FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
-                                                            FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
-                                    }
-                                    else
-                                    {
-                                        <div class="configuration-section-fields__placeholder" aria-hidden="true">
-                                            @(Form.GetEditorPresentation([state.Id])?.Title ?? Configurator.Core.Definitions.DefinitionDisplayText.Resolve(state.Definition.Title, state.Id))
-                                        </div>
-                                    }
-                                </div>
-                            }
-                        </div>
-                    }
+                    <div class="configuration-section-group__fields" hidden="@(!group.IsExpanded)" inert="@(!group.IsExpanded)">
+                        @foreach (int index in groupIndices)
+                        {
+                            var state = _activeFields[index];
+                            var node = _plan.Roots[index];
+                            var editor = Form.GetFieldEditor(state.Id);
+                            <div @key="editor.Input" class="configuration-section-fields__slot">
+                                @if (node.Admitted)
+                                {
+                                    <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
+                                                        MountNode="node" MountRevision="_planRevision" Validation="Validation" RequiredOverride="state.IsRequired"
+                                                        FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
+                                                        FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
+                                }
+                                else
+                                {
+                                    <div class="configuration-section-fields__placeholder" aria-hidden="true">
+                                        @(Form.GetEditorPresentation([state.Id])?.Title ?? Configurator.Core.Definitions.DefinitionDisplayText.Resolve(state.Definition.Title, state.Id))
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
                 </section>
             }
         </div>
@@ -120,5 +117,5 @@
 </div>
 @if (Busy)
 {
-    <p class="configuration-section-fields__status" role="status">@Configurator.Browser.Resources.BrowserStrings.Get("SectionSettingsLoading", Form.Locale)</p>
+    <p class="configuration-section-fields__status" role="status" data-mount-status="pending">@Configurator.Browser.Resources.BrowserStrings.Get("SectionSettingsLoading", Form.Locale)</p>
 }

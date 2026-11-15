@@ -21,7 +21,10 @@ public partial class ConfigurationEditor
         {
             owner.SelectOutput(targetOption);
             _selectedSection = null;
-            SelectWorkflowStage(WorkflowStage.Configure);
+            if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
+                CloseCompactInlinePanel();
+            else
+                SelectWorkflowStage(WorkflowStage.Configure);
             RequestFocus(FocusTarget.Configure);
             return true;
         }
@@ -55,7 +58,10 @@ public partial class ConfigurationEditor
             if (result.ObserverFailed) InputChanged(owner, EventArgs.Empty);
             _transferReview = null;
             _selectedSection = null;
-            SelectWorkflowStage(WorkflowStage.Configure);
+            if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
+                CloseCompactInlinePanel();
+            else
+                SelectWorkflowStage(WorkflowStage.Configure);
             RequestFocus(FocusTarget.Configure);
             SetStatus(selection.SelectedIds.Count == 0 ? "AnswersChangedStatus" : "TransferAppliedStatus");
         }
@@ -76,10 +82,12 @@ public partial class ConfigurationEditor
         RequestFocus(CurrentStageFocus);
     }
 
-    private FocusTarget CurrentStageFocus => _activeWorkflowStage switch
-    {
-        WorkflowStage.Prepare => FocusTarget.Files,
-        WorkflowStage.Review => FocusTarget.Review,
-        _ => FocusTarget.Configure
-    };
+    private FocusTarget CurrentStageFocus => LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode
+        ? (_compactFilesOpen ? FocusTarget.Files : _compactReviewOpen ? FocusTarget.Review : FocusTarget.Configure)
+        : _activeWorkflowStage switch
+        {
+            WorkflowStage.Prepare => FocusTarget.Files,
+            WorkflowStage.Review => FocusTarget.Review,
+            _ => FocusTarget.Configure
+        };
 }

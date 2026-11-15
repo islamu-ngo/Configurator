@@ -119,6 +119,14 @@ public partial class ConfigurationVaultPanel : ComponentBase, IAsyncDisposable
         }
     }
 
+    private void RetryProfileTask(ProfileWorkerAuthority captured)
+    {
+        if (!Current(captured) || Busy) return;
+        _status = "ProfileLocalOnly";
+        _code = null;
+        _focusHeading = true;
+    }
+
     private void Cancel(ProfileWorkerAuthority captured)
     {
         if (!Current(captured)) return;

@@ -18,7 +18,10 @@ public partial class WorkspaceStartupGate
     [Parameter] public string? Title { get; set; }
     [Parameter] public string? StatusMessage { get; set; }
     [Parameter] public string? StatusCode { get; set; }
+    [Parameter] public bool IsOffline { get; set; }
+    [Parameter] public bool OfflineReady { get; set; }
     [Parameter] public EventCallback StartRequested { get; set; }
+    [Parameter] public EventCallback CancelRequested { get; set; }
 
     private ElementReference _startButton;
 
@@ -30,6 +33,14 @@ public partial class WorkspaceStartupGate
         WorkspaceStartupStage.PreparationFailed => "failed",
         WorkspaceStartupStage.Ready => "ready",
         _ => "before-entry"
+    };
+
+    private string OfflineToken => (IsOffline, OfflineReady) switch
+    {
+        (true, false) => "offline-incomplete",
+        (true, true) => "offline-ready",
+        (false, true) => "online-ready",
+        (false, false) => "online-incomplete"
     };
 
     private string T(string key) => BrowserStrings.Get(key, Locale);

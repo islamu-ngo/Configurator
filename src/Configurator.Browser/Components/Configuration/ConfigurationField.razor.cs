@@ -31,6 +31,7 @@ public partial class ConfigurationField
     [Parameter] public long FocusGeneration { get; set; }
     [Parameter] public int FocusRow { get; set; } = -1;
     [Parameter] public IReadOnlyList<string> FocusPath { get; set; } = [];
+    [Parameter] public bool CompactPresentation { get; set; }
     private ElementReference _addButton;
     private ElementReference _group;
     private ElementReference _radioGroup;
@@ -97,7 +98,8 @@ public partial class ConfigurationField
             && !Changed(nameof(FocusFirstControl), FocusFirstControl)
             && !Changed(nameof(FocusGeneration), FocusGeneration)
             && !Changed(nameof(FocusRow), FocusRow)
-            && !PathChanged(nameof(FocusPath), FocusPath);
+            && !PathChanged(nameof(FocusPath), FocusPath)
+            && !Changed(nameof(CompactPresentation), CompactPresentation);
         try
         {
             Task updating = base.SetParametersAsync(parameters);
@@ -115,7 +117,7 @@ public partial class ConfigurationField
 
     // Cascading consent callbacks can arrive before the owner reconciles row paths.
     // Only parameters belonging to the current input revision may render that tree.
-    protected override bool ShouldRender() => !_suppressParameterRender && MountRevision == Form.InputRevision;
+    protected override bool ShouldRender() => _selfRenderRequested || (!_suppressParameterRender && !_scalarRenderSuppressed && MountRevision == Form.InputRevision);
 
     private DefinitionPath EditorLocation(IReadOnlyList<string> path) => DefinitionPath.FromSegments(LiteralPath ? path
         : new[] { Form.GetFieldEditor(path[0]).Input.Definition.Name }.Concat(path.Skip(1)));
@@ -133,7 +135,10 @@ public partial class ConfigurationField
             if (Schema.Secret is not null)
                 return string.Join(" ", Form.GetSecretValidation(EditorPath, Validation is not null).Failures.Select(item => item.Message));
             if (Validation is null && !Form.HasInputError(EditorPath)) return string.Empty;
-            var codes = (Validation?.Diagnostics ?? []).Concat(Form.InputDiagnostics).Where(MatchesDiagnostic)
+            string fieldId = Path.Count > 0 ? Path[0] : string.Empty;
+            IEnumerable<DefinitionDiagnostic> validationDiagnostics = Validation?.DiagnosticsForField(fieldId) ?? [];
+            IEnumerable<DefinitionDiagnostic> inputDiagnostics = Form.HasInputError(EditorPath) ? Form.InputDiagnostics : [];
+            var codes = validationDiagnostics.Concat(inputDiagnostics).Where(MatchesDiagnostic)
                 .Select(diagnostic => diagnostic.Code).Distinct(StringComparer.Ordinal);
             return string.Join(" ", codes.Append(PresentationStrings.FieldCorrection(CorrectionFacts, Form.Locale)));
         }
@@ -153,6 +158,38 @@ public partial class ConfigurationField
         string.Format(System.Globalization.CultureInfo.GetCultureInfo(Form.Locale), Ui(key), values);
     private string Type => Schema.JsonType;
     private string Title => TitleOverride ?? _presentation?.Title ?? (Schema.Keywords.TryGetProperty("title", out var value) ? value.GetString()! : Ui("FieldItem"));
+    private DefinitionAnswerOrigin CompactOrigin => Form.AnswerOrigin(Path);
+    private string CompactFieldOrigin => CompactOrigin.ToString().ToLowerInvariant();
+    private string CompactFieldState
+    {
+        get
+        {
+            if (_invalid || Error.Length > 0) return "invalid";
+            if (IsSecret && !CanEdit) return "secret-locked";
+            if (Required && Value is null) return "missing-required";
+            if (Value is not null && CompactOrigin == DefinitionAnswerOrigin.Defaulted) return "defaulted";
+            if (Value is not null) return "supplied";
+            return "omitted";
+        }
+    }
+    private string CompactStatusIcon => CompactFieldState switch
+    {
+        "invalid" => Icons.Material.Outlined.ErrorOutline,
+        "secret-locked" => Icons.Material.Outlined.Lock,
+        "missing-required" => Icons.Material.Outlined.PriorityHigh,
+        "defaulted" => Icons.Material.Outlined.RestartAlt,
+        "supplied" => Icons.Material.Outlined.CheckCircleOutline,
+        _ => Icons.Material.Outlined.RemoveCircleOutline
+    };
+    private string CompactStatusLabel => CompactFieldState switch
+    {
+        "invalid" => Ui("CompactStateInvalid"),
+        "secret-locked" => Ui("CompactStateSecretLocked"),
+        "missing-required" => Ui("CompactStateMissingRequired"),
+        "defaulted" => Ui("CompactStateDefaulted"),
+        "supplied" => UiFormat("CompactStateSupplied", CompactFieldOrigin),
+        _ => Ui("CompactStateOmitted")
+    };
     private string? Help => _presentation?.Instructions ?? _presentation?.Description
         ?? (Schema.Keywords.TryGetProperty("description", out var value) ? value.GetString() : null);
     private DefinitionNode ObjectSchema => Value is { } value ? DefinitionValidator.SelectVariant(Schema, value) ?? Schema : Schema;
@@ -361,7 +398,7 @@ public partial class ConfigurationField
             DefinitionSecretAcquisition.Issuer => Ui("CredentialIssuerHelp"),
             DefinitionSecretAcquisition.Local => Ui("CredentialCreateHelp"),
             _ => Ui("CredentialExistingHelp")
-        } + " " + Ui("CredentialCustodyHelp")
+        }
         : null;
     private DefinitionNode ItemSchema => Form.GetListItemMetadata(EditorPath);
     private JsonElement? Value
@@ -381,11 +418,166 @@ public partial class ConfigurationField
             return value;
         }
     }
+    private bool _scalarRenderSuppressed;
+    private bool _selfRenderRequested;
+    private long _verifiedScalarInputRevision = -1;
+    private long _verifiedScalarStampEpoch = -1;
+    private DefinitionFormModel? _verifiedScalarForm;
+    private DefinitionValidationResult? _verifiedScalarValidation;
+    private long _verifiedRootScalarEpoch = -1;
+    private long _renderedInputRevision = -1;
+    private long _scalarSynchronizedRevision = -1;
+    private DefinitionFormModel? _renderedScalarForm;
+    private DefinitionScalarFieldStamp _renderedScalarStamp;
+    private DefinitionNode? _renderedSchema;
+    private DefinitionValidationResult? _renderedValidation;
+    private string? _renderedMountIdentity;
+    private DefinitionPath? _renderedMountLocation;
+    private bool _renderedMountAdmitted;
+    private bool _renderedCompactPresentation;
+    private bool? _renderedRequiredOverride;
+    private bool _renderedInheritedSecret;
+    private string? _renderedTitleOverride;
+    private bool _renderedFocusFirstControl;
+    private long _renderedFocusGeneration;
+    private string[] _renderedFocusPath = [];
+    private string[] _renderedPath = [];
+    private Func<(IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys)>? _getBindingsDelegate;
+    private Func<(IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys)> GetBindingsDelegate =>
+        _getBindingsDelegate ??= InspectorBindings;
+
+    private bool CanSkipScalarRender()
+    {
+        if (!_renderedScalarStamp.SupportsSkip || _selfRenderRequested || LiteralPath || Path.Count == 0 ||
+            Schema.Secret is not null || (HasChoices && !CompactPresentation) ||
+            MountNode is null || !MountNode.Admitted || MountNode.Children.Count > 0 ||
+            !ReferenceEquals(_renderedScalarForm, Form) ||
+            !ReferenceEquals(_renderedSchema, Schema) ||
+            _renderedMountIdentity != MountNode.Identity ||
+            _renderedMountAdmitted != MountNode.Admitted ||
+            !Equals(_renderedMountLocation, MountNode.Location) ||
+            _renderedCompactPresentation != CompactPresentation ||
+            _renderedRequiredOverride != RequiredOverride ||
+            _renderedInheritedSecret != InheritedSecret ||
+            !string.Equals(_renderedTitleOverride, TitleOverride, StringComparison.Ordinal) ||
+            _renderedFocusFirstControl != FocusFirstControl ||
+            PathChangedFrom(_renderedPath, Path))
+            return false;
+        if (FocusFirstControl && (_renderedFocusGeneration != FocusGeneration || PathChangedFrom(_renderedFocusPath, FocusPath)))
+        {
+            _verifiedScalarForm = null;
+            return false;
+        }
+        if (Schema.Secret is not null && (_renderedValidation is null) != (Validation is null))
+        {
+            _verifiedScalarForm = null;
+            return false;
+        }
+        if (ReferenceEquals(_verifiedScalarForm, Form) &&
+            ReferenceEquals(_verifiedScalarValidation, Validation))
+        {
+            if (Path.Count == 1 && _verifiedRootScalarEpoch > 0 && Form.GetRootScalarEpoch(Path[0]) == _verifiedRootScalarEpoch)
+                return true;
+            if (Form.ScalarStampEpoch == _verifiedScalarStampEpoch &&
+                Form.InputRevision == _verifiedScalarInputRevision)
+                return true;
+        }
+        if (!ReferenceEquals(_renderedValidation, Validation) &&
+            !SameDiagnosticsForField(Path[0], _renderedValidation, Validation))
+        {
+            _verifiedScalarForm = null;
+            return false;
+        }
+        DefinitionScalarFieldStamp next = Form.GetScalarFieldRenderStamp(Path, InheritedSecret);
+        if (next.SupportsSkip && next.Equals(_renderedScalarStamp))
+        {
+            _verifiedScalarForm = Form;
+            _verifiedScalarStampEpoch = Form.ScalarStampEpoch;
+            _verifiedScalarInputRevision = Form.InputRevision;
+            _verifiedRootScalarEpoch = Path.Count == 1 ? Form.GetRootScalarEpoch(Path[0]) : -1L;
+            _verifiedScalarValidation = Validation;
+            return true;
+        }
+        _verifiedScalarForm = null;
+        return false;
+    }
+
+    private static bool PathChangedFrom(string[] previous, IReadOnlyList<string> current)
+    {
+        if (previous.Length != current.Count) return true;
+        for (int i = 0; i < previous.Length; i++)
+            if (!string.Equals(previous[i], current[i], StringComparison.Ordinal)) return true;
+        return false;
+    }
+
+    internal static bool SameDiagnosticsForField(string fieldId, DefinitionValidationResult? previous, DefinitionValidationResult? current)
+    {
+        IReadOnlyList<DefinitionDiagnostic> a = previous?.DiagnosticsForField(fieldId) ?? [];
+        IReadOnlyList<DefinitionDiagnostic> b = current?.DiagnosticsForField(fieldId) ?? [];
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+        {
+            DefinitionDiagnostic left = a[i];
+            DefinitionDiagnostic right = b[i];
+            if (!string.Equals(left.Code, right.Code, StringComparison.Ordinal) ||
+                !string.Equals(left.FieldId, right.FieldId, StringComparison.Ordinal) ||
+                !SameStringList(left.RelativePath, right.RelativePath) ||
+                !SameLocationSegments(left.Location, right.Location))
+                return false;
+        }
+        return true;
+    }
+
+    private static bool SameStringList(IReadOnlyList<string> left, IReadOnlyList<string> right)
+    {
+        if (ReferenceEquals(left, right)) return true;
+        if (left.Count != right.Count) return false;
+        for (int i = 0; i < left.Count; i++)
+        {
+            if (!string.Equals(left[i], right[i], StringComparison.Ordinal))
+                return false;
+        }
+        return true;
+    }
+
+    private static bool SameLocationSegments(DefinitionCorrectionLocation? left, DefinitionCorrectionLocation? right)
+    {
+        if (ReferenceEquals(left, right)) return true;
+        if (left is null || right is null) return false;
+        IReadOnlyList<DefinitionLocationSegment> a = left.Segments;
+        IReadOnlyList<DefinitionLocationSegment> b = right.Segments;
+        if (a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+        {
+            if (!a[i].Equals(b[i]))
+                return false;
+        }
+        return true;
+    }
+
+    private bool IsSynchronizedRevision(long expectedRevision) =>
+        Form.InputRevision == expectedRevision ||
+        (_scalarRenderSuppressed && expectedRevision == _renderedInputRevision && Form.InputRevision == _scalarSynchronizedRevision);
+
     protected override void OnParametersSet()
     {
         // A field first mounted by a stale plan still renders once; bind its root input before deferring the rest.
         if (!LiteralPath && _rootInput is null) _rootInput = Form.GetFieldEditor(Path[0]).Input;
-        if (_suppressParameterRender || MountRevision != Form.InputRevision) return;
+        if (MountRevision != Form.InputRevision)
+        {
+            _scalarRenderSuppressed = false;
+            _scalarSynchronizedRevision = -1;
+            return;
+        }
+        if (_suppressParameterRender)
+            return;
+        if (CanSkipScalarRender())
+        {
+            _scalarRenderSuppressed = true;
+            _scalarSynchronizedRevision = Form.InputRevision;
+            return;
+        }
+        _scalarRenderSuppressed = false;
         if (_pendingFocusIdentity is not null && (_pendingFocusRevision != Form.InputRevision ||
             !ReferenceEquals(_rootForm, Form) || _lastPrivacy != Form.SessionPrivacy ||
             !ConfigurationMountPlan.Descendants([MountNode]).Any(node => node.Identity == _pendingFocusIdentity)))
@@ -435,12 +627,38 @@ public partial class ConfigurationField
             _invalid = invalid;
             _ = NotifyValidityAsync();
         }
+        _renderedInputRevision = Form.InputRevision;
+        _verifiedScalarForm = Form;
+        _verifiedScalarStampEpoch = Form.ScalarStampEpoch;
+        _verifiedScalarInputRevision = _renderedInputRevision;
+        _verifiedRootScalarEpoch = !LiteralPath && Path.Count == 1 ? Form.GetRootScalarEpoch(Path[0]) : -1L;
+        _verifiedScalarValidation = Validation;
+        _scalarSynchronizedRevision = Form.InputRevision;
+        _renderedScalarForm = Form;
+        _renderedSchema = Schema;
+        _renderedValidation = Validation;
+        _renderedMountIdentity = MountNode.Identity;
+        _renderedMountLocation = MountNode.Location;
+        _renderedMountAdmitted = MountNode.Admitted;
+        _renderedCompactPresentation = CompactPresentation;
+        _renderedRequiredOverride = RequiredOverride;
+        _renderedInheritedSecret = InheritedSecret;
+        _renderedTitleOverride = TitleOverride;
+        _renderedFocusFirstControl = FocusFirstControl;
+        _renderedFocusGeneration = FocusGeneration;
+        _renderedFocusPath = FocusFirstControl ? (FocusPath.Count == 0 ? [] : FocusPath.ToArray()) : [];
+        if (_renderedPath.Length != Path.Count || PathChangedFrom(_renderedPath, Path))
+            _renderedPath = Path.ToArray();
+        _renderedScalarStamp = !LiteralPath && MountNode.Admitted && MountNode.Children.Count == 0 &&
+            Type is not ("object" or "array")
+            ? Form.GetScalarFieldRenderStamp(Path, InheritedSecret)
+            : default;
     }
     private bool Edit(ChangeEventArgs args, DefinitionFormModel expectedForm, IReadOnlyList<string> expectedPath,
         long expectedRevision, long expectedControlGeneration)
     {
         if (_disposed || !_controlMounted || _controlGeneration != expectedControlGeneration || !ReferenceEquals(Form, expectedForm)
-            || Form.InputRevision != expectedRevision || !Path.SequenceEqual(expectedPath)) return false;
+            || !IsSynchronizedRevision(expectedRevision) || !Path.SequenceEqual(expectedPath)) return false;
         string selection = args.Value?.ToString() ?? "";
         if (selection.Length == 0) { Omit(); return true; }
         if (HasChoices)
@@ -462,6 +680,7 @@ public partial class ConfigurationField
     private void EditText(string? suppliedText)
     {
         if (!CanEdit) return;
+        _selfRenderRequested = true;
         string text = suppliedText ?? string.Empty;
         _invalid = !Form.EditValue(EditorPath, text);
         _ = NotifyValidityAsync();
@@ -469,7 +688,7 @@ public partial class ConfigurationField
     private bool EditText(string? text, DefinitionFormModel expectedForm, IReadOnlyList<string> expectedPath, long expectedRevision,
         long expectedControlGeneration, bool changeOnly = false)
     {
-        if (_disposed || !_controlMounted || _controlGeneration != expectedControlGeneration || !ReferenceEquals(Form, expectedForm) || Form.InputRevision != expectedRevision
+        if (_disposed || !_controlMounted || _controlGeneration != expectedControlGeneration || !ReferenceEquals(Form, expectedForm) || !IsSynchronizedRevision(expectedRevision)
             || !Path.SequenceEqual(expectedPath)) return false;
         if (changeOnly && _lastInputRevision == expectedRevision && Text == text) return false;
         bool keepMultilineVisible = IsMultilineSecret && _secretRevealed;
@@ -481,6 +700,7 @@ public partial class ConfigurationField
     private Task NotifyValidityAsync() => ValidationChanged.InvokeAsync((ControlId, Path.Count == 0 ? "" : Path[0], _invalid));
     private void SetSecretRevealed(bool revealed)
     {
+        _selfRenderRequested = true;
         if (IsMultilineSecret && revealed != _secretRevealed)
         {
             ++_controlGeneration;
@@ -490,14 +710,16 @@ public partial class ConfigurationField
     }
     private (IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys) InspectorBindings()
     {
-        var state = Form.GetEditorState(EditorPath);
-        var entry = state is null ? null : Form.Projection.Entries.FirstOrDefault(item => item.FieldId == state.FieldId
-            && item.RelativePath.SequenceEqual(state.RelativePath));
-        return entry is null ? ([], []) : (entry.OutputArtifactIds.ToArray(), entry.BindingKeys.ToArray());
+        if (!LiteralPath) return Form.GetEditorBindings(Path);
+        DefinitionNodeState? state = Form.GetEditorState(EditorPath);
+        return state is null || state.FieldId.Length == 0
+            ? ([], [])
+            : Form.GetEditorBindings([state.FieldId, .. state.RelativePath]);
     }
     private void Omit()
     {
         if (!Form.EditValue(EditorPath, null)) return;
+        _selfRenderRequested = true;
         _invalid = false;
         _focusAfterAction = true;
         _ = NotifyValidityAsync();
@@ -511,7 +733,7 @@ public partial class ConfigurationField
     }
     private bool IsCurrentAction(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation, bool requiresEdit = true) =>
         !_disposed && _actionsMounted && generation == _actionGeneration && ReferenceEquals(Form, form) &&
-        Form.InputRevision == revision && Path.SequenceEqual(path) && (!requiresEdit || CanEdit);
+        IsSynchronizedRevision(revision) && Path.SequenceEqual(path) && (!requiresEdit || CanEdit);
 
     private void OmitCurrent(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
     {
@@ -526,7 +748,13 @@ public partial class ConfigurationField
 
     private void Reset(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
     {
-        if (IsCurrentAction(form, path, revision, generation, requiresEdit: false) && CorrectionFacts.CanReset) { Form.ResetValue(EditorPath); _invalid = false; _ = NotifyValidityAsync(); }
+        if (IsCurrentAction(form, path, revision, generation, requiresEdit: false) && CorrectionFacts.CanReset)
+        {
+            Form.ResetValue(EditorPath);
+            _selfRenderRequested = true;
+            _invalid = false;
+            _ = NotifyValidityAsync();
+        }
     }
     private Task Suggest(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
     {
@@ -537,13 +765,20 @@ public partial class ConfigurationField
             return SuggestionReviewRequested.InvokeAsync(EditorPath);
         }
         Form.ApplySuggestion(EditorPath);
+        _selfRenderRequested = true;
         _invalid = false;
         _ = NotifyValidityAsync();
         return Task.CompletedTask;
     }
     private void SupplyNull(DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
     {
-        if (IsCurrentAction(form, path, revision, generation) && CorrectionFacts.CanSetNull) { Form.SetNull(EditorPath); _invalid = false; _ = NotifyValidityAsync(); }
+        if (IsCurrentAction(form, path, revision, generation) && CorrectionFacts.CanSetNull)
+        {
+            Form.SetNull(EditorPath);
+            _selfRenderRequested = true;
+            _invalid = false;
+            _ = NotifyValidityAsync();
+        }
     }
     private void ChooseVariant(string? choice, DefinitionFormModel form, IReadOnlyList<string> path, long revision, long generation)
     {
@@ -590,6 +825,7 @@ public partial class ConfigurationField
     }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        _selfRenderRequested = false;
         bool pendingFocusMounted = PendingFocusTarget is { Admitted: true };
         if (_focusAfterAction)
         {
@@ -657,6 +893,7 @@ public partial class ConfigurationField
     {
         get
         {
+            if (string.IsNullOrEmpty(_pendingFocusIdentity)) return null;
             ConfigurationMountNode? owner = ConfigurationMountPlan.Descendants([MountNode])
                 .FirstOrDefault(node => node.Identity == _pendingFocusIdentity);
             return owner is null ? null : ConfigurationMountPlan.Descendants([owner]).FirstOrDefault(node =>

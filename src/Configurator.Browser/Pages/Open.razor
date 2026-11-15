@@ -9,7 +9,9 @@
 @using Microsoft.JSInterop
 
 <PageTitle>@T(_workspaceOpen ? "WorkspaceTitle" : "OpenTitle") · Configurator</PageTitle>
-<div class="open-page" lang="@Culture.Locale">
+<div class="open-page" lang="@Culture.Locale"
+     data-workspace-phase="@(_workspaceOpen ? null : "definition-admission")"
+     data-admission-state="@(_workspaceOpen ? null : AdmissionState)">
 <header class="page-header">
     @if (_workspaceOpen && _selection is { } current)
     {
@@ -35,7 +37,7 @@
     @if (_workspaceOpen)
     {
         <ConfigurationEditor @key="selection" @ref="_editor" Definition="selection.Definition" InitialLocale="@selection.Locale"
-                             InitialEntry="@(selection.EntryExplicit ? selection.Entry : null)" />
+                             InitialEntry="@(selection.EntryExplicit ? selection.Entry : null)" InitialMode="@_initialMode" />
         <AppButton Variant="Variant.Outlined" data-action="discard-workspace" OnClick="ConfirmDiscardAsync">@T("DiscardToChoose")</AppButton>
     }
     else
@@ -45,7 +47,9 @@
         <div class="actions">
             <AppButton Variant="Variant.Outlined" Disabled="@(!_publicSafeConfirmed)" OnClick="RetainAsync">@T("RetainDefinition")</AppButton>
             <a class="button button--secondary" data-action="explore-definition" href="@($"explore/{selection.Definition.FamilyId:D}?digest={selection.Definition.Digest.Value}")">@T("ExploreDefinitionAction")</a>
-            <AppButton data-action="open-workspace" OnClick="OpenWorkspace">@T("OpenWorkspace")</AppButton>
+            <AppButton data-action="open-workspace" OnClick='() => OpenWorkspace("fresh")'>@T("OpenWorkspace")</AppButton>
+            <AppButton Variant="Variant.Outlined" data-action="open-workspace-import" OnClick='() => OpenWorkspace("import")'>@T("UseExistingConfigurationEntry")</AppButton>
+            <AppButton Variant="Variant.Outlined" data-action="open-workspace-profile" OnClick='() => OpenWorkspace("profile")'>@T("OpenSavedProfileEntry")</AppButton>
         </div>
         @if (_shareLink is { } shareLink)
         {
@@ -103,6 +107,10 @@
         </details>
         <div class="actions">
             <AppButton id="load-public-source" Disabled="@_loading" OnClick="LoadPublicAsync">@T(_loading ? "ReviewingDefinition" : "ReviewPublicDefinition")</AppButton>
+            @if (_loading)
+            {
+                <AppButton Variant="Variant.Outlined" data-action="cancel-source-load" OnClick="CancelSourceLoad">@T("Cancel")</AppButton>
+            }
         </div>
     </AppCard>
     </section>
@@ -121,9 +129,13 @@
     <p class="notice" role="status" data-code="@_statusCode">@T(_statusKey)
         @if (_statusKey is "SourceRejected" or "DefinitionRejected") { <span>@T("Code"): <bdi dir="ltr">@_statusCode</bdi></span> }
     </p>
-    @if (_statusKey is "SourceRejected" or "DefinitionRejected")
+    @if (_statusKey is "SourceRejected" or "DefinitionRejected" or "SourceCancelled")
     {
         <p>@T("EntrySourceRecovery")</p>
+        <div class="actions">
+            <AppButton Variant="Variant.Outlined" data-action="retry-source" OnClick="RetrySourceAsync">@T("RetrySource")</AppButton>
+            <AppButton Variant="Variant.Outlined" data-action="choose-local-source" OnClick="FocusLocalFile">@T("ChooseLocalDefinition")</AppButton>
+        </div>
     }
 }
 </div>
@@ -140,6 +152,7 @@
     private long _fileKey;
     private bool _loading;
     private bool _workspaceOpen;
+    private string _initialMode = "fresh";
     private bool _publicSafeConfirmed;
     private bool _disposed;
     private bool _restoreFileFocus;
@@ -156,6 +169,16 @@
     private CancellationTokenSource? _discardConfirmation;
     private string _statusCode = "source-ready";
     private string _statusKey = "SourceReady";
+
+    private string AdmissionState => _loading
+        ? "loading"
+        : _statusCode == "source-cancelled"
+            ? "cancelled"
+            : _statusKey is "SourceRejected" or "DefinitionRejected"
+                ? "rejected"
+                : _selection is not null
+                    ? "admitted"
+                    : "idle";
 
     protected override async Task OnInitializedAsync()
     {
@@ -190,6 +213,11 @@
         try
         {
             BrowserDefinitionPointer pointer = BrowserDefinitionPointer.Parse(uri.Fragment, uri.Query);
+            _sourceUrl = pointer.Source.AbsoluteUri;
+            _digest = pointer.Digest ?? string.Empty;
+            _appVersion = pointer.AppVersion ?? string.Empty;
+            _entry = pointer.Entry ?? string.Empty;
+            _locale = pointer.Locale ?? string.Empty;
             BrowserLaunchSelection selection = await _source.FetchAsync(pointer);
             if (_disposed || generation != _generation) return;
             _selection = selection;
@@ -264,7 +292,32 @@
         _publicSafeConfirmed = false;
     }
 
-    private void OpenWorkspace() { _workspaceOpen = true; _publicSafeConfirmed = false; }
+    private void CancelSourceLoad()
+    {
+        if (_disposed || !_loading) return;
+        _generation++;
+        _source?.Invalidate();
+        _loading = false;
+        _statusCode = "source-cancelled";
+        _statusKey = "SourceCancelled";
+        _restoreSourceFocus = true;
+    }
+
+    private Task RetrySourceAsync()
+    {
+        if (_disposed || _loading || _workspaceOpen) return Task.CompletedTask;
+        if (!string.IsNullOrWhiteSpace(_sourceUrl)) return LoadPublicAsync();
+        _restoreSourceFocus = true;
+        return Task.CompletedTask;
+    }
+
+    private void FocusLocalFile()
+    {
+        if (_disposed || _workspaceOpen) return;
+        _restoreFileFocus = true;
+    }
+
+    private void OpenWorkspace(string mode = "fresh") { _initialMode = mode; _workspaceOpen = true; _publicSafeConfirmed = false; }
 
     private async Task LoadPublicAsync()
     {

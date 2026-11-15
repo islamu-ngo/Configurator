@@ -74,15 +74,18 @@ No route/hash navigation, docking framework or second answer model is involved.
 
 Workspace detail is Essential, Standard or All active in the selected profile,
 with an explicit Follow experience choice. Density supports the 4-step workspace
-density scale (with Comfortable/Compact in the editor toolbar); CSS variables
-change field/group gaps and control height, never font size, answers or
-validation. Coarse-pointer controls retain 44px targets. The toolbar keeps
-authored experience, Guided/Compact/Developer mode switching, Humanized/Technical
-naming (`Ctrl+Shift+K`), Undo/Redo (`Ctrl+Z`/`Ctrl+Shift+Z` with secret purge on
-consent revocation + `ISnackbar` confirmation), `?` keyboard shortcut dialog,
-detail, density and consent distinct. Declared-output explanations live in the
-existing privacy disclosure and `Files` browser-custody notice so the first
-short-fixture question is reachable without scrolling at 1440x900. Optional
+density scale; CSS variables change field/group gaps and control height, never
+font size, answers or validation. Coarse-pointer controls retain 44px targets.
+`WorkspaceHeader` keeps the definition title, scope chip, secret-consent chip,
+and Guided/Compact/Review/Files mode switching at the top of the workspace,
+followed immediately by concise context/progress and the active section heading
+and first editable question so the first short-reference question is reachable
+without scrolling at `1366x768` and `1440x900`. Secondary tools (Form/Developer
+mode switching, Humanized/Technical naming `Ctrl+Shift+K`, Undo/Redo
+`Ctrl+Z`/`Ctrl+Shift+Z` with secret purge on consent revocation + `ISnackbar`
+confirmation, `?` keyboard shortcut dialog, experience/detail, density, portable
+profile vault, language and declared-output privacy disclosures) render after
+the primary questions. Optional
 field omission moves into a named row-action menu; omitting a container
 explicitly names its nested answers and remains distinct from collapsing
 optional detail. Wide viewports (`>= 1280px`) render schema inspection in a
@@ -118,8 +121,11 @@ docked `ConfigurationInspectorPane`, while secret generation uses the modal
   not invent work.
 - **Editor:** connected label, required/optional state, current input, short help
   and error. Local optional disclosure uses a labeled button with
-  `aria-expanded`; required/error ancestors stay reachable. Only the selected
-  section mounts editors; the shared form owns drafts and row identity.
+  `aria-expanded`; required/error ancestors stay reachable. In Guided mode, only the selected
+  section mounts editors; in Compact mode (`ConfigurationCompactWorkspace`), all applicable
+  sections mount in a single continuous vertical flow under one `ConfigurationMountPlan`
+  with concise status badges (`[data-compact-status]`), non-disposing group collapse (`hidden`
+  + `inert`), and inline Review/Files panels. The shared form owns drafts and row identity.
   Large sections mount additional root fields in bounded batches while retaining
   connected controls. A busy region means editors are still mounting, not that
   answers are complete. Correction can prioritize its current field. Edits,

@@ -257,3 +257,115 @@ for (const basePath of ["/", "/configurator/"]) {
         assert.equal(missing.type, "error");
     });
 }
+
+test("published service worker never invokes skipWaiting while existing client stays active", async () => {
+    const scope = new URL("/", "https://configurator.invalid");
+    const source = await readFile(new URL(
+        "../../../src/Configurator.Browser/wwwroot/service-worker.published.js", import.meta.url), "utf8");
+    let skipWaitingCalled = false;
+    let claimedClients = false;
+    const listeners = new Map();
+    const deletedCaches = [];
+    runInNewContext(source, {
+        URL, Request, Response, importScripts() {},
+        caches: {
+            async has() { return true; },
+            async open() { return { async addAll() {}, async match() { return undefined; } }; },
+            async keys() { return ["configurator-app-v1", "configurator-app-v2"]; },
+            async delete(name) { deletedCaches.push(name); return true; }
+        },
+        self: {
+            registration: { scope: scope.href },
+            navigator: { onLine: true },
+            assetsManifest: { version: "v2", assets: [] },
+            skipWaiting() { skipWaitingCalled = true; return Promise.resolve(); },
+            clients: { async claim() { claimedClients = true; } },
+            addEventListener(type, listener) { listeners.set(type, listener); }
+        }
+    });
+    await new Promise((resolve, reject) => listeners.get("install")({
+        waitUntil(pending) { pending.then(resolve, reject); }
+    }));
+    assert.equal(skipWaitingCalled, false);
+    assert.equal(claimedClients, false);
+    await new Promise((resolve, reject) => listeners.get("activate")({
+        waitUntil(pending) { pending.then(resolve, reject); }
+    }));
+    assert.equal(skipWaitingCalled, false);
+    assert.deepEqual(deletedCaches, ["configurator-app-v1"]);
+});
+
+test("pwa-lifecycle tracks waiting updates without reloading or replacing active workspace", async () => {
+    const source = await readFile(new URL(
+        "../../../src/Configurator.Browser/wwwroot/pwa-lifecycle.js", import.meta.url), "utf8");
+    const waitingWorkerMessages = [];
+    let reloaded = false;
+    const activeWorker = {
+        state: "activated",
+        postMessage(data, ports) {
+            if (data?.type === "status") {
+                ports?.[0]?.postMessage({ appPrepared: true, offlineReady: true, assets: [] });
+            } else if (data?.type === "custody") {
+                ports?.[0]?.postMessage({ accepted: true });
+            }
+        }
+    };
+    const waitingWorker = {
+        state: "installed",
+        postMessage(data) { waitingWorkerMessages.push(data); }
+    };
+    const registrationListeners = new Map();
+    const mockRegistration = {
+        active: activeWorker,
+        waiting: waitingWorker,
+        installing: null,
+        addEventListener(type, listener) { registrationListeners.set(type, listener); }
+    };
+    const windowStub = {
+        fetch: async () => new Response("ok"),
+        WebSocket: class {},
+        EventSource: class {},
+        addEventListener() {},
+        removeEventListener() {},
+        dispatchEvent() {}
+    };
+    const documentStub = {
+        baseURI: "https://configurator.invalid/",
+        getElementById() { return null; },
+        querySelectorAll() { return []; }
+    };
+    const sandbox = {
+        URL, Request, Response, CustomEvent, MessageChannel, setTimeout, clearTimeout,
+        XMLHttpRequest: class { open() {} },
+        WebSocket: class {},
+        EventSource: class {},
+        window: windowStub,
+        document: documentStub,
+        location: { origin: "https://configurator.invalid", reload() { reloaded = true; } },
+        navigator: {
+            onLine: true,
+            sendBeacon: () => true,
+            serviceWorker: {
+                controller: activeWorker,
+                register: async () => mockRegistration
+            }
+        }
+    };
+    const stripped = source.replace(/^export\s+/gm, "");
+    const api = {};
+    runInNewContext(`${stripped}\nObject.assign(__exports, { initialize, beginWorkspace, endWorkspace, canFetchDefinition });`, {
+        ...sandbox,
+        __exports: api
+    });
+    const state = await api.initialize();
+    assert.equal(state.appPrepared, true);
+    assert.equal(state.updateWaiting, true);
+    assert.equal(windowStub.configuratorPwa.hasWaitingUpdate(), true);
+    assert.equal(await api.beginWorkspace(1), true);
+    const controllerUpdate = registrationListeners.get("updatefound");
+    if (controllerUpdate) controllerUpdate();
+    assert.equal(reloaded, false);
+    assert.equal(waitingWorkerMessages.length, 0);
+    assert.equal(api.canFetchDefinition(), false);
+    await api.endWorkspace(2);
+});

@@ -5,6 +5,7 @@
 @using Configurator.Core.Definitions
 
 <section class="configuration-files" aria-labelledby="@("artifact-" + Metadata.ArtifactId)"
+         data-operation-phase="private-export"
          data-prepared-file="@Metadata.ArtifactId" data-readiness="@(Metadata.IsDraft ? "draft" : "complete")">
     <h4 id="@("artifact-" + Metadata.ArtifactId)" class="configuration-files__heading"><bdi dir="ltr">@Metadata.FileName</bdi></h4>
     @if (Destination is { } destination)
@@ -19,13 +20,21 @@
     <p>@Text(Metadata.IsDraft ? "DraftArtifactReadiness" : "CompleteArtifactReadiness") @Text(Revealed ? "PrivateOutputRevealed" : "PrivateOutputHidden")</p>
     @if (Metadata.Completions.Count > 0)
     {
+        <p class="configuration-files__draft-summary" data-deferred-secret-summary="@Metadata.Completions.Count">
+            @Format("FilesDeferredCountSummary", Metadata.Completions.Count)
+        </p>
+        var completionEntries = new Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>(Form.Projection.Entries.Count);
+        foreach (var candidate in Form.Projection.Entries)
+            completionEntries.TryAdd((candidate.FieldId, string.Join('\0', candidate.RelativePath)), candidate);
         <ul class="configuration-files__completions">
             @foreach (var item in Metadata.Completions)
             {
                 var path = DefinitionPath.Parse(item.FieldPath).Segments;
-                var entry = Form.Projection.Entries.FirstOrDefault(entry => path.Count > 0 &&
-                    entry.FieldId == DefinitionProfile.FieldId(path[0]) && entry.RelativePath.SequenceEqual(path.Skip(1)));
-                <li data-completion-required="@(entry?.IsRequired.ToString().ToLowerInvariant() ?? "unknown")">
+                var entry = path.Count > 0
+                    ? completionEntries.GetValueOrDefault((DefinitionProfile.FieldId(path[0]), string.Join('\0', path.Skip(1))))
+                    : null;
+                <li data-completion-field="@item.FieldPath" data-completion-output="@item.OutputPath"
+                    data-completion-required="@(entry?.IsRequired.ToString().ToLowerInvariant() ?? "unknown")">
                     <strong>@(entry?.Title ?? Text("FilesDeferredSecret"))</strong>
                     <span>@Text(entry is null ? "FilesDeferredUnknown" : entry.IsRequired ? "FilesDeferredRequired" : "FilesDeferredOptional")</span>
                     <details><summary>@Text("ReviewDetails")</summary>
@@ -36,14 +45,21 @@
         </ul>
     }
     <div class="actions">
-        <AppButton Variant="Variant.Outlined" data-action="copy-file" OnClick="() => Copy.InvokeAsync()">@Format("CopyArtifact", Metadata.FileName)</AppButton>
-        <AppButton data-action="download-file" OnClick="() => Download.InvokeAsync()">@Format("DownloadArtifact", Metadata.FileName)</AppButton>
+        <AppButton Variant="Variant.Outlined" data-action="copy-file" OnClick="InvokeCopyAsync">@Format("CopyArtifact", Metadata.FileName)</AppButton>
+        <AppButton data-action="download-file" OnClick="InvokeDownloadAsync">@Format("DownloadArtifact", Metadata.FileName)</AppButton>
         <AppButton Variant="Variant.Outlined" data-action="reveal-file" aria-expanded="@Revealed.ToString().ToLowerInvariant()"
-                   OnClick="() => Reveal.InvokeAsync()">@Format(Revealed ? "HideArtifact" : "RevealArtifact", Metadata.FileName)</AppButton>
+                   OnClick="InvokeRevealAsync">@Format(Revealed ? "HideArtifact" : "RevealArtifact", Metadata.FileName)</AppButton>
     </div>
+    <p class="form-help configuration-files__download-custody" data-download-custody-note>@Text("FilesDownloadCustodyNote")</p>
     @if (StatusKey is not null)
     {
-        <p role="status" class="notice configuration-files__status" data-file-status="@StatusCode">@Format(StatusKey, Metadata.FileName)</p>
+        <p role="status" class="notice configuration-files__status" data-file-status="@StatusCode">
+            <span>@Format(StatusKey, Metadata.FileName)</span>
+            @if (StatusCode is "clipboard-unavailable" or "download-unavailable" or "preview-unavailable")
+            {
+                <AppButton Variant="Variant.Outlined" data-action="retry-file-export" OnClick="RetryLastActionAsync">@Text("RetryFileExport")</AppButton>
+            }
+        </p>
     }
     <pre @ref="_preview" class="configuration-files__preview" hidden="@(!Revealed)" dir="ltr" tabindex="0"
          aria-label="@Format("PrivateArtifactPreview", Metadata.FileName)"></pre>
@@ -62,7 +78,17 @@
     [Parameter] public EventCallback Reveal { get; set; }
     private ElementReference _preview;
     private bool _disposed;
+    private string _lastAttemptedAction = "copy";
     public ElementReference? PreviewElement => _disposed ? null : _preview;
+    private Task InvokeCopyAsync() { _lastAttemptedAction = "copy"; return Copy.InvokeAsync(); }
+    private Task InvokeDownloadAsync() { _lastAttemptedAction = "download"; return Download.InvokeAsync(); }
+    private Task InvokeRevealAsync() { _lastAttemptedAction = "reveal"; return Reveal.InvokeAsync(); }
+    private Task RetryLastActionAsync() => _lastAttemptedAction switch
+    {
+        "download" => Download.InvokeAsync(),
+        "reveal" => Reveal.InvokeAsync(),
+        _ => Copy.InvokeAsync()
+    };
     private string Text(string key) => BrowserStrings.Get(key, Locale);
     private string Format(string key, params object?[] arguments) => string.Format(CultureInfo.GetCultureInfo(Locale), Text(key), arguments);
     private string DestinationText(string member, string fallback)

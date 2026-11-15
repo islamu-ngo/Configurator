@@ -86,6 +86,10 @@ public sealed class BrowserConfigurationReviewTests
         await component.Find("[data-workflow-step='review']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("[data-review-count]").GetAttribute("data-review-count")).IsEqualTo("61");
         await Assert.That(component.FindAll("[data-review-path]").Count).IsEqualTo(50);
+        await Assert.That(component.FindAll("[data-correction]").Count).IsEqualTo(25);
+        await Assert.That(component.Find("[data-correction='setting24']")).IsNotNull();
+        await component.Find("[data-action='review-corrections-next']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-action='review-corrections-next']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("[data-correction='setting60']")).IsNotNull();
         await component.Find("[data-action='review-next']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll("[data-review-path]").Count).IsEqualTo(11);
@@ -283,6 +287,28 @@ public sealed class BrowserConfigurationReviewTests
 
         await BrowserFixture.SelectPanelAsync(component, "prepare");
         await Assert.That(component.FindAll("[data-custody-disclosure]").Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task ReviewDisplaysDeploymentScopeSummaryAndCompactInlineReviewUsesConciseStatusBadgesWhileKeepingWorkspaceMounted()
+    {
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, BrowserDeploymentScopeTests.Deployment()));
+
+        // Guided Review shows [data-review-scope] without Compact status badges.
+        await BrowserFixture.SelectPanelAsync(component, "review");
+        var scopeSummary = component.Find("[data-review-scope]");
+        await Assert.That(scopeSummary.TextContent).Contains("Standalone · All components");
+        await Assert.That(scopeSummary.TextContent).Contains("dashboard.json");
+        await Assert.That(component.FindAll("[data-review-compact-status]")).IsEmpty();
+
+        // Compact inline Review shows [data-review-scope] AND [data-review-compact-status] badges while keeping [data-compact-workspace] mounted.
+        await component.Find("[data-layout-mode='compact']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-workflow-step='review']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-compact-inline-panel='review'] [data-review-scope]").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-compact-inline-panel='review'] [data-review-compact-status]").Count).IsGreaterThan(0);
+        await Assert.That(component.FindAll("[data-compact-workspace]").Count).IsEqualTo(1);
     }
 
     private static Definition Definition()

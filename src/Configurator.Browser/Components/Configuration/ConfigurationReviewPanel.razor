@@ -9,6 +9,16 @@
     <p class="form-help">@BrowserStrings.Get("ReviewHelp", Form.Locale)</p>
     <section class="configuration-review-panel__summary" data-review-readiness="@Readiness" aria-labelledby="review-summary-heading">
         <h4 id="review-summary-heading">@Text(Readiness switch { "complete" => "ReviewSummaryComplete", "deferred" => "ReviewSummaryDeferred", _ => "ReviewSummaryBlocked" })</h4>
+        @if (Form.Projection.ContextSummary is { } contextSummary)
+        {
+            <p class="configuration-review-panel__scope" data-review-scope>
+                <strong>@contextSummary.RecipeTitle · @contextSummary.ScopeTitle</strong>
+                @if (contextSummary.ArtifactFileNames.Count > 0)
+                {
+                    <span> — <bdi dir="ltr">@string.Join(", ", contextSummary.ArtifactFileNames)</bdi></span>
+                }
+            </p>
+        }
         @{ int optionalMissing = Form.Projection.Entries.Count(entry => entry.IsActive && !entry.IsRequired && !entry.IsProvided); }
         <ul>
             <li>@Format("ReviewRequiredSummary", Form.Projection.Progress.Ready, Form.Projection.Progress.Required)</li>
@@ -26,6 +36,7 @@
     </section>
     <ConfigurationReview Definition="Form.Definition" Form="Form" ShowEffects="true" Validation="Validation" DiagnosticCodes="DiagnosticCodes"
                          InvalidFields="Form.InputDiagnostics" SecretsEnabled="@(Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
+                         CompactPresentation="CompactPresentation"
                          ChangeField="ChangeField" CorrectField="CorrectField" EnableSecrets="EnableSecrets" />
 </section>
 
@@ -37,6 +48,7 @@
     [Parameter] public EventCallback<DefinitionDiagnostic> CorrectField { get; set; }
     [Parameter] public EventCallback EnableSecrets { get; set; }
     [Parameter] public string Readiness { get; set; } = "blocked";
+    [Parameter] public bool CompactPresentation { get; set; }
     [Parameter] public EventCallback PrepareComplete { get; set; }
     [Parameter] public EventCallback PrepareDraft { get; set; }
     private ElementReference _heading;

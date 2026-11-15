@@ -352,6 +352,32 @@ public sealed class BrowserShellTests
     }
 
     [Test]
+    public async Task WorkspaceHeaderDisplaysTitleAlongsideScopeAndFencesConsentAndStaleStageActions()
+    {
+        await using var context = BrowserFixture.Context();
+        Definition definition = BrowserDeploymentScopeTests.Deployment();
+        var editor = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, definition));
+        var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
+
+        await Assert.That(editor.Find("[data-workspace-title]").TextContent).Contains(definition.Title);
+        await Assert.That(editor.Find("[data-workspace-scope]").TextContent).Contains("Standalone");
+
+        var staleStageSelected = editor.FindComponent<WorkspaceHeader>().Instance.StageSelected;
+        await editor.InvokeAsync(() => form.EditValue(["dashboard"], "updated-dashboard"));
+        await editor.InvokeAsync(() => staleStageSelected.InvokeAsync(("review", WorkspaceLayoutMode.Compact)));
+        await Assert.That(form.WorkspaceLayoutMode).IsEqualTo(WorkspaceLayoutMode.Guided);
+        await Assert.That(editor.Find("[data-workflow-step='configure']").GetAttribute("aria-current")).IsEqualTo("step");
+
+        await BrowserFixture.SelectPanelAsync(editor, "review");
+        int focusCountBefore = context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus");
+        await editor.Find("[data-workspace-consent-chip]").ClickAsync(new MouseEventArgs());
+        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsTrue();
+        await Assert.That(context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus"))
+            .IsGreaterThan(focusCountBefore);
+    }
+
+    [Test]
     public async Task ConfigurationDiagnosticTextRetiresAdHocTitleHelper()
     {
         Type? helper = typeof(ConfigurationEditor).Assembly

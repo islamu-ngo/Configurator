@@ -3,20 +3,25 @@
 @implements IAsyncDisposable
 
 @{ ProfileWorkerAuthority rendered = CaptureAuthority(); }
-<details class="configuration-vault" data-profile-panel>
+<details class="configuration-vault" data-profile-panel data-operation-phase="private-profile" open="@Open">
     <summary>@Text("ProfileTitle")</summary>
-    <h3 @ref="_heading" tabindex="-1">@Text("ProfileTitle")</h3>
+    <h3 id="profile-vault-heading" @ref="_heading" tabindex="-1">@Text("ProfileTitle")</h3>
     <p>@Text("ProfileLocalOnly")</p>
     <p>@Text("ProfileAlgorithm") <bdi dir="ltr">JWE · A256GCM · PBES2-HS512+A256KW · 600000</bdi></p>
     <p>@Text("ProfileNoRecoveryBackdoor")</p>
     <p role="status" aria-live="polite" data-profile-status="@_status">
         @Text(_status) @if (_code is not null) { <bdi dir="ltr">@_code</bdi> }
     </p>
+    @if (_status is "ProfileRejected" or "ProfileCancelled" && !Busy)
+    {
+        <button type="button" class="button button--secondary" data-action="retry-profile-task"
+                @onclick="() => RetryProfileTask(rendered)">@Text("RetryProfileTask")</button>
+    }
     @if (Form.RequiresBrowserProfileComposition)
     {
         <p class="notice" data-profile-incomplete>@Text("ProfilePrivateOutputRequired")</p>
     }
-    <fieldset disabled="@(!Ready || Busy)" class="configuration-vault__group">
+    <fieldset disabled="@(!Ready || Busy)" class="configuration-vault__group" data-profile-task="compare">
         <legend>@Text("ProfileComparison")</legend>
         <p id="profile-comparison-help">@Text("ProfileComparisonHelp")</p>
         <label for="profile-comparison-file">@Text("ProfileComparisonOpen")</label>
@@ -32,7 +37,7 @@
         <button type="button" class="button button--secondary" data-action="profile-consent"
                 @onclick="() => Current(rendered) ? RequestConsent.InvokeAsync() : Task.CompletedTask">@Text("ReviewSecretConsent")</button>
     }
-    <fieldset disabled="@(!Ready || !Consented || Busy)" class="configuration-vault__group">
+    <fieldset disabled="@(!Ready || !Consented || Busy)" class="configuration-vault__group" data-profile-task="open">
         <legend>@Text("ProfileOpen")</legend>
         <p id="profile-open-help">@Text("ProfileOpenHelp")</p>
         <label for="profile-vault-file">@Text("ProfileChooseVault")</label>
@@ -52,8 +57,11 @@
     </fieldset>
     @if (Form.BrowserProfile is { } profile)
     {
-        <div class="configuration-vault__group">
+        <div class="configuration-vault__group" data-profile-task="active-profile">
             <p>@Text("ProfileMode"): @Text(profile.Mode == ProfileProtectionMode.ImportUpgradeOnly ? "ProfileBlind" : "ProfileInspectable")</p>
+            <p class="form-help" data-profile-mode-disclosure="@(profile.Mode == ProfileProtectionMode.InspectableEncrypted ? "inspectable-encrypted" : "upgrade-only")">
+                @Text(profile.Mode == ProfileProtectionMode.InspectableEncrypted ? "ProfileModeInspectableDisclosure" : "ProfileModeUpgradeOnlyDisclosure")
+            </p>
             <p>@Text("ProfileRetainedHelp")</p>
             <ul class="configuration-vault__fields">
                 @foreach (var path in profile.RetainedPaths)
@@ -115,9 +123,12 @@
             </tbody>
         </table>
     }
-    <fieldset disabled="@(!Ready || !Consented || Busy || Form.RequiresBrowserProfileComposition && Form.BrowserProfile is null)" class="configuration-vault__group">
+    <fieldset disabled="@(!Ready || !Consented || Busy || Form.RequiresBrowserProfileComposition && Form.BrowserProfile is null)" class="configuration-vault__group" data-profile-task="save">
         <legend>@Text("ProfileSave")</legend>
         <p id="profile-save-help">@Text("ProfileSaveHelp")</p>
+        <p class="form-help" data-profile-recovery-state="@(_status == "ProfileRecoveryVerified" ? "verified" : "unverified")">
+            @Text(_status == "ProfileRecoveryVerified" ? "ProfileRecoveryStateVerified" : "ProfileRecoveryStateUnverified")
+        </p>
         @if (Form.BrowserProfile is null)
         {
             <label for="profile-mode">@Text("ProfileMode")</label>
@@ -149,7 +160,7 @@
     </fieldset>
     @if (_recoveryReference is { } recovery)
     {
-        <fieldset disabled="@(!Ready || !Consented || Busy)" class="configuration-vault__group">
+        <fieldset disabled="@(!Ready || !Consented || Busy)" class="configuration-vault__group" data-profile-task="verify-recovery">
             <legend>@Text("ProfileVerifyRecovery")</legend>
             <p id="profile-recovery-help">@Text("ProfileRecoveryHelp")</p>
             <p>@Text("ProfileSnapshot"): <bdi dir="ltr">@recovery.SnapshotId</bdi></p>
@@ -173,3 +184,8 @@
                 @onclick="() => Cancel(rendered)">@Text("ProfileClose")</button>
     }
 </details>
+
+@code {
+    [Parameter] public bool Open { get; set; }
+    public ElementReference Heading => _heading;
+}

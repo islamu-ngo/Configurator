@@ -4,6 +4,7 @@
 @inject NavigationManager Navigation
 
 <NavigationLock ConfirmExternalNavigation="@State.HasWork" OnBeforeInternalNavigation="BeforeNavigationAsync" />
+<span class="sr-only" data-session-loss-guard="@(State.HasWork ? "active" : "idle")" lang="@State.Culture.Locale" dir="@State.Culture.Direction">@BrowserStrings.Get("TransientSessionGuardNote", State.Culture.Locale)</span>
 
 @code {
     protected override void OnInitialized()
