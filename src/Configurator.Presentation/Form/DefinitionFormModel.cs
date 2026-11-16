@@ -1719,7 +1719,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
     public WorkspacePresentationOptions PresentationOptions { get { lock (_gate) return _view.PresentationOptions; } }
     public WorkspaceDensity WorkspaceDensity => PresentationOptions.Density;
     public WorkspaceNamingMode WorkspaceNamingMode => PresentationOptions.NamingMode;
-    public WorkspaceLayoutMode WorkspaceLayoutMode => PresentationOptions.LayoutMode;
+    public ConfigureLayoutMode ConfigureLayoutMode => PresentationOptions.LayoutMode;
+    public WorkspaceStage WorkspaceStage => PresentationOptions.Stage;
     public string? CurrentSectionId { get { lock (_gate) return _view.CurrentSectionId; } }
 
     public bool Undo()
@@ -1801,7 +1802,21 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    public void SetWorkspaceLayoutMode(WorkspaceLayoutMode mode, DefinitionEditorVisibilityPolicy? editorVisibility = null)
+    public void SetWorkspaceStage(WorkspaceStage stage)
+    {
+        if (!Enum.IsDefined(stage)) throw new ArgumentOutOfRangeException(nameof(stage));
+        using (BeginMutation())
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_view.PresentationOptions.Stage == stage) return;
+            _view.PresentationOptions = _view.PresentationOptions with { Stage = stage };
+            OnPropertyChanged(nameof(PresentationOptions));
+            OnPropertyChanged(nameof(WorkspaceStage));
+            OnViewChanged();
+        }
+    }
+
+    public void SetConfigureLayoutMode(ConfigureLayoutMode mode, DefinitionEditorVisibilityPolicy? editorVisibility = null)
     {
         if (!Enum.IsDefined(mode)) throw new ArgumentOutOfRangeException(nameof(mode));
         if (editorVisibility is { } explicitVisibility && !Enum.IsDefined(explicitVisibility))
@@ -1810,7 +1825,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             DefinitionEditorVisibilityPolicy targetVisibility = editorVisibility
-                ?? (mode == WorkspaceLayoutMode.Guided && _view.EditorVisibility == DefinitionEditorVisibilityPolicy.Continuous
+                ?? (mode == ConfigureLayoutMode.SectionBySection && _view.EditorVisibility == DefinitionEditorVisibilityPolicy.Continuous
                     ? _view.InitialEditorVisibility
                     : _view.EditorVisibility);
             bool layoutChanged = _view.PresentationOptions.LayoutMode != mode;
@@ -1820,7 +1835,7 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             {
                 _view.PresentationOptions = _view.PresentationOptions with { LayoutMode = mode };
                 OnPropertyChanged(nameof(PresentationOptions));
-                OnPropertyChanged(nameof(WorkspaceLayoutMode));
+                OnPropertyChanged(nameof(ConfigureLayoutMode));
             }
             if (visibilityChanged)
             {
@@ -1843,7 +1858,37 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    public bool RecordSectionOpened(string sectionId)
+    public WorkspaceActionableTarget? ResolveNextActionableTarget(
+        string? preferredSectionId = null,
+        bool errorsOnly = false)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return Facts.ResolveNextActionableTarget(this, preferredSectionId ?? _view.CurrentSectionId, errorsOnly);
+        }
+    }
+
+    public WorkspaceActionableTarget? ResolveActionableTarget(DefinitionDiagnostic diagnostic)
+    {
+        ArgumentNullException.ThrowIfNull(diagnostic);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return Facts.ResolveActionableTarget(this, diagnostic);
+        }
+    }
+
+    public DiscoveryZeroMatchSummary? GetDiscoveryZeroMatchSummary()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return Projection.Discovery.ZeroMatchSummary;
+        }
+    }
+
+    public bool RecordSectionOpened(string sectionId, bool acknowledgeNewlyRelevant = false)
     {
         ArgumentNullException.ThrowIfNull(sectionId);
         using (BeginMutation())
@@ -1852,6 +1897,8 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (!_index!.SectionsById.ContainsKey(sectionId)) return false;
             bool changed = !string.Equals(_view.CurrentSectionId, sectionId, StringComparison.Ordinal);
             changed |= _view.OpenedSections.Add(sectionId);
+            if (acknowledgeNewlyRelevant)
+                changed |= _view.DowngradedSections.Remove(sectionId);
             _view.CurrentSectionId = sectionId;
             if (!changed) return true;
             OnPropertyChanged(nameof(CurrentSectionId));
@@ -1869,20 +1916,20 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
             if (!_index!.SectionsById.ContainsKey(sectionId)) return false;
             _view.CurrentSectionId = sectionId;
             _view.OpenedSections.Add(sectionId);
+            _view.DowngradedSections.Remove(sectionId);
             if (reviewed)
             {
                 HashSet<DefinitionPath> signature = Facts.SectionActivePaths.TryGetValue(sectionId, out HashSet<DefinitionPath>? paths)
                     ? [.. paths]
                     : [];
                 _view.ReviewedSignatures[sectionId] = signature;
-                _view.DowngradedSections.Remove(sectionId);
             }
             else
             {
                 _view.ReviewedSignatures.Remove(sectionId);
             }
             OnPropertyChanged(nameof(CurrentSectionId));
-            OnViewChanged();
+            OnViewChanged(_projection?.WithNavigation(this, sectionId));
             return true;
         }
     }
@@ -1927,137 +1974,6 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    public IReadOnlyList<CompactPropertyRow> GetCompactRows(
-        bool includeInactive = false,
-        string? sectionId = null,
-        string? query = null,
-        DefinitionDiscoveryFilter filter = DefinitionDiscoveryFilter.All)
-    {
-        lock (_gate)
-        {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!Enum.IsDefined(filter)) throw new ArgumentOutOfRangeException(nameof(filter));
-            DefinitionFormProjection projection = Projection;
-            DefinitionFormFacts facts = Facts;
-            string redacted = PresentationStrings.Get("RedactedValue", Locale);
-            var rows = new List<CompactPropertyRow>();
-            int privateEntryCounter = 0;
-            IReadOnlyDictionary<string, DefinitionPath> literalPaths = facts.EntryLiteralPaths.Value;
-            foreach (DefinitionDiscoveryEntry entry in projection.Entries)
-            {
-                if (!entry.IsActive && !includeInactive) continue;
-                if (sectionId is not null && !string.Equals(entry.SectionId, sectionId, StringComparison.Ordinal)) continue;
-                if (!EntryMatchesFilter(entry, filter)) continue;
-
-                DefinitionPath dataPath = literalPaths.TryGetValue(
-                    DefinitionFormFacts.SafePathKey(entry.FieldId, entry.RelativePath), out DefinitionPath? literal)
-                    ? literal
-                    : DataPath([entry.FieldId, .. entry.RelativePath]);
-                if (!TryEditorMetadata(dataPath, out DefinitionFormIndex.Node node, out _)) continue;
-                // Skip pure static property containers when they have declared child fields; keep maps, sequences, variants, and leaves.
-                if (node.Schema.Type == DefinitionNodeType.Mapping &&
-                    node.Schema.AdditionalProperties is null &&
-                    node.Schema.Properties.Count > 0 &&
-                    node.Schema.Variants.Count == 0 &&
-                    entry.RelativePath.Count > 0)
-                    continue;
-
-                DefinitionEditorPresentation? presentation = GetEditorPresentation(dataPath);
-                if (presentation is null) continue;
-
-                bool isDynamicMapEntry = node.SchemaPath.EndsWith("/additionalProperties", StringComparison.Ordinal);
-                bool requiresMasking = RequiresMaskingAt(dataPath.Segments, literal: true);
-                bool isSecretLeaf = entry.Sensitivity == FieldSensitivity.Secret;
-                bool isSecretLocked = SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets && isSecretLeaf;
-
-                string displayLabel = presentation.DisplayLabel;
-                string wireToken = presentation.WireToken;
-                string primaryLabel = presentation.Title;
-                string secondaryLabel = presentation.SecondaryLabel;
-                bool hasCopyableWire = presentation.HasCopyableWireToken;
-
-                if (isDynamicMapEntry && requiresMasking)
-                {
-                    privateEntryCounter++;
-                    displayLabel = PresentationStrings.Format("PrivateMapEntryLabel", Locale, privateEntryCounter);
-                    wireToken = string.Empty;
-                    primaryLabel = displayLabel;
-                    secondaryLabel = string.Empty;
-                    hasCopyableWire = false;
-                }
-
-                string? draft = isSecretLocked ? null : ReadDraftText(dataPath);
-                JsonElement? val = isSecretLocked ? null :
-                    (TryOrdinaryRootPath(dataPath.Segments, out string[] ordinary)
-                        ? ReadValue(ordinary)
-                        : ReadRootValue(dataPath.Segments));
-                string valuePreview;
-                if (entry.Sensitivity != FieldSensitivity.Public)
-                {
-                    bool hasValue = !isSecretLocked && (val is not null || !string.IsNullOrEmpty(draft) || entry.IsProvided);
-                    valuePreview = hasValue ? redacted : string.Empty;
-                }
-                else if (draft is not null)
-                {
-                    valuePreview = draft;
-                }
-                else if (val is { } element)
-                {
-                    valuePreview = element.ValueKind switch
-                    {
-                        JsonValueKind.String => element.GetString() ?? string.Empty,
-                        JsonValueKind.Array => $"{element.GetArrayLength()} items",
-                        JsonValueKind.Object => $"{element.EnumerateObject().Count()} fields",
-                        JsonValueKind.Null => "null",
-                        _ => element.GetRawText()
-                    };
-                }
-                else
-                {
-                    valuePreview = string.Empty;
-                }
-
-                DefinitionFieldValidation valFacts = GetFieldValidation(dataPath);
-                bool isSchemaReadOnly = IsSchemaReadOnly(dataPath);
-                var row = new CompactPropertyRow(
-                    dataPath,
-                    GetEditorIdentity(dataPath),
-                    entry.SectionId,
-                    entry.SectionTitle,
-                    displayLabel,
-                    wireToken,
-                    primaryLabel,
-                    secondaryLabel,
-                    entry.Type,
-                    entry.Sensitivity,
-                    entry.IsRequired,
-                    entry.IsActive,
-                    entry.NeedsAttention,
-                    entry.IsDeferred,
-                    valFacts.CanEdit,
-                    isSchemaReadOnly,
-                    isSecretLocked,
-                    entry.Origin,
-                    valuePreview,
-                    primaryLabel,
-                    presentation.Widget,
-                    presentation.Units,
-                    presentation.Description,
-                    presentation.DefaultText,
-                    presentation.IfOmittedDisplay,
-                    presentation.IsDeprecated,
-                    presentation.DeprecationGuidance,
-                    presentation.Choices,
-                    hasCopyableWire,
-                    entry.Sensitivity != FieldSensitivity.Public);
-
-                if (row.MatchesQuery(query))
-                    rows.Add(row);
-            }
-            return Array.AsReadOnly(rows.ToArray());
-        }
-    }
-
     /// <summary>Returns localized metadata and output bindings for one configuration path without reading answers.</summary>
     public DefinitionDiscoveryEntry? GetFieldMetadata(DefinitionPath dataPath)
     {
@@ -2080,18 +1996,6 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>
-    /// Applies a scalar edit or explicit omission from a compact table row, resolving ordinary versus literal root paths.
-    /// </summary>
-    public bool EditCompactValue(DefinitionPath dataPath, string? text)
-    {
-        ArgumentNullException.ThrowIfNull(dataPath);
-        string[] path = TryOrdinaryRootPath(dataPath.Segments, out string[] ordinary)
-            ? ordinary
-            : dataPath.Segments.ToArray();
-        return EditValue(path, text);
-    }
-
     public IReadOnlyList<WorkspaceCommandDescriptor> GetAvailableCommands(string? query = null)
     {
         lock (_gate)
@@ -2104,10 +2008,10 @@ public sealed partial class DefinitionFormModel : ObservableObject, IDisposable
                     PresentationStrings.Get("CommandUndoSubtitle", Locale), "Ctrl+Z", CanUndo),
                 new(WorkspaceCommandId.Redo, PresentationStrings.Get("CommandRedoTitle", Locale),
                     PresentationStrings.Get("CommandRedoSubtitle", Locale), "Ctrl+Shift+Z", CanRedo),
-                new(WorkspaceCommandId.SwitchToGuided, PresentationStrings.Get("CommandGuidedTitle", Locale),
-                    PresentationStrings.Get("CommandGuidedSubtitle", Locale), "Alt+1", true),
-                new(WorkspaceCommandId.SwitchToCompact, PresentationStrings.Get("CommandCompactTitle", Locale),
-                    PresentationStrings.Get("CommandCompactSubtitle", Locale), "Alt+2", true),
+                new(WorkspaceCommandId.SwitchToSectionBySection, PresentationStrings.Get("CommandSectionBySectionTitle", Locale),
+                    PresentationStrings.Get("CommandSectionBySectionSubtitle", Locale), "Alt+1", true),
+                new(WorkspaceCommandId.SwitchToAllSections, PresentationStrings.Get("CommandAllSectionsTitle", Locale),
+                    PresentationStrings.Get("CommandAllSectionsSubtitle", Locale), "Alt+2", true),
                 new(WorkspaceCommandId.SwitchToReview, PresentationStrings.Get("CommandReviewTitle", Locale),
                     PresentationStrings.Get("CommandReviewSubtitle", Locale), "Alt+3", true),
                 new(WorkspaceCommandId.SwitchToFiles, PresentationStrings.Get("CommandFilesTitle", Locale),

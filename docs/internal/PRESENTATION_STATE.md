@@ -419,10 +419,11 @@ step; it does not supply values, change provenance or create containers. The
 Authored default retains the live native-client disclosure policy. Direct
 visibility still checks the selected experience, active metadata, edit authority
 and explicit group expansion. `DefinitionEditorVisibilityPolicy.Continuous` is
-used when Browser switches to `WorkspaceLayoutMode.Compact`: it exposes all
+used when a workspace switches to `ConfigureLayoutMode.AllSections`: it exposes all
 applicable sections and active fields across the definition without mutating
-`SelectedExperienceId` or `DisclosureOverride`, and `SetWorkspaceLayoutMode`
-restores `InitialEditorVisibility` when returning to `WorkspaceLayoutMode.Guided`.
+`SelectedExperienceId` or `DisclosureOverride`, aligns `IsEditorExpanded` with
+visible optional fields/children, and `SetConfigureLayoutMode`
+restores `InitialEditorVisibility` when returning to `ConfigureLayoutMode.SectionBySection`.
 Required/correction paths keep their existing
 reachability rules. A visibility policy is not secret consent or target authority.
 
@@ -453,6 +454,10 @@ traversal uses the already-owned immutable `JsonElement`; an invalid root still
 denies access to its last valid collection rows. Mutable JSON parsing is confined
 to collection commands and detached document construction that actually need a
 working tree.
+Literal root reads reuse `DefinitionFormFacts.Validation` when that revision's
+facts already exist. During facts construction they validate directly, avoiding
+recursive initialization. Input mutation retires facts before any editor refresh,
+so repeated Desktop child presentation reads do not revalidate the whole tree.
 The same facts owner indexes diagnostic correction reasons by resolved literal
 coordinate. Resolution uses that revision's validation, preserving ordinary field
 aliases, root diagnostics and typed map-entry locations. `GetFieldValidation`
@@ -871,12 +876,17 @@ Each `DefinitionFormProjection` pairs that progress with a two-dimensional
 `MissingRequired`, `UnresolvedApplicability`, `SecretDeferred`,
 `RequiredComplete`, `OptionalUnset`, `OutsideSelectedScope`,
 `PendingEvaluation`; `Coverage`: `NotVisited`, `Opened`, `Reviewed`, plus
-`HasNewlyRelevantSettings` downgrade tracking and `HiddenOptionalTitles`), a
+`HasNewlyRelevantSettings` downgrade tracking cleared via `SetSectionReviewed`
+or `RecordSectionOpened(..., acknowledgeNewlyRelevant: true)` and `HiddenOptionalTitles`), a
 `WorkspaceProgressSummary` tracking active/opened/reviewed section
-denominators alongside required counts, `WorkspaceNavigationProjection` (wizard
-step indices and next-required / next-error / next-unvisited section jumps), and
+denominators alongside required counts, `OptionalInvalidCount`, `TotalInvalidCount`,
+and `IsReadyForExport` (false whenever missing required, deferred secrets, or
+validation errors including optional-setting errors remain), `WorkspaceNavigationProjection` (wizard
+step indices and next-required / next-error / next-unvisited section jumps, plus
+control-level `WorkspaceActionableTarget` resolved via `ResolveNextActionableTarget`
+and `ResolveActionableTarget`), and
 immutable `WorkspacePresentationOptions` (`WorkspaceDensity`,
-`WorkspaceNamingMode`, `WorkspaceLayoutMode`). `EnrichSection` evaluates
+`WorkspaceNamingMode`, `ConfigureLayoutMode`, `WorkspaceStage`). `EnrichSection` evaluates
 section/group `ApplicableWhen` and auto-expands `InitiallyCollapsed` groups
 whenever a blocking diagnostic falls inside the group's pointer scope.
 
@@ -885,13 +895,13 @@ whenever a blocking diagnostic falls inside the group's pointer scope.
 (`Placeholder`, `DefaultText`, `IfOmittedDisplay`, `DeprecationGuidance`,
 `Widget`, `Rows`, `Syntax`, `BooleanLabels`, `ItemTitlePointer`, `UniqueBy`,
 `OrderedPropertyNames`), and `ControllerImpactSummary` from admitted schema
-metadata without materializing answer defaults. `CompactPropertyRow` (`GetCompactRows`)
-projects flat tabular rows honoring `BrowserNoSecrets` locking, redacted
-sensitive previews and private dynamic map entry masking (`MatchesQuery` excludes
-private map keys and values). `SetDiscoverySelection` supports metadata-only
-`DefinitionDiscoveryFilter` facets (`Invalid`, `MissingRequired`, `Modified`,
-`DeferredSecret`), and `GetAvailableCommands` exposes `WorkspaceCommandDescriptor`
-entries with current shortcut hints and enablement.
+metadata without materializing answer defaults. `DefinitionDiscovery` projects
+non-private searchable/filterable metadata while enforcing `BrowserNoSecrets`
+custody and excluding private dynamic map keys and answer values from query
+matching (`SetDiscoverySelection`, `DiscoveryZeroMatchSummary`, `Invalid`,
+`MissingRequired`, `Modified`, `DeferredSecret`), and `GetAvailableCommands`
+exposes `WorkspaceCommandDescriptor` entries with current shortcut hints and
+enablement (superseding the removed `CompactPropertyRow` table projection).
 
 `DefinitionFormUndoHistory` retains at most 32 workspace snapshots, records
 each outer workspace mutation once, and

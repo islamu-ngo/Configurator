@@ -251,7 +251,8 @@ public sealed class DefinitionFormProjection
         DefinitionConfigurationContext? configurationContext,
         WorkspaceContextProjection? contextSummary,
         IReadOnlyList<ArtifactDefinition> eligibleArtifacts,
-        DefinitionDiagnostic? nextActionableDiagnostic)
+        DefinitionDiagnostic? nextActionableDiagnostic,
+        WorkspaceActionableTarget? nextActionableTarget)
     {
         Progress = progress;
         _discovery = discovery;
@@ -268,6 +269,7 @@ public sealed class DefinitionFormProjection
         ContextSummary = contextSummary;
         EligibleArtifacts = eligibleArtifacts;
         NextActionableDiagnostic = nextActionableDiagnostic;
+        NextActionableTarget = nextActionableTarget;
     }
 
     private DefinitionFormProjection(
@@ -278,7 +280,8 @@ public sealed class DefinitionFormProjection
         WorkspaceProgressSummary? progressSummary = null,
         WorkspaceNavigationProjection? navigation = null,
         bool updateNextActionable = false,
-        DefinitionDiagnostic? nextActionableDiagnostic = null)
+        DefinitionDiagnostic? nextActionableDiagnostic = null,
+        WorkspaceActionableTarget? nextActionableTarget = null)
     {
         Progress = current.Progress;
         _discovery = discovery ?? current._discovery;
@@ -295,6 +298,7 @@ public sealed class DefinitionFormProjection
         ContextSummary = current.ContextSummary;
         EligibleArtifacts = current.EligibleArtifacts;
         NextActionableDiagnostic = updateNextActionable ? nextActionableDiagnostic : current.NextActionableDiagnostic;
+        NextActionableTarget = updateNextActionable ? nextActionableTarget : current.NextActionableTarget;
     }
 
     internal DefinitionFormProjection WithDiscovery(Lazy<DefinitionDiscoverySnapshot> discovery) =>
@@ -333,13 +337,15 @@ public sealed class DefinitionFormProjection
         WorkspaceNavigationProjection nextNavigation = WorkspaceNavigationProjection.Create(
             activeExperience, Sections, updatedStatuses, form.CurrentSectionId);
         DefinitionDiagnostic? nextDiagnostic = form.Facts.GetNextActionableDiagnostic(form, form.CurrentSectionId);
+        WorkspaceActionableTarget? nextTarget = nextDiagnostic is null ? null : form.Facts.ResolveActionableTarget(form, nextDiagnostic);
         return new(
             this,
             sectionStatuses: updatedStatuses,
             progressSummary: updatedSummary,
             navigation: nextNavigation,
             updateNextActionable: true,
-            nextActionableDiagnostic: nextDiagnostic);
+            nextActionableDiagnostic: nextDiagnostic,
+            nextActionableTarget: nextTarget);
     }
 
     internal DefinitionFormProjection WithGroupExpansion(string sectionId, string groupId, bool expanded)
@@ -384,6 +390,7 @@ public sealed class DefinitionFormProjection
     public WorkspaceContextProjection? ContextSummary { get; }
     public IReadOnlyList<ArtifactDefinition> EligibleArtifacts { get; }
     public DefinitionDiagnostic? NextActionableDiagnostic { get; }
+    public WorkspaceActionableTarget? NextActionableTarget { get; }
     public DefinitionDiscoverySnapshot Discovery => _discovery.Value;
     public IReadOnlyList<DefinitionDiscoveryMatch> Matches => Discovery.Matches;
     public IReadOnlyList<DefinitionDiscoveryEntry> Entries => _entries.Value;
@@ -464,7 +471,8 @@ public sealed class DefinitionFormProjection
             facts.Progress.Deferred,
             activeSections,
             openedSections,
-            reviewedSections);
+            reviewedSections,
+            facts.OptionalInvalidCount);
 
         DefinitionFormExperience activeExperience = form.Experiences.Single(item => item.Id == form.SelectedExperienceId);
         WorkspaceNavigationProjection navigation = WorkspaceNavigationProjection.Create(
@@ -472,6 +480,9 @@ public sealed class DefinitionFormProjection
         IReadOnlyList<ArtifactDefinition> eligibleArtifacts = form.EligibleArtifacts;
         WorkspaceContextProjection? contextSummary = BuildContextSummary(form, facts.Validation.ConfigurationContext, eligibleArtifacts);
         DefinitionDiagnostic? nextActionableDiagnostic = facts.GetNextActionableDiagnostic(form, form.CurrentSectionId);
+        WorkspaceActionableTarget? nextActionableTarget = nextActionableDiagnostic is null
+            ? null
+            : facts.ResolveActionableTarget(form, nextActionableDiagnostic);
 
         bool isContinuous = form.EditorVisibility == DefinitionEditorVisibilityPolicy.Continuous;
         var visibleFields = new List<string>(facts.Validation.Fields.Count);
@@ -497,7 +508,8 @@ public sealed class DefinitionFormProjection
             facts.Validation.ConfigurationContext,
             contextSummary,
             eligibleArtifacts,
-            nextActionableDiagnostic);
+            nextActionableDiagnostic,
+            nextActionableTarget);
     }
 
     private static WorkspaceContextProjection? BuildContextSummary(

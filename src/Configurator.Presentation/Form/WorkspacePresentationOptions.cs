@@ -16,17 +16,24 @@ public enum WorkspaceNamingMode
     Technical
 }
 
-/// <summary>Active workspace primary canvas layout within the connected shell.</summary>
-public enum WorkspaceLayoutMode
+/// <summary>Primary top-level workflow stage inside the workspace.</summary>
+public enum WorkspaceStage
 {
-    Guided,
-    Compact,
+    Configure,
     Review,
     Files
+}
+
+/// <summary>Viewing layout used while configuring settings.</summary>
+public enum ConfigureLayoutMode
+{
+    SectionBySection,
+    AllSections
 }
 
 /// <summary>View-only presentation preferences; updates never mutate accepted answers or advance InputRevision.</summary>
 public sealed record WorkspacePresentationOptions(
     WorkspaceDensity Density = WorkspaceDensity.Comfortable,
     WorkspaceNamingMode NamingMode = WorkspaceNamingMode.Humanized,
-    WorkspaceLayoutMode LayoutMode = WorkspaceLayoutMode.Guided);
+    ConfigureLayoutMode LayoutMode = ConfigureLayoutMode.SectionBySection,
+    WorkspaceStage Stage = WorkspaceStage.Configure);

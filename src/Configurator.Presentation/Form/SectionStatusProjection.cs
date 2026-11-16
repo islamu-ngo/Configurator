@@ -47,11 +47,15 @@ public sealed record WorkspaceProgressSummary(
     int DeferredSecretCount,
     int ActiveSections,
     int OpenedSections,
-    int ReviewedSections)
+    int ReviewedSections,
+    int OptionalInvalidCount = 0)
 {
     public int? RequiredPercent => TotalRequired == 0 ? null : 100 * ReadyRequired / TotalRequired;
+    public int TotalInvalidCount => InvalidCount;
+    public int RequiredInvalidCount => Math.Max(0, InvalidCount - OptionalInvalidCount);
     public bool HasBlockingErrors => InvalidCount > 0;
     public bool HasMissingNonDeferredRequired => MissingRequired > DeferredSecretCount;
     public bool IsReadyForCompleteDraft => InvalidCount == 0 && MissingRequired == 0;
     public bool IsReadyWithDeferredSecrets => InvalidCount == 0 && MissingRequired == DeferredSecretCount && DeferredSecretCount > 0;
+    public bool IsReadyForExport => MissingRequired == 0 && DeferredSecretCount == 0 && TotalInvalidCount == 0;
 }

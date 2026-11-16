@@ -11,8 +11,8 @@ public enum WorkspaceCommandId
 {
     Undo,
     Redo,
-    SwitchToGuided,
-    SwitchToCompact,
+    SwitchToSectionBySection,
+    SwitchToAllSections,
     SwitchToReview,
     SwitchToFiles,
     ToggleNamingMode,
@@ -184,19 +184,37 @@ public sealed class DefinitionDiscoverySelection
 public sealed record DefinitionDiscoveryMatch(DefinitionDiscoveryEntry Entry, DefinitionDiscoveryMatchReason MatchReason, int Rank);
 public sealed record DefinitionDiscoveryFacetOption(string Value, int Count);
 
+/// <summary>Privacy-safe aggregate counts explaining why metadata discovery produced zero matches.</summary>
+public sealed record DiscoveryZeroMatchSummary(
+    int TotalEntryCount,
+    int ActiveEntryCount,
+    int InactiveEntryCount,
+    int QueryMatchCount,
+    int HiddenInactiveMatchCount,
+    int FilterOrFacetExcludedCount,
+    bool HasQuery,
+    bool HasFilter,
+    bool HasFacets)
+{
+    public bool HasOutOfScopeMatches => HiddenInactiveMatchCount > 0 || FilterOrFacetExcludedCount > 0;
+}
+
 public sealed class DefinitionDiscoverySnapshot
 {
     internal DefinitionDiscoverySnapshot(IEnumerable<DefinitionDiscoveryMatch> matches,
-        IDictionary<DefinitionDiscoveryFacet, IReadOnlyList<DefinitionDiscoveryFacetOption>> facets)
+        IDictionary<DefinitionDiscoveryFacet, IReadOnlyList<DefinitionDiscoveryFacetOption>> facets,
+        DiscoveryZeroMatchSummary? zeroMatchSummary = null)
     {
         Matches = Array.AsReadOnly(matches.ToArray());
         Facets = new ReadOnlyDictionary<DefinitionDiscoveryFacet, IReadOnlyList<DefinitionDiscoveryFacetOption>>(
             new Dictionary<DefinitionDiscoveryFacet, IReadOnlyList<DefinitionDiscoveryFacetOption>>(facets));
+        ZeroMatchSummary = zeroMatchSummary;
     }
 
     public IReadOnlyList<DefinitionDiscoveryMatch> Matches { get; }
     public IReadOnlyDictionary<DefinitionDiscoveryFacet, IReadOnlyList<DefinitionDiscoveryFacetOption>> Facets { get; }
     public int TotalCount => Matches.Count;
+    public DiscoveryZeroMatchSummary? ZeroMatchSummary { get; }
 }
 
 /// <summary>Deterministic discovery over admitted metadata; it neither reads nor changes workspace answers.</summary>
@@ -240,7 +258,82 @@ public static class DefinitionDiscovery
             facets.Add(facet, Array.AsReadOnly(options.Select(value =>
                 new DefinitionDiscoveryFacetOption(value, counts.GetValueOrDefault(value))).ToArray()));
         }
-        return new DefinitionDiscoverySnapshot(matches, facets);
+        DiscoveryZeroMatchSummary? zeroMatchSummary = matches.Length == 0
+            ? ComputeZeroMatchSummary(snapshot, selection, queried)
+            : null;
+        return new DefinitionDiscoverySnapshot(matches, facets, zeroMatchSummary);
+    }
+
+    public static DiscoveryZeroMatchSummary SummarizeZeroMatches(
+        IEnumerable<DefinitionDiscoveryEntry> entries,
+        DefinitionDiscoverySelection selection)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(selection);
+        DefinitionDiscoveryEntry[] snapshot = entries as DefinitionDiscoveryEntry[] ?? entries.ToArray();
+        DefinitionDiscoveryEntry[] queried = snapshot.Where(entry => selection.QueryTerms.All(token =>
+            Metadata(entry).Any(text => text.Contains(token, StringComparison.OrdinalIgnoreCase)))).ToArray();
+        return ComputeZeroMatchSummary(snapshot, selection, queried);
+    }
+
+    private static DiscoveryZeroMatchSummary ComputeZeroMatchSummary(
+        DefinitionDiscoveryEntry[] snapshot,
+        DefinitionDiscoverySelection selection,
+        DefinitionDiscoveryEntry[] queried)
+    {
+        int activeCount = 0;
+        for (int i = 0; i < snapshot.Length; i++)
+        {
+            if (snapshot[i].IsActive) activeCount++;
+        }
+        int inactiveCount = snapshot.Length - activeCount;
+        bool hasQuery = selection.QueryTerms.Count > 0;
+        bool hasFilter = selection.Filter != DefinitionDiscoveryFilter.All;
+        bool hasFacets = false;
+        foreach (KeyValuePair<DefinitionDiscoveryFacet, IReadOnlyList<string>> pair in selection.Facets)
+        {
+            if (pair.Value.Count > 0)
+            {
+                hasFacets = true;
+                break;
+            }
+        }
+        bool explicitlyIncludesInactive = selection.IncludeInactive ||
+            (selection.Facets.TryGetValue(DefinitionDiscoveryFacet.Applicability, out IReadOnlyList<string>? applicability) &&
+             applicability.Contains("inactive", StringComparer.OrdinalIgnoreCase));
+
+        int queryMatchCount = 0;
+        int hiddenInactiveMatchCount = 0;
+        int filterOrFacetExcludedCount = 0;
+        for (int i = 0; i < queried.Length; i++)
+        {
+            DefinitionDiscoveryEntry entry = queried[i];
+            if (entry.IsActive)
+            {
+                queryMatchCount++;
+                if (!MatchesFacets(entry, selection, null))
+                    filterOrFacetExcludedCount++;
+            }
+            else if (!explicitlyIncludesInactive)
+            {
+                hiddenInactiveMatchCount++;
+            }
+            else if (!MatchesFacets(entry, selection, null))
+            {
+                filterOrFacetExcludedCount++;
+            }
+        }
+
+        return new DiscoveryZeroMatchSummary(
+            snapshot.Length,
+            activeCount,
+            inactiveCount,
+            queryMatchCount,
+            hiddenInactiveMatchCount,
+            filterOrFacetExcludedCount,
+            hasQuery,
+            hasFilter,
+            hasFacets);
     }
 
     private static IEnumerable<string> Metadata(DefinitionDiscoveryEntry entry) =>

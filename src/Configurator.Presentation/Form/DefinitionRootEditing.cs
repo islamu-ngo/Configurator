@@ -131,7 +131,7 @@ public sealed partial class DefinitionFormModel
     }
 
     private JsonElement? ReadRootValue(IReadOnlyList<string> path, DefinitionValidationResult? validation = null) =>
-        (validation ?? DefinitionValidator.Validate(Definition, Snapshot()))
+        (validation ?? _facts?.Validation ?? DefinitionValidator.Validate(Definition, Snapshot()))
             .TryGetEffectiveValue(DefinitionPath.FromSegments(path), out JsonElement value) ? value : null;
 
     private JsonElement? ReadEditorValue(DefinitionPath path, DefinitionValidationResult? validation = null) =>

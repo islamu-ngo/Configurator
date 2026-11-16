@@ -87,31 +87,31 @@ public sealed class PresentationDualUxAndWidgetProjectionTests
     }
 
     [Test]
-    public async Task CompactPropertyRowEnforcesBrowserNoSecretsAndExcludesPrivateValuesFromSearch()
+    public async Task DiscoveryAndEditorEnforceBrowserNoSecretsAndExcludePrivateValuesFromSearch()
     {
         using var form = new DefinitionFormModel(RichMetadataDefinition(), DefinitionSessionPrivacy.BrowserNoSecrets);
 
-        IReadOnlyList<CompactPropertyRow> rows = form.GetCompactRows();
-        CompactPropertyRow secretRow = rows.Single(row => row.WireToken == "secretToken");
-        await Assert.That(secretRow.IsSecretLocked).IsTrue();
-        await Assert.That(secretRow.ValuePreview).IsEqualTo("");
+        await Assert.That(form.CanEdit(["secretToken"])).IsFalse();
+        await Assert.That(form.EditValue(["secretToken"], "blocked-without-consent")).IsFalse();
+        await Assert.That(form.ReadDraftText(["secretToken"])).IsNull();
 
-        // Enable consent, set secret, and verify preview is masked & excluded from query matching.
+        // Enable consent, set secret, and verify discovery search excludes secret values & private map keys.
         form.SetSecretEntryEnabled(true);
-        form.EditValue(["secretToken"], "top-secret-password-value-9999");
+        await Assert.That(form.CanEdit(["secretToken"])).IsTrue();
+        await Assert.That(form.EditValue(["secretToken"], "top-secret-password-value-9999")).IsTrue();
 
-        rows = form.GetCompactRows();
-        secretRow = rows.Single(row => row.WireToken == "secretToken");
-        await Assert.That(secretRow.IsSecretLocked).IsFalse();
-        await Assert.That(secretRow.ValuePreview).IsEqualTo("••••••••");
-        await Assert.That(secretRow.MatchesQuery("top-secret-password")).IsFalse();
-        await Assert.That(secretRow.MatchesQuery("secretToken")).IsTrue();
+        form.SetDiscoverySelection(new DefinitionDiscoverySelection(query: "top-secret-password"));
+        await Assert.That(form.Projection.Matches).IsEmpty();
 
-        // Private map key is redacted from wire token & search/sort.
+        form.SetDiscoverySelection(new DefinitionDiscoverySelection(query: "secretToken"));
+        await Assert.That(form.Projection.Matches.Any(match => match.Entry.FieldId == "secretToken")).IsTrue();
+
+        // Private map key is redacted from discovery search and entry metadata.
         form.AddMapEntry(["privateMap"], "hidden-customer-key");
-        CompactPropertyRow mapEntryRow = form.GetCompactRows().Single(row => row.DataPath.Segments.Contains("privateMap") && row.DataPath.Segments.Count == 2);
-        await Assert.That(mapEntryRow.MatchesQuery("hidden-customer-key")).IsFalse();
-        await Assert.That(mapEntryRow.SortKey.Contains("hidden-customer-key", StringComparison.Ordinal)).IsFalse();
+        form.SetDiscoverySelection(new DefinitionDiscoverySelection(query: "hidden-customer-key"));
+        await Assert.That(form.Projection.Matches).IsEmpty();
+        await Assert.That(form.Projection.Entries.Any(entry =>
+            entry.Title.Contains("hidden-customer-key", StringComparison.Ordinal))).IsFalse();
     }
 
     [Test]
@@ -133,8 +133,11 @@ public sealed class PresentationDualUxAndWidgetProjectionTests
         form.SetDiscoverySelection(new DefinitionDiscoverySelection(filter: DefinitionDiscoveryFilter.Modified));
         await Assert.That(form.Projection.Matches.Any(m => m.Entry.FieldId == "mode")).IsTrue();
 
-        IReadOnlyList<WorkspaceCommandDescriptor> commands = form.GetAvailableCommands("compact");
-        await Assert.That(commands.Any(command => command.Id == WorkspaceCommandId.SwitchToCompact)).IsTrue();
+        IReadOnlyList<WorkspaceCommandDescriptor> allCommands = form.GetAvailableCommands("all");
+        await Assert.That(allCommands.Any(command => command.Id == WorkspaceCommandId.SwitchToAllSections)).IsTrue();
+
+        IReadOnlyList<WorkspaceCommandDescriptor> sectionCommands = form.GetAvailableCommands("section");
+        await Assert.That(sectionCommands.Any(command => command.Id == WorkspaceCommandId.SwitchToSectionBySection)).IsTrue();
     }
 
     [Test]

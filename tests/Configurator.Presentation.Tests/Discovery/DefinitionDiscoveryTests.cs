@@ -341,6 +341,78 @@ public sealed class DefinitionDiscoveryTests
             result.Facets[DefinitionDiscoveryFacet.Section]).IsReadOnly).IsTrue();
     }
 
+    [Test]
+    public async Task ZeroMatchSummaryReportsPrivacySafeOutOfScopeCountsWithoutLeakingPrivateKeys()
+    {
+        DefinitionDiscoveryEntry[] entries =
+        [
+            Entry("mailHost", title: "Mail Host", section: "general", active: true),
+            Entry("clusterToken", title: "Cluster Token", section: "cluster", active: false, sensitivity: FieldSensitivity.Secret)
+        ];
+
+        DefinitionDiscoverySnapshot matched = DefinitionDiscovery.Search(entries, new("mail"));
+        await Assert.That(matched.TotalCount).IsEqualTo(1);
+        await Assert.That(matched.ZeroMatchSummary).IsNull();
+
+        // Query matches only an inactive setting while IncludeInactive is false.
+        DefinitionDiscoverySnapshot inactiveHit = DefinitionDiscovery.Search(entries, new("cluster"));
+        await Assert.That(inactiveHit.TotalCount).IsEqualTo(0);
+        await Assert.That(inactiveHit.ZeroMatchSummary).IsNotNull();
+        await Assert.That(inactiveHit.ZeroMatchSummary!.HasQuery).IsTrue();
+        await Assert.That(inactiveHit.ZeroMatchSummary.HiddenInactiveMatchCount).IsEqualTo(1);
+        await Assert.That(inactiveHit.ZeroMatchSummary.FilterOrFacetExcludedCount).IsEqualTo(0);
+        await Assert.That(inactiveHit.ZeroMatchSummary.HasOutOfScopeMatches).IsTrue();
+
+        // Query matches an active setting, but the Invalid filter excludes it.
+        DefinitionDiscoverySnapshot filteredHit = DefinitionDiscovery.Search(
+            entries, new("mail", filter: DefinitionDiscoveryFilter.Invalid));
+        await Assert.That(filteredHit.TotalCount).IsEqualTo(0);
+        await Assert.That(filteredHit.ZeroMatchSummary).IsNotNull();
+        await Assert.That(filteredHit.ZeroMatchSummary!.HasFilter).IsTrue();
+        await Assert.That(filteredHit.ZeroMatchSummary.QueryMatchCount).IsEqualTo(1);
+        await Assert.That(filteredHit.ZeroMatchSummary.FilterOrFacetExcludedCount).IsEqualTo(1);
+        await Assert.That(filteredHit.ZeroMatchSummary.HasOutOfScopeMatches).IsTrue();
+
+        // Private dynamic map keys and secret values never leak into zero-match summaries or match counts.
+        Definition secretMapDef = DefinitionSourceCodec.ParseJson(System.Text.Encoding.UTF8.GetBytes("""
+        {
+          "$schema": "urn:islamu:configurator:authoring:v0.0.1",
+          "identity": { "familyId": "a2b1c0d0-1122-4455-8899-aabbccddeeff", "revision": 1 },
+          "project": { "id": "zero-match-privacy", "name": "Privacy" },
+          "applicationVersions": ["1.0"],
+          "configuration": {
+            "type": "object",
+            "additionalProperties": false,
+            "x-configurator": { "sensitivity": "public" },
+            "properties": {
+              "secretToken": { "type": "string", "title": "Secret Token", "x-configurator": { "sensitivity": "secret" } },
+              "privateMap": {
+                "type": "object",
+                "title": "Private Map",
+                "x-configurator": { "sensitivity": "secret" },
+                "additionalProperties": { "type": "string", "title": "Map Value", "x-configurator": { "sensitivity": "secret" } }
+              }
+            }
+          },
+          "outputs": { "out.json": { "id": "out", "format": "json" } }
+        }
+        """));
+        using var form = new DefinitionFormModel(secretMapDef, DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        form.EditValue(["secretToken"], "sentinel-secret-value-999");
+        form.AddMapEntry(["privateMap"], "sentinel-private-key-888");
+        form.EditValue(["privateMap", "sentinel-private-key-888"], "sentinel-map-val-777");
+
+        form.SetDiscovery("sentinel-private-key-888");
+        DiscoveryZeroMatchSummary? privateKeySummary = form.GetDiscoveryZeroMatchSummary();
+        await Assert.That(form.Projection.Matches).IsEmpty();
+        await Assert.That(privateKeySummary).IsNotNull();
+        await Assert.That(privateKeySummary!.QueryMatchCount).IsEqualTo(0);
+        await Assert.That(privateKeySummary.HiddenInactiveMatchCount).IsEqualTo(0);
+        await Assert.That(privateKeySummary.HasOutOfScopeMatches).IsFalse();
+        string serialized = System.Text.Json.JsonSerializer.Serialize(privateKeySummary);
+        await Assert.That(serialized).DoesNotContain("sentinel");
+    }
+
     private static int Count(DefinitionDiscoverySnapshot result, DefinitionDiscoveryFacet facet, string value) =>
         result.Facets[facet].Single(option => option.Value == value).Count;
 

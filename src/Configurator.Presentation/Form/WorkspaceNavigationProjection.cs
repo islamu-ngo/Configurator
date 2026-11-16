@@ -1,5 +1,16 @@
 namespace Configurator.Presentation;
 
+using Configurator.Core.Definitions;
+
+/// <summary>Resolved control-level target coordinates for an actionable validation or required-work item.</summary>
+public sealed record WorkspaceActionableTarget(
+    string SectionId,
+    DefinitionPath DefinitionPath,
+    string FieldId,
+    DefinitionDiagnostic Diagnostic,
+    bool IsBlockingError,
+    bool CanEdit);
+
 /// <summary>Shared wizard/sections navigation projection and smart next-jump targets.</summary>
 public sealed record WorkspaceNavigationProjection(
     bool IsWizardNavigation,

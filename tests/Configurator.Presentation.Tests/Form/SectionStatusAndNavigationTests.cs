@@ -96,9 +96,12 @@ public sealed class SectionStatusAndNavigationTests
         form.RecordSectionOpened("db-conn");
         form.SetWorkspaceDensity(WorkspaceDensity.Compact);
         form.SetWorkspaceNamingMode(WorkspaceNamingMode.Technical);
-        form.SetWorkspaceLayoutMode(WorkspaceLayoutMode.Compact);
+        form.SetConfigureLayoutMode(ConfigureLayoutMode.AllSections);
+        form.SetWorkspaceStage(WorkspaceStage.Review);
         await Assert.That(form.InputRevision).IsEqualTo(revBefore);
         await Assert.That(form.Projection.ProgressSummary.OpenedSections).IsEqualTo(1);
+        await Assert.That(form.ConfigureLayoutMode).IsEqualTo(ConfigureLayoutMode.AllSections);
+        await Assert.That(form.WorkspaceStage).IsEqualTo(WorkspaceStage.Review);
     }
 
     [Test]
@@ -177,10 +180,10 @@ public sealed class SectionStatusAndNavigationTests
         await Assert.That(form.IsEditorVisible(["advancedAudit"])).IsFalse();
         await Assert.That(form.IsEditorVisible(["clusterNode"])).IsFalse();
 
-        // Transition atomically to Compact + Continuous visibility.
-        form.SetWorkspaceLayoutMode(WorkspaceLayoutMode.Compact, DefinitionEditorVisibilityPolicy.Continuous);
+        // Transition atomically to AllSections + Continuous visibility.
+        form.SetConfigureLayoutMode(ConfigureLayoutMode.AllSections, DefinitionEditorVisibilityPolicy.Continuous);
 
-        await Assert.That(form.WorkspaceLayoutMode).IsEqualTo(WorkspaceLayoutMode.Compact);
+        await Assert.That(form.ConfigureLayoutMode).IsEqualTo(ConfigureLayoutMode.AllSections);
         await Assert.That(form.EditorVisibility).IsEqualTo(DefinitionEditorVisibilityPolicy.Continuous);
         await Assert.That(form.SelectedExperienceId).IsEqualTo("essential");
         await Assert.That(string.Join("|", form.Projection.Sections.Select(section => section.Id)))
@@ -201,14 +204,177 @@ public sealed class SectionStatusAndNavigationTests
 
         await Assert.That(form.EditValue(["advancedAudit"], "strict-audit")).IsTrue();
 
-        // Returning to Guided restores Authored visibility and original SelectedExperienceId while keeping edited answers.
-        form.SetWorkspaceLayoutMode(WorkspaceLayoutMode.Guided);
+        // Returning to SectionBySection restores Authored visibility and original SelectedExperienceId while keeping edited answers.
+        form.SetConfigureLayoutMode(ConfigureLayoutMode.SectionBySection);
 
-        await Assert.That(form.WorkspaceLayoutMode).IsEqualTo(WorkspaceLayoutMode.Guided);
+        await Assert.That(form.ConfigureLayoutMode).IsEqualTo(ConfigureLayoutMode.SectionBySection);
         await Assert.That(form.EditorVisibility).IsEqualTo(DefinitionEditorVisibilityPolicy.Authored);
         await Assert.That(form.SelectedExperienceId).IsEqualTo("essential");
         await Assert.That(form.Snapshot().Values["advancedAudit"].GetString()).IsEqualTo("strict-audit");
     }
+
+    [Test]
+    public async Task ContinuousVisibilityAlignsIsEditorExpandedWithVisibleOptionalChildren()
+    {
+        using var form = new DefinitionFormModel(
+            ContinuousNestedObjectDefinition(),
+            DefinitionSessionPrivacy.BrowserNoSecrets,
+            editorVisibility: DefinitionEditorVisibilityPolicy.Authored);
+        form.SetDisclosureOverride(FieldDisclosure.Essential);
+        form.SetConfigureLayoutMode(ConfigureLayoutMode.AllSections, DefinitionEditorVisibilityPolicy.Continuous);
+
+        // Under Continuous, optional child is visible by default so parent expansion MUST report true (S08).
+        await Assert.That(form.IsEditorVisible(["endpoint", "optionalPort"])).IsTrue();
+        await Assert.That(form.IsEditorExpanded(["endpoint"])).IsTrue();
+
+        // Collapsing once immediately hides the optional child without needing two clicks.
+        await Assert.That(form.SetEditorExpanded(["endpoint"], false)).IsTrue();
+        await Assert.That(form.IsEditorExpanded(["endpoint"])).IsFalse();
+        await Assert.That(form.IsEditorVisible(["endpoint", "optionalPort"])).IsFalse();
+
+        // Expanding again restores both flags without mutating answers.
+        long revision = form.InputRevision;
+        await Assert.That(form.SetEditorExpanded(["endpoint"], true)).IsTrue();
+        await Assert.That(form.IsEditorExpanded(["endpoint"])).IsTrue();
+        await Assert.That(form.IsEditorVisible(["endpoint", "optionalPort"])).IsTrue();
+        await Assert.That(form.InputRevision).IsEqualTo(revision);
+    }
+
+    [Test]
+    public async Task OptionalValidationErrorsPreventIsReadyForExportAndCountDistinctly()
+    {
+        using var form = new DefinitionFormModel(SplitPointerWizardDefinition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        form.EditValue(DefinitionPath.FromSegments(["database", "host"]), "db.local");
+        form.EditValue(DefinitionPath.FromSegments(["database", "password"]), "synthetic-valid-password-24chars");
+
+        WorkspaceProgressSummary cleanSummary = form.Projection.ProgressSummary;
+        await Assert.That(cleanSummary.ReadyRequired).IsEqualTo(2);
+        await Assert.That(cleanSummary.TotalRequired).IsEqualTo(2);
+        await Assert.That(cleanSummary.OptionalInvalidCount).IsEqualTo(0);
+        await Assert.That(cleanSummary.TotalInvalidCount).IsEqualTo(0);
+        await Assert.That(cleanSummary.IsReadyForExport).IsTrue();
+
+        // Invalid unparsed draft on an optional setting blocks export readiness (S01).
+        form.EditValue(["optionalPort"], "not-an-integer");
+        WorkspaceProgressSummary draftErrorSummary = form.Projection.ProgressSummary;
+        await Assert.That(draftErrorSummary.ReadyRequired).IsEqualTo(2);
+        await Assert.That(draftErrorSummary.RequiredPercent).IsEqualTo(100);
+        await Assert.That(draftErrorSummary.OptionalInvalidCount).IsEqualTo(1);
+        await Assert.That(draftErrorSummary.TotalInvalidCount).IsEqualTo(1);
+        await Assert.That(draftErrorSummary.RequiredInvalidCount).IsEqualTo(0);
+        await Assert.That(draftErrorSummary.IsReadyForExport).IsFalse();
+
+        // Out-of-range schema validation error on an optional setting also blocks export readiness.
+        form.EditValue(["optionalPort"], "99999");
+        WorkspaceProgressSummary rangeErrorSummary = form.Projection.ProgressSummary;
+        await Assert.That(rangeErrorSummary.OptionalInvalidCount).IsEqualTo(1);
+        await Assert.That(rangeErrorSummary.TotalInvalidCount).IsEqualTo(1);
+        await Assert.That(rangeErrorSummary.IsReadyForExport).IsFalse();
+
+        // Fixing the optional value restores export readiness.
+        form.EditValue(["optionalPort"], "8080");
+        await Assert.That(form.Projection.ProgressSummary.OptionalInvalidCount).IsEqualTo(0);
+        await Assert.That(form.Projection.ProgressSummary.IsReadyForExport).IsTrue();
+    }
+
+    [Test]
+    public async Task ResolveNextActionableTargetReturnsExactControlCoordinatesAndSetSectionReviewedClearsNewlyRelevant()
+    {
+        using var form = new DefinitionFormModel(SplitPointerWizardDefinition(), DefinitionSessionPrivacy.BrowserNoSecrets);
+
+        // Input error on optionalPort resolves exact (SectionId, DefinitionPath, FieldId).
+        form.EditValue(["optionalPort"], "bad-port");
+        WorkspaceActionableTarget? errorTarget = form.ResolveNextActionableTarget();
+        await Assert.That(errorTarget).IsNotNull();
+        await Assert.That(errorTarget!.SectionId).IsEqualTo("optional-sec");
+        await Assert.That(errorTarget.DefinitionPath).IsEqualTo(DefinitionPath.FromSegments(["optionalPort"]));
+        await Assert.That(errorTarget.FieldId).IsEqualTo("optionalPort");
+        await Assert.That(errorTarget.IsBlockingError).IsTrue();
+        await Assert.That(errorTarget.CanEdit).IsTrue();
+
+        // Clearing optional error surfaces missing required /database/host in db-conn and locked /database/password in db-sec.
+        form.ResetValue(["optionalPort"]);
+        WorkspaceActionableTarget? hostTarget = form.ResolveNextActionableTarget();
+        await Assert.That(hostTarget).IsNotNull();
+        await Assert.That(hostTarget!.SectionId).IsEqualTo("db-conn");
+        await Assert.That(hostTarget.DefinitionPath).IsEqualTo(DefinitionPath.FromSegments(["database", "host"]));
+        await Assert.That(hostTarget.FieldId).IsEqualTo("database");
+        await Assert.That(hostTarget.IsBlockingError).IsFalse();
+        await Assert.That(hostTarget.CanEdit).IsTrue();
+
+        WorkspaceActionableTarget? secretTarget = form.ResolveNextActionableTarget("db-sec");
+        await Assert.That(secretTarget).IsNotNull();
+        await Assert.That(secretTarget!.SectionId).IsEqualTo("db-sec");
+        await Assert.That(secretTarget.DefinitionPath).IsEqualTo(DefinitionPath.FromSegments(["database", "password"]));
+        await Assert.That(secretTarget.FieldId).IsEqualTo("database");
+        await Assert.That(secretTarget.CanEdit).IsFalse();
+
+        // Marking reviewed clears HasNewlyRelevantSettings after downgrade (S02).
+        form.SetSectionReviewed("identity-sec");
+        form.EditValue(["enableExtraIdentity"], "true");
+        await Assert.That(form.Projection.SectionStatuses["identity-sec"].HasNewlyRelevantSettings).IsTrue();
+
+        await Assert.That(form.SetSectionReviewed("identity-sec")).IsTrue();
+        await Assert.That(form.Projection.SectionStatuses["identity-sec"].Coverage).IsEqualTo(SectionReviewCoverage.Reviewed);
+        await Assert.That(form.Projection.SectionStatuses["identity-sec"].HasNewlyRelevantSettings).IsFalse();
+
+        // Explicit inspection acknowledgement clears HasNewlyRelevantSettings without marking Reviewed.
+        form.EditValue(["enableExtraIdentity"], "false");
+        form.SetSectionReviewed("identity-sec");
+        form.EditValue(["enableExtraIdentity"], "true");
+        await Assert.That(form.Projection.SectionStatuses["identity-sec"].HasNewlyRelevantSettings).IsTrue();
+        await Assert.That(form.RecordSectionOpened("identity-sec", acknowledgeNewlyRelevant: true)).IsTrue();
+        await Assert.That(form.Projection.SectionStatuses["identity-sec"].Coverage).IsEqualTo(SectionReviewCoverage.Opened);
+        await Assert.That(form.Projection.SectionStatuses["identity-sec"].HasNewlyRelevantSettings).IsFalse();
+    }
+
+    private static Definition ContinuousNestedObjectDefinition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
+    {
+      "schemaVersion": "0.0.1",
+      "profile": "bounded-v0.0.1",
+      "familyId": "5a84708c-227a-42db-a9a2-f5870a1eb299",
+      "revision": 1,
+      "project": { "id": "continuous-nested", "publisher": "example", "name": "Continuous Nested" },
+      "applicationVersions": ["1.0.0"],
+      "entryPoints": ["setup"],
+      "locales": ["en"],
+      "configuration": {
+        "type": "object",
+        "additionalProperties": false,
+        "x-configurator": { "sensitivity": "public" },
+        "required": ["endpoint"],
+        "properties": {
+          "endpoint": {
+            "type": "object",
+            "title": "Endpoint",
+            "additionalProperties": false,
+            "required": ["host"],
+            "x-configurator": { "sensitivity": "public", "detail": "basic", "initialValue": {} },
+            "properties": {
+              "host": { "type": "string", "title": "Host", "x-configurator": { "sensitivity": "public", "detail": "basic" } },
+              "optionalPort": { "type": "integer", "title": "Optional Port", "x-configurator": { "sensitivity": "public", "detail": "advanced" } }
+            }
+          }
+        }
+      },
+      "presentation": {
+        "defaultJourney": "essential",
+        "navigation": "sections",
+        "sections": [
+          { "id": "general", "title": "General", "detail": "basic", "pointers": ["/endpoint"] }
+        ],
+        "journeys": [
+          { "id": "essential", "title": "Essential", "sections": ["general"] }
+        ]
+      },
+      "artifacts": [
+        { "id": "out", "format": "json", "fileName": "out.json", "targetUpdateMode": "create", "restartRequirement": "none", "projection": { "op": "literal", "value": {} } }
+      ],
+      "requiredCapabilities": [
+        "projection.literal", "schema.integer", "schema.object", "schema.string", "values.initial"
+      ]
+    }
+    """));
 
     private static Definition ContinuousExperienceDefinition() => DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes("""
     {

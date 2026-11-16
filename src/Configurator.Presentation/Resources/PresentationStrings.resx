@@ -100,10 +100,10 @@
   <data name="CommandUndoSubtitle" xml:space="preserve"><value>Revert the most recent workspace edit</value></data>
   <data name="CommandRedoTitle" xml:space="preserve"><value>Redo change</value></data>
   <data name="CommandRedoSubtitle" xml:space="preserve"><value>Reapply the previously undone workspace edit</value></data>
-  <data name="CommandGuidedTitle" xml:space="preserve"><value>Switch to Guided Form</value></data>
-  <data name="CommandGuidedSubtitle" xml:space="preserve"><value>View sections with step-by-step explanations and contextual hints</value></data>
-  <data name="CommandCompactTitle" xml:space="preserve"><value>Switch to Compact Table</value></data>
-  <data name="CommandCompactSubtitle" xml:space="preserve"><value>Scan and edit all settings in a dense keyboard-friendly table</value></data>
+  <data name="CommandSectionBySectionTitle" xml:space="preserve"><value>Switch to Section-by-Section View</value></data>
+  <data name="CommandSectionBySectionSubtitle" xml:space="preserve"><value>Focus on one configuration section at a time with guided steps</value></data>
+  <data name="CommandAllSectionsTitle" xml:space="preserve"><value>Switch to All Sections View</value></data>
+  <data name="CommandAllSectionsSubtitle" xml:space="preserve"><value>Scroll and edit all active sections in one continuous workspace</value></data>
   <data name="CommandReviewTitle" xml:space="preserve"><value>Open Review Stage</value></data>
   <data name="CommandReviewSubtitle" xml:space="preserve"><value>Inspect blocking issues, deferred secrets, and value origins</value></data>
   <data name="CommandFilesTitle" xml:space="preserve"><value>Open Files &amp; Outputs</value></data>

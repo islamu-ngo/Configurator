@@ -234,6 +234,7 @@ internal sealed class DefinitionFormFacts
         }
 
         Progress = totalBucket.ToProgress();
+        OptionalInvalidCount = CountOptionalInvalidPaths(totalBucket.InvalidPaths);
         if (singleFastPath)
         {
             var singleMap = new Dictionary<string, DefinitionFormProgress>(form.Sections.Count, StringComparer.Ordinal);
@@ -384,8 +385,35 @@ internal sealed class DefinitionFormFacts
 
         public void AddInvalidPath(DefinitionPath path) => (_invalidPaths ??= []).Add(path);
 
+        public IEnumerable<DefinitionPath> InvalidPaths => _invalidPaths ?? Enumerable.Empty<DefinitionPath>();
+
         public DefinitionFormProgress ToProgress() =>
             new(_ready, _required, _missing, _invalidPaths?.Count ?? 0, _deferred);
+    }
+
+    private int CountOptionalInvalidPaths(IEnumerable<DefinitionPath> invalidPaths)
+    {
+        int count = 0;
+        foreach (DefinitionPath path in invalidPaths)
+        {
+            if (IsOptionalInvalidPath(path))
+                count++;
+        }
+        return count;
+    }
+
+    private bool IsOptionalInvalidPath(DefinitionPath path)
+    {
+        if (_nodes.TryGetValue(path, out DefinitionNodeState? state))
+            return !state.IsObligation && !state.IsRequired;
+        for (int length = path.Segments.Count - 1; length >= 1; length--)
+        {
+            var slice = new string[length];
+            for (int i = 0; i < length; i++) slice[i] = path.Segments[i];
+            if (_nodes.TryGetValue(DefinitionPath.FromSegments(slice), out DefinitionNodeState? ancestor))
+                return !ancestor.IsObligation && !ancestor.IsRequired;
+        }
+        return false;
     }
 
     private static Lazy<(IReadOnlyList<DefinitionDiscoveryEntry> Entries, IReadOnlyDictionary<string, DefinitionPath> LiteralPaths)> CreateEntries(
@@ -464,6 +492,7 @@ internal sealed class DefinitionFormFacts
     internal IReadOnlyList<DefinitionDiagnostic> InputDiagnostics { get; }
     internal bool HasInputErrors { get; }
     internal DefinitionFormProgress Progress { get; }
+    internal int OptionalInvalidCount { get; }
     internal IReadOnlyDictionary<string, DefinitionFormProgress> SectionProgress { get; }
     internal Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> Entries { get; }
     internal Lazy<IReadOnlyDictionary<string, DefinitionPath>> EntryLiteralPaths { get; }
@@ -473,19 +502,47 @@ internal sealed class DefinitionFormFacts
     internal IEnumerable<DefinitionPath> CorrectionPaths => _correctionPaths;
     internal IEnumerable<DefinitionPath> PromotionPaths => _promotionPaths;
     internal bool IsActive(string fieldId) => _activeFields.Contains(fieldId);
-    internal DefinitionDiagnostic? GetNextActionableDiagnostic(DefinitionFormModel form, string? preferredSectionId = null)
-    {
-        DefinitionPath DiagnosticLiteralPath(DefinitionDiagnostic diagnostic)
-        {
-            if (diagnostic.Location is { } location && form.TryCorrectionPath(diagnostic.FieldId, location, Validation, out IReadOnlyList<string> path))
-                return diagnostic.FieldId.Length == 0 ? DefinitionPath.FromSegments(path) : form.DataPath(path);
-            if (diagnostic.RelativePath.Count == 0 && _index.RootPaths.TryGetValue(diagnostic.FieldId, out IReadOnlyList<string>? root))
-                return form.DataPath(root);
-            return form.DataPath([diagnostic.FieldId, .. diagnostic.RelativePath]);
-        }
+    internal DefinitionDiagnostic? GetNextActionableDiagnostic(DefinitionFormModel form, string? preferredSectionId = null) =>
+        SelectNextDiagnostic(form, preferredSectionId, includeRequired: true);
 
+    internal WorkspaceActionableTarget? ResolveNextActionableTarget(
+        DefinitionFormModel form,
+        string? preferredSectionId = null,
+        bool errorsOnly = false)
+    {
+        DefinitionDiagnostic? diagnostic = SelectNextDiagnostic(form, preferredSectionId, includeRequired: !errorsOnly);
+        return diagnostic is null ? null : ResolveActionableTarget(form, diagnostic);
+    }
+
+    internal WorkspaceActionableTarget ResolveActionableTarget(DefinitionFormModel form, DefinitionDiagnostic diagnostic)
+    {
+        DefinitionPath literalPath = DiagnosticLiteralPath(form, diagnostic);
+        string sectionId = _index.ResolveSection(literalPath)?.Id ?? (form.Sections.Count > 0 ? form.Sections[0].Id : string.Empty);
+        string fieldId = diagnostic.FieldId.Length > 0
+            ? diagnostic.FieldId
+            : literalPath.Segments.Count > 0 && _index.FieldIdsByName.TryGetValue(literalPath.Segments[0], out string? mappedFieldId)
+                ? mappedFieldId
+                : string.Empty;
+        bool isBlockingError = diagnostic.Code != "value-required" || InputDiagnostics.Contains(diagnostic);
+        bool canEdit = form.CanEdit(literalPath);
+        return new WorkspaceActionableTarget(sectionId, literalPath, fieldId, diagnostic, isBlockingError, canEdit);
+    }
+
+    private DefinitionPath DiagnosticLiteralPath(DefinitionFormModel form, DefinitionDiagnostic diagnostic)
+    {
+        if (diagnostic.Location is { } location && form.TryCorrectionPath(diagnostic.FieldId, location, Validation, out IReadOnlyList<string> path))
+            return diagnostic.FieldId.Length == 0 ? DefinitionPath.FromSegments(path) : form.DataPath(path);
+        if (diagnostic.FieldId.Length == 0)
+            return DefinitionPath.FromSegments(diagnostic.RelativePath);
+        if (diagnostic.RelativePath.Count == 0 && _index.RootPaths.TryGetValue(diagnostic.FieldId, out IReadOnlyList<string>? root))
+            return form.DataPath(root);
+        return form.DataPath([diagnostic.FieldId, .. diagnostic.RelativePath]);
+    }
+
+    private DefinitionDiagnostic? SelectNextDiagnostic(DefinitionFormModel form, string? preferredSectionId, bool includeRequired)
+    {
         string? SectionOf(DefinitionDiagnostic diagnostic) =>
-            _index.ResolveSection(DiagnosticLiteralPath(diagnostic))?.Id ?? (form.Sections.Count > 0 ? form.Sections[0].Id : null);
+            _index.ResolveSection(DiagnosticLiteralPath(form, diagnostic))?.Id ?? (form.Sections.Count > 0 ? form.Sections[0].Id : null);
 
         DefinitionDiagnostic? first = InputDiagnostics.Count > 0 ? InputDiagnostics[0] : null;
         DefinitionDiagnostic? firstNonRequired = null;
@@ -502,14 +559,14 @@ internal sealed class DefinitionFormFacts
             {
                 if (diagnostic.Code == "value-required")
                 {
-                    firstRequired ??= diagnostic;
+                    if (includeRequired) firstRequired ??= diagnostic;
                     continue;
                 }
                 firstNonRequired ??= diagnostic;
                 if (string.Equals(SectionOf(diagnostic), preferredSectionId, StringComparison.Ordinal))
                     return diagnostic;
             }
-            if (firstRequired is not null)
+            if (includeRequired && firstRequired is not null)
             {
                 foreach (DefinitionDiagnostic diagnostic in Validation.Diagnostics)
                 {
@@ -518,16 +575,16 @@ internal sealed class DefinitionFormFacts
                         return diagnostic;
                 }
             }
-            return first ?? firstNonRequired ?? firstRequired;
+            return first ?? firstNonRequired ?? (includeRequired ? firstRequired : null);
         }
 
         if (first is not null) return first;
         foreach (DefinitionDiagnostic diagnostic in Validation.Diagnostics)
         {
             if (diagnostic.Code != "value-required") return diagnostic;
-            firstRequired ??= diagnostic;
+            if (includeRequired) firstRequired ??= diagnostic;
         }
-        return firstRequired;
+        return includeRequired ? firstRequired : null;
     }
     internal DefinitionNodeState? EditorState(IReadOnlyList<string> path) => _nodes.GetValueOrDefault(_index.DataPath(path));
     internal DefinitionNodeState? EditorState(DefinitionPath path) => _nodes.GetValueOrDefault(path);

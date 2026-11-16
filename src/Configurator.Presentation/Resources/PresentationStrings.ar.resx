@@ -100,10 +100,10 @@
   <data name="CommandUndoSubtitle" xml:space="preserve"><value>إرجاع آخر تعديل في مساحة العمل</value></data>
   <data name="CommandRedoTitle" xml:space="preserve"><value>إعادة التغيير</value></data>
   <data name="CommandRedoSubtitle" xml:space="preserve"><value>إعادة تطبيق التعديل المُتراجع عنه</value></data>
-  <data name="CommandGuidedTitle" xml:space="preserve"><value>التبديل إلى النموذج الموجّه</value></data>
-  <data name="CommandGuidedSubtitle" xml:space="preserve"><value>عرض الأقسام مع الإرشادات خطوة بخطوة</value></data>
-  <data name="CommandCompactTitle" xml:space="preserve"><value>التبديل إلى الجدول المضغوط</value></data>
-  <data name="CommandCompactSubtitle" xml:space="preserve"><value>عرض وتعديل الإعدادات في جدول كثيف سريع التنقل</value></data>
+  <data name="CommandSectionBySectionTitle" xml:space="preserve"><value>التبديل إلى العرض قسمًا بقسم</value></data>
+  <data name="CommandSectionBySectionSubtitle" xml:space="preserve"><value>التركيز على قسم تهيئة واحد في كل مرة بخطوات موجّهة</value></data>
+  <data name="CommandAllSectionsTitle" xml:space="preserve"><value>التبديل إلى عرض جميع الأقسام</value></data>
+  <data name="CommandAllSectionsSubtitle" xml:space="preserve"><value>تصفح وتعديل جميع الأقسام النشطة في مساحة عمل متصلة</value></data>
   <data name="CommandReviewTitle" xml:space="preserve"><value>فتح مرحلة المراجعة</value></data>
   <data name="CommandReviewSubtitle" xml:space="preserve"><value>مراجعة الأخطاء والأسرار المؤجلة ومصادر القيم</value></data>
   <data name="CommandFilesTitle" xml:space="preserve"><value>فتح الملفات والمخرجات</value></data>

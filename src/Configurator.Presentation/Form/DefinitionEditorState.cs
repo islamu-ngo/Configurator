@@ -41,6 +41,12 @@ public sealed partial class DefinitionFormModel
             if (!TryEditorMetadata(path, out _, out _)) return false;
             if (TryLocalExpansion(path, out bool expanded)) return expanded;
             DefinitionFormSection? section = path.Segments.Count > 0 ? _index!.ResolveSection(path) : null;
+            if (_view.EditorVisibility == DefinitionEditorVisibilityPolicy.Continuous)
+            {
+                return section is null ||
+                    !_view.SectionExpansion.TryGetValue(section.Id, out bool continuousSectionExpanded) ||
+                    continuousSectionExpanded;
+            }
             bool all = section is not null && _view.SectionExpansion.TryGetValue(section.Id, out bool sectionExpanded)
                 ? sectionExpanded : OptionalEditorsExpanded;
             return all || EffectiveDisclosure == FieldDisclosure.Advanced;
