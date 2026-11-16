@@ -507,14 +507,20 @@ schema helps editing; `answers validate` and preparation remain the authority.
 ## Review authoring quality before release
 
 ```bash
-islamu-configurator definition lint --source configurator.yaml --quality
+islamu-configurator definition lint --source configurator.yaml --quality --strict
 ```
 
 Quality advisories flag titles that repeat raw keys, choice labels that repeat
 their values, JSONPath fragments or exporter diagnostics in operator text,
-deprecations without guidance, sections without descriptions, required secrets
-without guidance and sections no journey reaches. Advisories are warnings; they
-never change whether the definition is admitted.
+deprecations without guidance, sections without descriptions or exceeding 12
+ungrouped required leaves (`section-high-required-density`), required or optional
+secrets lacking acquisition policy or instructions (`secret-missing-acquisition-guidance`),
+non-secret required settings without guidance, formatted fields without a concrete
+example or format cue (`description-missing-format-hint`), authored choices without
+or duplicating an explanation (`choice-duplicate-explanation`), and sections no
+journey reaches. Preview both English and Arabic at a narrow viewport after
+resolving the findings. Advisories remain warnings unless `--strict` is supplied
+(returning data exit code `65`); they never change whether the definition is admitted.
 
 ## Localized public choices, help and links
 

@@ -860,3 +860,14 @@ advisories do not require authors to invent relationships between independent
 tasks. Machine consumers must accept the new advisory codes. Additional findings
 can reach the existing report limit sooner; an incomplete bounded report returns
 the documented Data outcome rather than success.
+The same lint pass also reports `required-setting-missing-guidance` and
+`required-secret-missing-guidance` for statically required leaves without
+`description` or `guidance.instructions`, `secret-missing-acquisition-guidance`
+for required or optional secret leaves without declared `secret` acquisition
+policy or `guidance.instructions`, `choice-missing-guidance` and
+`choice-duplicate-explanation` for authored choices missing or repeating
+explanations, `description-missing-format-hint` for asserted lexical formats
+missing concrete examples or format cues, and `section-high-required-density`
+for sections with more than 12 ungrouped required leaves. Pass `--strict` to
+`definition lint` to return `CliExitCode.Data` when any warning is present;
+all findings carry schema paths and leave admission unchanged.

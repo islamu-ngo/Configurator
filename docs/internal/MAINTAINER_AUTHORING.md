@@ -74,8 +74,13 @@ is preserved. Root `predicates`, value-keyed choice localization, section `group
 nested pointers and concise output bindings (`includeBindings`, `bindObject`,
 string paths, literals, output `when`) are described in the
 [Core definition contract](CORE_DEFINITION_CONTRACT.md#authoring-lowering).
-Run `definition lint --quality` before release and give every required secret a
-description or guidance.
+Run `definition lint --quality --strict` before release so warnings fail closed
+with `CliExitCode.Data`. Give every required setting a description or guidance,
+every secret (required or optional) an acquisition policy or instructions, every
+asserted lexical format a concrete example or hint, authored choices distinct
+non-empty explanations, and split dense sections (`> 12` required leaves) into
+`groups`. Review English and Arabic rendering at narrow viewport widths as well as
+the machine findings.
 Public initial/suggested/default/example/const metadata must pass privacy and
 value admission. Private ancestors prevent literal-value leakage through public
 leaves; protected descendants raise effective container sensitivity.

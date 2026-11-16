@@ -37,7 +37,7 @@ public sealed class CliContractTests
                 "--revision-field", "--input-revision", "--answers", "--source", "--root", "--against",
                 "--id-map", "--project-id", "--name", "--application-version", "--fork-from", "--from-env-example",
                 "--from-schema", "--accept-bounded-semantics", "--kind", "--detail", "--offset", "--limit", "--expected-detail-digest",
-                "--pointer", "--generated-password-output", "--secret-input-file", "--secret-input-stdin", "--quality",
+                "--pointer", "--generated-password-output", "--secret-input-file", "--secret-input-stdin", "--quality", "--strict",
                 "--store", "--mode", "--environment-context", "--confirm-passphrase-stdin", "--confirm-passphrase-file",
                 "--acknowledge-device-only", "--cipher", "--kdf", "--passphrase-stdin", "--passphrase-file", "--device",
                 "--profile-id", "--snapshot-id", "--recipient", "--comparison", "--source-definition",
@@ -51,7 +51,7 @@ public sealed class CliContractTests
         JsonArray check = definition.Single(operation => operation!["name"]!.GetValue<string>() == "check")!["options"]!.AsArray();
         JsonArray lint = definition.Single(operation => operation!["name"]!.GetValue<string>() == "lint")!["options"]!.AsArray();
         await Assert.That(lint.Select(option => option!.GetValue<string>()))
-            .IsEquivalentTo(check.Select(option => option!.GetValue<string>()).Append("--quality"));
+            .IsEquivalentTo(check.Select(option => option!.GetValue<string>()).Append("--quality").Append("--strict"));
         JsonArray discovery = definition.Single(operation => operation!["name"]!.GetValue<string>() == "schema")!["options"]!.AsArray();
         await Assert.That(discovery.Select(option => option!.GetValue<string>()))
             .IsEquivalentTo(["--help", "--kind", "--machine", "--text"]);

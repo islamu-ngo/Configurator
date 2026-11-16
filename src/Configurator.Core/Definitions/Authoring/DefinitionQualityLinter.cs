@@ -8,40 +8,57 @@ public sealed record DefinitionQualityAdvisory(string Code, string SchemaPath);
 
 /// <summary>
 /// Reports authoring quality advisories for an admitted definition. Advisories never change admission: they flag
-/// operator-facing text that echoes raw identifiers or exporter internals, missing guidance, and unreachable layout.
+/// operator-facing text that echoes raw identifiers or exporter internals, missing guidance, formatting hints,
+/// ungrouped dense required sections, duplicate choice explanations, and unreachable layout.
 /// </summary>
 public static class DefinitionQualityLinter
 {
+    private const int MaximumUngroupedRequiredLeaves = 12;
+
     /// <summary>Stable advisory codes, in reporting order.</summary>
     public static IReadOnlyList<string> Codes { get; } = Array.AsReadOnly(new[]
     {
         "raw-identifier-title", "verbatim-choice-label", "jsonpath-description", "exporter-diagnostic-description",
         "missing-deprecation-message", "missing-section-description", "required-secret-missing-guidance",
+        "secret-missing-acquisition-guidance", "required-setting-missing-guidance", "choice-missing-guidance",
+        "choice-duplicate-explanation", "description-missing-format-hint", "section-high-required-density",
         "unreferenced-journey-section", "output-option-missing-description", "output-selector-missing-next-actions"
     });
 
     private static readonly string[] ExporterPhrases = ["Host validator:", "Host restart:", "startup-owned:"];
 
+    private static readonly string[] FormatHintCues =
+    [
+        "://", "@", "`", "e.g.", "for example", "example:", "such as",
+        "rfc", "iso", "uuid", "hostname", "ipv4", "ipv6", "https", "http",
+        "pattern", "format", "مثال", "صيغة", "تنسيق"
+    ];
+
     public static IReadOnlyList<DefinitionQualityAdvisory> Lint(Definition definition, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
         var advisories = new List<DefinitionQualityAdvisory>();
-        var pending = new Stack<(DefinitionNode Node, string? Name, string Path, bool Required, FieldSensitivity Inherited)>();
-        pending.Push((definition.Configuration, null, "/configuration", false, FieldSensitivity.Public));
+        var requiredLeaves = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Stack<(DefinitionNode Node, string? Name, string Path, string DataPointer, bool Required, FieldSensitivity Inherited)>();
+        pending.Push((definition.Configuration, null, "/configuration", "", true, FieldSensitivity.Public));
         while (pending.TryPop(out var current))
         {
             cancellationToken.ThrowIfCancellationRequested();
             Node(current.Node, current.Name, current.Path, current.Required, current.Inherited, advisories);
+            bool leaf = current.Node.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence);
+            if (leaf && current.Required && current.DataPointer.Length > 0)
+                requiredLeaves.Add(current.DataPointer);
             var sensitivity = (FieldSensitivity)Math.Max((int)current.Inherited, (int)FieldDefinition.SensitivityOf(current.Node));
             foreach (string name in current.Node.OrderedPropertyNames.Reverse())
                 pending.Push((current.Node.Properties[name], name, current.Path + "/properties/" + Escape(name),
-                    current.Node.Required.Contains(name, StringComparer.Ordinal), sensitivity));
-            if (current.Node.Items is { } items) pending.Push((items, null, current.Path + "/items", false, sensitivity));
+                    current.DataPointer + "/" + Escape(name),
+                    current.Required && current.Node.Required.Contains(name, StringComparer.Ordinal), sensitivity));
+            if (current.Node.Items is { } items) pending.Push((items, null, current.Path + "/items", current.DataPointer, false, sensitivity));
             if (current.Node.AdditionalProperties is { } map)
-                pending.Push((map, null, current.Path + "/additionalProperties", false, sensitivity));
+                pending.Push((map, null, current.Path + "/additionalProperties", current.DataPointer, false, sensitivity));
             for (int index = current.Node.Variants.Count - 1; index >= 0; index--)
                 pending.Push((current.Node.Variants[index], null,
-                    current.Path + "/oneOf/" + index.ToString(CultureInfo.InvariantCulture), false, sensitivity));
+                    current.Path + "/oneOf/" + index.ToString(CultureInfo.InvariantCulture), current.DataPointer, false, sensitivity));
         }
         if (definition.Presentation is { } presentation)
         {
@@ -60,6 +77,8 @@ public static class DefinitionQualityLinter
                 DefinitionSection section = presentation.Sections[index];
                 string path = "/presentation/sections/" + index.ToString(CultureInfo.InvariantCulture);
                 if (section.Description is null) advisories.Add(new("missing-section-description", path));
+                if (CountUngroupedRequiredLeaves(section, requiredLeaves) > MaximumUngroupedRequiredLeaves)
+                    advisories.Add(new("section-high-required-density", path));
                 // Deployment selectors have dedicated recipe and scope controls; a section of only them needs no journey.
                 if (!reachable.Contains(section.Id) && !SelectorsOnly(definition, section))
                     advisories.Add(new("unreferenced-journey-section", path));
@@ -84,6 +103,7 @@ public static class DefinitionQualityLinter
         if (keywords.TryGetProperty("deprecated", out JsonElement deprecated) && deprecated.ValueKind == JsonValueKind.True
             && node.PresentationMetadata.DeprecationGuidance is null)
             advisories.Add(new("missing-deprecation-message", path));
+        var seenExplanations = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (DefinitionChoice choice in node.OptionMetadata)
         {
             if (choice.MetadataIndex is not { } index) continue;
@@ -93,14 +113,73 @@ public static class DefinitionQualityLinter
                 advisories.Add(new("verbatim-choice-label", choicePath + "/label"));
             if (choice.Deprecated && choice.DeprecationGuidance is null)
                 advisories.Add(new("missing-deprecation-message", choicePath));
+            if (choice.Explanation is null)
+                advisories.Add(new("choice-missing-guidance", choicePath));
+            else if (choice.Explanation.Trim() is { Length: > 0 } normalizedExplanation
+                && !seenExplanations.TryAdd(normalizedExplanation, index))
+                advisories.Add(new("choice-duplicate-explanation", choicePath));
         }
         var sensitivity = (FieldSensitivity)Math.Max((int)inherited, (int)FieldDefinition.SensitivityOf(node));
         bool leaf = node.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence);
-        if (required && leaf && sensitivity == FieldSensitivity.Secret && Text(keywords, "description") is null
-            && !(keywords.TryGetProperty("x-configurator", out JsonElement extension)
-                && extension.TryGetProperty("guidance", out JsonElement guidance) && guidance.TryGetProperty("instructions", out _)))
-            advisories.Add(new("required-secret-missing-guidance", path));
+        if (required && leaf && !HasGuidance(keywords))
+            advisories.Add(new(sensitivity == FieldSensitivity.Secret
+                ? "required-secret-missing-guidance" : "required-setting-missing-guidance", path));
+        if (sensitivity == FieldSensitivity.Secret && leaf && !HasSecretAcquisitionGuidance(node, keywords))
+            advisories.Add(new("secret-missing-acquisition-guidance", path));
+        if (leaf && Text(keywords, "format") is not null && !HasFormatHint(keywords))
+            advisories.Add(new("description-missing-format-hint", path));
     }
+
+    private static bool HasGuidance(JsonElement keywords) =>
+        Text(keywords, "description") is not null || HasInstructions(keywords);
+
+    private static bool HasInstructions(JsonElement keywords) =>
+        keywords.TryGetProperty("x-configurator", out JsonElement extension)
+        && extension.TryGetProperty("guidance", out JsonElement guidance)
+        && Text(guidance, "instructions") is not null;
+
+    private static bool HasSecretAcquisitionGuidance(DefinitionNode node, JsonElement keywords) =>
+        node.Secret is not null || HasInstructions(keywords);
+
+    private static bool HasFormatHint(JsonElement keywords)
+    {
+        if (keywords.TryGetProperty("examples", out JsonElement examples)
+            && examples.ValueKind == JsonValueKind.Array && examples.GetArrayLength() > 0)
+            return true;
+
+        if (ContainsFormatCue(Text(keywords, "description"))) return true;
+        if (keywords.TryGetProperty("x-configurator", out JsonElement extension))
+        {
+            if (ContainsFormatCue(Text(extension, "defaultText"))) return true;
+            if (extension.TryGetProperty("guidance", out JsonElement guidance)
+                && ContainsFormatCue(Text(guidance, "instructions")))
+                return true;
+        }
+        return false;
+
+        static bool ContainsFormatCue(string? candidate) =>
+            candidate is { Length: > 0 }
+            && FormatHintCues.Any(cue => candidate.Contains(cue, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static int CountUngroupedRequiredLeaves(DefinitionSection section, HashSet<string> requiredLeaves)
+    {
+        if (section.Pointers.Count == 0 || requiredLeaves.Count == 0) return 0;
+        var groupedPointers = section.Groups.SelectMany(group => group.Pointers).ToArray();
+        int ungrouped = 0;
+        foreach (string leaf in requiredLeaves)
+        {
+            if (!section.Pointers.Any(pointer => PointerCovers(pointer, leaf))) continue;
+            if (groupedPointers.Any(pointer => PointerCovers(pointer, leaf))) continue;
+            ungrouped++;
+        }
+        return ungrouped;
+    }
+
+    private static bool PointerCovers(string scopePointer, string leafPointer) =>
+        string.Equals(scopePointer, "/", StringComparison.Ordinal)
+        || string.Equals(leafPointer, scopePointer, StringComparison.Ordinal)
+        || leafPointer.StartsWith(scopePointer + "/", StringComparison.Ordinal);
 
     /// <summary>True when every value a section reaches is a deployment recipe or scope selector.</summary>
     private static bool SelectorsOnly(Definition definition, DefinitionSection section)

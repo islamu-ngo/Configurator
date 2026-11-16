@@ -61,7 +61,7 @@ internal static class CliDefinitionHandlers
             if (command.Operation == "check")
                 return Receipt("compiled-definition", false, definition.CanonicalBytes, "none", definition.Digest.Value, "input");
             if (command.Operation == "lint")
-                return Lint(definition, command.Quality, cancellationToken);
+                return Lint(definition, command.Quality, command.Strict, cancellationToken);
             string destination = command.Output ?? anchor;
             RejectSourceDestination(source, destination);
             if (command.IdMap is not null)
@@ -252,7 +252,7 @@ internal static class CliDefinitionHandlers
             bytes, invocation.Io.MaximumBytes, cancellationToken).ConfigureAwait(false), result);
     }
 
-    private static CliCommandResult Lint(Definition definition, bool quality, CancellationToken cancellationToken)
+    private static CliCommandResult Lint(Definition definition, bool quality, bool strict, CancellationToken cancellationToken)
     {
         var diagnostics = new List<CliMachineDiagnostic>();
         var pending = new Stack<(DefinitionNode Node, string Path)>();
@@ -283,13 +283,16 @@ internal static class CliDefinitionHandlers
             if (artifact.ApplySemantics == DefinitionTargetUpdateMode.Unspecified) Warn("target-update-unspecified", path + "/targetUpdateMode");
             if (artifact.Restart == DefinitionRestartRequirement.Unspecified) Warn("restart-unspecified", path + "/restartRequirement");
         }
+        bool strictFailure = !limited && strict && diagnostics.Count > 0;
         return Receipt("compiled-definition", false, definition.CanonicalBytes, "none", definition.Digest.Value, "input") with
         {
-            Exit = limited ? CliExitCode.Data : CliExitCode.Success,
+            Exit = limited || strictFailure ? CliExitCode.Data : CliExitCode.Success,
             Diagnostics = diagnostics.OrderBy(item => item.Source?.SchemaPath, StringComparer.Ordinal)
                 .ThenBy(item => item.Code, StringComparer.Ordinal).ToArray(),
-            Readiness = limited ? new("incomplete", ["lint-report-limit"], []) : CliResults.Ready(),
-            Preparation = limited ? "incomplete" : "ready"
+            Readiness = limited ? new("incomplete", ["lint-report-limit"], [])
+                : strictFailure ? new("incomplete", ["lint-strict-warnings"], [])
+                : CliResults.Ready(),
+            Preparation = limited || strictFailure ? "incomplete" : "ready"
         };
 
         void Warn(string code, string path)

@@ -390,8 +390,19 @@ are `writeOnly` with bounds only, never enum, const, default or examples. It
 reads no answers. `DefinitionQualityLinter` reports `raw-identifier-title`,
 `verbatim-choice-label`, `jsonpath-description`, `exporter-diagnostic-description`,
 `missing-deprecation-message`, `missing-section-description`,
-`required-secret-missing-guidance` and `unreferenced-journey-section` without
-changing admission. The schema importer drops titles that only echo their key.
+`required-secret-missing-guidance`, `secret-missing-acquisition-guidance`,
+`required-setting-missing-guidance`, `choice-missing-guidance`,
+`choice-duplicate-explanation`, `description-missing-format-hint`,
+`section-high-required-density` and `unreferenced-journey-section` without
+changing admission. Static requiredness propagates through required ancestors
+only; optional containers and dynamic rows do not imply required leaves. Existing
+`guidance.instructions` satisfies required-setting guidance; declared
+`secret` acquisition policy or `guidance.instructions` satisfies secret
+acquisition guidance on both required and optional secrets; case-insensitive
+distinct `explanation` text satisfies choice guidance; concrete examples or format
+cues satisfy asserted lexical formats; and `section.Groups` covering required leaves
+keep ungrouped required leaf counts at `<= 12`. The schema importer drops
+titles that only echo their key.
 
 Typed map entries use the same resolver and constraints as declared children.
 Diagnostics/completion metadata use bounded entry ordinals, not private keys.

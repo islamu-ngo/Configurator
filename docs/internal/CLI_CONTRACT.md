@@ -541,7 +541,12 @@ characters; no private dynamic key or value is serialized.
 
 `definition lint` shares check admission and read-only continuation, then emits
 warnings for descriptive defaults, advisory formats and absent output update or
-restart advice. It caps its report at 4,096 entries including an explicit
+restart advice. With `--quality`, it also emits bounded schema-located
+quality advisories (`DefinitionQualityLinter`, covering guidance, secret
+acquisition, duplicate choice explanations, format hints, and dense sections
+over 12 ungrouped required leaves) without inspecting answers. Adding `--strict`
+exits with `CliExitCode.Data` (`65`) whenever one or more diagnostics remain.
+It caps its report at 4,096 entries including an explicit
 overflow error. `definition schema --kind authoring|runtime|answers|command`
 returns only built-in public metadata and canonical schema content, before any
 file authority is consulted. Its payload declares profile/capabilities and

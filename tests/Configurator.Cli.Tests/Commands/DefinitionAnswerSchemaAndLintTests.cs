@@ -126,7 +126,7 @@ public sealed class DefinitionAnswerSchemaAndLintTests
             {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
              "identity":{"familyId":"7d1c2b3a-4e5f-4a6b-8c7d-9e0f1a2b3c4d","revision":1},
              "project":{"id":"lint.sample","name":"Lint Sample"},"applicationVersions":["1.0"],
-             "configuration":{"type":"object","additionalProperties":false,"required":["SIGNING_KEY"],
+             "configuration":{"type":"object","additionalProperties":false,"required":["SIGNING_KEY","PUBLIC_BASE_URL"],
                "x-configurator":{"sensitivity":"public"},"properties":{
                  "PUBLIC_BASE_URL":{"type":"string","title":"PUBLIC_BASE_URL","x-configurator":{"sensitivity":"public"}},
                  "provider":{"type":"string","enum":["OPENAI_COMPATIBLE","local"],"description":"Copied from $.spec.ai.provider.",
@@ -153,14 +153,64 @@ public sealed class DefinitionAnswerSchemaAndLintTests
         {
             "raw-identifier-title", "verbatim-choice-label", "jsonpath-description", "exporter-diagnostic-description",
             "missing-deprecation-message", "missing-section-description", "required-secret-missing-guidance",
+            "required-setting-missing-guidance", "choice-missing-guidance",
             "unreferenced-journey-section"
         })
             await Assert.That(codes).Contains(code);
         await Assert.That(output.RootElement.GetProperty("diagnostics").EnumerateArray()
             .Any(item => item.GetProperty("severity").GetString() == "error")).IsFalse();
+        await Assert.That(output.RootElement.GetProperty("diagnostics").EnumerateArray()
+            .Any(item => item.GetProperty("code").GetString() == "required-setting-missing-guidance"
+                && item.GetProperty("source").GetProperty("schemaPath").GetString() == "/configuration/properties/PUBLIC_BASE_URL")).IsTrue();
         await Assert.That(await io.RunAsync("definition", "lint", "--source", path, "--machine")).IsEqualTo(CliExitCode.Success);
         using JsonDocument plain = JsonDocument.Parse(io.StandardOutput);
         await Assert.That(plain.RootElement.GetProperty("diagnostics").EnumerateArray()
             .Any(item => item.GetProperty("code").GetString() == "raw-identifier-title")).IsFalse();
+    }
+
+    [Test]
+    public async Task StrictLintFailsWithDataExitCodeWhenWarningsExistAndPassesWhenClean()
+    {
+        using var files = new DefinitionTestDirectory();
+        string warnedPath = files.Path("warned.json");
+        File.WriteAllText(warnedPath, """
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"8a1c2b3a-4e5f-4a6b-8c7d-9e0f1a2b3c4e","revision":1},
+             "project":{"id":"lint.strict","name":"Lint Strict"},"applicationVersions":["1.0"],
+             "configuration":{"type":"object","additionalProperties":false,"required":["PUBLIC_KEY"],
+               "x-configurator":{"sensitivity":"public"},"properties":{
+                 "PUBLIC_KEY":{"type":"string","x-configurator":{"sensitivity":"public"}}}},
+             "presentation":{"defaultJourney":"setup","sections":[
+               {"id":"general","title":"General","description":"Primary settings.","pointers":["/PUBLIC_KEY"]}],
+              "journeys":[{"id":"setup","title":"Setup","sections":["general"]}]},
+             "outputs":{"settings.json":{"format":"json","targetUpdateMode":"replace","restartRequirement":"process"}}}
+            """);
+
+        var io = new CliFixture { AuthoringFiles = new PublicDefinitionFiles() };
+        await Assert.That(await io.RunAsync("definition", "lint", "--source", warnedPath, "--quality", "--strict", "--machine"))
+            .IsEqualTo(CliExitCode.Data);
+        await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        using JsonDocument strictDoc = JsonDocument.Parse(io.StandardOutput);
+        await Assert.That(strictDoc.RootElement.GetProperty("diagnosticsTotal").GetInt32()).IsGreaterThan(0);
+
+        string cleanPath = files.Path("clean.json");
+        File.WriteAllText(cleanPath, """
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"8a1c2b3a-4e5f-4a6b-8c7d-9e0f1a2b3c4e","revision":1},
+             "project":{"id":"lint.strict","name":"Lint Strict"},"applicationVersions":["1.0"],
+             "configuration":{"type":"object","additionalProperties":false,"required":["endpoint"],
+               "x-configurator":{"sensitivity":"public"},"properties":{
+                 "endpoint":{"title":"Endpoint address","type":"string","format":"uri","description":"Public API origin, e.g. https://api.example.org.","x-configurator":{"sensitivity":"public"}}}},
+             "presentation":{"defaultJourney":"setup","sections":[
+               {"id":"general","title":"General","description":"Primary settings.","pointers":["/endpoint"]}],
+              "journeys":[{"id":"setup","title":"Setup","sections":["general"]}]},
+             "outputs":{"settings.json":{"format":"json","targetUpdateMode":"replace","restartRequirement":"process"}}}
+            """);
+        var cleanIo = new CliFixture { AuthoringFiles = new PublicDefinitionFiles() };
+        await Assert.That(await cleanIo.RunAsync("definition", "lint", "--source", cleanPath, "--quality", "--strict", "--machine"))
+            .IsEqualTo(CliExitCode.Success);
+        await Assert.That(CliMachineContractVerifier.Validate(cleanIo.StandardOutput)).IsEmpty();
+        using JsonDocument cleanDoc = JsonDocument.Parse(cleanIo.StandardOutput);
+        await Assert.That(cleanDoc.RootElement.GetProperty("diagnosticsTotal").GetInt32()).IsEqualTo(0);
     }
 }

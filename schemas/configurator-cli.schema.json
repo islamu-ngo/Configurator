@@ -65,6 +65,7 @@
       "--source",
       "--source-definition",
       "--store",
+      "--strict",
       "--text"
     ],
     "repeatableOptions": [
@@ -530,6 +531,7 @@
               "--quality",
               "--root",
               "--source",
+              "--strict",
               "--text"
             ]
           },
@@ -628,6 +630,7 @@
           "--quality",
           "--root",
           "--source",
+          "--strict",
           "--text"
         ]
       },

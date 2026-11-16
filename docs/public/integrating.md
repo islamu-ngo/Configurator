@@ -58,6 +58,15 @@ islamu-configurator definition build --source configurator.yaml --machine
 source before check/build: declare exact names, recursive types, required sets,
 inherited sensitivity, public guidance and target output mappings. Lint adds
 advisories after admission; it does not replace check or target validation.
+Run `definition lint --quality` to find required settings without a
+`description` or `guidance.instructions`, secrets missing acquisition or
+instruction guidance (`secret-missing-acquisition-guidance`), choices with
+missing or duplicate explanations (`choice-missing-guidance`,
+`choice-duplicate-explanation`), format-constrained fields lacking concrete
+format hints (`description-missing-format-hint`), and ungrouped dense sections
+(`> 12` required leaves, `section-high-required-density`). Pass `--strict` to
+return `CliExitCode.Data` (`65`) when any warning is emitted. Preview the resulting
+form in English and Arabic at a narrow viewport before sharing the definition.
 Schema discovery returns built-in schemas (`authoring`, `runtime`, `answers`,
 `command`), not arbitrary schema locations. Build normally creates
 `dist/configurator/revisions/1.json`; existing conflicting content is not
