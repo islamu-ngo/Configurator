@@ -38,9 +38,9 @@ flowchart LR
 When you open the Configurator WebAssembly application:
 
 1. **Choose a project:** Open the home catalogue. Definitions are grouped by their exact application identifier; matching titles alone never combine projects.
-2. **Search and Filter:** Search applications by name, keywords, or curated category tags (e.g. `monitoring`, `database`, `proxy`).
-3. **Start Configuration:** Use **Configure** for the explicitly identified available source. A directory choice is checked against its exact indexed identity before the workspace opens in the same action.
-4. **Choose alternatives when needed:** **Source details** retains other families and revisions, publisher metadata, application versions and filenames. Multiple ambiguous candidates require an explicit choice; no revision is silently selected as latest.
+2. **Search and Filter:** When four or more catalog projects are present, filter applications by name, keywords, or curated category tags (e.g. `monitoring`, `database`, `proxy`); smaller catalogues omit the redundant search bar.
+3. **Start Configuration:** Use **Configure** for the explicitly identified available source, or jump directly to **Use an existing configuration**, **Open a saved profile**, or the read-only **Explore** view (`/explore/{FamilyId}`). A directory choice is checked against its exact indexed identity before the workspace opens in the same action.
+4. **Choose alternatives when needed:** **Source details** keeps family GUIDs, alternate revisions, publisher metadata, and SHA-256 digests in a collapsed progressive disclosure until opened. Multiple ambiguous candidates require an explicit choice; no revision is silently selected as latest.
 5. **Inspect a directory revision:** Optional project details let you choose an exact revision and configure it directly. An unavailable requested revision reports an error instead of substituting another.
 
 Application identifiers and publisher labels organize navigation, not trust.
@@ -171,7 +171,7 @@ Before opening your pull request, verify that:
 - [ ] `configurator.yaml` specifies an open-source `project.definitionLicense` (e.g. `MIT`, `Apache-2.0`).
 - [ ] `project.repository` is an absolute HTTPS URL to the public upstream repository.
 - [ ] Every secret field is classified as `sensitivity: secret` and has no default value.
-- [ ] Generated `releases/<revision>.json` was created using `BuildDefinitionStore.cs --write` and is included in the git commit.
+- [ ] Generated `releases/<revision>.json` was created using `BuildDefinitionStore.cs --write` and passes `definition lint --quality --strict` with zero advisories (`exitCode: 0`) included in the git commit.
 - [ ] `BuildDefinitionStore.cs --check` succeeds locally with zero errors.
 
 ---

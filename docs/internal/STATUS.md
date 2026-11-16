@@ -3,14 +3,33 @@
 > **Audience:** Contributors | Integrators | AI agents
 > **Status:** Mixed; current implementation routes and bounded historical evidence
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-11-02
+> **Last Verified:** 2026-11-16
 > **Source Anchors:** `docs/internal/CLI_CONTRACT.md`, `docs/internal/IMPORT_COMPARISON.md`, `docs/internal/OPERATIONS.md`, `docs/internal/adr/`
 
 This index separates claims that require different evidence. It routes to the
 owning record without repeating test totals or creating a new acceptance gate.
-The date above records a documentation check, not a fresh product qualification.
+The date above records the current configuration-experience qualification
+review; historical sections below retain their original evidence boundaries.
 Use the [knowledge map](KNOWLEDGE_MAP.md) for document lifecycle and the
 [current procedure entry](OPERATIONS.md#current-procedure-entry) for execution.
+
+## Configuration experience qualification (2026-11-16)
+
+All four clients and Core/CLI share unified configuration-experience contracts:
+windowed Browser semantic workspace (`<= 1,400` active DOM nodes, zero-match
+recovery, `ErrorSummary`, `F7`/`F8`/`F9`, progressive `/open`/`Catalogue`/`Explore`/Vault
+disclosure), Avalonia Desktop responsive `SplitView` with bounded `VirtualizingStackPanel`
+and `Ctrl+Shift+E` document drawer, Terminal `80×24` Master-Detail workbench with
+`5`-shortcut `StatusBar` and focus-fenced Vim/CUA navigation, four structural quality
+lint rules with `definition lint --strict`, and Event `revision 7` passing at zero
+lint warnings (`diagnosticsTotal: 0`). The [current execution record](OPERATIONS.md#unified-workbench-closure-terminal-pty-strict-linter--event-rev-7-2026-11-16-phases-78)
+records the exact post-edit owner runs, fresh Linux x64 & Browser packages, live PTY
+smokes (`en`/`ar` at `80×24` and `120×36`), and Desktop `en`/`ar` X11 runs (`33/33`).
+
+Physical screen-reader/braille assistive-technology evaluation (`en` and `ar` steward
+sign-off), containerized `BrowserHostPolicyTests` (`22` tests requiring `CONFIGURATOR_HOST_URL`),
+and expanded non-Linux OS host qualification remain separate open gates and prevent
+blanket AT or cross-OS claims.
 
 ## Implemented scope
 

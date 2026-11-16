@@ -110,7 +110,8 @@
             "instructions": "Enter the known public API address; no request is sent and no endpoint is invented."
           },
           "sensitivity": "public"
-        }
+        },
+        "description": "Public HTTPS endpoint URL for the Event API host, e.g. https://api.events.example.org."
       },
       "platform": {
         "title": "Basic platform settings",
@@ -146,21 +147,30 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "sessionEncryptionKeyring": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "sessionJwtPrivateJwks": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               }
             }
@@ -177,15 +187,18 @@
               "choices": [
                 {
                   "label": "Local",
-                  "value": "local"
+                  "value": "local",
+                  "explanation": "Authenticate using locally stored accounts managed inside Event's own database."
                 },
                 {
                   "label": "Keycloak",
-                  "value": "keycloak"
+                  "value": "keycloak",
+                  "explanation": "Federate sign-in through an external OpenID Connect Keycloak realm."
                 },
                 {
                   "label": "Atproto",
-                  "value": "atproto"
+                  "value": "atproto",
+                  "explanation": "Authenticate accounts through AT Protocol decentralized identity handles."
                 }
               ],
               "detail": "basic",
@@ -205,11 +218,13 @@
               "choices": [
                 {
                   "label": "Local",
-                  "value": "local"
+                  "value": "local",
+                  "explanation": "Evaluate role and permission policies with Event's built-in authorization rules."
                 },
                 {
                   "label": "Cerbos",
-                  "value": "cerbos"
+                  "value": "cerbos",
+                  "explanation": "Delegate fine-grained authorization policy decisions to an external Cerbos PDP server."
                 }
               ],
               "detail": "basic",
@@ -242,15 +257,18 @@
                   "choices": [
                     {
                       "label": "Embedded SQLite",
-                      "value": "EmbeddedSqlite"
+                      "value": "EmbeddedSqlite",
+                      "explanation": "Track privacy erasure tombstones in an embedded local SQLite store."
                     },
                     {
                       "label": "External Database",
-                      "value": "ExternalDatabase"
+                      "value": "ExternalDatabase",
+                      "explanation": "Isolate privacy erasure ledger records on an external dedicated database instance."
                     },
                     {
                       "label": "Co Located",
-                      "value": "CoLocated"
+                      "value": "CoLocated",
+                      "explanation": "Store privacy erasure records alongside application tables in a co-located database."
                     }
                   ],
                   "detail": "basic",
@@ -277,7 +295,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "managedClientExternalProvider": {
@@ -313,11 +334,13 @@
                   "choices": [
                     {
                       "label": "True",
-                      "value": "true"
+                      "value": "true",
+                      "explanation": "Expose legacy Server-Sent Events (SSE) MCP endpoints for older client compatibility."
                     },
                     {
                       "label": "False",
-                      "value": "false"
+                      "value": "false",
+                      "explanation": "Disable legacy SSE MCP endpoints and allow modern Streamable HTTP transport only."
                     }
                   ],
                   "detail": "advanced",
@@ -341,11 +364,13 @@
                   "choices": [
                     {
                       "label": "True",
-                      "value": "true"
+                      "value": "true",
+                      "explanation": "Operate the MCP endpoint in stateless HTTP request mode across horizontal replicas."
                     },
                     {
                       "label": "False",
-                      "value": "false"
+                      "value": "false",
+                      "explanation": "Retain in-memory session affinity for stateful multi-step MCP streams."
                     }
                   ],
                   "detail": "advanced",
@@ -372,11 +397,13 @@
                   "choices": [
                     {
                       "label": "Approved",
-                      "value": "approved"
+                      "value": "approved",
+                      "explanation": "Mark commercial checkout governance status as active and permitted to operate."
                     },
                     {
                       "label": "Suspended",
-                      "value": "suspended"
+                      "value": "suspended",
+                      "explanation": "Place checkout governance in suspended state until compliance review clears."
                     }
                   ],
                   "detail": "advanced",
@@ -392,7 +419,8 @@
                   "choices": [
                     {
                       "label": "Direct Charge",
-                      "value": "direct-charge"
+                      "value": "direct-charge",
+                      "explanation": "Settle customer payments directly through connected organizer Stripe accounts."
                     }
                   ],
                   "detail": "advanced",
@@ -454,7 +482,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "standard",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "privacyErasureIdentityFenceKeyId": {
@@ -496,11 +527,13 @@
                   "choices": [
                     {
                       "label": "True",
-                      "value": "true"
+                      "value": "true",
+                      "explanation": "Treat bootstrap provisioning inputs as verified trusted authority state on host startup."
                     },
                     {
                       "label": "False",
-                      "value": "false"
+                      "value": "false",
+                      "explanation": "Treat provisioning records as untrusted unverified bootstrap candidates."
                     }
                   ],
                   "detail": "advanced",
@@ -519,7 +552,8 @@
                 "instructions": "Enter the known public site address; leave it unset until the deployment address is known."
               },
               "sensitivity": "public"
-            }
+            },
+            "description": "Public HTTPS base URL served by this Event deployment, e.g. https://events.example.org."
           },
           "registrationProvider": {
             "type": "object",
@@ -533,14 +567,20 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "webhookSecret": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               }
             }
@@ -666,15 +706,18 @@
                   "choices": [
                     {
                       "label": "Off",
-                      "value": "Off"
+                      "value": "Off",
+                      "explanation": "Disable manifest file loading and rely purely on runtime environment settings."
                     },
                     {
                       "label": "Validate Only",
-                      "value": "ValidateOnly"
+                      "value": "ValidateOnly",
+                      "explanation": "Validate supplied configuration manifest checksums on startup without creating bootstrap state."
                     },
                     {
                       "label": "Bootstrap",
-                      "value": "Bootstrap"
+                      "value": "Bootstrap",
+                      "explanation": "Verify and apply declared manifest definitions during initial startup bootstrap."
                     }
                   ],
                   "detail": "basic",
@@ -701,11 +744,13 @@
               "choices": [
                 {
                   "label": "Single Tenant",
-                  "value": "SingleTenant"
+                  "value": "SingleTenant",
+                  "explanation": "Operate a single-tenant instance without multi-tenant partitioning or packages."
                 },
                 {
                   "label": "Multi Tenant",
-                  "value": "MultiTenant"
+                  "value": "MultiTenant",
+                  "explanation": "Enable multi-tenant partitioning supporting tenant package definitions and tenant scoping."
                 }
               ],
               "detail": "basic",
@@ -1110,7 +1155,10 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "standard",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "dbUsername": {
@@ -1545,23 +1593,28 @@
               "choices": [
                 {
                   "label": "PostgreSQL",
-                  "value": "PostgreSql"
+                  "value": "PostgreSql",
+                  "explanation": "Use an external or supporting PostgreSQL relational database server."
                 },
                 {
                   "label": "SQLite",
-                  "value": "Sqlite"
+                  "value": "Sqlite",
+                  "explanation": "Use a local embedded SQLite database file (single-node deployments only)."
                 },
                 {
                   "label": "SQL Server",
-                  "value": "SqlServer"
+                  "value": "SqlServer",
+                  "explanation": "Use a Microsoft SQL Server database instance."
                 },
                 {
                   "label": "MariaDB",
-                  "value": "MariaDb"
+                  "value": "MariaDb",
+                  "explanation": "Use a MariaDB relational database server."
                 },
                 {
                   "label": "MySQL",
-                  "value": "MySql"
+                  "value": "MySql",
+                  "explanation": "Use a MySQL relational database server."
                 }
               ],
               "detail": "basic",
@@ -1620,15 +1673,18 @@
               "choices": [
                 {
                   "label": "Prefer",
-                  "value": "Prefer"
+                  "value": "Prefer",
+                  "explanation": "Attempt TLS encryption first and allow fallback to plaintext only if the server does not negotiate TLS."
                 },
                 {
                   "label": "Required",
-                  "value": "Required"
+                  "value": "Required",
+                  "explanation": "Require verified TLS encryption and fail connection if the database server cannot establish TLS."
                 },
                 {
                   "label": "Disabled",
-                  "value": "Disabled"
+                  "value": "Disabled",
+                  "explanation": "Connect without transport TLS encryption (use only inside isolated trusted loopback/private links)."
                 }
               ],
               "detail": "standard",
@@ -1732,15 +1788,18 @@
                   "choices": [
                     {
                       "label": "Prefer",
-                      "value": "Prefer"
+                      "value": "Prefer",
+                      "explanation": "Attempt TLS encryption first and allow fallback to plaintext only if the server does not negotiate TLS."
                     },
                     {
                       "label": "Required",
-                      "value": "Required"
+                      "value": "Required",
+                      "explanation": "Require verified TLS encryption and fail connection if the database server cannot establish TLS."
                     },
                     {
                       "label": "Disabled",
-                      "value": "Disabled"
+                      "value": "Disabled",
+                      "explanation": "Connect without transport TLS encryption (use only inside isolated trusted loopback/private links)."
                     }
                   ],
                   "detail": "advanced",
@@ -1816,7 +1875,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "host": {
@@ -1824,7 +1886,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "password": {
@@ -1832,7 +1897,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "port": {
@@ -1842,7 +1910,10 @@
             "type": "integer",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "username": {
@@ -1850,7 +1921,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           }
         }
@@ -1893,7 +1967,10 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "host": {
@@ -1907,7 +1984,10 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "migratorUsername": {
@@ -1946,23 +2026,28 @@
                   "choices": [
                     {
                       "label": "PostgreSQL",
-                      "value": "PostgreSql"
+                      "value": "PostgreSql",
+                      "explanation": "Use an external or supporting PostgreSQL relational database server."
                     },
                     {
                       "label": "SQLite",
-                      "value": "Sqlite"
+                      "value": "Sqlite",
+                      "explanation": "Use a local embedded SQLite database file (single-node deployments only)."
                     },
                     {
                       "label": "SQL Server",
-                      "value": "SqlServer"
+                      "value": "SqlServer",
+                      "explanation": "Use a Microsoft SQL Server database instance."
                     },
                     {
                       "label": "MariaDB",
-                      "value": "MariaDb"
+                      "value": "MariaDb",
+                      "explanation": "Use a MariaDB relational database server."
                     },
                     {
                       "label": "MySQL",
-                      "value": "MySql"
+                      "value": "MySql",
+                      "explanation": "Use a MySQL relational database server."
                     }
                   ],
                   "detail": "basic",
@@ -1973,7 +2058,10 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "runtimeUsername": {
@@ -2001,15 +2089,18 @@
                   "choices": [
                     {
                       "label": "Prefer",
-                      "value": "Prefer"
+                      "value": "Prefer",
+                      "explanation": "Attempt TLS encryption first and allow fallback to plaintext only if the server does not negotiate TLS."
                     },
                     {
                       "label": "Required",
-                      "value": "Required"
+                      "value": "Required",
+                      "explanation": "Require verified TLS encryption and fail connection if the database server cannot establish TLS."
                     },
                     {
                       "label": "Disabled",
-                      "value": "Disabled"
+                      "value": "Disabled",
+                      "explanation": "Connect without transport TLS encryption (use only inside isolated trusted loopback/private links)."
                     }
                   ],
                   "detail": "advanced",
@@ -2026,11 +2117,13 @@
                   "choices": [
                     {
                       "label": "Colocated",
-                      "value": "colocated"
+                      "value": "colocated",
+                      "explanation": "Store identity tables alongside the main application database on the same server."
                     },
                     {
                       "label": "External",
-                      "value": "external"
+                      "value": "external",
+                      "explanation": "Use an isolated external database dedicated exclusively to Event identity records."
                     }
                   ],
                   "detail": "basic",
@@ -2057,11 +2150,13 @@
               "choices": [
                 {
                   "label": "Interactive",
-                  "value": "Interactive"
+                  "value": "Interactive",
+                  "explanation": "Require interactive initial setup step rather than seeding an administrator from configuration."
                 },
                 {
                   "label": "Configured Administrator",
-                  "value": "ConfiguredAdministrator"
+                  "value": "ConfiguredAdministrator",
+                  "explanation": "Provision the initial administrator using explicit configured provider and identity details."
                 }
               ],
               "detail": "basic",
@@ -2110,7 +2205,8 @@
                 "x-configurator": {
                   "detail": "standard",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Public HTTPS URL to the operator legal notice page, e.g. https://events.example.org/legal."
               },
               "officialOrigin": {
                 "type": "string",
@@ -2139,23 +2235,28 @@
                   "choices": [
                     {
                       "label": "Registered Organization",
-                      "value": "registered_organization"
+                      "value": "registered_organization",
+                      "explanation": "Incorporated entity, registered charity, NGO or legal association."
                     },
                     {
                       "label": "Sole Trader",
-                      "value": "sole_trader"
+                      "value": "sole_trader",
+                      "explanation": "Registered sole proprietor or licensed independent commercial operator."
                     },
                     {
                       "label": "Individual",
-                      "value": "individual"
+                      "value": "individual",
+                      "explanation": "Natural person operating an instance privately in an individual capacity."
                     },
                     {
                       "label": "Public Body",
-                      "value": "public_body"
+                      "value": "public_body",
+                      "explanation": "Municipal, academic or governmental public institution."
                     },
                     {
                       "label": "Unincorporated Association",
-                      "value": "unincorporated_association"
+                      "value": "unincorporated_association",
+                      "explanation": "Informal community collective operating without formal corporate registration."
                     }
                   ],
                   "detail": "standard",
@@ -2168,7 +2269,8 @@
                 "x-configurator": {
                   "detail": "standard",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Public HTTPS URL to the operator privacy policy page, e.g. https://events.example.org/privacy."
               },
               "publicContactEmail": {
                 "type": "string",
@@ -2197,7 +2299,8 @@
                 "x-configurator": {
                   "detail": "standard",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Public HTTPS URL to the operator terms of service page, e.g. https://events.example.org/terms."
               },
               "websiteUrl": {
                 "format": "uri",
@@ -2205,7 +2308,8 @@
                 "x-configurator": {
                   "detail": "standard",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Public HTTPS home website URL for the operating entity, e.g. https://events.example.org."
               }
             }
           }
@@ -2255,7 +2359,8 @@
             "x-configurator": {
               "detail": "standard",
               "sensitivity": "sensitive"
-            }
+            },
+            "description": "Email address for the initial bootstrap administrator account, e.g. admin@example.org."
           },
           "firstName": {
             "type": "string",
@@ -2282,27 +2387,32 @@
               "choices": [
                 {
                   "label": "Local",
-                  "value": "local"
+                  "value": "local",
+                  "explanation": "Authenticate using locally stored accounts managed inside Event's own database."
                 },
                 {
                   "label": "Keycloak",
-                  "value": "keycloak"
+                  "value": "keycloak",
+                  "explanation": "Federate sign-in through an external OpenID Connect Keycloak realm."
                 },
                 {
                   "label": "Atproto",
-                  "value": "atproto"
+                  "value": "atproto",
+                  "explanation": "Authenticate accounts through AT Protocol decentralized identity handles."
                 }
               ],
               "detail": "basic",
               "sensitivity": "public"
-            }
+            },
+            "description": "Identity provider used to match the initial bootstrap administrator record (`local`, `keycloak`, or `atproto`)."
           },
           "subject": {
             "type": "string",
             "x-configurator": {
               "detail": "standard",
               "sensitivity": "sensitive"
-            }
+            },
+            "description": "Provider-specific unique subject identifier (e.g., Keycloak sub UUID or DID) matching the bootstrap administrator."
           },
           "bindingGeneration": {
             "minimum": 1,
@@ -2310,7 +2420,8 @@
             "x-configurator": {
               "detail": "standard",
               "sensitivity": "public"
-            }
+            },
+            "description": "Monotonic positive integer generation floor (at least 1) pinning bootstrap administrator binding acceptance."
           }
         }
       },
@@ -2336,7 +2447,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "standard",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           }
         }
@@ -2395,16 +2509,22 @@
             "type": "string",
             "x-configurator": {
               "detail": "basic",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "endpoint": {
-            "description": "Base address of the Keycloak server used for sign-in.",
+            "description": "Base HTTPS address of the Keycloak server used for sign-in, e.g. https://auth.example.org.",
             "format": "uri",
             "type": "string",
             "x-configurator": {
               "detail": "basic",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "realm": {
@@ -2412,7 +2532,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "basic",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "requireHttpsMetadata": {
@@ -2425,11 +2548,13 @@
               "choices": [
                 {
                   "label": "True",
-                  "value": "true"
+                  "value": "true",
+                  "explanation": "Enforce HTTPS when retrieving Keycloak OpenID Connect discovery documents and JWKS."
                 },
                 {
                   "label": "False",
-                  "value": "false"
+                  "value": "false",
+                  "explanation": "Permit HTTP metadata URLs strictly for local non-TLS development realms."
                 }
               ],
               "detail": "advanced",
@@ -2462,11 +2587,13 @@
               "choices": [
                 {
                   "label": "True",
-                  "value": "true"
+                  "value": "true",
+                  "explanation": "Automatically create the configured local storage directory if it does not yet exist at startup."
                 },
                 {
                   "label": "False",
-                  "value": "false"
+                  "value": "false",
+                  "explanation": "Fail startup validation unless the target storage directory already exists."
                 }
               ],
               "detail": "advanced",
@@ -2506,11 +2633,13 @@
               "choices": [
                 {
                   "label": "True",
-                  "value": "true"
+                  "value": "true",
+                  "explanation": "Permanently delete quarantined orphan storage objects after retention windows expire."
                 },
                 {
                   "label": "False",
-                  "value": "false"
+                  "value": "false",
+                  "explanation": "Preserve quarantined objects in storage until cleaned up manually."
                 }
               ],
               "detail": "advanced",
@@ -2543,11 +2672,13 @@
               "choices": [
                 {
                   "label": "True",
-                  "value": "true"
+                  "value": "true",
+                  "explanation": "Quarantine database file references whose underlying object blobs are missing from storage."
                 },
                 {
                   "label": "False",
-                  "value": "false"
+                  "value": "false",
+                  "explanation": "Leave database metadata unchanged even when backing blobs cannot be found."
                 }
               ],
               "detail": "advanced",
@@ -2564,11 +2695,13 @@
               "choices": [
                 {
                   "label": "True",
-                  "value": "true"
+                  "value": "true",
+                  "explanation": "Move untracked orphan files in local storage directories into an isolated quarantine folder."
                 },
                 {
                   "label": "False",
-                  "value": "false"
+                  "value": "false",
+                  "explanation": "Leave unreferenced local storage files untouched during reconciliation runs."
                 }
               ],
               "detail": "advanced",
@@ -2602,7 +2735,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "bucketName": {
@@ -2610,16 +2746,22 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "endpoint": {
-            "description": "Endpoint of the S3-compatible storage service.",
+            "description": "Service endpoint URI of the S3-compatible object store, e.g. https://s3.internal.example.org.",
             "format": "uri",
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "publicEndpoint": {
@@ -2627,14 +2769,21 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
-            }
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
+            },
+            "description": "Publicly reachable URI used for presigned object links when separate from the internal endpoint, e.g. https://cdn.example.org."
           },
           "region": {
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "secretAccessKey": {
@@ -2642,7 +2791,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           }
         }
@@ -2846,19 +2998,23 @@
                   "choices": [
                     {
                       "label": "None",
-                      "value": "None"
+                      "value": "None",
+                      "explanation": "Send SMTP traffic without TLS transport security (restricted to trusted local relays)."
                     },
                     {
                       "label": "Start TLS",
-                      "value": "StartTls"
+                      "value": "StartTls",
+                      "explanation": "Connect in plaintext and upgrade to TLS via STARTTLS before authenticating."
                     },
                     {
                       "label": "SSL On Connect",
-                      "value": "SslOnConnect"
+                      "value": "SslOnConnect",
+                      "explanation": "Establish implicit TLS/SSL immediately upon TCP connection (commonly port 465)."
                     },
                     {
                       "label": "Auto",
-                      "value": "Auto"
+                      "value": "Auto",
+                      "explanation": "Allow the mail client to negotiate STARTTLS or implicit TLS automatically based on port and capabilities."
                     }
                   ],
                   "detail": "advanced",
@@ -2869,28 +3025,40 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "fromName": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "host": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "password": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "port": {
@@ -2899,14 +3067,20 @@
                 "type": "integer",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "username": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               }
             }
@@ -2987,7 +3161,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "authTokenSecretRef": {
@@ -3003,7 +3180,8 @@
             "x-configurator": {
               "detail": "advanced",
               "sensitivity": "public"
-            }
+            },
+            "description": "Base URI for the Svix webhook server, e.g. https://svix.internal.example.org."
           },
           "capabilityPolicyVersion": {
             "enum": [
@@ -3014,7 +3192,8 @@
               "choices": [
                 {
                   "label": "svix-self-hosted-1.96.1-v1",
-                  "value": "svix-self-hosted-1.96.1-v1"
+                  "value": "svix-self-hosted-1.96.1-v1",
+                  "explanation": "Enforce capability constraints aligned with the self-hosted Svix 1.96.1 v1 profile."
                 }
               ],
               "detail": "advanced",
@@ -3030,7 +3209,8 @@
               "choices": [
                 {
                   "label": "Self Hosted",
-                  "value": "self-hosted"
+                  "value": "self-hosted",
+                  "explanation": "Target a self-hosted Svix webhook service controlled within your own infrastructure."
                 }
               ],
               "detail": "advanced",
@@ -3041,7 +3221,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "operationalWebhookSecretRef": {
@@ -3060,7 +3243,8 @@
               "choices": [
                 {
                   "label": "1.96.1",
-                  "value": "1.96.1"
+                  "value": "1.96.1",
+                  "explanation": "Pin Event's Svix webhook adapter expectations to Svix server version 1.96.1."
                 }
               ],
               "detail": "advanced",
@@ -3095,7 +3279,10 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "endpoint": {
@@ -3104,7 +3291,8 @@
                 "x-configurator": {
                   "detail": "advanced",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Base URI for an OpenAI- or Anthropic-compatible model provider endpoint, e.g. https://llm.example.org/v1."
               },
               "modelId": {
                 "type": "string",
@@ -3117,7 +3305,10 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "provider": {
@@ -3135,31 +3326,38 @@
                   "choices": [
                     {
                       "label": "None",
-                      "value": "NONE"
+                      "value": "NONE",
+                      "explanation": "Disable optional AI-assisted features across the deployment."
                     },
                     {
                       "label": "Fake",
-                      "value": "FAKE"
+                      "value": "FAKE",
+                      "explanation": "Use deterministic local mock responses strictly for offline development or synthetic tests."
                     },
                     {
                       "label": "OpenAI Compatible",
-                      "value": "OPENAI_COMPATIBLE"
+                      "value": "OPENAI_COMPATIBLE",
+                      "explanation": "Connect to a custom HTTP server exposing the OpenAI Chat Completions wire protocol."
                     },
                     {
                       "label": "Anthropic Compatible",
-                      "value": "ANTHROPIC_COMPATIBLE"
+                      "value": "ANTHROPIC_COMPATIBLE",
+                      "explanation": "Connect to a custom HTTP server exposing the Anthropic Messages API."
                     },
                     {
                       "label": "OpenAI",
-                      "value": "OPENAI"
+                      "value": "OPENAI",
+                      "explanation": "Connect directly to OpenAI hosted API endpoints using an API key."
                     },
                     {
                       "label": "Azure OpenAI",
-                      "value": "AZURE_OPENAI"
+                      "value": "AZURE_OPENAI",
+                      "explanation": "Connect to a dedicated Microsoft Azure OpenAI resource deployment endpoint."
                     },
                     {
                       "label": "Anthropic",
-                      "value": "ANTHROPIC"
+                      "value": "ANTHROPIC",
+                      "explanation": "Connect directly to Anthropic hosted API endpoints using an Anthropic API key."
                     }
                   ],
                   "detail": "basic",
@@ -3204,7 +3402,8 @@
                 "x-configurator": {
                   "detail": "advanced",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Base URI for the configured geocoding service, e.g. https://photon.example.org."
               },
               "language": {
                 "type": "string",
@@ -3244,11 +3443,13 @@
                   "choices": [
                     {
                       "label": "None",
-                      "value": "None"
+                      "value": "None",
+                      "explanation": "Disable automated venue address geocoding lookups."
                     },
                     {
                       "label": "Photon",
-                      "value": "Photon"
+                      "value": "Photon",
+                      "explanation": "Resolve venue coordinates and map search through a Photon OpenStreetMap geocoding instance."
                     }
                   ],
                   "detail": "basic",
@@ -3297,14 +3498,20 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "apiUsername": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "defaultListId": {
@@ -3328,7 +3535,8 @@
                 "x-configurator": {
                   "detail": "advanced",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Base HTTPS URL of the Listmonk mailing server instance, e.g. https://mail.example.org."
               },
               "preconfirmSubscriptions": {
                 "enum": [
@@ -3340,11 +3548,13 @@
                   "choices": [
                     {
                       "label": "True",
-                      "value": "true"
+                      "value": "true",
+                      "explanation": "Mark subscribers added via Listmonk as pre-confirmed without sending an extra opt-in email."
                     },
                     {
                       "label": "False",
-                      "value": "false"
+                      "value": "false",
+                      "explanation": "Require explicit Listmonk double opt-in confirmation from each subscriber."
                     }
                   ],
                   "detail": "advanced",
@@ -3361,11 +3571,13 @@
                   "choices": [
                     {
                       "label": "True",
-                      "value": "true"
+                      "value": "true",
+                      "explanation": "Synchronize registrant mailing preferences into Listmonk automatically upon registration."
                     },
                     {
                       "label": "False",
-                      "value": "false"
+                      "value": "false",
+                      "explanation": "Keep registration independent without pushing updates automatically to Listmonk."
                     }
                   ],
                   "detail": "advanced",
@@ -3403,23 +3615,28 @@
                   "choices": [
                     {
                       "label": "Disabled",
-                      "value": "Disabled"
+                      "value": "Disabled",
+                      "explanation": "Turn off outbound webhook dispatching completely."
                     },
                     {
                       "label": "Local",
-                      "value": "Local"
+                      "value": "Local",
+                      "explanation": "Deliver outbound webhooks directly from the Event process without an external broker."
                     },
                     {
                       "label": "Svix",
-                      "value": "Svix"
+                      "value": "Svix",
+                      "explanation": "Delegate outbound webhook queueing, retries and signatures to a Svix server."
                     },
                     {
                       "label": "Composite",
-                      "value": "Composite"
+                      "value": "Composite",
+                      "explanation": "Fan out webhook events across both local dispatcher and external Svix delivery."
                     },
                     {
                       "label": "Dry Run",
-                      "value": "DryRun"
+                      "value": "DryRun",
+                      "explanation": "Evaluate and log outbound webhook payloads without transmitting network requests."
                     }
                   ],
                   "detail": "basic",
@@ -3486,11 +3703,13 @@
                   "choices": [
                     {
                       "label": "Test",
-                      "value": "Test"
+                      "value": "Test",
+                      "explanation": "Use Stripe sandbox test mode keys; no live financial charges occur."
                     },
                     {
                       "label": "Live",
-                      "value": "Live"
+                      "value": "Live",
+                      "explanation": "Process real production transactions using live Stripe secret and webhook keys."
                     }
                   ],
                   "detail": "advanced",
@@ -3501,14 +3720,20 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "webhookSecret": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               }
             }
@@ -3544,21 +3769,30 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "recoveryCapabilityHmacKey": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "scannerCapabilityHmacKey": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "credentialLookup": {
@@ -3637,7 +3871,10 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "standard",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "lockoutDurationMinutes": {
@@ -3664,7 +3901,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "rateLimiting": {
@@ -3731,7 +3971,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "ticketingRecovery": {
@@ -3750,7 +3993,10 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "backlogThreshold": {
@@ -3804,7 +4050,8 @@
                   "choices": [
                     {
                       "label": "Ticketing / Recovery Manifest HMAC Key",
-                      "value": "ticketing.recovery_manifest_hmac_key"
+                      "value": "ticketing.recovery_manifest_hmac_key",
+                      "explanation": "Bind ticketing recovery manifest signatures to the standard ticketing HMAC key entry."
                     }
                   ],
                   "detail": "advanced",
@@ -3890,7 +4137,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "adminPasswordHash": {
@@ -3907,7 +4157,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "grpcEndpoint": {
@@ -3915,8 +4168,12 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
-            }
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
+            },
+            "description": "gRPC URI for the Cerbos policy decision point, e.g. https://cerbos-grpc.internal.example.org:3593."
           },
           "grpcPort": {
             "maximum": 65535,
@@ -3933,7 +4190,8 @@
             "x-configurator": {
               "detail": "advanced",
               "sensitivity": "public"
-            }
+            },
+            "description": "HTTP or HTTPS base URI for the Cerbos admin and health endpoint, e.g. https://cerbos.internal.example.org:3592."
           },
           "httpPort": {
             "maximum": 65535,
@@ -4016,21 +4274,24 @@
                 "x-configurator": {
                   "detail": "advanced",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Infisical environment slug (for example `prod` or `staging`) from which Event fetches secrets."
               },
               "projectId": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Infisical project UUID containing the secret paths referenced by this Event deployment."
               },
               "url": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Base HTTPS URL of the Infisical secret-store server, e.g. https://infisical.example.org."
               }
             }
           },
@@ -4045,20 +4306,24 @@
               "choices": [
                 {
                   "label": "Environment",
-                  "value": "Environment"
+                  "value": "Environment",
+                  "explanation": "Read configuration secrets directly from process environment variables."
                 },
                 {
                   "label": "User Secrets",
-                  "value": "UserSecrets"
+                  "value": "UserSecrets",
+                  "explanation": "Read local secrets from .NET user-secrets storage for development environments."
                 },
                 {
                   "label": "Infisical",
-                  "value": "Infisical"
+                  "value": "Infisical",
+                  "explanation": "Fetch runtime secrets dynamically from an Infisical server using configured machine credentials."
                 }
               ],
               "detail": "basic",
               "sensitivity": "public"
-            }
+            },
+            "description": "Backend source used by Event hosts to resolve configured secrets (`Environment`, `UserSecrets`, or `Infisical`)."
           }
         }
       },
@@ -4113,7 +4378,8 @@
                 "x-configurator": {
                   "detail": "standard",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Key prefix namespace isolating Blazor BFF distributed session entries inside Redis."
               },
               "redisEndpoint": {
                 "minLength": 1,
@@ -4122,7 +4388,8 @@
                 "x-configurator": {
                   "detail": "standard",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Hostname and port of the Redis server backing Blazor BFF session storage (for example `redis.internal:6379`)."
               },
               "redisPassword": {
                 "description": "Password for the Redis instance that stores BFF sessions.",
@@ -4135,7 +4402,10 @@
                     "name": "secrets-provider-is-environment"
                   },
                   "detail": "standard",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               }
             }
@@ -4204,7 +4474,10 @@
                         "name": "secrets-provider-is-environment"
                       },
                       "detail": "standard",
-                      "sensitivity": "secret"
+                      "sensitivity": "secret",
+                      "guidance": {
+                        "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      }
                     }
                   },
                   "admissionSha256": {
@@ -4214,7 +4487,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Lowercase SHA-256 hex digest pinning the independent Data Protection admission payload for the API host."
                   },
                   "minimumGeneration": {
                     "minLength": 1,
@@ -4222,7 +4496,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Positive minimum Data Protection key-ring generation accepted for the API host."
                   },
                   "ring": {
                     "description": "Independently provisioned Data Protection key-ring credential for the API host.",
@@ -4234,7 +4509,10 @@
                         "name": "secrets-provider-is-environment"
                       },
                       "detail": "standard",
-                      "sensitivity": "secret"
+                      "sensitivity": "secret",
+                      "guidance": {
+                        "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      }
                     }
                   }
                 }
@@ -4290,7 +4568,10 @@
                         "name": "secrets-provider-is-environment"
                       },
                       "detail": "standard",
-                      "sensitivity": "secret"
+                      "sensitivity": "secret",
+                      "guidance": {
+                        "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      }
                     }
                   },
                   "admissionSha256": {
@@ -4300,7 +4581,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Lowercase SHA-256 hex digest pinning the independent Data Protection admission payload for the Blazor BFF host."
                   },
                   "minimumGeneration": {
                     "minLength": 1,
@@ -4308,7 +4590,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Positive minimum Data Protection key-ring generation accepted for the Blazor BFF host."
                   },
                   "ring": {
                     "description": "Independently provisioned Data Protection key-ring credential for the Blazor BFF host.",
@@ -4320,7 +4603,10 @@
                         "name": "secrets-provider-is-environment"
                       },
                       "detail": "standard",
-                      "sensitivity": "secret"
+                      "sensitivity": "secret",
+                      "guidance": {
+                        "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      }
                     }
                   }
                 }
@@ -4353,7 +4639,10 @@
                         "name": "secrets-provider-is-environment"
                       },
                       "detail": "standard",
-                      "sensitivity": "secret"
+                      "sensitivity": "secret",
+                      "guidance": {
+                        "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      }
                     }
                   },
                   "admissionSha256": {
@@ -4363,7 +4652,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Lowercase SHA-256 hex digest pinning the independent Data Protection admission payload for the combined host."
                   },
                   "minimumGeneration": {
                     "minLength": 1,
@@ -4371,7 +4661,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Positive minimum Data Protection key-ring generation accepted for the combined host."
                   },
                   "ring": {
                     "description": "Independently provisioned Data Protection key-ring credential for the combined host.",
@@ -4383,7 +4674,10 @@
                         "name": "secrets-provider-is-environment"
                       },
                       "detail": "standard",
-                      "sensitivity": "secret"
+                      "sensitivity": "secret",
+                      "guidance": {
+                        "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      }
                     }
                   }
                 }
@@ -4459,7 +4753,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Infisical Universal Auth client ID provisioned specifically for the API component."
                   },
                   "clientSecret": {
                     "description": "Infisical machine-identity client secret for the API component.",
@@ -4467,7 +4762,10 @@
                     "type": "string",
                     "x-configurator": {
                       "detail": "standard",
-                      "sensitivity": "secret"
+                      "sensitivity": "secret",
+                      "guidance": {
+                        "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      }
                     }
                   },
                   "renewBeforeSeconds": {
@@ -4498,7 +4796,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Duration string specifying lifetime of issued Infisical machine tokens for the API component (for example `1h`)."
                   },
                   "tokenPeriodSeconds": {
                     "maximum": 86400,
@@ -4515,7 +4814,8 @@
                       },
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Maximum renewal interval in seconds enforced on Infisical machine tokens for the API component."
                   }
                 }
               },
@@ -4566,7 +4866,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Infisical Universal Auth client ID provisioned specifically for the Blazor BFF component."
                   },
                   "clientSecret": {
                     "description": "Infisical machine-identity client secret for the Blazor BFF component.",
@@ -4574,7 +4875,10 @@
                     "type": "string",
                     "x-configurator": {
                       "detail": "standard",
-                      "sensitivity": "secret"
+                      "sensitivity": "secret",
+                      "guidance": {
+                        "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      }
                     }
                   },
                   "renewBeforeSeconds": {
@@ -4605,7 +4909,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Duration string specifying lifetime of issued Infisical machine tokens for the Blazor BFF component (for example `1h`)."
                   },
                   "tokenPeriodSeconds": {
                     "maximum": 86400,
@@ -4622,7 +4927,8 @@
                       },
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Maximum renewal interval in seconds enforced on Infisical machine tokens for the Blazor BFF component."
                   }
                 }
               },
@@ -4650,7 +4956,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Infisical Universal Auth client ID provisioned specifically for the combined host."
                   },
                   "clientSecret": {
                     "description": "Infisical machine-identity client secret for the combined host.",
@@ -4658,7 +4965,10 @@
                     "type": "string",
                     "x-configurator": {
                       "detail": "standard",
-                      "sensitivity": "secret"
+                      "sensitivity": "secret",
+                      "guidance": {
+                        "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      }
                     }
                   },
                   "renewBeforeSeconds": {
@@ -4689,7 +4999,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Duration string specifying lifetime of issued Infisical machine tokens for the combined host (for example `1h`)."
                   },
                   "tokenPeriodSeconds": {
                     "maximum": 86400,
@@ -4706,7 +5017,8 @@
                       },
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Maximum renewal interval in seconds enforced on Infisical machine tokens for the combined host."
                   }
                 }
               },
@@ -4751,7 +5063,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Infisical Universal Auth client ID provisioned specifically for the database migration job."
                   },
                   "clientSecret": {
                     "description": "Infisical machine-identity client secret for database migrations.",
@@ -4759,7 +5072,10 @@
                     "type": "string",
                     "x-configurator": {
                       "detail": "standard",
-                      "sensitivity": "secret"
+                      "sensitivity": "secret",
+                      "guidance": {
+                        "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      }
                     }
                   },
                   "renewBeforeSeconds": {
@@ -4790,7 +5106,8 @@
                     "x-configurator": {
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Duration string specifying lifetime of issued Infisical machine tokens for the database migration job (for example `1h`)."
                   },
                   "tokenPeriodSeconds": {
                     "maximum": 86400,
@@ -4807,7 +5124,8 @@
                       },
                       "detail": "standard",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "Maximum renewal interval in seconds enforced on Infisical machine tokens for the database migration job."
                   }
                 }
               }
@@ -4836,7 +5154,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "standard",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "redisPassword": {
@@ -4844,7 +5165,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "standard",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           }
         }
@@ -4875,21 +5199,30 @@
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "posthogHost": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               },
               "posthogPublicKey": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "advanced",
-                  "sensitivity": "secret"
+                  "sensitivity": "secret",
+                  "guidance": {
+                    "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  }
                 }
               }
             }
@@ -4920,11 +5253,13 @@
                       "choices": [
                         {
                           "label": "True",
-                          "value": "true"
+                          "value": "true",
+                          "explanation": "Permit loopback or private-network URLs when connecting to a local Coop service."
                         },
                         {
                           "label": "False",
-                          "value": "false"
+                          "value": "false",
+                          "explanation": "Restrict Coop endpoint addresses to non-loopback HTTPS destinations."
                         }
                       ],
                       "detail": "advanced",
@@ -4954,7 +5289,8 @@
                     "x-configurator": {
                       "detail": "advanced",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "HTTPS endpoint URL for the Coop moderation reporting backend, e.g. https://coop.internal.example.org."
                   },
                   "webhookSecret": {
                     "type": "string",
@@ -4986,11 +5322,13 @@
                   "choices": [
                     {
                       "label": "True",
-                      "value": "true"
+                      "value": "true",
+                      "explanation": "Evaluate incoming safety signals against moderation reporting rules."
                     },
                     {
                       "label": "False",
-                      "value": "false"
+                      "value": "false",
+                      "explanation": "Store report entities without executing automated signal evaluation heuristics."
                     }
                   ],
                   "detail": "advanced",
@@ -5007,11 +5345,13 @@
                   "choices": [
                     {
                       "label": "True",
-                      "value": "true"
+                      "value": "true",
+                      "explanation": "Automatically apply resulting moderation actions emitted by connected reporting providers."
                     },
                     {
                       "label": "False",
-                      "value": "false"
+                      "value": "false",
+                      "explanation": "Record recommendations for human review without executing automated moderation actions."
                     }
                   ],
                   "detail": "advanced",
@@ -5052,11 +5392,13 @@
                   "choices": [
                     {
                       "label": "True",
-                      "value": "true"
+                      "value": "true",
+                      "explanation": "Mirror external reporting queue updates back into Event's local moderation review queue."
                     },
                     {
                       "label": "False",
-                      "value": "false"
+                      "value": "false",
+                      "explanation": "Keep external provider review queues separate from local Event queue snapshots."
                     }
                   ],
                   "detail": "advanced",
@@ -5076,23 +5418,28 @@
                   "choices": [
                     {
                       "label": "Disabled",
-                      "value": "Disabled"
+                      "value": "Disabled",
+                      "explanation": "Keep abuse/safety reports in database records only without external moderation connectors."
                     },
                     {
                       "label": "Local Only",
-                      "value": "LocalOnly"
+                      "value": "LocalOnly",
+                      "explanation": "Process moderation queue items exclusively through Event's built-in admin queue."
                     },
                     {
                       "label": "Osprey",
-                      "value": "Osprey"
+                      "value": "Osprey",
+                      "explanation": "Forward abuse signal and reporting events to an Osprey trust-and-safety service."
                     },
                     {
                       "label": "Coop",
-                      "value": "Coop"
+                      "value": "Coop",
+                      "explanation": "Sync moderation reports and review queues with a Coop moderation workspace."
                     },
                     {
                       "label": "Composite",
-                      "value": "Composite"
+                      "value": "Composite",
+                      "explanation": "Dispatch reporting state across local queue and configured external safety backends."
                     }
                   ],
                   "detail": "basic",
@@ -5117,11 +5464,13 @@
                       "choices": [
                         {
                           "label": "True",
-                          "value": "true"
+                          "value": "true",
+                          "explanation": "Permit loopback or private-network URLs when connecting to an Osprey safety server."
                         },
                         {
                           "label": "False",
-                          "value": "false"
+                          "value": "false",
+                          "explanation": "Restrict Osprey endpoint addresses to external non-loopback HTTPS servers."
                         }
                       ],
                       "detail": "advanced",
@@ -5151,7 +5500,8 @@
                     "x-configurator": {
                       "detail": "advanced",
                       "sensitivity": "public"
-                    }
+                    },
+                    "description": "HTTPS endpoint URL for the Osprey moderation reporting backend, e.g. https://osprey.internal.example.org."
                   }
                 }
               },
@@ -5165,11 +5515,13 @@
                   "choices": [
                     {
                       "label": "True",
-                      "value": "true"
+                      "value": "true",
+                      "explanation": "Push newly submitted user reports to the configured moderation reporting provider."
                     },
                     {
                       "label": "False",
-                      "value": "false"
+                      "value": "false",
+                      "explanation": "Retain user reports locally without outbound report synchronization."
                     }
                   ],
                   "detail": "advanced",
@@ -6590,7 +6942,13 @@
                 "x-configurator": {
                   "suggestedFrom": {
                     "pointer": "/identity/operatorIdentity/isOfficialInstance",
-                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                    "when": {
+                      "op": "exists",
+                      "reference": {
+                        "scope": "root",
+                        "path": "/identity/operatorIdentity/operatorId"
+                      }
+                    }
                   },
                   "detail": "standard",
                   "sensitivity": "sensitive"
@@ -6602,7 +6960,13 @@
                 "x-configurator": {
                   "suggestedFrom": {
                     "pointer": "/identity/operatorIdentity/jurisdictionCountryCode",
-                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                    "when": {
+                      "op": "exists",
+                      "reference": {
+                        "scope": "root",
+                        "path": "/identity/operatorIdentity/operatorId"
+                      }
+                    }
                   },
                   "detail": "standard",
                   "sensitivity": "sensitive"
@@ -6614,7 +6978,13 @@
                 "x-configurator": {
                   "suggestedFrom": {
                     "pointer": "/identity/operatorIdentity/legalName",
-                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                    "when": {
+                      "op": "exists",
+                      "reference": {
+                        "scope": "root",
+                        "path": "/identity/operatorIdentity/operatorId"
+                      }
+                    }
                   },
                   "detail": "standard",
                   "sensitivity": "sensitive"
@@ -6626,7 +6996,13 @@
                 "x-configurator": {
                   "suggestedFrom": {
                     "pointer": "/identity/operatorIdentity/operatorId",
-                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                    "when": {
+                      "op": "exists",
+                      "reference": {
+                        "scope": "root",
+                        "path": "/identity/operatorIdentity/operatorId"
+                      }
+                    }
                   },
                   "detail": "standard",
                   "sensitivity": "sensitive"
@@ -6638,7 +7014,13 @@
                 "x-configurator": {
                   "suggestedFrom": {
                     "pointer": "/identity/operatorIdentity/operatorKindCode",
-                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                    "when": {
+                      "op": "exists",
+                      "reference": {
+                        "scope": "root",
+                        "path": "/identity/operatorIdentity/operatorId"
+                      }
+                    }
                   },
                   "detail": "standard",
                   "sensitivity": "sensitive"
@@ -6650,7 +7032,13 @@
                 "x-configurator": {
                   "suggestedFrom": {
                     "pointer": "/identity/operatorIdentity/publicName",
-                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                    "when": {
+                      "op": "exists",
+                      "reference": {
+                        "scope": "root",
+                        "path": "/identity/operatorIdentity/operatorId"
+                      }
+                    }
                   },
                   "detail": "standard",
                   "sensitivity": "sensitive"
@@ -6670,7 +7058,13 @@
                 "x-configurator": {
                   "suggestedFrom": {
                     "pointer": "/identity/operatorIdentity/websiteUrl",
-                    "when": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } }
+                    "when": {
+                      "op": "exists",
+                      "reference": {
+                        "scope": "root",
+                        "path": "/identity/operatorIdentity/operatorId"
+                      }
+                    }
                   },
                   "detail": "standard",
                   "sensitivity": "sensitive"
@@ -7643,11 +8037,13 @@
               "choices": [
                 {
                   "label": "True",
-                  "value": "true"
+                  "value": "true",
+                  "explanation": "Enable managed control-plane registration and policy coordination."
                 },
                 {
                   "label": "False",
-                  "value": "false"
+                  "value": "false",
+                  "explanation": "Operate independently without central control-plane coordination."
                 }
               ],
               "detail": "advanced",
@@ -7665,7 +8061,10 @@
             "type": "string",
             "x-configurator": {
               "detail": "advanced",
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "guidance": {
+                "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              }
             }
           },
           "registrationToken": {
@@ -7691,7 +8090,8 @@
             "x-configurator": {
               "detail": "advanced",
               "sensitivity": "public"
-            }
+            },
+            "description": "Base HTTPS URL for control-plane registration, e.g. https://control.example.org."
           }
         }
       },
@@ -7705,7 +8105,8 @@
           },
           "detail": "advanced",
           "sensitivity": "public"
-        }
+        },
+        "description": "Public HTTPS browser origin for the instance admin portal, e.g. https://admin.events.example.org."
       }
     }
   },
@@ -7844,7 +8245,7 @@
   ],
   "identity": {
     "familyId": "f79259e8-af23-49b0-8d8d-6e371cc96080",
-    "revision": 6
+    "revision": 7
   },
   "localization": {
     "defaultLocale": "en",
@@ -8135,7 +8536,243 @@
           "/presentation/sections/8/description": "اضبط التقارير وبيانات اعتماد متصفح الوكيل عند الحاجة إلى هذه القدرات فقط.",
           "/presentation/sections/8/title": "التحليلات ومتصفح الوكيل",
           "/presentation/sections/9/description": "أعد إعدادات النسخة وصفوف المستأجرين ليتحقق منها Event؛ الإعداد لا يطبقها.",
-          "/presentation/sections/9/title": "بيان التكوين"
+          "/presentation/sections/9/title": "بيان التكوين",
+          "/presentation/outputSelector/options/1/description": "إعداد ملف بيان التكوين المنظم بصيغة JSON الذي يصف مكونات النشر وإعداداته لمراجعة Event.",
+          "/presentation/outputSelector/options/2/description": "إعداد حزمة تهيئة المستأجرين المتعددين بصيغة JSON بناءً على تفاصيل المستأجرين المدخلة.",
+          "/presentation/outputSelector/options/4/description": "إعداد مسودات النصوص القانونية الاختيارية للمراجعة التحريرية المستقلة دون ادعاء الاعتماد القانوني.",
+          "/presentation/sections/15/groups/0/title": "سلطة جلسات المتصفح عبر Redis",
+          "/presentation/sections/15/groups/0/description": "نطاق الأسماء وعنوان Redis وبيانات الاعتماد لحالة جلسة Blazor BFF.",
+          "/presentation/sections/15/groups/1/title": "حلقات مفاتيح حماية البيانات",
+          "/presentation/sections/15/groups/1/description": "حلقات حماية البيانات المستقلة وبيانات الاعتماد والحدود الدنيا للأجيال لكل مكوّن.",
+          "/presentation/sections/15/groups/2/title": "هويات آلة Infisical",
+          "/presentation/sections/15/groups/2/description": "بيانات اعتماد هويات الآلة المنفصلة ومدد صلاحية الرموز في Infisical لكل مكوّن.",
+          "/configuration/properties/apiEndpoint/description": "عنوان HTTPS العام لمضيف واجهة برمجة تطبيقات Event، مثال: https://api.events.example.org.",
+          "/configuration/properties/bootstrapAdministrator/properties/email/description": "عنوان البريد الإلكتروني لحساب المسؤول المبدئي، مثال: admin@example.org.",
+          "/configuration/properties/cerbos/properties/grpcEndpoint/description": "عنوان gRPC لمحرك سياسات Cerbos، مثال: https://cerbos-grpc.internal.example.org:3593.",
+          "/configuration/properties/cerbos/properties/httpEndpoint/description": "عنوان HTTP أو HTTPS الأساسي لواجهة Cerbos، مثال: https://cerbos.internal.example.org:3592.",
+          "/configuration/properties/controlPlane/properties/url/description": "عنوان HTTPS الأساسي لتسجيل مستوى التحكم، مثال: https://control.example.org.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/legalNoticeUrl/description": "عنوان HTTPS العام لصفحة الإشعار القانوني للمشغل، مثال: https://events.example.org/legal.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/privacyUrl/description": "عنوان HTTPS العام لسياسة الخصوصية الخاصة بالمشغل، مثال: https://events.example.org/privacy.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/termsUrl/description": "عنوان HTTPS العام لشروط الخدمة الخاصة بالمشغل، مثال: https://events.example.org/terms.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/websiteUrl/description": "عنوان الموقع الإلكتروني العام للجهة المشغلة، مثال: https://events.example.org.",
+          "/configuration/properties/instanceAdminPublicOrigin/description": "أصل HTTPS العام لمتصفح بوابة إدارة المثيل، مثال: https://admin.events.example.org.",
+          "/configuration/properties/integrations/properties/ai/properties/endpoint/description": "العنوان الأساسي لنقطة نهاية مزود نماذج الذكاء الاصطناعي، مثال: https://llm.example.org/v1.",
+          "/configuration/properties/integrations/properties/geocoding/properties/endpoint/description": "العنوان الأساسي لخدمة الترميز الجغرافي المحددة، مثال: https://photon.example.org.",
+          "/configuration/properties/integrations/properties/listmonk/properties/instanceUrl/description": "عنوان HTTPS الأساسي لمثيل خادم Listmonk، مثال: https://mail.example.org.",
+          "/configuration/properties/keycloak/properties/endpoint/description": "عنوان HTTPS الأساسي لخادم Keycloak المستخدم لتسجيل الدخول، مثال: https://auth.example.org.",
+          "/configuration/properties/observability/properties/reporting/properties/coop/properties/endpointUrl/description": "عنوان HTTPS لخلفية تقارير الإشراف Coop، مثال: https://coop.internal.example.org.",
+          "/configuration/properties/observability/properties/reporting/properties/osprey/properties/endpointUrl/description": "عنوان HTTPS لخلفية تقارير الإشراف Osprey، مثال: https://osprey.internal.example.org.",
+          "/configuration/properties/platform/properties/publicBaseUrl/description": "عنوان HTTPS الأساسي العام الذي يقدمه نشر Event، مثال: https://events.example.org.",
+          "/configuration/properties/s3Storage/properties/endpoint/description": "عنوان نقطة نهاية خدمة تخزين الكائنات المتوافق مع S3، مثال: https://s3.internal.example.org.",
+          "/configuration/properties/s3Storage/properties/publicEndpoint/description": "العنوان العام المستخدم لروابط الكائنات الموقعة عندما يختلف عن العنوان الداخلي، مثال: https://cdn.example.org.",
+          "/configuration/properties/svix/properties/baseUrl/description": "العنوان الأساسي لخادم خطافات الويب Svix، مثال: https://svix.internal.example.org.",
+          "/configuration/properties/bootstrapAdministrator/properties/provider/description": "مزود الهوية المستخدم لمطابقة سجل المسؤول المبدئي (`local` أو `keycloak` أو `atproto`).",
+          "/configuration/properties/bootstrapAdministrator/properties/subject/description": "المعرّف الفريد الخاص بالمزود (مثل UUID من Keycloak أو DID) المطابق للمسؤول المبدئي.",
+          "/configuration/properties/bootstrapAdministrator/properties/bindingGeneration/description": "الحد الأدنى المتزايد لجيل الربط (1 على الأقل) لتثبيت قبول ربط المسؤول المبدئي.",
+          "/configuration/properties/recipientAuthorities/properties/bffSession/properties/namespace/description": "بادئة نطاق المفاتيح التي تعزل إدخالات جلسة Blazor BFF الموزعة داخل Redis.",
+          "/configuration/properties/recipientAuthorities/properties/bffSession/properties/redisEndpoint/description": "اسم المضيف والمنفذ لخادم Redis الخاص بتخزين جلسات Blazor BFF (مثل `redis.internal:6379`).",
+          "/configuration/properties/secrets/properties/provider/description": "مزود الأسرار الذي تستخدمه مضيفات Event لقراءة الإعدادات الحساسة (`Environment` أو `UserSecrets` أو `Infisical`).",
+          "/configuration/properties/secrets/properties/infisical/properties/url/description": "عنوان HTTPS الأساسي لخادم إدارة الأسرار Infisical، مثال: https://infisical.example.org.",
+          "/configuration/properties/secrets/properties/infisical/properties/projectId/description": "معرّف المشروع في Infisical الذي يحتوي على مسارات الأسرار الخاصة بنشر Event.",
+          "/configuration/properties/secrets/properties/infisical/properties/environment/description": "اسم بيئة Infisical (مثل `prod` أو `staging`) التي يجلب منها Event الأسرار.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/api/properties/admissionSha256/description": "بصمة SHA-256 الست عشريّة بحروف صغيرة لتثبيت اعتماد حماية البيانات المستقل لـمضيف API.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/api/properties/minimumGeneration/description": "أدنى رقم جيل مقبول لحلقة مفاتيح حماية البيانات الخاصة بـمضيف API.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/bff/properties/admissionSha256/description": "بصمة SHA-256 الست عشريّة بحروف صغيرة لتثبيت اعتماد حماية البيانات المستقل لـمضيف Blazor BFF.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/bff/properties/minimumGeneration/description": "أدنى رقم جيل مقبول لحلقة مفاتيح حماية البيانات الخاصة بـمضيف Blazor BFF.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/combined/properties/admissionSha256/description": "بصمة SHA-256 الست عشريّة بحروف صغيرة لتثبيت اعتماد حماية البيانات المستقل لـالمضيف المدمج.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/combined/properties/minimumGeneration/description": "أدنى رقم جيل مقبول لحلقة مفاتيح حماية البيانات الخاصة بـالمضيف المدمج.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/api/properties/clientId/description": "معرّف عميل المصادقة الشاملة في Infisical المخصص لـمكوّن API.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/api/properties/tokenLifetime/description": "مدة صلاحية رموز الآلة الصادرة عن Infisical لـمكوّن API (مثل `1h`).",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/api/properties/tokenPeriodSeconds/description": "أقصى فترة تجديد بالثواني المفروضة على رموز الآلة في Infisical لـمكوّن API.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/bff/properties/clientId/description": "معرّف عميل المصادقة الشاملة في Infisical المخصص لـمكوّن Blazor BFF.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/bff/properties/tokenLifetime/description": "مدة صلاحية رموز الآلة الصادرة عن Infisical لـمكوّن Blazor BFF (مثل `1h`).",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/bff/properties/tokenPeriodSeconds/description": "أقصى فترة تجديد بالثواني المفروضة على رموز الآلة في Infisical لـمكوّن Blazor BFF.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/combined/properties/clientId/description": "معرّف عميل المصادقة الشاملة في Infisical المخصص لـالمضيف المدمج.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/combined/properties/tokenLifetime/description": "مدة صلاحية رموز الآلة الصادرة عن Infisical لـالمضيف المدمج (مثل `1h`).",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/combined/properties/tokenPeriodSeconds/description": "أقصى فترة تجديد بالثواني المفروضة على رموز الآلة في Infisical لـالمضيف المدمج.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/migration/properties/clientId/description": "معرّف عميل المصادقة الشاملة في Infisical المخصص لـمهمة ترحيل قاعدة البيانات.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/migration/properties/tokenLifetime/description": "مدة صلاحية رموز الآلة الصادرة عن Infisical لـمهمة ترحيل قاعدة البيانات (مثل `1h`).",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/migration/properties/tokenPeriodSeconds/description": "أقصى فترة تجديد بالثواني المفروضة على رموز الآلة في Infisical لـمهمة ترحيل قاعدة البيانات.",
+          "/configuration/properties/agentBrowser/properties/personaPassword/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/agentBrowser/properties/redisPassword/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/cerbos/properties/adminPassword/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/cerbos/properties/adminUsername/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/cerbos/properties/grpcEndpoint/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/controlPlane/properties/registrationCredentials/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/identity/properties/database/properties/connectionString/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/identity/properties/database/properties/migratorPassword/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/identity/properties/database/properties/runtimePassword/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/integrations/properties/ai/properties/anthropicApiKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/integrations/properties/ai/properties/openaiApiKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/integrations/properties/listmonk/properties/apiKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/integrations/properties/listmonk/properties/apiUsername/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/keycloak/properties/clientId/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/keycloak/properties/endpoint/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/keycloak/properties/realm/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/localBootstrap/properties/password/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/messaging/properties/smtp/properties/fromAddress/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/messaging/properties/smtp/properties/fromName/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/messaging/properties/smtp/properties/host/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/messaging/properties/smtp/properties/password/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/messaging/properties/smtp/properties/port/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/messaging/properties/smtp/properties/username/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/observability/properties/analytics/properties/personalApiKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/observability/properties/analytics/properties/posthogHost/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/observability/properties/analytics/properties/posthogPublicKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/payments/properties/stripe/properties/platformSecretKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/payments/properties/stripe/properties/webhookSecret/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/platform/properties/atproto/properties/oauthClientPrivateJwks/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/platform/properties/atproto/properties/sessionEncryptionKeyring/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/platform/properties/atproto/properties/sessionJwtPrivateJwks/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/platform/properties/localizationTmsApiKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/platform/properties/privacyErasureIdentityFenceKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/platform/properties/registrationProvider/properties/apiToken/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/platform/properties/registrationProvider/properties/webhookSecret/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/postgresql/properties/database/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/postgresql/properties/host/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/postgresql/properties/password/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/postgresql/properties/port/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/postgresql/properties/username/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/recipientAuthorities/properties/bffSession/properties/redisPassword/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/api/properties/admission/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/api/properties/ring/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/bff/properties/admission/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/bff/properties/ring/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/combined/properties/admission/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/recipientAuthorities/properties/dataProtection/properties/combined/properties/ring/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/api/properties/clientSecret/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/bff/properties/clientSecret/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/combined/properties/clientSecret/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/migration/properties/clientSecret/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/s3Storage/properties/accessKeyId/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/s3Storage/properties/bucketName/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/s3Storage/properties/endpoint/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/s3Storage/properties/publicEndpoint/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/s3Storage/properties/region/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/s3Storage/properties/secretAccessKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/security/properties/admissions/properties/credentialLookupHmacKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/security/properties/admissions/properties/recoveryCapabilityHmacKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/security/properties/admissions/properties/scannerCapabilityHmacKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/security/properties/localAuthentication/properties/jwtKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/security/properties/promotionsCodeLookupHmacKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/security/properties/setupSecretBindingCommitmentHmacKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/security/properties/ticketingRecovery/properties/manifestHmacKey/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/supportingServices/properties/keycloak/properties/dbPassword/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/svix/properties/authToken/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/svix/properties/operationalWebhookSecret/x-configurator/guidance/instructions": "أدخل بيانات الاعتماد الحالية أو إعداد الاتصال الخاص من مسؤول الخدمة أو جهة إدارة الأسرار. يحتفظ Configurator بالإدخال محليا ولا يصدر بيانات الاعتماد ولا يدوّرها ولا يتحقق منها.",
+          "/configuration/properties/bootstrapAdministrator/properties/provider/x-configurator/choices/0/explanation": "المصادقة باستخدام حسابات محلية مخزّنة في قاعدة بيانات Event نفسها.",
+          "/configuration/properties/bootstrapAdministrator/properties/provider/x-configurator/choices/1/explanation": "تفويض تسجيل الدخول عبر خادم ومجال Keycloak خارجي وفق OpenID Connect.",
+          "/configuration/properties/bootstrapAdministrator/properties/provider/x-configurator/choices/2/explanation": "مصادقة الحسابات عبر معرّفات الهوية اللامركزية لبروتوكول AT.",
+          "/configuration/properties/platform/properties/authenticationProvider/x-configurator/choices/0/explanation": "المصادقة باستخدام حسابات محلية مخزّنة في قاعدة بيانات Event نفسها.",
+          "/configuration/properties/platform/properties/authenticationProvider/x-configurator/choices/1/explanation": "تفويض تسجيل الدخول عبر خادم ومجال Keycloak خارجي وفق OpenID Connect.",
+          "/configuration/properties/platform/properties/authenticationProvider/x-configurator/choices/2/explanation": "مصادقة الحسابات عبر معرّفات الهوية اللامركزية لبروتوكول AT.",
+          "/configuration/properties/database/properties/provider/x-configurator/choices/0/explanation": "استخدام خادم قاعدة بيانات علائقية من نوع PostgreSQL.",
+          "/configuration/properties/database/properties/provider/x-configurator/choices/1/explanation": "استخدام ملف قاعدة بيانات SQLite محلي مضمّن (لنشر العقدة الواحدة فقط).",
+          "/configuration/properties/database/properties/provider/x-configurator/choices/2/explanation": "استخدام مثيل قاعدة بيانات Microsoft SQL Server.",
+          "/configuration/properties/database/properties/provider/x-configurator/choices/3/explanation": "استخدام خادم قاعدة بيانات MariaDB.",
+          "/configuration/properties/database/properties/provider/x-configurator/choices/4/explanation": "استخدام خادم قاعدة بيانات MySQL.",
+          "/configuration/properties/identity/properties/database/properties/provider/x-configurator/choices/0/explanation": "استخدام خادم قاعدة بيانات علائقية من نوع PostgreSQL.",
+          "/configuration/properties/identity/properties/database/properties/provider/x-configurator/choices/1/explanation": "استخدام ملف قاعدة بيانات SQLite محلي مضمّن (لنشر العقدة الواحدة فقط).",
+          "/configuration/properties/identity/properties/database/properties/provider/x-configurator/choices/2/explanation": "استخدام مثيل قاعدة بيانات Microsoft SQL Server.",
+          "/configuration/properties/identity/properties/database/properties/provider/x-configurator/choices/3/explanation": "استخدام خادم قاعدة بيانات MariaDB.",
+          "/configuration/properties/identity/properties/database/properties/provider/x-configurator/choices/4/explanation": "استخدام خادم قاعدة بيانات MySQL.",
+          "/configuration/properties/database/properties/tlsMode/x-configurator/choices/0/explanation": "تفضيل التشفير عبر TLS مع السماح بالرجوع لاتصال غير مشفر إذا لم يدعمه الخادم.",
+          "/configuration/properties/database/properties/tlsMode/x-configurator/choices/1/explanation": "فرض استخدام TLS المشفر ورفض الاتصال إذا تعذر إنشاؤه مع الخادم.",
+          "/configuration/properties/database/properties/tlsMode/x-configurator/choices/2/explanation": "الاتصال دون تشفير TLS (يُستخدم فقط داخل الشبكات الخاصة أو المحلية الموثوقة).",
+          "/configuration/properties/database/properties/erasure/properties/tlsMode/x-configurator/choices/0/explanation": "تفضيل التشفير عبر TLS مع السماح بالرجوع لاتصال غير مشفر إذا لم يدعمه الخادم.",
+          "/configuration/properties/database/properties/erasure/properties/tlsMode/x-configurator/choices/1/explanation": "فرض استخدام TLS المشفر ورفض الاتصال إذا تعذر إنشاؤه مع الخادم.",
+          "/configuration/properties/database/properties/erasure/properties/tlsMode/x-configurator/choices/2/explanation": "الاتصال دون تشفير TLS (يُستخدم فقط داخل الشبكات الخاصة أو المحلية الموثوقة).",
+          "/configuration/properties/identity/properties/database/properties/tlsMode/x-configurator/choices/0/explanation": "تفضيل التشفير عبر TLS مع السماح بالرجوع لاتصال غير مشفر إذا لم يدعمه الخادم.",
+          "/configuration/properties/identity/properties/database/properties/tlsMode/x-configurator/choices/1/explanation": "فرض استخدام TLS المشفر ورفض الاتصال إذا تعذر إنشاؤه مع الخادم.",
+          "/configuration/properties/identity/properties/database/properties/tlsMode/x-configurator/choices/2/explanation": "الاتصال دون تشفير TLS (يُستخدم فقط داخل الشبكات الخاصة أو المحلية الموثوقة).",
+          "/configuration/properties/identity/properties/database/properties/topology/x-configurator/choices/0/explanation": "تخزين جداول الهوية مع قاعدة بيانات التطبيق الرئيسية على الخادم نفسه.",
+          "/configuration/properties/identity/properties/database/properties/topology/x-configurator/choices/1/explanation": "استخدام قاعدة بيانات خارجية مستقلة مخصصة لسجلات الهوية فقط.",
+          "/configuration/properties/hosting/properties/configurationManifest/properties/mode/x-configurator/choices/0/explanation": "تعطيل قراءة بيان التكوين والاعتماد حصراً على متغيرات بيئة التشغيل.",
+          "/configuration/properties/hosting/properties/configurationManifest/properties/mode/x-configurator/choices/1/explanation": "التحقق من سلامة بيان التكوين عند بدء التشغيل فقط دون إنشاء حالة تمهيد جديدة.",
+          "/configuration/properties/hosting/properties/configurationManifest/properties/mode/x-configurator/choices/2/explanation": "التحقق من ملف بيان التكوين وتطبيقه خلال مرحلة التمهيد الأولي للتشغيل.",
+          "/configuration/properties/hosting/properties/deploymentMode/x-configurator/choices/0/explanation": "تشغيل مثيل لمستأجر واحد دون تقسيم أو حزم مستأجرين متعددين.",
+          "/configuration/properties/hosting/properties/deploymentMode/x-configurator/choices/1/explanation": "تفعيل تعدد المستأجرين مع دعم حزم المستأجرين ونطاقات العزل.",
+          "/configuration/properties/identity/properties/bootstrapMode/x-configurator/choices/0/explanation": "الاعتماد على خطوة التهيئة التفاعلية دون إنشاء مسؤول مبدئي مبرمج مسبقاً.",
+          "/configuration/properties/identity/properties/bootstrapMode/x-configurator/choices/1/explanation": "إنشاء حساب المسؤول المبدئي باستخدام المزود وتفاصيل الهوية المحددة هنا.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/operatorKindCode/x-configurator/choices/0/explanation": "منظمة مسجلة أو شركة أو جمعية غير ربحية ذات صفة قانونية.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/operatorKindCode/x-configurator/choices/1/explanation": "تاجر فردي مسجل أو مشغل تجاري مستقل مرخّص.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/operatorKindCode/x-configurator/choices/2/explanation": "شخص طبيعي يدير المثيل بصفة فردية.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/operatorKindCode/x-configurator/choices/3/explanation": "مؤسسة عامة أو حكومية أو جهة تعليمية رسمية.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/operatorKindCode/x-configurator/choices/4/explanation": "تجمع مجتمعي أو مجموعة أهلية تعمل دون تسجيل شركة رسمي.",
+          "/configuration/properties/integrations/properties/ai/properties/provider/x-configurator/choices/0/explanation": "تعطيل مزايا الذكاء الاصطناعي الاختيارية في جميع أنحاء النشر.",
+          "/configuration/properties/integrations/properties/ai/properties/provider/x-configurator/choices/1/explanation": "استخدام ردود محاكاة محلية ثابتة لأغراض التطوير والاختبار فقط.",
+          "/configuration/properties/integrations/properties/ai/properties/provider/x-configurator/choices/2/explanation": "الاتصال بخادم مخصص يدعم بروتوكول OpenAI المتوافق.",
+          "/configuration/properties/integrations/properties/ai/properties/provider/x-configurator/choices/3/explanation": "الاتصال بخادم مخصص يدعم واجهة رسائل Anthropic.",
+          "/configuration/properties/integrations/properties/ai/properties/provider/x-configurator/choices/4/explanation": "الاتصال المباشر بخدمة OpenAI الرسمية باستخدام مفتاح API.",
+          "/configuration/properties/integrations/properties/ai/properties/provider/x-configurator/choices/5/explanation": "الاتصال بمورد Azure OpenAI المخصص على سحابة مايكروسوفت.",
+          "/configuration/properties/integrations/properties/ai/properties/provider/x-configurator/choices/6/explanation": "الاتصال المباشر بخدمة Anthropic الرسمية باستخدام مفتاح API.",
+          "/configuration/properties/integrations/properties/geocoding/properties/provider/x-configurator/choices/0/explanation": "تعطيل خدمات البحث عن الإحداثيات الجغرافية للعناوين.",
+          "/configuration/properties/integrations/properties/geocoding/properties/provider/x-configurator/choices/1/explanation": "تحويل العناوين إلى إحداثيات جغرافية باستخدام خدمة Photon المعتمدة على OpenStreetMap.",
+          "/configuration/properties/integrations/properties/webhooks/properties/provider/x-configurator/choices/0/explanation": "تعطيل إرسال خطافات الويب الصادرة بالكامل.",
+          "/configuration/properties/integrations/properties/webhooks/properties/provider/x-configurator/choices/1/explanation": "إرسال خطافات الويب مباشرة من خادم Event دون وسيط خارجي.",
+          "/configuration/properties/integrations/properties/webhooks/properties/provider/x-configurator/choices/2/explanation": "تفويض جدولة وإعادة محاولة وتوقيع خطافات الويب إلى خادم Svix.",
+          "/configuration/properties/integrations/properties/webhooks/properties/provider/x-configurator/choices/3/explanation": "إرسال أحداث خطافات الويب عبر الموزع المحلي وخادم Svix معاً.",
+          "/configuration/properties/integrations/properties/webhooks/properties/provider/x-configurator/choices/4/explanation": "تقييم وبناء حمولات خطافات الويب مع تسجيلها فقط دون إرسال فعلي عبر الشبكة.",
+          "/configuration/properties/messaging/properties/smtp/properties/encryption/x-configurator/choices/0/explanation": "إرسال بريد SMTP دون تشفير TLS (يصلح فقط داخل الشبكات الموثوقة).",
+          "/configuration/properties/messaging/properties/smtp/properties/encryption/x-configurator/choices/1/explanation": "بدء الاتصال ثم الترقية إلى التشفير عبر STARTTLS قبل إرسال بيانات الاعتماد.",
+          "/configuration/properties/messaging/properties/smtp/properties/encryption/x-configurator/choices/2/explanation": "إنشاء اتصال TLS/SSL مشفر فورياً عند بدء الاتصال (المنفذ 465 غالباً).",
+          "/configuration/properties/messaging/properties/smtp/properties/encryption/x-configurator/choices/3/explanation": "السماح لعميل البريد باختيار آلية التشفير الأنسب تلقائياً حسب المنفذ وقدرات الخادم.",
+          "/configuration/properties/observability/properties/reporting/properties/mode/x-configurator/choices/0/explanation": "حفظ بلاغات السلامة والمحتوى محلياً فقط دون الربط بمنصات خارجية.",
+          "/configuration/properties/observability/properties/reporting/properties/mode/x-configurator/choices/1/explanation": "معالجة بلاغات الإشراف داخل قائمة المراجعة المدمجة في Event فقط.",
+          "/configuration/properties/observability/properties/reporting/properties/mode/x-configurator/choices/2/explanation": "إرسال إشارات وبلاغات السلامة إلى خدمة Osprey لإدارة الثقة والسلامة.",
+          "/configuration/properties/observability/properties/reporting/properties/mode/x-configurator/choices/3/explanation": "مزامنة البلاغات وقوائم المراجعة مع مساحة عمل الإشراف Coop.",
+          "/configuration/properties/observability/properties/reporting/properties/mode/x-configurator/choices/4/explanation": "مزامنة حالة البلاغات بين القائمة المحلية والأنظمة الخارجية المفعّلة معاً.",
+          "/configuration/properties/payments/properties/stripe/properties/mode/x-configurator/choices/0/explanation": "تشغيل تكامل Stripe في وضع الاختبار التجريبي دون معاملات مالية حقيقية.",
+          "/configuration/properties/payments/properties/stripe/properties/mode/x-configurator/choices/1/explanation": "معالجة معاملات حقيقية باستخدام مفاتيح Stripe التشغيلية الحية.",
+          "/configuration/properties/platform/properties/authorizationProvider/x-configurator/choices/0/explanation": "تقييم سياسات الصلاحيات محلياً عبر قواعد Event المدمجة.",
+          "/configuration/properties/platform/properties/authorizationProvider/x-configurator/choices/1/explanation": "تفويض قرارات الصلاحيات التفصيلية إلى خادم سياسات Cerbos خارجي.",
+          "/configuration/properties/platform/properties/checkoutGovernance/properties/activationStatus/x-configurator/choices/0/explanation": "اعتماد حالة حوكمة الدفع والسماح بتشغيل بوابات السداد.",
+          "/configuration/properties/platform/properties/checkoutGovernance/properties/activationStatus/x-configurator/choices/1/explanation": "إيقاف حوكمة الدفع مؤقتاً إلى حين استيفاء المراجعة المطلوبة.",
+          "/configuration/properties/platform/properties/checkoutGovernance/properties/chargeType/x-configurator/choices/0/explanation": "تحصيل المدفوعات مباشرة عبر حساب التاجر المرتبط في Stripe.",
+          "/configuration/properties/platform/properties/erasure/properties/databaseTopology/x-configurator/choices/0/explanation": "تتبع سجلات محو الخصوصية في قاعدة بيانات SQLite محلية مضمّنة.",
+          "/configuration/properties/platform/properties/erasure/properties/databaseTopology/x-configurator/choices/1/explanation": "عزل سجل عمليات محو البيانات على قاعدة بيانات خارجية مستقلة.",
+          "/configuration/properties/platform/properties/erasure/properties/databaseTopology/x-configurator/choices/2/explanation": "حفظ سجلات محو البيانات ضمن قاعدة البيانات المشتركة مع التطبيق.",
+          "/configuration/properties/secrets/properties/provider/x-configurator/choices/0/explanation": "قراءة الأسرار مباشرة من متغيرات بيئة تشغيل العملية.",
+          "/configuration/properties/secrets/properties/provider/x-configurator/choices/1/explanation": "قراءة الأسرار محلياً من مخزن .NET user-secrets في بيئات التطوير.",
+          "/configuration/properties/secrets/properties/provider/x-configurator/choices/2/explanation": "جلب أسرار التشغيل من خادم Infisical باستخدام بيانات اعتماد الآلة.",
+          "/configuration/properties/security/properties/ticketingRecovery/properties/manifestSigningKeyReference/x-configurator/choices/0/explanation": "ربط توقيع بيانات استرداد التذاكر بمفتاح HMAC القياسي المخصص للاسترداد.",
+          "/configuration/properties/svix/properties/capabilityPolicyVersion/x-configurator/choices/0/explanation": "تطبيق حدود القدرات المتوافقة مع ملف Svix 1.96.1 v1 الذاتي الاستضافة.",
+          "/configuration/properties/svix/properties/environment/x-configurator/choices/0/explanation": "استهداف خادم Svix ذاتي الاستضافة ضمن بنيتك التحتية الخاصة.",
+          "/configuration/properties/svix/properties/providerVersion/x-configurator/choices/0/explanation": "تثبيت توافق محوّل Svix في Event على إصدار الخادم 1.96.1.",
+          "/configuration/properties/controlPlane/properties/managedMode/x-configurator/choices/0/explanation": "تفعيل الإدارة المركزية والتنسيق مع خادم مستوى التحكم.",
+          "/configuration/properties/controlPlane/properties/managedMode/x-configurator/choices/1/explanation": "التشغيل باستقلالية دون التنسيق مع مستوى تحكم مركزي.",
+          "/configuration/properties/integrations/properties/listmonk/properties/preconfirmSubscriptions/x-configurator/choices/0/explanation": "تأكيد اشتراكات Listmonk المضافة مسبقاً دون بريد تأكيد إضافي.",
+          "/configuration/properties/integrations/properties/listmonk/properties/preconfirmSubscriptions/x-configurator/choices/1/explanation": "طلب تأكيد مزدوج صريح من المشترك عند الإضافة في Listmonk.",
+          "/configuration/properties/integrations/properties/listmonk/properties/syncOnRegistration/x-configurator/choices/0/explanation": "مزامنة تفضيلات البريد تلقائياً مع Listmonk فور إتمام التسجيل.",
+          "/configuration/properties/integrations/properties/listmonk/properties/syncOnRegistration/x-configurator/choices/1/explanation": "عدم إرسال بيانات المسجلين تلقائياً إلى Listmonk عند التسجيل.",
+          "/configuration/properties/keycloak/properties/requireHttpsMetadata/x-configurator/choices/0/explanation": "فرض HTTPS عند جلب بيانات التعريف ومفاتيح Keycloak.",
+          "/configuration/properties/keycloak/properties/requireHttpsMetadata/x-configurator/choices/1/explanation": "السماح بعناوين HTTP في بيئات التطوير المحلية فقط دون TLS.",
+          "/configuration/properties/localStorage/properties/createRootIfMissing/x-configurator/choices/0/explanation": "إنشاء مجلد التخزين المحلي تلقائياً إذا لم يكن موجوداً عند التشغيل.",
+          "/configuration/properties/localStorage/properties/createRootIfMissing/x-configurator/choices/1/explanation": "اشتراط وجود مجلد التخزين مسبقاً وعدم إنشائه تلقائياً عند التشغيل.",
+          "/configuration/properties/observability/properties/reporting/properties/coop/properties/allowLocalProviderEndpoints/x-configurator/choices/0/explanation": "السماح بعناوين الشبكة المحلية أو الحلقة الراجعة عند الاتصال بخدمة Coop.",
+          "/configuration/properties/observability/properties/reporting/properties/coop/properties/allowLocalProviderEndpoints/x-configurator/choices/1/explanation": "حصر عناوين خدمة Coop في النطاقات العامة غير المحلية.",
+          "/configuration/properties/observability/properties/reporting/properties/evaluateSignals/x-configurator/choices/0/explanation": "تقييم إشارات السلامة الواردة وفق قواعد الإشراف المفعّلة.",
+          "/configuration/properties/observability/properties/reporting/properties/evaluateSignals/x-configurator/choices/1/explanation": "تخزين البلاغات دون تشغيل قواعد التقييم التلقائي للإشارات.",
+          "/configuration/properties/observability/properties/reporting/properties/executeDecisions/x-configurator/choices/0/explanation": "تنفيذ إجراءات الإشراف الناتجة عن مزودي التقارير تلقائياً.",
+          "/configuration/properties/observability/properties/reporting/properties/executeDecisions/x-configurator/choices/1/explanation": "تسجيل التوصيات للمراجعة البشرية فقط دون تنفيذ تلقائي.",
+          "/configuration/properties/observability/properties/reporting/properties/mirrorReviewQueue/x-configurator/choices/0/explanation": "عكس تحديثات قائمة المراجعة الخارجية داخل قائمة المراجعة المحلية في Event.",
+          "/configuration/properties/observability/properties/reporting/properties/mirrorReviewQueue/x-configurator/choices/1/explanation": "إبقاء قوائم المراجعة الخارجية منفصلة دون مزامنتها مع القائمة المحلية.",
+          "/configuration/properties/observability/properties/reporting/properties/osprey/properties/allowLocalProviderEndpoints/x-configurator/choices/0/explanation": "السماح بعناوين الشبكة المحلية عند الاتصال بخادم السلامة Osprey.",
+          "/configuration/properties/observability/properties/reporting/properties/osprey/properties/allowLocalProviderEndpoints/x-configurator/choices/1/explanation": "حصر عناوين خادم Osprey في الخوادم الخارجية غير المحلية.",
+          "/configuration/properties/observability/properties/reporting/properties/syncReports/x-configurator/choices/0/explanation": "إرسال البلاغات الجديدة ومزامنتها مع مزود تقارير الإشراف.",
+          "/configuration/properties/observability/properties/reporting/properties/syncReports/x-configurator/choices/1/explanation": "الاحتفاظ ببلاغات المستخدمين محلياً دون مزامنة صادرة.",
+          "/configuration/properties/platform/properties/mcp/properties/enableLegacySse/x-configurator/choices/0/explanation": "إتاحة نقاط نهاية SSE التقليدية لبروتوكول MCP للتوافق مع العملاء الأقدم.",
+          "/configuration/properties/platform/properties/mcp/properties/enableLegacySse/x-configurator/choices/1/explanation": "تعطيل نقاط نهاية SSE التقليدية والاقتصار على النقل الحديث عبر HTTP.",
+          "/configuration/properties/platform/properties/mcp/properties/stateless/x-configurator/choices/0/explanation": "تشغيل واجهة MCP في وضع عديم الحالة (stateless) لسهولة التوسع الأفقي.",
+          "/configuration/properties/platform/properties/mcp/properties/stateless/x-configurator/choices/1/explanation": "الاحتفاظ بحالة جلسة MCP في الذاكرة للاتصالات المستمرة.",
+          "/configuration/properties/platform/properties/provisioning/properties/trusted/x-configurator/choices/0/explanation": "معاملة بيانات التزويد الأولي بصفتها حالة موثوقة ومعتمدة عند بدء التشغيل.",
+          "/configuration/properties/platform/properties/provisioning/properties/trusted/x-configurator/choices/1/explanation": "عدم معاملة بيانات التزويد كمرجع موثوق بشكل تلقائي.",
+          "/configuration/properties/storageReconciliation/properties/deleteQuarantinedObjects/x-configurator/choices/0/explanation": "حذف الكائنات المعزولة نهائياً بعد انقضاء مهلة الاحتفاظ.",
+          "/configuration/properties/storageReconciliation/properties/deleteQuarantinedObjects/x-configurator/choices/1/explanation": "الإبقاء على الكائنات المعزولة في التخزين إلى حين إزالتها يدوياً.",
+          "/configuration/properties/storageReconciliation/properties/quarantineMissingObjects/x-configurator/choices/0/explanation": "نقل سجلات الملفات المفقودة في التخزين إلى حالة الحجر.",
+          "/configuration/properties/storageReconciliation/properties/quarantineMissingObjects/x-configurator/choices/1/explanation": "ترك سجلات البيانات الوصفية دون تغيير عند فقدان الملفات الفعلي.",
+          "/configuration/properties/storageReconciliation/properties/quarantineOrphanLocalFiles/x-configurator/choices/0/explanation": "نقل الملفات اليتيمة غير المرتبطة بسجل في التخزين المحلي إلى مجلد الحجر.",
+          "/configuration/properties/storageReconciliation/properties/quarantineOrphanLocalFiles/x-configurator/choices/1/explanation": "ترك الملفات المحلية غير المرتبطة دون مساس أثناء عمليات التسوية."
         }
       },
       "en": {
@@ -9793,12 +10430,57 @@
           "title": "Environment",
           "description": "Prepare related files only for the hosting choices and operator details supplied.",
           "nextActions": [
-            { "targetOption": "configuration-manifest", "title": "Prepare configuration manifest", "priority": "recommended", "proposedWhen": { "op": "any", "operands": [
-              { "op": "equals", "reference": { "scope": "root", "path": "/hosting/configurationManifest/mode" }, "value": "Bootstrap" },
-              { "op": "equals", "reference": { "scope": "root", "path": "/hosting/configurationManifest/mode" }, "value": "ValidateOnly" }
-            ] } },
-            { "targetOption": "tenant-package", "title": "Prepare tenant package", "priority": "available", "proposedWhen": { "op": "equals", "reference": { "scope": "root", "path": "/hosting/deploymentMode" }, "value": "MultiTenant" } },
-            { "targetOption": "operator-identity", "title": "Review operator identity draft", "priority": "available", "proposedWhen": { "op": "exists", "reference": { "scope": "root", "path": "/identity/operatorIdentity/operatorId" } } }
+            {
+              "targetOption": "configuration-manifest",
+              "title": "Prepare configuration manifest",
+              "priority": "recommended",
+              "proposedWhen": {
+                "op": "any",
+                "operands": [
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "scope": "root",
+                      "path": "/hosting/configurationManifest/mode"
+                    },
+                    "value": "Bootstrap"
+                  },
+                  {
+                    "op": "equals",
+                    "reference": {
+                      "scope": "root",
+                      "path": "/hosting/configurationManifest/mode"
+                    },
+                    "value": "ValidateOnly"
+                  }
+                ]
+              }
+            },
+            {
+              "targetOption": "tenant-package",
+              "title": "Prepare tenant package",
+              "priority": "available",
+              "proposedWhen": {
+                "op": "equals",
+                "reference": {
+                  "scope": "root",
+                  "path": "/hosting/deploymentMode"
+                },
+                "value": "MultiTenant"
+              }
+            },
+            {
+              "targetOption": "operator-identity",
+              "title": "Review operator identity draft",
+              "priority": "available",
+              "proposedWhen": {
+                "op": "exists",
+                "reference": {
+                  "scope": "root",
+                  "path": "/identity/operatorIdentity/operatorId"
+                }
+              }
+            }
           ],
           "value": "environment"
         },
@@ -9807,14 +10489,16 @@
             "configuration-manifest"
           ],
           "title": "Configuration manifest",
-          "value": "configuration-manifest"
+          "value": "configuration-manifest",
+          "description": "Prepare the structured configuration manifest JSON describing deployment components and settings for Event review."
         },
         {
           "artifactIds": [
             "tenant-package"
           ],
           "title": "Tenant package",
-          "value": "tenant-package"
+          "value": "tenant-package",
+          "description": "Prepare the multi-tenant provisioning package JSON from supplied tenant configuration details."
         },
         {
           "artifactIds": [
@@ -9823,7 +10507,19 @@
           "title": "Operator identity",
           "description": "Review a proposed identity draft; Event retains acceptance and signing authority.",
           "nextActions": [
-            { "targetOption": "legal-drafts", "title": "Review optional legal drafts", "description": "Optional editorial companion; no legal necessity or approval is implied.", "priority": "optional", "proposedWhen": { "op": "exists", "reference": { "scope": "root", "path": "/operatorIdentity/document/operatorId" } } }
+            {
+              "targetOption": "legal-drafts",
+              "title": "Review optional legal drafts",
+              "description": "Optional editorial companion; no legal necessity or approval is implied.",
+              "priority": "optional",
+              "proposedWhen": {
+                "op": "exists",
+                "reference": {
+                  "scope": "root",
+                  "path": "/operatorIdentity/document/operatorId"
+                }
+              }
+            }
           ],
           "value": "operator-identity"
         },
@@ -9832,7 +10528,8 @@
             "legal-drafts"
           ],
           "title": "Legal drafts",
-          "value": "legal-drafts"
+          "value": "legal-drafts",
+          "description": "Prepare optional legal-draft editorial text for independent operator review without claiming legal validity."
         }
       ],
       "pointer": "/operation"
@@ -9980,7 +10677,33 @@
         "pointers": [
           "/recipientAuthorities"
         ],
-        "title": "Recipient authorities"
+        "title": "Recipient authorities",
+        "groups": [
+          {
+            "id": "bff-session",
+            "title": "Browser session Redis authority",
+            "description": "Redis namespace, endpoint and credential for Blazor BFF session state.",
+            "pointers": [
+              "/recipientAuthorities/bffSession"
+            ]
+          },
+          {
+            "id": "data-protection",
+            "title": "Data Protection key rings",
+            "description": "Independent Data Protection ring, admission credential and generation floors per recipient host.",
+            "pointers": [
+              "/recipientAuthorities/dataProtection"
+            ]
+          },
+          {
+            "id": "infisical",
+            "title": "Infisical machine identities",
+            "description": "Separate Infisical machine-identity credentials and token lifetimes per component.",
+            "pointers": [
+              "/recipientAuthorities/infisical"
+            ]
+          }
+        ]
       }
     ]
   },

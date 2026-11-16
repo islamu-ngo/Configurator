@@ -185,7 +185,9 @@ dotnet run eng/configurator/BuildDefinitionStore.cs -- \
 
 The example generator also visits the minimal and Grafana examples; their
 unchanged canonical bytes must remain unchanged. The store builder appends the
-new release and generates its catalog; it must not rewrite the prior release.
+new release and generates its catalog; it must not rewrite the prior releases
+(`1..6.json` stay immutable while `revision 7` resolves all quality advisories in
+EN and AR under `definition lint --quality --strict`).
 The synthetic answer fixtures use the private 0.0.1 answer envelope and cover
 Standalone, API-only, Blazor-only and full Compose inputs. Their independent
 expected bytes include recipient-specific Data Protection/session material;

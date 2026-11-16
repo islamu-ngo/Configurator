@@ -2122,7 +2122,7 @@ Candidate SHA256 identities:
 | Browser `dotnet.native.5kv7g0fb56.wasm` | `855b4b5777f9c2003e45bf1ccc8044af373e77656276ec9d472414b22c408bae` |
 
 Evidence: `$TMPDIR/schema-driven-*-final.log`, native/package logs named in the
-[execution context](../../dev/active/schema-driven-secrets/schema-driven-secrets-context.md),
+historical `dev/active/schema-driven-secrets/schema-driven-secrets-context.md` execution context,
 and ignored `.playwright-mcp/schema-driven-browser-final-{network.txt,cleared.yml}`.
 The network's optional Store lookup returns 404 in the Store-free package.
 
@@ -2203,7 +2203,7 @@ Store's slug, independently of the target application's `project.id`.
 | Browser `dotnet.native.to7e26ywiq.wasm` | `6d586f64c5c51130650d64c24e9232ad82ff81ab19af2efb17d78d86fdbf5529` |
 
 Exact commands and logs are in the
-[workstream context](../../dev/active/schema-driven-secrets/schema-driven-secrets-context.md).
+historical `dev/active/schema-driven-secrets/schema-driven-secrets-context.md` workstream context.
 Local evidence uses `$TMPDIR/development-baseline-*` and ignored
 `.playwright-mcp/development-baseline-{browser,store}-*` files. Owned documentation
 validation passed 66 files/973 links after this final record; skills passed their
@@ -2501,3 +2501,213 @@ The checks qualify these local image/privacy mechanisms. They do not establish
 complete build-input capture, frozen candidate provenance, performance,
 assistive-technology, other-host or participant qualification, signing, trust
 activation or publication. Those remaining workstream gates stay explicit.
+
+## Configuration experience qualification (2026-11-15)
+
+This local workstream changed Browser recovery, Core authoring advisories,
+Desktop task entry and progress, Presentation validation reuse, and Terminal
+task access. The source and packages are development `0.0.1`; no remote
+publication, trust promotion or target application acceptance occurred.
+
+| Check | Observed result |
+| --- | --- |
+| Release solution build | 30 projects, zero warnings and errors |
+| Core, Presentation, Browser, Desktop, Terminal owner suites | 964/964, 485/485, 633/633, 472/472, 251/251 respectively |
+| Native Desktop X11 qualification | English 33/33 and Arabic 33/33 on Linux x64, including responsive scale, focus, and protected publication guards |
+| Linux x64 packages | `PublishConfigurator` CLI, Terminal and Desktop completed with exit 0; `PublishConfiguratorBrowser` AOT completed with exit 0 |
+| Published Browser package and Host policy | `StandalonePackageTests.BrowserPackageIsCompleteStaticWasmWithoutNativeOrTestAssemblies` 1/1; `ProfilePackageTests.PublishedBrowserProfilesRetainWorkerCryptoAndTransientCustodyContract` 1/1; `BrowserHostPolicyTests` 22/22 against `http://127.0.0.1:18081` |
+| Documentation and measurement tooling | `ValidateDefinitionDocumentation.cs --links-only`: 4 files, 21 local links, zero errors; `MeasureInteractiveWork.cs --self-test` passed |
+
+The published Linux x64 Terminal process was launched in an 80×24 PTY with
+the minimal self-hosted definition. The Configure stage showed the separate
+Profiles task; `Ctrl+P` opened its scrolling profile dialog and Escape returned
+to the workspace. A second Escape closed the process with cancellation exit 4.
+The automated Terminal suite covers profile focus, visible scrolling and
+private-field retirement. This PTY observation did not save an artifact.
+
+The Core guidance advisory red tests failed before implementation and passed
+afterward. Browser import-comparison and rendering-module failure cases also
+failed before their recovery fixes and passed afterward. The affected CLI
+quality-lint case passed; the full CLI suite ran 394 tests, with 393 passes and
+one failure in `CliExecutableRouteTests.EveryExecutableRegistrationHasAnIndependentBehavioralCase`
+(39 executable registrations versus 29 listed cases). This work did not edit
+that route inventory or its test; pre-existing status has not been established.
+
+The full `Configurator.Architecture.Tests` run with the live Host environment
+failed. It exposed a workstream-related stale expectation that the current
+`islamu-event` revision was 5; the corrected test now hashes historical
+releases 1–5 and expects current revision 6. Its targeted rerun passed 1/1,
+the full `OutputGuidanceProviderTests` class passed 17/17, and
+`StandaloneArchitectureTests` passed 30/30. The other failures share
+`BuildInputCaptureTests.Fixture.PrepareNativeJsonProbe`: its isolated native
+capture preparation still returns 134 with `CAPTURE_BUILD_FAILED` and no
+diagnostic detail. That test owner was not changed by this workstream; the
+complete architecture gate remains red and needs separate diagnosis.
+
+After the final source edits, the Release solution build passed 30 projects
+with zero errors/warnings and Browser tests passed 633/633. Scoped
+`dotnet format --verify-no-changes --include` passed for every changed C# file.
+The unscoped format check reports 58 other files; it was not treated as a
+workstream pass. `git diff --check` passed. The task triad and I-VSD links
+validated (4 files, 21 links, zero errors), as did `README.md` and `STATUS.md`
+(2 files, 153 links, zero errors). Whole-file `OPERATIONS.md` link validation
+still reports two pre-existing references to missing ignored
+`dev/active/schema-driven-secrets/` context at lines 2125 and 2206; the new
+configuration-experience anchors resolve.
+
+The published Browser passed an offline reload with an active service worker,
+with no cross-origin requests in that observation. A synthetic answer sentinel
+was absent from observed local/session storage and cache responses. Compact
+rendered at 320, 390, 768, 1366 and 1920 CSS pixels in English and Arabic
+without horizontal overflow; a forced-colors/reduced-motion 390-pixel view was
+inspected. A 600-setting fixture rendered 600 controls at 320 pixels. Five
+exploratory first-content samples were 113, 135, 139, 136 and 230 ms; full
+mount completion was 964–1054 ms. These samples are not the required measured
+cohorts and cannot establish the 100/400 ms content budget. The complete
+Guided/Compact journey matrix, first-use and outlier records, 200%/400% zoom,
+unobscured keyboard focus, and steward-arranged human/assistive-technology
+observations remain open. The separate [status index](STATUS.md#configuration-experience-qualification-2026-11-16)
+retains these qualification limits.
+
+## Configuration experience follow-up (2026-11-16)
+
+The CLI executable route inventory now names its independent definition-inspection
+and profile behavior cases. Its full owner suite passed 394/394. SDK 10.0.404 now
+pins the installed 10.0.404 workload set; native JSON, MTP, and capture fixture
+paths match installed packs. Native check execution uses a private short Unix
+socket directory. Build-input schema was regenerated by `Configurator.BuildCapture`;
+its schema check passed. The full architecture suite ran 301 cases: 298 passed,
+and three schema-refresh cases failed because their expectation included five
+engineering schemas that the release target deliberately excludes. The focused
+schema-refresh rerun passed 3/3 after specifying the five operator schemas.
+`PackageProvenanceTests` passed 26/26 and `StandalonePackageTests` passed 5/5
+after the Linux x64 CLI, Terminal, and Desktop packages were republished.
+The final Browser AOT republish passed; its native WASM SHA-256
+`c489b3e1d29305c81d93a7d0cacd3f3b96afe7fb4b3a16fa61ec8b270d167b95`
+matches the measured 6/6 payload. After that publication, Browser passed
+633/633, standalone packages 5/5, Browser profile package 1/1, and live Host
+policy 22/22. The final Release solution build passed 30 projects with zero
+warnings and errors.
+
+The published 600-setting Compact page now creates field slots only as the
+global admission plan admits controls. Its 390-pixel first-use Guided-to-Compact
+sample reached a usable control at 71 ms and completed mounting at 1528.5 ms.
+After five warmups, forty trusted switches had first-content and feedback p95
+of 67.4 ms, complete-mount p95 of 2154.5 ms, and 13 switches with a main-thread
+task over 50 ms. Raw synthetic samples are retained locally at
+`.tmp/configuration-experience-600-bounded-measurements.json`; the trace is at
+`.tmp/configuration-experience-600-bounded-trace.json.gz`. A 3/3 admission
+experiment produced 65.1 ms first-content p95 and eight long-task switches,
+but raised complete-mount p95 to 3927.6 ms; it was reverted to 6/6. The 600-field
+Section 6 jump focused the heading visibly below the toolbar. These observations
+do not pass the strict warmed 1x feedback/long-task gate or replace the full
+Guided/Compact cohort, zoom, keyboard, and assistive-technology matrix.
+The final published 600-setting page retained all six sections and 600 field
+slots without horizontal overflow at 320, 390, 768, 1366, and 1920 CSS pixels
+in English and Arabic. At 390 pixels the Arabic workspace had `dir=rtl` under
+emulated forced colors and reduced motion, again without horizontal overflow.
+An exploratory fifty-Tab sequence had forty-nine focused controls inside the
+viewport; the remaining focus target was the document body. This does not
+establish sticky-overlay clearance at 200%/400% browser zoom or an AT audit.
+
+`ValidateDefinitionDocumentation.cs --links-only` passed 18 changed Markdown
+files and 440 local links after two historical missing links were changed to
+plain archive paths. The tool and three sibling file-based tools now use
+per-tool NuGet lock paths, avoiding a restore collision with the engineering
+directory's package lock. `ValidateDefinitionDocumentation.cs --self-test`
+passed 19 cases; `ValidateConfiguratorSkill.cs --self-test` passed five.
+The focused release-engineering `TrustedVerifierPackagingTests` remains red in
+`GovernedReleaseFixture.CloseRelease` before reaching the changed synthetic
+package evidence: its candidate verifier returns `candidate_input_invalid`.
+`ReleaseCandidateVerificationTests` also reproduces this failure, so no
+governed-release qualification is claimed here. No release or trust authority
+was activated.
+
+### Unified continuous workspace AOT qualification (2026-11-16, Phase 3)
+
+After retiring `ConfigurationCompactWorkspace` and `ConfigurationCompactSection`,
+moving `AllSections` scalars to direct `ConfigurationSettingRow` components with
+`[center ± 1]` section windowing and `<Virtualize ItemSize="72" OverscanCount="2">`
+(`DirectSliceCount = 4`, height-reserved virtual tracks above 16 rows) and keeping
+`SetSectionReviewed` on incremental `WithNavigation(...)` status projection,
+`PublishConfiguratorBrowser` (`Release`, SDK `10.0.404`, `TMPDIR="$HOME/.cache/agent-tmp"`)
+emitted `service-worker-assets.js` SHA-256
+`97d54839bf1b9b1b89f063c10b3c75b9b4678222f68dad0095c9711ec426a184` and
+`dotnet.native.u9ezp6f57r.wasm` SHA-256
+`02f4853945dbf1b878953dc96f938d50fb25576ce5061888a2e6f24cf9888ecd`.
+
+Served statically from `ServePublishedBrowser.cs` at `127.0.0.1:17446` (`1440×900`
+desktop viewport in live Chrome DevTools MCP) with `compact-600` (6 sections × 100
+fields) loaded via `/open`:
+
+- **Bounded active DOM (`<= 1,400` gate):** Top scroll (`sec01`) mounted `507`
+  elements (`31` setting rows); mid scroll (`sec04`) mounted `631` elements (`39`
+  rows); bottom scroll (`sec06`) mounted `507` elements (`31` rows).
+- **1x CPU feedback (`< 50 ms` gate, 6 samples post-warmup):** `All sections`
+  switch `35.5–41.6 ms`, `sec04` jump `27.4–34.0 ms`, `SetSectionReviewed` toggle
+  `6.5–16.5 ms` (`14.6–31.2 ms` 2-rAF), scalar input `24.7–46.0 ms` (`28.2–46.7 ms`
+  2-rAF). Every observed `1x` feedback latency passed below `50 ms`.
+- **4x CPU feedback (`< 200 ms` gate, 6 samples retained without outlier deletion):**
+  Scalar input `108.7–141.1 ms` (`112.4–149.6 ms` 2-rAF) and `SetSectionReviewed`
+  `32.4–128.6 ms` (`66.2–138.7 ms` 2-rAF) passed all 6 samples below `200 ms`.
+  `All sections` switch passed `5/6` feedback samples (`72.6–194.8 ms`; one initial
+  `263.0 ms` outlier), and `sec04` jump passed `5/6` feedback samples
+  (`101.2–190.8 ms`; one `252.5 ms` outlier).
+- **Tooling & unit gates:** `MeasureInteractiveWork.cs --self-test` passed (`failures=0`),
+  `BuildInteractiveWorkFixtures.cs --self-test` passed (`failures=0`),
+  `Configurator.Presentation.Tests` passed `489/489`, and `Configurator.Browser.Tests`
+  passed `640/640`.
+
+### Unified Desktop `SplitView` + `VirtualizingStackPanel` qualification (2026-11-16, Phase 6)
+
+- **Deleted fork:** Removed `CompactSettingsTableView.*`,
+  `CompactSettingsTableViewModel.cs`, and `DesktopCompactTableAndDocumentTests.cs`
+  (replaced by `DesktopUnifiedWorkspaceAndDocumentTests.cs`). Rebuilt `MainWindow`
+  onto responsive Avalonia `SplitView` (`Inline` >= `900` px / `Overlay` < `900` px)
+  with bounded `Grid` `*`-row `VirtualizingStackPanel` (`AllSectionsFieldsList`),
+  `DiscoveryOverlay` (`Ctrl+K`), inline `ErrorSummaryBanner` (`F7`/`F8`/`F9`),
+  minority `Required` pills with inherited body font scaling, `3 px` `inline-start`
+  semantic stripes (`ThemePalettes.axaml` Light / Dark / HighContrast), and
+  `Ctrl+Shift+E` `DocumentDrawerOverlay`.
+- **Native host runs (X11 via `xvfb-run -a`, after final edit):**
+  - `CONFIGURATOR_NATIVE_UI_CULTURE=en` passed `33/33` (`linux-x64:X11`, `D01`–`D33`).
+  - `CONFIGURATOR_NATIVE_UI_CULTURE=ar` passed `33/33` (`linux-x64:X11`, `D01`–`D33`).
+  - Limits remain explicit: manual dialogs, interactive keyboard/RTL visual
+    inspection, assistive-technology speech/braille verification, and packaged
+    native host payloads remain separate gates (`qualification-limits:manual-dialogs-keyboard-rtl-scaling-assistive-technology-and-published-payload-required`).
+
+### Unified Workbench Closure, Terminal PTY, Strict Linter & Event Rev 7 (2026-11-16, Phases 7–8)
+
+- **Terminal overhaul & live Linux PTY (`Phase 7`):** Deleted `TerminalCompactTableView.cs`,
+  `TerminalConfigureMode`, inline compact buttons, and `[Help 1/3]` button pagination;
+  rebuilt `TerminalWindow` (`88`-col split breakpoint, scrollable `_helpPane`, `5`-shortcut
+  `StatusBar` with `BindKeyToApplication = true`, `?`/`F1` `TerminalShortcutsDialog`, focus-fenced
+  Vim keys `j`/`k`/`g`/`G`/`/`/`m` guarded by `!FocusedIsTextInput()`, shared `F7`/`F8`/`F9`,
+  `RecordSectionOpened` / `SetSectionReviewed`, and relative `ReviewAndImport` stacking).
+  Live `script`/`stty` PTY checks on `Configurator.Terminal.dll` exited `4` cleanly across
+  `en` (`80×24`: `36,246 B`, `120×36`: `56,893 B`) and `ar` (`80×24`: `41,051 B`, `120×36`: `63,753 B`).
+- **Structural linter v2, `--strict` CLI & Event `revision 7` (`Phase 8`):** Added
+  `secret-missing-acquisition-guidance`, `choice-duplicate-explanation`,
+  `description-missing-format-hint`, and `section-high-required-density` (`> 12` ungrouped
+  required leaves); added `definition lint --strict` (`CliExitCode.Data`); regenerated
+  `schemas/configurator-cli.schema.json`, `docs/public/cli-command-reference.md`, and
+  `eng/configurator/generated/` (`3/3` ratchets current); retired dead `CompactPropertyRow.cs`,
+  `GetCompactRows`, and `EditCompactValue`; published Event `revision 7`
+  (`examples/islamu-event/configurator.json`, `examples/islamu-event/definition.json`,
+  `store/islamu-event/configurator.json`, `store/islamu-event/releases/7.json`) with `0`
+  advisories under `definition lint --quality --strict` while retaining immutable `releases/1..6.json`.
+- **Executed post-edit solution, package, and owner verification (`TMPDIR="$HOME/.cache/agent-tmp"`):**
+  - Full `Configurator.slnx` Release build: `0 Warning(s), 0 Error(s)`.
+  - Generators (`--check` / `--check-examples`): `CommandSchemaGenerator` current,
+    `RenderCommandReference` current, `DefinitionSchemaGenerator` `4/4` examples agree,
+    `BuildDefinitionStore` current (`8 revisions`), `GenerateConfiguratorRatchets` `3/3` current.
+  - `PublishConfigurator` (`cli`, `terminal`, `desktop`, `linux-x64`) & `PublishConfiguratorBrowser`: exit `0`.
+  - `Configurator.Core.Tests`: `968/968` passed.
+  - `Configurator.Presentation.Tests`: `489/489` passed.
+  - `Configurator.Browser.Tests`: `650/650` passed.
+  - `Configurator.Desktop.Tests`: `476/476` passed; `Configurator.Desktop.NativeHost` (`linux-x64:X11`, `xvfb-run -a`): `33/33` EN and `33/33` AR (`D01`–`D33`).
+  - `Configurator.Terminal.Tests`: `255/255` passed.
+  - `Configurator.Cli.Tests`: `395/395` passed.
+  - `Configurator.Architecture.Tests` (non-`Host` classes on fresh packages): `280/280` passed (`22` `[Category("Host")]` container policy tests require `CONFIGURATOR_HOST_URL` nginx container; pre-existing `TrustedVerifierPackagingTests` remains quarantined per baseline policy).
+- **Remaining manual / external gates:** Physical screen-reader & braille assistive-technology
+  walkthrough (`en`/`ar` steward sign-off) and non-Linux OS native host packaging remain open.
