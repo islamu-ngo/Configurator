@@ -1,11 +1,16 @@
 namespace Configurator.Desktop.Tests;
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Automation;
 using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
+using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Desktop.Views;
+using Configurator.Presentation;
 
 public sealed class DesktopResponsiveLayoutTests
 {
@@ -66,6 +71,61 @@ public sealed class DesktopResponsiveLayoutTests
             await Assert.That(result.same).IsTrue();
             await Assert.That(result.selection).IsEqualTo((1, 4));
             await Assert.That(result.reachable).IsTrue();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task SplitViewRailCollapsesToOverlayBelowBreakpointAndFieldOneLeadsAboveFoldAt960x800()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopResponsiveLayoutTests));
+        try
+        {
+            var result = await session.Dispatch(() =>
+            {
+                using var shell = DesktopTestContext.Root();
+                var window = new MainWindow { DataContext = shell, Width = 960, Height = 800 };
+                try
+                {
+                    window.Show();
+                    shell.Loader.LoadDefinition(DesktopApplicationTests.DefinitionWithExperiences());
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    window.UpdateLayout();
+
+                    var splitView = window.FindNamedControl<SplitView>("WorkspaceSplitView");
+                    var wideMode = splitView?.DisplayMode;
+                    var discoveryOverlay = window.FindNamedControl<Control>("DiscoveryOverlay");
+                    bool discoveryHiddenInitially = discoveryOverlay is not null && !discoveryOverlay.IsEffectivelyVisible;
+                    var firstField = shell.Workspace.Fields.First(field => field.IsVisible);
+                    var firstInput = window.GetLogicalDescendants().OfType<Control>()
+                        .FirstOrDefault(control => ReferenceEquals(control.DataContext, firstField) &&
+                            control is TextBox or ComboBox);
+                    double firstFieldBottom = firstInput?.TranslatePoint(new Point(0, firstInput.Bounds.Height), window)?.Y ?? 9999;
+
+                    window.Width = 600;
+                    window.Height = 640;
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    window.UpdateLayout();
+                    var narrowMode = splitView?.DisplayMode;
+
+                    return (
+                        hasSplitView: splitView is not null,
+                        wideMode,
+                        narrowMode,
+                        discoveryHiddenInitially,
+                        firstFieldBottom);
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+
+            await Assert.That(result.hasSplitView).IsTrue();
+            await Assert.That(result.wideMode is SplitViewDisplayMode.CompactInline or SplitViewDisplayMode.Inline).IsTrue();
+            await Assert.That(result.narrowMode).IsEqualTo(SplitViewDisplayMode.Overlay);
+            await Assert.That(result.discoveryHiddenInitially).IsTrue();
+            await Assert.That(result.firstFieldBottom).IsLessThanOrEqualTo(420d);
         }
         finally { await Task.Run(session.Dispose); }
     }

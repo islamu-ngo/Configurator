@@ -72,6 +72,7 @@
   <data name="NextPage" xml:space="preserve"><value>الصفحة التالية</value></data>
   <data name="Page" xml:space="preserve"><value>الصفحة</value></data>
   <data name="RequiredCount" xml:space="preserve"><value>المطلوب</value></data>
+  <data name="ReadyRequiredCount" xml:space="preserve"><value>المطلوب الجاهز</value></data>
   <data name="MissingCount" xml:space="preserve"><value>الناقص</value></data>
   <data name="InvalidCount" xml:space="preserve"><value>غير الصالح</value></data>
   <data name="ReadyCount" xml:space="preserve"><value>الجاهز</value></data>
@@ -147,6 +148,9 @@
   <data name="ProtectedInput" xml:space="preserve"><value>مدخل محمي — القيم مخفية.</value></data>
   <data name="WindowTitle" xml:space="preserve"><value>Configurator — إعداد دون اتصال</value></data>
   <data name="PreparationTitle" xml:space="preserve"><value>إعداد التهيئة دون اتصال</value></data>
+  <data name="StartFreshTask" xml:space="preserve"><value>البدء من جديد</value></data>
+  <data name="UseExistingTask" xml:space="preserve"><value>استخدام تهيئة موجودة</value></data>
+  <data name="OpenSavedProfileTask" xml:space="preserve"><value>فتح ملف تعريف محفوظ</value></data>
   <data name="DefinitionPath" xml:space="preserve"><value>مسار التعريف المحلي (JSON أو YAML)</value></data>
   <data name="ChooseDefinition" xml:space="preserve"><value>اختيار تعريف…</value></data>
   <data name="LoadDefinition" xml:space="preserve"><value>_تحميل التعريف</value></data>
@@ -268,6 +272,7 @@ Ctrl+Shift+K: التبديل بين التسميات المقروءة والمف
 Ctrl+Shift+E: التبديل إلى محرر المستند (JSON / .env)
 Ctrl+K: البحث والتصفية أو تنفيذ أوامر مساحة العمل
 F2: إظهار أو إخفاء مفتش المخطط السياقي (بيانات المخطط فقط)
+F7 / F8 / F9: الانتقال إلى المشكلة التالية أو الحقل المطلوب أو القسم التالي غير المراجَع
 ?: عرض مرجع اختصارات لوحة المفاتيح
 Escape: إغلاق النافذة المنبثقة أو إلغاء العملية النشطة
 تستخدم محددات الملفات والمجلدات حوارات Avalonia المُدارة على X11 وWayland وmacOS وWindows.</value></data>
@@ -283,8 +288,8 @@ Escape: إغلاق النافذة المنبثقة أو إلغاء العملي�
   <data name="OpenShortcutsHelpLabel" xml:space="preserve"><value>اختصارات لوحة المفاتيح (؟)</value></data>
   <data name="CloseShortcutsLabel" xml:space="preserve"><value>إغلاق الاختصارات</value></data>
   <data name="ShortcutsDialogTitle" xml:space="preserve"><value>اختصارات لوحة المفاتيح</value></data>
-  <data name="ConfigureModeGuided" xml:space="preserve"><value>موجّه</value></data>
-  <data name="ConfigureModeCompact" xml:space="preserve"><value>جدول مدمج</value></data>
+  <data name="ConfigureModeGuided" xml:space="preserve"><value>قسمًا بقسم</value></data>
+  <data name="ConfigureModeAllSections" xml:space="preserve"><value>كل الأقسام</value></data>
   <data name="ConfigureModeDocument" xml:space="preserve"><value>محرر المستند (JSON)</value></data>
   <data name="UndoLabel" xml:space="preserve"><value>تراجع</value></data>
   <data name="RedoLabel" xml:space="preserve"><value>إعادة</value></data>
@@ -292,6 +297,16 @@ Escape: إغلاق النافذة المنبثقة أو إلغاء العملي�
   <data name="NextStepLabel" xml:space="preserve"><value>الخطوة التالية</value></data>
   <data name="JumpNextErrorLabel" xml:space="preserve"><value>المشكلة التالية</value></data>
   <data name="JumpNextRequiredLabel" xml:space="preserve"><value>المطلوب التالي</value></data>
+  <data name="JumpNextUnvisitedLabel" xml:space="preserve"><value>القسم التالي غير المراجَع</value></data>
+  <data name="MarkSectionReviewedAction" xml:space="preserve"><value>تعيين كمُراجَع</value></data>
+  <data name="SectionReviewedAction" xml:space="preserve"><value>مُراجَع</value></data>
+  <data name="SectionAllFieldsRequired" xml:space="preserve"><value>جميع الحقول مطلوبة</value></data>
+  <data name="RailToggleLabel" xml:space="preserve"><value>الأقسام</value></data>
+  <data name="DiscoveryToggleLabel" xml:space="preserve"><value>بحث (Ctrl+K)</value></data>
+  <data name="DiscoveryCloseLabel" xml:space="preserve"><value>إغلاق البحث</value></data>
+  <data name="DocumentDrawerCloseLabel" xml:space="preserve"><value>إغلاق المستند</value></data>
+  <data name="ErrorSummaryTitle" xml:space="preserve"><value>توجد مشكلة</value></data>
+  <data name="ErrorSummaryJumpLabel" xml:space="preserve"><value>الانتقال إلى الإعداد</value></data>
   <data name="SectionStatusInvalid" xml:space="preserve"><value>يتطلب تصحيحًا</value></data>
   <data name="SectionStatusMissing" xml:space="preserve"><value>حقول مطلوبة ناقصة</value></data>
   <data name="SectionStatusReady" xml:space="preserve"><value>جاهز</value></data>
@@ -317,27 +332,11 @@ Escape: إغلاق النافذة المنبثقة أو إلغاء العملي�
   <data name="ExplorerReadOnlyNote" xml:space="preserve"><value>معاينة للقراءة فقط — لا تُنشأ أي إجابات قبل اختيار التكوين.</value></data>
   <data name="ExplorerSensitivityPublic" xml:space="preserve"><value>عام</value></data>
   <data name="ExplorerSensitivityPrivate" xml:space="preserve"><value>خاص / سري</value></data>
-  <data name="BoundedConfigureNote" xml:space="preserve"><value>تعمل أدوات الجدول المدمج والمحرر مباشرة على مساحة العمل النشطة.</value></data>
+  <data name="AllSectionsNote" xml:space="preserve"><value>يتيح العرض المتصل تحرير جميع الأقسام مباشرةً في مساحة العمل النشطة.</value></data>
   <data name="SettingsPrivacyTitle" xml:space="preserve"><value>الخصوصية ومخرجات النظام</value></data>
   <data name="SettingsPrivacyDescription" xml:space="preserve"><value>ضمانات الحفظ المحلي دون اتصال وقدرة الحفظ المحمي على هذا الجهاز.</value></data>
   <data name="SettingsPrivacyHelp" xml:space="preserve"><value>تبقى الإجابات في الذاكرة المحلية دون قياس خلفي أو تطبيق مباشر على التطبيق المستهدف. لا تُجلب روابط HTTPS الخارجية إلا بإجراء صريح من المستخدم مع حجب العناوين الخاصة والمحلية ومنع إعادة التوجيه وبحد أقصى 4 ميجابايت.</value></data>
   <data name="SettingsWorkstationHostLabel" xml:space="preserve"><value>قدرة الحفظ المحمي على هذا الجهاز</value></data>
-  <data name="CompactSearchLabel" xml:space="preserve"><value>تصفية الجدول</value></data>
-  <data name="CompactSortLabel" xml:space="preserve"><value>ترتيب حسب</value></data>
-  <data name="CompactSortLabelOption" xml:space="preserve"><value>الإعداد</value></data>
-  <data name="CompactSortSectionOption" xml:space="preserve"><value>القسم</value></data>
-  <data name="CompactSortStatusOption" xml:space="preserve"><value>الحالة</value></data>
-  <data name="CompactSortOriginOption" xml:space="preserve"><value>المصدر</value></data>
-  <data name="CompactSortAscendingLabel" xml:space="preserve"><value>تصاعدي</value></data>
-  <data name="CompactSortDescendingLabel" xml:space="preserve"><value>تنازلي</value></data>
-  <data name="CompactCurrentSectionOnly" xml:space="preserve"><value>القسم الحالي فقط</value></data>
-  <data name="CompactRowsCount" xml:space="preserve"><value>{0} إعدادات معروضة</value></data>
-  <data name="CompactCommitLabel" xml:space="preserve"><value>تطبيق</value></data>
-  <data name="CompactOpenGuidedLabel" xml:space="preserve"><value>الموجه</value></data>
-  <data name="CompactInspectLabel" xml:space="preserve"><value>فحص</value></data>
-  <data name="CompactMaskedValue" xml:space="preserve"><value>•••••• (مقيد)</value></data>
-  <data name="CompactUnsetValue" xml:space="preserve"><value>غير مزود (متجاهل)</value></data>
-  <data name="CompactSecretInputHelp" xml:space="preserve"><value>أدخل قيمة مقيدة جديدة لتطبيقها</value></data>
   <data name="DocumentRepresentationLabel" xml:space="preserve"><value>التنسيق</value></data>
   <data name="DocumentCanonicalOption" xml:space="preserve"><value>JSON القياسي</value></data>
   <data name="DocumentEnvironmentOption" xml:space="preserve"><value>البيئة (.env)</value></data>

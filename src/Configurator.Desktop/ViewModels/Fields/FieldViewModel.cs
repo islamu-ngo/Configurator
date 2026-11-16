@@ -21,6 +21,7 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     private bool _hasError;
     private bool _isVisible = true;
     private bool _isRequired;
+    private bool _suppressRequiredPill;
     private bool _editing;
     private int _focusRequestVersion;
     private int _supplyFocusRequestVersion;
@@ -194,9 +195,36 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
     public bool HasError
     {
         get => _hasError;
-        private set { if (SetProperty(ref _hasError, value)) OnPropertyChanged(nameof(ShowError)); }
+        private set
+        {
+            if (SetProperty(ref _hasError, value))
+            {
+                OnPropertyChanged(nameof(ShowError));
+                OnPropertyChanged(nameof(IsModifiedStripe));
+                OnPropertyChanged(nameof(IsRequiredStripe));
+            }
+        }
     }
     public bool ShowError => HasError && _feedbackRequested;
+    public bool ShowRequiredPill => IsRequired && !_suppressRequiredPill;
+    public bool IsModifiedStripe => !ShowError && _provided;
+    public bool IsRequiredStripe => !ShowError && !IsModifiedStripe && IsRequired;
+    public string CompactMetadataLine => string.Join(" · ", new[]
+    {
+        UnitsDisplay,
+        Format,
+        ConstraintsSummary,
+        IfOmittedDisplay,
+        IsController ? ControllerImpactSummary : string.Empty,
+        RequiresMasking ? Strings["ProtectedInput"] : string.Empty
+    }.Where(part => !string.IsNullOrWhiteSpace(part)));
+
+    internal void SetUniformRequiredSection(bool suppress)
+    {
+        if (_suppressRequiredPill == suppress) return;
+        _suppressRequiredPill = suppress;
+        OnPropertyChanged(nameof(ShowRequiredPill));
+    }
     public bool IsVisible { get => _isVisible; private set => SetProperty(ref _isVisible, value); }
     public bool IsRequired { get => _isRequired; private set => SetProperty(ref _isRequired, value); }
     public virtual string ErrorText => Validation is { Reasons.Count: > 0 } facts
@@ -376,6 +404,11 @@ public abstract class FieldViewModel : ObservableObject, IDisposable
         }
         HasError |= active && Descendants.Any(child => child.IsVisible && child.HasError);
         OnPropertyChanged(nameof(ErrorText));
+        OnPropertyChanged(nameof(ShowError));
+        OnPropertyChanged(nameof(ShowRequiredPill));
+        OnPropertyChanged(nameof(IsModifiedStripe));
+        OnPropertyChanged(nameof(IsRequiredStripe));
+        OnPropertyChanged(nameof(CompactMetadataLine));
         OnPropertyChanged(nameof(Strings));
         OnPropertyChanged(nameof(ConstraintsSummary));
         OnPropertyChanged(nameof(ClearLabel));

@@ -71,20 +71,21 @@ public sealed class DesktopEventRevision4WorkflowTests
                     shell.Workspace.RedoCommand.Execute(null);
                     string? afterRedo = shell.Workspace.Form.Snapshot().Values["apiEndpoint"].GetString();
 
-                    // Compact mode search + direct table edit + round-trip to Guided.
-                    shell.Navigation.ConfigureMode = DesktopConfigureViewMode.Compact;
-                    shell.CompactTable.SearchQuery = "API";
+                    // All-sections unified workbench search + direct FieldViewModel edit + round-trip to SectionBySection.
+                    shell.Navigation.LayoutMode = ConfigureLayoutMode.AllSections;
+                    shell.Navigation.SearchText = "API";
                     Dispatcher.UIThread.RunJobs();
-                    CompactPropertyRowViewModel compactApiRow = shell.CompactTable.Rows
-                        .Single(row => row.Path == DefinitionPath.FromSegments(["apiEndpoint"]));
-                    compactApiRow.EditText = "https://api-compact.example.org";
-                    compactApiRow.CommitEditCommand.Execute(null);
-                    shell.Navigation.ConfigureMode = DesktopConfigureViewMode.Guided;
+                    var unifiedApiField = shell.Navigation.AllSectionsFields
+                        .Single(f => f.Id == "apiEndpoint");
+                    unifiedApiField.Text = "https://api-compact.example.org";
+                    shell.Navigation.SearchText = string.Empty;
+                    shell.Navigation.CloseCommandPaletteCommand.Execute(null);
+                    shell.Navigation.LayoutMode = ConfigureLayoutMode.SectionBySection;
                     Dispatcher.UIThread.RunJobs();
                     string? guidedAfterCompact = shell.Workspace.Form.Snapshot().Values["apiEndpoint"].GetString();
 
                     // Document (JSON) preview & apply.
-                    shell.Navigation.ConfigureMode = DesktopConfigureViewMode.Document;
+                    shell.Navigation.IsDocumentOpen = true;
                     Dispatcher.UIThread.RunJobs();
                     JsonObject docJson = JsonNode.Parse(shell.DocumentEditor.DocumentText)!.AsObject();
                     docJson["values"]!["apiEndpoint"] = "https://api-document.example.org";
@@ -94,7 +95,8 @@ public sealed class DesktopEventRevision4WorkflowTests
                     string? afterDocument = shell.Workspace.Form.Snapshot().Values["apiEndpoint"].GetString();
 
                     // Switch to configuration-manifest, populate required manifest structure, validate & prepare.
-                    shell.Navigation.ConfigureMode = DesktopConfigureViewMode.Guided;
+                    shell.Navigation.IsDocumentOpen = false;
+                    shell.Navigation.LayoutMode = ConfigureLayoutMode.SectionBySection;
                     shell.Workspace.Form.SelectOutput("configuration-manifest");
                     Dispatcher.UIThread.RunJobs();
                     sectionOwnershipClean &= shell.Navigation.Sections.Single(s => s.Id == "manifest").Fields.Any(f => f.Id == "configurationManifest");

@@ -12,6 +12,8 @@ using Configurator.Presentation;
 /// <summary>Coordinates operation lifetime and status without owning field or artifact behavior.</summary>
 public sealed partial class DesktopShellViewModel : ObservableObject, IDisposable
 {
+    private enum DesktopEntryTask { Fresh, Import }
+
     private readonly IMessenger _messenger;
     private readonly TimeProvider _timeProvider;
     private readonly DesktopTheme? _theme;
@@ -23,6 +25,13 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     private Task<bool>? _closeTask;
     private long _generation;
     private bool _disposed;
+    private DesktopEntryTask? _pendingEntryTask;
+
+    [ObservableProperty]
+    private bool _profileTaskExpanded;
+
+    [ObservableProperty]
+    private bool _importTaskExpanded;
     private DesktopStatusGuidance _guidance = DesktopStatusGuidance.DefinitionRequired;
 
     [ObservableProperty]
@@ -63,8 +72,6 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         Workspace = workspace;
         Navigation = new DesktopNavigationViewModel(workspace);
         Inspector = new DesktopInspectorViewModel(workspace);
-        CompactTable = new CompactSettingsTableViewModel(workspace, Navigation, messenger, clipboard,
-            path => Inspector.InspectPath(path));
         DocumentEditor = new DocumentEditorViewModel(workspace, Navigation, messenger);
         Publisher = publisher;
         ImportReview = importReview;
@@ -86,25 +93,33 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         messenger.Register<DesktopShellViewModel, FocusRequestedMessage>(this, static (root, message) =>
         {
             if (root._disposed) return;
-            if (message.Target is "DefinitionUrl" or "DefinitionPath" or "SelectDefinition")
+            if (message.Target is "DefinitionUrl" or "DefinitionPath" or "SelectDefinition" or "ProfileDirectory")
                 root.Navigation.Stage = DesktopWorkspaceStage.Open;
             else if (message.Target is "SelectImport" or "ExistingFilePath" or "SelectOutput" or
                 "OutputDirectory" or "FileName" or "StayOpen" or "ForceClose")
                 root.Navigation.Stage = DesktopWorkspaceStage.Review;
             else if (message.Target is "ConfigurationSearch" && root.Navigation.HasWorkspace)
             {
-                root.Navigation.Stage = DesktopWorkspaceStage.Configure;
-                root.Navigation.ConfigureMode = DesktopConfigureViewMode.Guided;
+                root.Navigation.OpenDiscovery(withCommandPalette: true);
             }
             root.FocusTarget = message.Target;
             root.FocusRequestGeneration = checked(root.FocusRequestGeneration + 1);
+        });
+        messenger.Register<DesktopShellViewModel, FormFocusRequestedMessage>(this, static (root, _) =>
+        {
+            if (root._disposed) return;
+            if (root._pendingEntryTask == DesktopEntryTask.Import)
+            {
+                root.ImportTaskExpanded = true;
+                root._messenger.Send(new FocusRequestedMessage("SelectImport"));
+            }
+            root._pendingEntryTask = null;
         });
     }
 
     public DefinitionLoaderViewModel Loader { get; }
     public FormWorkspaceViewModel Workspace { get; }
     public DesktopNavigationViewModel Navigation { get; }
-    public CompactSettingsTableViewModel CompactTable { get; }
     public DocumentEditorViewModel DocumentEditor { get; }
     public DesktopInspectorViewModel Inspector { get; }
     public ArtifactPublisherViewModel Publisher { get; }
@@ -270,6 +285,32 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     private void FocusDefinitionPath() => _messenger.Send(new FocusRequestedMessage("DefinitionPath"));
 
     [RelayCommand]
+    private void StartFreshTask()
+    {
+        _pendingEntryTask = DesktopEntryTask.Fresh;
+        ImportTaskExpanded = false;
+        ProfileTaskExpanded = false;
+        FocusDefinitionPath();
+    }
+
+    [RelayCommand]
+    private void UseExistingTask()
+    {
+        _pendingEntryTask = DesktopEntryTask.Import;
+        ProfileTaskExpanded = false;
+        FocusDefinitionPath();
+    }
+
+    [RelayCommand]
+    private void OpenSavedProfileTask()
+    {
+        _pendingEntryTask = null;
+        ImportTaskExpanded = false;
+        ProfileTaskExpanded = true;
+        _messenger.Send(new FocusRequestedMessage("ProfileDirectory"));
+    }
+
+    [RelayCommand]
     private async Task ReviewAndPrepareAsync()
     {
         if (_disposed) return;
@@ -288,9 +329,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     public void OpenCommandPalette()
     {
         if (_disposed || Workspace.Form is null) return;
-        Navigation.Stage = DesktopWorkspaceStage.Configure;
-        Navigation.ConfigureMode = DesktopConfigureViewMode.Guided;
-        Navigation.IsCommandPaletteOpen = true;
+        Navigation.OpenDiscovery(withCommandPalette: true);
         _messenger.Send(new FocusRequestedMessage("ConfigurationSearch"));
     }
 
@@ -299,7 +338,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
     {
         if (_disposed || Workspace.Form is null) return;
         Navigation.Stage = DesktopWorkspaceStage.Configure;
-        Navigation.ConfigureMode = DesktopConfigureViewMode.Document;
+        Navigation.IsDocumentOpen = !Navigation.IsDocumentOpen;
     }
 
     [RelayCommand]
@@ -314,15 +353,17 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
             case WorkspaceCommandId.Redo:
                 if (Workspace.RedoCommand.CanExecute(null)) Workspace.RedoCommand.Execute(null);
                 break;
-            case WorkspaceCommandId.SwitchToGuided:
+            case WorkspaceCommandId.SwitchToSectionBySection:
                 Navigation.Stage = DesktopWorkspaceStage.Configure;
-                Navigation.ConfigureMode = DesktopConfigureViewMode.Guided;
+                Navigation.IsDocumentOpen = false;
+                Navigation.LayoutMode = ConfigureLayoutMode.SectionBySection;
                 break;
-            case WorkspaceCommandId.SwitchToCompact:
+            case WorkspaceCommandId.SwitchToAllSections:
                 if (Navigation.HasWorkspace)
                 {
                     Navigation.Stage = DesktopWorkspaceStage.Configure;
-                    Navigation.ConfigureMode = DesktopConfigureViewMode.Compact;
+                    Navigation.IsDocumentOpen = false;
+                    Navigation.LayoutMode = ConfigureLayoutMode.AllSections;
                 }
                 break;
             case WorkspaceCommandId.SwitchToReview:
@@ -366,6 +407,7 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
                 break;
         }
         Navigation.IsCommandPaletteOpen = false;
+        Navigation.CloseCommandPaletteCommand.Execute(null);
     }
 
     /// <summary>Shares one close intent while retaining the exact physical settlement task.</summary>
@@ -451,7 +493,6 @@ public sealed partial class DesktopShellViewModel : ObservableObject, IDisposabl
         Profiles.Dispose();
         Publisher.Dispose();
         DocumentEditor.Dispose();
-        CompactTable.Dispose();
         Inspector.Dispose();
         Navigation.Dispose();
         Workspace.Dispose();

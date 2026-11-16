@@ -102,4 +102,37 @@
     <Setter Property="Background" Value="{DynamicResource ConfiguratorSelectedBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource ConfiguratorSelectedTextBrush}" />
   </Style>
+  <Style Selector="Border.field-row">
+    <Setter Property="BorderThickness" Value="3,0,0,0" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorOutlineVariantBrush}" />
+    <Setter Property="Padding" Value="10,2,0,2" />
+  </Style>
+  <Style Selector="Border.field-row.stripe-modified">
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorAccentBrush}" />
+  </Style>
+  <Style Selector="Border.field-row.stripe-required">
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorAccentBrush}" />
+  </Style>
+  <Style Selector="Border.field-row.stripe-error">
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorErrorBrush}" />
+  </Style>
+  <Style Selector="Border.required-pill">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorPrimaryContainerBrush}" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="6,1" />
+  </Style>
+  <Style Selector="Border.error-summary">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorErrorBrush}" />
+    <Setter Property="BorderThickness" Value="3,1,1,1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="10,8" />
+  </Style>
+  <Style Selector="Border.overlay-drawer">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorCanvasBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="14" />
+  </Style>
 </Styles>

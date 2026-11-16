@@ -35,6 +35,12 @@ Command-line arguments are optional:
 - **One argument:** Automatically loads the specified local definition file on launch.
 - **Two arguments:** Loads the local definition and sets the target output directory.
 
+On **Open**, choose **Start fresh**, **Use an existing configuration**, or
+**Open a saved profile**. The first two choices focus definition selection;
+after the definition loads, **Use an existing configuration** opens the import
+task without reading a file. **Open a saved profile** expands the profile task
+and focuses its directory control.
+
 Open displays the loaded definition's title, application ID, publisher, family
 UUID, revision and SHA-256 digest pin. Changing the file on disk does not alter
 the running workspace; load it again to explicitly admit an updated revision.
@@ -49,7 +55,11 @@ after cancellation or workspace replacement cannot change the new workspace.
 
 The workspace has four top-level stages accessible from the fixed header bar:
 **Open** admits a definition from the bundled catalog, local file, or public HTTPS link.
-**Configure** hosts three workspace views — **Guided** (sectioned cards), **Compact** (dense virtualized table of active leaf settings with quick filtering/sorting and masked secret custody), and **Document** (generation-fenced canonical JSON/YAML source view with pre-apply diff preview) — plus a metadata-only **Inspector** pane showing schema path, wire key, validation bounds, controller impact, output bindings, and static guidance links without ever displaying supplied answers or secrets.
+**Configure** pairs two continuous/stepped Presentation layouts (**Section by section** and virtualized **All sections**, sharing live reactive editors without a duplicate table fork) with an interactive **Document** (`Ctrl + Shift + E` JSON/`.env` diff drawer), inline **Error summary** banners (`F7` next issue, `F8` next required setting, `F9` next unreviewed section), a keyboard-driven **Find / Commands** popover (`Ctrl + K`), minority `Required` pills with 3 px `inline-start` semantic stripes (and single header notice on universal-required sections), and a metadata-only **Inspector** pane showing schema path, wire key, validation bounds, controller impact, output bindings, and static guidance links without ever displaying supplied answers or secrets.
+The required-work summary shows ready and total required counts from the
+current selected scope, placing Field #1 directly above the fold at `960×800`. Switching layouts or pages does not create a second answer set.
+Window text scaling also reaches section summaries, unified All-sections rows, field help and
+Inspector details; those controls follow the application's text size setting.
 **Review outputs** separates step **1. Review & prepare outputs** from step **2. Deliberate create-only save**.
 **Settings** provides a dedicated left-sidebar workspace organized into sections
 (**Appearance**, **Language & layout**, **Keyboard & dialogs**, and
@@ -67,7 +77,7 @@ Paging changes the displayed editors while the workspace retains their drafts
 and identities. Definitions whose root is a map or a variant have a neutral
 Configure section so their recursive editor remains reachable.
 
-Small windows use a section picker and an overlay drawer when the Contextual Inspector is open. Wider workspaces (`>= 1200` logical units) can dock the `320`-unit **Inspector** alongside the optional left section rail, while the active workspace body scrolls independently within its reading container (`<= 800` units in Guided mode, expanding cleanly for Compact tables and Document diff reviews). Resizing rearranges the existing editing surface rather than
+Small windows (`< 900` logical units) collapse the responsive `SplitView` rail into an overlay drawer behind **Sections**, expose a compact section selector, and show the Contextual Inspector as an overlay drawer when opened. Wider workspaces (`>= 1200` logical units) can dock the `320`-unit **Inspector** alongside the `300`-unit left section rail (with explicit per-section **Mark reviewed** / **Reviewed** toggles), while the active workspace body scrolls independently within its reading container (`<= 800` units in Section-by-section mode, or `Grid` `*`-row virtualized bounds in All-sections mode and Document diff overlays). Resizing rearranges the existing editing surface rather than
 replacing an in-progress text input.
 
 Appearance offers **System**, **Light** (Latte), and **Dark** (Macchiato).
@@ -111,11 +121,14 @@ Navigate quickly using native keyboard controls:
 | `Tab` | Move focus forward to the next field, control, or button |
 | `Shift + Tab` | Move focus backward to the previous field, control, or button |
 | `Ctrl + O` | Focus the definition file path input |
-| `Ctrl + K` | Focus search & open the Workspace command palette |
-| `Ctrl + Shift + E` | Switch to **Configure → Document** view |
+| `Ctrl + K` | Open the **Find / Commands** discovery popover (`DiscoveryOverlay`) |
+| `Ctrl + Shift + E` | Open or toggle the **Document** (`JSON` / `.env`) overlay drawer |
 | `F2` | Toggle the metadata-only **Inspector** drawer/pane |
+| `F7` | Jump to the next validation error and open the **Error summary** banner |
+| `F8` | Jump to the next missing required or actionable setting |
+| `F9` | Jump to the next unreviewed section and focus its first setting |
 | `Ctrl + Enter` | Open Review and prepare the selected outputs; saving remains separate |
-| `Escape` | Dismiss the command palette or active dialog first; otherwise cancel work or discard preparation |
+| `Escape` | Dismiss popups, discovery popover, or the Document drawer first; otherwise cancel work or discard preparation |
 | `Alt + <Letter>` | Activate button matching the underlined access key |
 | Direction controls | Follow the definition locale's direction, or explicitly override left-to-right/right-to-left layout |
 

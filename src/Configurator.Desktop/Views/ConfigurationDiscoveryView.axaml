@@ -5,7 +5,12 @@
     xmlns:converters="using:Avalonia.Data.Converters"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
   <StackPanel Spacing="8">
-    <TextBlock Text="{Binding Workspace.Strings[DiscoveryLabel]}" />
+    <DockPanel>
+      <Button DockPanel.Dock="Right" Name="DiscoveryCloseButton"
+              Content="{Binding Workspace.Strings[DiscoveryCloseLabel]}"
+              Command="{Binding Navigation.CloseCommandPaletteCommand}" Margin="0" />
+      <TextBlock Text="{Binding Workspace.Strings[DiscoveryLabel]}" FontWeight="SemiBold" VerticalAlignment="Center" />
+    </DockPanel>
     <TextBox Name="ConfigurationSearch" Text="{Binding Navigation.SearchText, Mode=TwoWay}" MaxLength="65536"
              AutomationProperties.Name="{Binding Workspace.Strings[DiscoveryLabel]}"
              AutomationProperties.HelpText="{Binding Workspace.Strings[DiscoveryHelp]}" />
@@ -60,7 +65,7 @@
                     <TextBlock Text="{Binding ShortcutHint}" Foreground="{DynamicResource ConfiguratorAccentBrush}"
                                IsVisible="{Binding ShortcutHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                   </WrapPanel>
-                  <TextBlock Text="{Binding Subtitle}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" FontSize="12" TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding Subtitle}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
                 </StackPanel>
               </DockPanel>
             </DataTemplate>

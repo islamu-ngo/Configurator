@@ -5,6 +5,14 @@
     xmlns:store="using:Configurator.Presentation.Store"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
     <StackPanel Spacing="14">
+      <WrapPanel ItemSpacing="8">
+        <Button Name="StartFreshTask" Content="{Binding Workspace.Strings[StartFreshTask]}"
+                Command="{Binding StartFreshTaskCommand}" />
+        <Button Name="UseExistingTask" Content="{Binding Workspace.Strings[UseExistingTask]}"
+                Command="{Binding UseExistingTaskCommand}" />
+        <Button Name="OpenSavedProfileTask" Content="{Binding Workspace.Strings[OpenSavedProfileTask]}"
+                Command="{Binding OpenSavedProfileTaskCommand}" />
+      </WrapPanel>
       <local:ProfileWorkspaceView />
       <TextBlock Text="{Binding Workspace.Strings[PreparationTitle]}" FontSize="{DynamicResource ConfiguratorTitleFontSize}" FontWeight="SemiBold" />
 

@@ -390,8 +390,8 @@ public sealed partial class DocumentEditorViewModel : ObservableObject, IDisposa
     private void NavigationPropertyChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (_disposed) return;
-        if (args.PropertyName == nameof(DesktopNavigationViewModel.ConfigureMode) &&
-            _navigation.IsDocumentMode && _form is not null && !HasPreview)
+        if (args.PropertyName == nameof(DesktopNavigationViewModel.IsDocumentOpen) &&
+            _navigation.IsDocumentOpen && _form is not null && !HasPreview)
         {
             OpenSessionFromForm();
         }

@@ -237,6 +237,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         OnPropertyChanged(nameof(HasNextActions));
     }
     internal event Action<FieldViewModel>? EditorFocusRequested;
+    public event Action<bool>? ValidationCompleted;
     public IReadOnlyList<FieldViewModel> Fields => _fields;
     public IReadOnlyList<ConfigurationContextChoice> ConfigurationChoices => _configurationChoices;
     public bool HasConfigurationContext => Form?.ConfigurationContext is not null;
@@ -505,6 +506,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
             DefinitionValidationResult result = Form.Validate();
             bool ready = result.IsReady && !Form.HasInputErrors;
             NotifyFieldState();
+            ValidationCompleted?.Invoke(ready);
             _messenger.Send(new StatusChangedMessage(ready ? "validation-ready" : "validation-invalid:" +
                 string.Join(",", result.Diagnostics.Select(item => $"{item.FieldId}:{item.Code}")
                     .Concat(Form.Fields.Where(item => item.InputDiagnosticCode is not null || !item.TryValue(out _))
@@ -516,6 +518,7 @@ public sealed partial class FormWorkspaceViewModel : ObservableObject, IDisposab
         catch (DefinitionException exception)
         {
             NotifyFieldState();
+            ValidationCompleted?.Invoke(false);
             FocusFirstError();
             _messenger.Send(new StatusChangedMessage($"validation-invalid:{exception.Code}", Guidance: DesktopStatusGuidance.ValidationInvalid));
             return false;

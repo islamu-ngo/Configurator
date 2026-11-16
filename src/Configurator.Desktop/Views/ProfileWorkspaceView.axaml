@@ -3,10 +3,11 @@
     xmlns:vm="using:Configurator.Desktop.ViewModels"
     xmlns:profiles="using:Configurator.Artifacts.Profiles"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
-  <Expander Header="{Binding Workspace.Strings[ProfileTitle]}" HorizontalAlignment="Stretch">
+  <Expander Header="{Binding Workspace.Strings[ProfileTitle]}" HorizontalAlignment="Stretch"
+            IsExpanded="{Binding ProfileTaskExpanded, Mode=TwoWay}">
     <StackPanel Spacing="8" IsEnabled="{Binding !IsBusy}">
       <TextBlock Text="{Binding Workspace.Strings[ProfileDirectory]}" />
-      <TextBox Text="{Binding Profiles.Directory, Mode=TwoWay}" MaxLength="4096" FlowDirection="LeftToRight"
+      <TextBox Name="ProfileDirectory" Text="{Binding Profiles.Directory, Mode=TwoWay}" MaxLength="4096" FlowDirection="LeftToRight"
                AutomationProperties.Name="{Binding Workspace.Strings[ProfileDirectory]}" />
       <Button Content="{Binding Workspace.Strings[ProfileRefresh]}" Command="{Binding Profiles.RefreshCommand}" />
       <TextBlock Text="{Binding Workspace.Strings[ProfileRevisionHelp]}" TextWrapping="Wrap" />

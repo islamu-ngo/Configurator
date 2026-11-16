@@ -1,12 +1,18 @@
 namespace Configurator.Desktop.Tests;
 
-using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Threading;
 using System.Text;
 using System.Text.Json.Nodes;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
+using Avalonia.LogicalTree;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Configurator.Desktop.ViewModels;
+using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Desktop.Views;
+using Configurator.Presentation;
 
 public sealed class DesktopNavigationTests
 {
@@ -126,7 +132,9 @@ public sealed class DesktopNavigationTests
                             !string.IsNullOrWhiteSpace(selected.Title) && sections.SelectionBoxItem is not null,
                         revision: form.InputRevision == revision,
                         sameEditor: ReferenceEquals(port, shell.Workspace.Fields.Single(field => field.Id == "port")),
-                        draft: port.Text);
+                        draft: port.Text,
+                        readyRequired: window.FindNamedControl<TextBlock>("ReadyRequiredCount")?.Text,
+                        expectedReady: form.Projection.ProgressSummary.ReadyRequired.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 }
                 finally { window.Close(); }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
@@ -135,6 +143,7 @@ public sealed class DesktopNavigationTests
             await Assert.That(result.revision).IsTrue();
             await Assert.That(result.sameEditor).IsTrue();
             await Assert.That(result.draft).IsEqualTo("unfinished-number");
+            await Assert.That(result.readyRequired).IsEqualTo(result.expectedReady);
         }
         finally { await Task.Run(session.Dispose); }
     }
@@ -172,6 +181,58 @@ public sealed class DesktopNavigationTests
 
     [Test]
     [NotInParallel]
+    public async Task ExistingConfigurationEntryWaitsForDefinitionThenOpensImportWithoutReadingAFile()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopNavigationTests));
+        try
+        {
+            var result = await session.Dispatch(() =>
+            {
+                using var shell = DesktopTestContext.Root();
+                var window = new MainWindow { DataContext = shell };
+                try
+                {
+                    window.Show();
+                    Button? fresh = window.FindNamedControl<Button>("StartFreshTask");
+                    Button? profile = window.FindNamedControl<Button>("OpenSavedProfileTask");
+                    fresh?.Command?.Execute(null);
+                    bool freshFocused = shell.FocusTarget == "DefinitionPath";
+                    profile?.Command?.Execute(null);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    bool profileFocused = shell.ProfileTaskExpanded && window.GetLogicalDescendants()
+                        .OfType<TextBox>().Any(control => control.Name == "ProfileDirectory" && control.IsFocused);
+                    Button? entry = window.FindNamedControl<Button>("UseExistingTask");
+                    entry?.Command?.Execute(null);
+                    bool loaded = shell.Loader.LoadDefinition(DesktopApplicationTests.Definition());
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    return (hasEntry: entry is not null && fresh is not null && profile is not null,
+                        freshFocused, profileFocused, loaded,
+                        stage: shell.Navigation.Stage, focus: shell.FocusTarget,
+                        focusedName: (window.FocusManager?.GetFocusedElement() as Control)?.Name,
+                        importVisible: window.FindNamedControl<Button>("SelectImport")?.IsEffectivelyVisible == true,
+                        importEnabled: window.FindNamedControl<Button>("SelectImport")?.IsEffectivelyEnabled == true,
+                        hasComparison: shell.Workspace.Form?.ImportComparison is not null);
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+            await Assert.That(result.hasEntry).IsTrue();
+            await Assert.That(result.freshFocused).IsTrue();
+            await Assert.That(result.profileFocused).IsTrue();
+            await Assert.That(result.loaded).IsTrue();
+            await Assert.That(result.stage).IsEqualTo(DesktopWorkspaceStage.Review);
+            await Assert.That(result.focus).IsEqualTo("SelectImport");
+            await Assert.That(result.importVisible).IsTrue();
+            await Assert.That(result.importEnabled).IsTrue();
+            await Assert.That(result.focusedName).IsEqualTo("SelectImport");
+            await Assert.That(result.hasComparison).IsFalse();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
+    [Test]
+    [NotInParallel]
     public async Task ConstrainedSlotHostsCompactOrDocumentWithoutUnboundedWorkspaceScrollWhilePreservingRailAndUndo()
     {
         var session = HeadlessUnitTestSession.StartNew(typeof(DesktopNavigationTests));
@@ -205,7 +266,8 @@ public sealed class DesktopNavigationTests
                     bool technicalNaming = shell.Workspace.NamingMode == Configurator.Presentation.WorkspaceNamingMode.Technical;
                     bool revisionUnchanged = shell.Workspace.Form.InputRevision == revBeforeNaming;
 
-                    shell.Navigation.ConfigureMode = DesktopConfigureViewMode.Compact;
+                    shell.Navigation.LayoutMode = ConfigureLayoutMode.AllSections;
+                    shell.Workspace.Fields.Single(f => f.Id == "name").ClearCommand.Execute(null);
                     window.UpdateLayout();
                     Dispatcher.UIThread.RunJobs();
 
@@ -242,6 +304,107 @@ public sealed class DesktopNavigationTests
             await Assert.That(result.outsideScroll).IsTrue();
             await Assert.That(result.finiteHeight).IsTrue();
             await Assert.That(result.hasThreeRows).IsTrue();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments("en")]
+    [Arguments("ar")]
+    public async Task ErrorSummaryF7F8AndCtrlKFocusTargetsAndCtrlShiftETogglesDocumentDrawerWithoutEjectingAllSections(string locale)
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopNavigationTests));
+        try
+        {
+            var result = await session.Dispatch(() =>
+            {
+                using var shell = DesktopTestContext.Root();
+                shell.Loader.LoadDefinition(DesktopApplicationTests.DefinitionWithExperiences());
+                shell.Workspace.SelectedLocale = locale;
+                var window = new MainWindow { DataContext = shell, Width = 1200, Height = 800 };
+                try
+                {
+                    window.Show();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    shell.Navigation.LayoutMode = ConfigureLayoutMode.AllSections;
+                    shell.Workspace.Fields.Single(f => f.Id == "name").ClearCommand.Execute(null);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    // Missing required validation surfaces ErrorSummary and preserves AllSections on F8.
+                    bool valid = shell.Workspace.Validate();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    var errorBanner = window.FindNamedControl<Control>("ErrorSummaryBanner");
+                    window.KeyPress(Key.F8, RawInputModifiers.None, PhysicalKey.F8, null);
+                    window.KeyRelease(Key.F8, RawInputModifiers.None, PhysicalKey.F8, null);
+                    Dispatcher.UIThread.RunJobs();
+                    var layoutAfterF8 = shell.Navigation.LayoutMode;
+                    var focusedAfterF8 = window.FocusManager?.GetFocusedElement() as Control;
+
+                    // Ctrl+K opens DiscoveryOverlay and focuses ConfigurationSearch.
+                    var cmdMod = Avalonia.Application.Current!.PlatformSettings!.HotkeyConfiguration.CommandModifiers;
+                    window.RaiseEvent(new KeyEventArgs
+                    {
+                        RoutedEvent = InputElement.KeyDownEvent,
+                        Key = Key.K,
+                        KeyModifiers = cmdMod,
+                        Source = window
+                    });
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    var discoveryOverlay = window.FindNamedControl<Control>("DiscoveryOverlay");
+                    bool discoveryVisibleOnCtrlK = discoveryOverlay?.IsEffectivelyVisible == true;
+
+                    // Ctrl+Shift+E opens DocumentDrawerOverlay without losing AllSections.
+                    window.RaiseEvent(new KeyEventArgs
+                    {
+                        RoutedEvent = InputElement.KeyDownEvent,
+                        Key = Key.E,
+                        KeyModifiers = cmdMod | KeyModifiers.Shift,
+                        Source = window
+                    });
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    var docDrawer = window.FindNamedControl<Control>("DocumentDrawerOverlay");
+                    bool docDrawerOpen = docDrawer?.IsEffectivelyVisible == true;
+                    window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape, Source = window });
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    bool docDrawerClosedOnEsc = docDrawer?.IsEffectivelyVisible != true;
+
+                    // Toggle SetSectionReviewed via form & section model cleanly.
+                    var section = shell.Navigation.SelectedSection!;
+                    shell.Workspace.Form!.SetSectionReviewed(section.Id, true);
+                    bool reviewedAfterSet = section.Coverage == Configurator.Presentation.SectionReviewCoverage.Reviewed;
+
+                    return (
+                        valid,
+                        hasErrorBanner: errorBanner?.IsEffectivelyVisible == true,
+                        layoutAfterF8,
+                        f8FocusedFieldControl: focusedAfterF8?.DataContext is FieldViewModel,
+                        discoveryVisibleOnCtrlK,
+                        docDrawerOpen,
+                        docDrawerClosedOnEsc,
+                        layoutAtEnd: shell.Navigation.LayoutMode,
+                        reviewedAfterSet);
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+
+            await Assert.That(result.valid).IsFalse();
+            await Assert.That(result.hasErrorBanner).IsTrue();
+            await Assert.That(result.layoutAfterF8).IsEqualTo(ConfigureLayoutMode.AllSections);
+            await Assert.That(result.f8FocusedFieldControl).IsTrue();
+            await Assert.That(result.discoveryVisibleOnCtrlK).IsTrue();
+            await Assert.That(result.docDrawerOpen).IsTrue();
+            await Assert.That(result.docDrawerClosedOnEsc).IsTrue();
+            await Assert.That(result.layoutAtEnd).IsEqualTo(ConfigureLayoutMode.AllSections);
+            await Assert.That(result.reviewedAfterSet).IsTrue();
         }
         finally { await Task.Run(session.Dispose); }
     }

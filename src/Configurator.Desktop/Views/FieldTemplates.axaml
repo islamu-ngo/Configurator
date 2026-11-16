@@ -9,44 +9,40 @@
     <ContentControl Content="{Binding Editor}" IsVisible="{Binding IsVisible}" />
   </DataTemplate>
   <DataTemplate x:Key="FieldHeader" x:DataType="fields:FieldViewModel">
-    <StackPanel Spacing="4">
-      <WrapPanel Orientation="Horizontal" ItemSpacing="8" VerticalAlignment="Center">
-        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" />
-        <Button Name="CopyWireKey"
-                Content="{Binding WireToken}"
-                Command="{Binding CopyWireKeyCommand}"
-                IsVisible="{Binding HasCopyableWireToken}"
-                AutomationProperties.Name="{Binding CopyWireKeyName}"
-                Padding="8,2" Margin="0" FontSize="12" />
-        <TextBlock Text="{Binding WireKeyStatus}"
+    <Border Classes="field-row"
+            Classes.stripe-error="{Binding ShowError}"
+            Classes.stripe-modified="{Binding IsModifiedStripe}"
+            Classes.stripe-required="{Binding IsRequiredStripe}">
+      <StackPanel Spacing="3">
+        <WrapPanel Orientation="Horizontal" ItemSpacing="8" VerticalAlignment="Center">
+          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <Border Classes="required-pill" IsVisible="{Binding ShowRequiredPill}" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Strings[Required]}" FontWeight="SemiBold"
+                       Foreground="{DynamicResource ConfiguratorOnPrimaryContainerBrush}" />
+          </Border>
+          <Button Name="CopyWireKey"
+                  Content="{Binding WireToken}"
+                  Command="{Binding CopyWireKeyCommand}"
+                  IsVisible="{Binding HasCopyableWireToken}"
+                  AutomationProperties.Name="{Binding CopyWireKeyName}"
+                  Padding="8,2" Margin="0" />
+          <TextBlock Text="{Binding WireKeyStatus}"
+                     Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
+                     IsVisible="{Binding WireKeyStatus, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
+                     VerticalAlignment="Center" />
+        </WrapPanel>
+        <TextBlock Text="{Binding DeprecationDisplay}" Classes="warning" TextWrapping="Wrap"
+                   IsVisible="{Binding HasDeprecationBanner}" />
+        <TextBlock Text="{Binding Help}" TextWrapping="Wrap"
+                   IsVisible="{Binding Help, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+        <TextBlock Text="{Binding Instructions}" TextWrapping="Wrap"
+                   IsVisible="{Binding Instructions, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+        <TextBlock Text="{Binding CompactMetadataLine}"
                    Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
-                   IsVisible="{Binding WireKeyStatus, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
-                   VerticalAlignment="Center" FontSize="12" />
-      </WrapPanel>
-      <TextBlock Text="{Binding DeprecationDisplay}" Classes="warning" TextWrapping="Wrap"
-                 IsVisible="{Binding HasDeprecationBanner}" />
-      <TextBlock Text="{Binding Strings[Required]}" IsVisible="{Binding IsRequired}" />
-      <TextBlock Text="{Binding Help}" TextWrapping="Wrap"
-                 IsVisible="{Binding Help, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Text="{Binding Instructions}" TextWrapping="Wrap"
-                 IsVisible="{Binding Instructions, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Text="{Binding UnitsDisplay}"
-                 Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
-                 IsVisible="{Binding UnitsDisplay, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Text="{Binding IfOmittedDisplay}"
-                 Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
-                 TextWrapping="Wrap"
-                 IsVisible="{Binding IfOmittedDisplay, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Text="{Binding ControllerImpactSummary}"
-                 Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}"
-                 TextWrapping="Wrap"
-                 IsVisible="{Binding IsController}" />
-      <TextBlock Text="{Binding Format}" TextWrapping="Wrap"
-                 IsVisible="{Binding Format, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Text="{Binding ConstraintsSummary}" TextWrapping="Wrap"
-                 IsVisible="{Binding ConstraintsSummary, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
-      <TextBlock Text="{Binding Strings[ProtectedInput]}" IsVisible="{Binding RequiresMasking}" />
-    </StackPanel>
+                   TextWrapping="Wrap"
+                   IsVisible="{Binding CompactMetadataLine, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
+      </StackPanel>
+    </Border>
   </DataTemplate>
   <DataTemplate x:Key="FieldActions" x:DataType="fields:FieldViewModel">
     <StackPanel Spacing="4">
@@ -100,7 +96,7 @@
               <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
               <TextBlock Text="{Binding Explanation}"
                          IsVisible="{Binding Explanation, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}"
-                         Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" FontSize="12" />
+                         Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
           </DataTemplate>
         </ComboBox.ItemTemplate>

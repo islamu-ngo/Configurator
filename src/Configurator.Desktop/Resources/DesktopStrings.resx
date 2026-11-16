@@ -72,6 +72,7 @@
   <data name="NextPage" xml:space="preserve"><value>Next page</value></data>
   <data name="Page" xml:space="preserve"><value>Page</value></data>
   <data name="RequiredCount" xml:space="preserve"><value>Required</value></data>
+  <data name="ReadyRequiredCount" xml:space="preserve"><value>Ready required</value></data>
   <data name="MissingCount" xml:space="preserve"><value>Missing</value></data>
   <data name="InvalidCount" xml:space="preserve"><value>Invalid</value></data>
   <data name="ReadyCount" xml:space="preserve"><value>Ready</value></data>
@@ -147,6 +148,9 @@
   <data name="ProtectedInput" xml:space="preserve"><value>Protected input — values are masked.</value></data>
   <data name="WindowTitle" xml:space="preserve"><value>Configurator — offline preparation</value></data>
   <data name="PreparationTitle" xml:space="preserve"><value>Offline configuration preparation</value></data>
+  <data name="StartFreshTask" xml:space="preserve"><value>Start fresh</value></data>
+  <data name="UseExistingTask" xml:space="preserve"><value>Use an existing configuration</value></data>
+  <data name="OpenSavedProfileTask" xml:space="preserve"><value>Open a saved profile</value></data>
   <data name="DefinitionPath" xml:space="preserve"><value>Local definition path (JSON or YAML)</value></data>
   <data name="ChooseDefinition" xml:space="preserve"><value>Choose definition…</value></data>
   <data name="LoadDefinition" xml:space="preserve"><value>_Load definition</value></data>
@@ -268,6 +272,7 @@ Ctrl+Shift+K: Switch Humanized labels and technical wire keys
 Ctrl+Shift+E: Switch to Document (JSON / .env) editor
 Ctrl+K: Search and filter settings or run workspace commands
 F2: Toggle contextual schema inspector (metadata only)
+F7 / F8 / F9: Jump to next issue, required setting, or unreviewed section
 ?: Open keyboard shortcuts reference
 Escape: Close open popup or cancel active operation
 File and folder pickers use Avalonia managed system dialogs on X11, Wayland, macOS, and Windows.</value></data>
@@ -283,8 +288,8 @@ File and folder pickers use Avalonia managed system dialogs on X11, Wayland, mac
   <data name="OpenShortcutsHelpLabel" xml:space="preserve"><value>Keyboard shortcuts (?)</value></data>
   <data name="CloseShortcutsLabel" xml:space="preserve"><value>Close shortcuts</value></data>
   <data name="ShortcutsDialogTitle" xml:space="preserve"><value>Keyboard shortcuts</value></data>
-  <data name="ConfigureModeGuided" xml:space="preserve"><value>Guided</value></data>
-  <data name="ConfigureModeCompact" xml:space="preserve"><value>Compact table</value></data>
+  <data name="ConfigureModeGuided" xml:space="preserve"><value>Section by section</value></data>
+  <data name="ConfigureModeAllSections" xml:space="preserve"><value>All sections</value></data>
   <data name="ConfigureModeDocument" xml:space="preserve"><value>Document (JSON)</value></data>
   <data name="UndoLabel" xml:space="preserve"><value>Undo</value></data>
   <data name="RedoLabel" xml:space="preserve"><value>Redo</value></data>
@@ -292,6 +297,16 @@ File and folder pickers use Avalonia managed system dialogs on X11, Wayland, mac
   <data name="NextStepLabel" xml:space="preserve"><value>Next step</value></data>
   <data name="JumpNextErrorLabel" xml:space="preserve"><value>Next issue</value></data>
   <data name="JumpNextRequiredLabel" xml:space="preserve"><value>Next required</value></data>
+  <data name="JumpNextUnvisitedLabel" xml:space="preserve"><value>Next unreviewed</value></data>
+  <data name="MarkSectionReviewedAction" xml:space="preserve"><value>Mark reviewed</value></data>
+  <data name="SectionReviewedAction" xml:space="preserve"><value>Reviewed</value></data>
+  <data name="SectionAllFieldsRequired" xml:space="preserve"><value>All fields required</value></data>
+  <data name="RailToggleLabel" xml:space="preserve"><value>Sections</value></data>
+  <data name="DiscoveryToggleLabel" xml:space="preserve"><value>Find (Ctrl+K)</value></data>
+  <data name="DiscoveryCloseLabel" xml:space="preserve"><value>Close search</value></data>
+  <data name="DocumentDrawerCloseLabel" xml:space="preserve"><value>Close document</value></data>
+  <data name="ErrorSummaryTitle" xml:space="preserve"><value>There is a problem</value></data>
+  <data name="ErrorSummaryJumpLabel" xml:space="preserve"><value>Go to setting</value></data>
   <data name="SectionStatusInvalid" xml:space="preserve"><value>Needs fix</value></data>
   <data name="SectionStatusMissing" xml:space="preserve"><value>Missing required</value></data>
   <data name="SectionStatusReady" xml:space="preserve"><value>Ready</value></data>
@@ -317,27 +332,11 @@ File and folder pickers use Avalonia managed system dialogs on X11, Wayland, mac
   <data name="ExplorerReadOnlyNote" xml:space="preserve"><value>Read-only preview — no answers are created until you select Configure.</value></data>
   <data name="ExplorerSensitivityPublic" xml:space="preserve"><value>Public</value></data>
   <data name="ExplorerSensitivityPrivate" xml:space="preserve"><value>Private / Secret</value></data>
-  <data name="BoundedConfigureNote" xml:space="preserve"><value>Dense table and document tools edit the active workspace directly.</value></data>
+  <data name="AllSectionsNote" xml:space="preserve"><value>All sections view edits the active workspace directly across sections.</value></data>
   <data name="SettingsPrivacyTitle" xml:space="preserve"><value>Privacy &amp; host output</value></data>
   <data name="SettingsPrivacyDescription" xml:space="preserve"><value>Offline custody guarantees and local protected-save capability.</value></data>
   <data name="SettingsPrivacyHelp" xml:space="preserve"><value>Answers remain in local memory with zero background telemetry or target apply authority. Remote HTTPS schema fetches execute only on explicit Fetch action on the Open stage with private/local IP blocking, zero redirects, and a 4 MiB ceiling.</value></data>
   <data name="SettingsWorkstationHostLabel" xml:space="preserve"><value>Workstation protected-save capability</value></data>
-  <data name="CompactSearchLabel" xml:space="preserve"><value>Filter table</value></data>
-  <data name="CompactSortLabel" xml:space="preserve"><value>Sort by</value></data>
-  <data name="CompactSortLabelOption" xml:space="preserve"><value>Setting</value></data>
-  <data name="CompactSortSectionOption" xml:space="preserve"><value>Section</value></data>
-  <data name="CompactSortStatusOption" xml:space="preserve"><value>Status</value></data>
-  <data name="CompactSortOriginOption" xml:space="preserve"><value>Source</value></data>
-  <data name="CompactSortAscendingLabel" xml:space="preserve"><value>Ascending</value></data>
-  <data name="CompactSortDescendingLabel" xml:space="preserve"><value>Descending</value></data>
-  <data name="CompactCurrentSectionOnly" xml:space="preserve"><value>Current section only</value></data>
-  <data name="CompactRowsCount" xml:space="preserve"><value>{0} settings shown</value></data>
-  <data name="CompactCommitLabel" xml:space="preserve"><value>Apply</value></data>
-  <data name="CompactOpenGuidedLabel" xml:space="preserve"><value>Guided</value></data>
-  <data name="CompactInspectLabel" xml:space="preserve"><value>Inspect</value></data>
-  <data name="CompactMaskedValue" xml:space="preserve"><value>•••••• (restricted)</value></data>
-  <data name="CompactUnsetValue" xml:space="preserve"><value>Not supplied (omitted)</value></data>
-  <data name="CompactSecretInputHelp" xml:space="preserve"><value>Enter a new restricted value to apply</value></data>
   <data name="DocumentRepresentationLabel" xml:space="preserve"><value>Format</value></data>
   <data name="DocumentCanonicalOption" xml:space="preserve"><value>Canonical JSON</value></data>
   <data name="DocumentEnvironmentOption" xml:space="preserve"><value>Environment (.env)</value></data>

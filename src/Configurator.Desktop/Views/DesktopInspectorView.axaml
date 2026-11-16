@@ -17,7 +17,7 @@
         <StackPanel Spacing="2">
           <TextBlock Text="{Binding Strings[InspectorTitle]}" Classes="m3-section" TextWrapping="Wrap" />
           <TextBlock Text="{Binding Strings[InspectorMetadataNotice]}"
-                     Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" FontSize="12" TextWrapping="Wrap" />
+                     Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
         </StackPanel>
       </DockPanel>
 
@@ -29,25 +29,25 @@
                      TextWrapping="Wrap" />
 
           <StackPanel Spacing="8" IsVisible="{Binding HasSelection}">
-            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
 
             <StackPanel Spacing="2">
-              <TextBlock Text="{Binding Strings[InspectorPathLabel]}" FontWeight="SemiBold" FontSize="12" />
+              <TextBlock Text="{Binding Strings[InspectorPathLabel]}" FontWeight="SemiBold" />
               <TextBlock Text="{Binding PathDisplay}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
 
             <StackPanel Spacing="2" IsVisible="{Binding HasWireToken}">
-              <TextBlock Text="{Binding Strings[InspectorWireKeyLabel]}" FontWeight="SemiBold" FontSize="12" />
+              <TextBlock Text="{Binding Strings[InspectorWireKeyLabel]}" FontWeight="SemiBold" />
               <TextBlock Text="{Binding WireToken}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
 
             <WrapPanel Orientation="Horizontal" ItemSpacing="12">
               <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Strings[InspectorTypeLabel]}" FontWeight="SemiBold" FontSize="12" />
+                <TextBlock Text="{Binding Strings[InspectorTypeLabel]}" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding TypeDisplay}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
               </StackPanel>
               <StackPanel Spacing="2">
-                <TextBlock Text="{Binding Strings[InspectorSensitivityLabel]}" FontWeight="SemiBold" FontSize="12" />
+                <TextBlock Text="{Binding Strings[InspectorSensitivityLabel]}" FontWeight="SemiBold" />
                 <TextBlock Text="{Binding SensitivityBadge}" Foreground="{DynamicResource ConfiguratorAccentBrush}" />
               </StackPanel>
             </WrapPanel>
@@ -56,22 +56,22 @@
             <TextBlock Text="{Binding Instructions}" IsVisible="{Binding HasInstructions}" TextWrapping="Wrap" />
 
             <StackPanel Spacing="2" IsVisible="{Binding HasUnits}">
-              <TextBlock Text="{Binding Strings[InspectorUnitsLabel]}" FontWeight="SemiBold" FontSize="12" />
+              <TextBlock Text="{Binding Strings[InspectorUnitsLabel]}" FontWeight="SemiBold" />
               <TextBlock Text="{Binding Units}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
 
             <StackPanel Spacing="2" IsVisible="{Binding HasDefaultText}">
-              <TextBlock Text="{Binding Strings[InspectorDefaultLabel]}" FontWeight="SemiBold" FontSize="12" />
+              <TextBlock Text="{Binding Strings[InspectorDefaultLabel]}" FontWeight="SemiBold" />
               <TextBlock Text="{Binding DefaultText}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
 
             <StackPanel Spacing="2" IsVisible="{Binding HasIfOmitted}">
-              <TextBlock Text="{Binding Strings[InspectorOmittedLabel]}" FontWeight="SemiBold" FontSize="12" />
+              <TextBlock Text="{Binding Strings[InspectorOmittedLabel]}" FontWeight="SemiBold" />
               <TextBlock Text="{Binding IfOmittedDisplay}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
 
             <StackPanel Spacing="2" IsVisible="{Binding HasConstraints}">
-              <TextBlock Text="{Binding Strings[InspectorConstraintsLabel]}" FontWeight="SemiBold" FontSize="12" />
+              <TextBlock Text="{Binding Strings[InspectorConstraintsLabel]}" FontWeight="SemiBold" />
               <TextBlock Text="{Binding ConstraintsSummary}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
 
@@ -79,28 +79,28 @@
                        Foreground="{DynamicResource ConfiguratorErrorBrush}" TextWrapping="Wrap" />
 
             <StackPanel Spacing="2" IsVisible="{Binding HasControllerImpact}">
-              <TextBlock Text="{Binding Strings[InspectorControllerImpactLabel]}" FontWeight="SemiBold" FontSize="12" />
+              <TextBlock Text="{Binding Strings[InspectorControllerImpactLabel]}" FontWeight="SemiBold" />
               <TextBlock Text="{Binding ControllerImpact}" Foreground="{DynamicResource ConfiguratorAccentBrush}" TextWrapping="Wrap" />
             </StackPanel>
 
             <StackPanel Spacing="2" IsVisible="{Binding HasControlledBy}">
-              <TextBlock Text="{Binding Strings[InspectorControlledByLabel]}" FontWeight="SemiBold" FontSize="12" />
+              <TextBlock Text="{Binding Strings[InspectorControlledByLabel]}" FontWeight="SemiBold" />
               <TextBlock Text="{Binding ControlledBySummary}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
 
             <StackPanel Spacing="2" IsVisible="{Binding HasOutputBindings}">
-              <TextBlock Text="{Binding Strings[InspectorOutputsLabel]}" FontWeight="SemiBold" FontSize="12" />
+              <TextBlock Text="{Binding Strings[InspectorOutputsLabel]}" FontWeight="SemiBold" />
               <TextBlock Text="{Binding OutputBindingsSummary}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
             </StackPanel>
 
             <StackPanel Spacing="4" IsVisible="{Binding HasLinks}">
-              <TextBlock Text="{Binding Strings[InspectorLinksLabel]}" FontWeight="SemiBold" FontSize="12" />
+              <TextBlock Text="{Binding Strings[InspectorLinksLabel]}" FontWeight="SemiBold" />
               <ItemsControl ItemsSource="{Binding Links}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="definitions:DefinitionGuidanceLink">
                     <StackPanel Spacing="1" Margin="0,2">
-                      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
-                      <TextBlock Text="{Binding Url}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Url}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
                     </StackPanel>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>

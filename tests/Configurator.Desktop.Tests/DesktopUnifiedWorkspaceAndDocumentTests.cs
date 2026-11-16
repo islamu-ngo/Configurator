@@ -14,16 +14,16 @@ using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.Views;
 using Configurator.Presentation;
 
-public sealed class DesktopCompactTableAndDocumentTests
+public sealed class DesktopUnifiedWorkspaceAndDocumentTests
 {
     public static AppBuilder BuildAvaloniaApp() => DesktopApplicationTests.BuildAvaloniaApp();
 
     [Test]
     [NotInParallel]
-    public async Task CompactSettingsTableVirtualizesBoundedSlotExcludesSecretsAndRoundTripsWithoutOmittedMaterialization()
+    public async Task UnifiedAllSectionsVirtualizesBoundedSlotExcludesSecretsAndRoundTripsWithoutOmittedMaterialization()
     {
         byte[] definition = RichCompactDefinitionBytes();
-        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopCompactTableAndDocumentTests));
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopUnifiedWorkspaceAndDocumentTests));
         try
         {
             var result = await session.Dispatch(() =>
@@ -44,37 +44,34 @@ public sealed class DesktopCompactTableAndDocumentTests
                     window.UpdateLayout();
                     Dispatcher.UIThread.RunJobs();
 
-                    shell.Navigation.ConfigureMode = DesktopConfigureViewMode.Compact;
+                    shell.Navigation.LayoutMode = ConfigureLayoutMode.AllSections;
                     window.UpdateLayout();
                     Dispatcher.UIThread.RunJobs();
 
                     var listBox = window.GetVisualDescendants().OfType<ListBox>()
-                        .Single(control => control.Name == "CompactRowsList");
+                        .Single(control => control.Name == "AllSectionsFieldsList");
                     bool usesVirtualizingPanel = listBox.GetVisualDescendants()
                         .OfType<VirtualizingStackPanel>().Any();
                     var boundedSlot = window.FindNamedControl<Grid>("BoundedConfigureSlot")!;
 
-                    shell.CompactTable.SearchQuery = "synthetic-secret-compact-91";
-                    int secretValueMatches = shell.CompactTable.Rows.Count;
+                    shell.Navigation.SearchText = "synthetic-secret-compact-91";
+                    int secretValueMatches = shell.Navigation.DiscoveryTotal;
 
-                    shell.CompactTable.SearchQuery = "synthetic-private-map-key-91";
-                    int secretMapKeyMatches = shell.CompactTable.Rows.Count;
+                    shell.Navigation.SearchText = "synthetic-private-map-key-91";
+                    int secretMapKeyMatches = shell.Navigation.DiscoveryTotal;
 
-                    shell.CompactTable.SearchQuery = string.Empty;
-                    bool secretWireSuppressed = shell.CompactTable.Rows
-                        .Where(row => row.IsMasked)
-                        .All(row => !row.HasCopyableWireToken &&
-                                    !row.DisplayValue.Contains("synthetic-secret-compact-91", StringComparison.Ordinal));
+                    shell.Navigation.SearchText = string.Empty;
+                    shell.Navigation.CloseCommandPaletteCommand.Execute(null);
+                    var secretField = shell.Navigation.AllSectionsFields.Single(f => f.Id == "apiSecret");
+                    bool secretWireSuppressed = secretField.RequiresMasking &&
+                        !secretField.HasCopyableWireToken &&
+                        secretField.PasswordChar != '\0';
 
-                    shell.CompactTable.SortColumn = CompactTableSortColumn.Label;
-                    shell.CompactTable.SortAscending = false;
-                    string[] descLabels = shell.CompactTable.Rows.Select(r => r.Label).ToArray();
-                    shell.CompactTable.SortAscending = true;
-                    string[] ascLabels = shell.CompactTable.Rows.Select(r => r.Label).ToArray();
-                    bool sortReversed = descLabels.SequenceEqual(ascLabels.Reverse());
+                    var allSectionsHost = shell.Navigation.AllSectionsFields.Single(f => f.Id == "host");
+                    allSectionsHost.Text = "compact.example.org";
+                    bool edited = form.Snapshot().Values["host"].GetString() == "compact.example.org";
 
-                    bool edited = shell.CompactTable.EditValue(DefinitionPath.Parse("/host"), "compact.example.org");
-                    shell.Navigation.ConfigureMode = DesktopConfigureViewMode.Guided;
+                    shell.Navigation.LayoutMode = ConfigureLayoutMode.SectionBySection;
                     window.UpdateLayout();
                     Dispatcher.UIThread.RunJobs();
 
@@ -86,7 +83,6 @@ public sealed class DesktopCompactTableAndDocumentTests
                         secretValueMatches,
                         secretMapKeyMatches,
                         secretWireSuppressed,
-                        sortReversed,
                         edited,
                         guidedHostText: hostField.Text,
                         snapshotHost: snapshot.Values.TryGetValue("host", out JsonElement hostVal) ? hostVal.GetString() : null,
@@ -100,7 +96,6 @@ public sealed class DesktopCompactTableAndDocumentTests
             await Assert.That(result.secretValueMatches).IsEqualTo(0);
             await Assert.That(result.secretMapKeyMatches).IsEqualTo(0);
             await Assert.That(result.secretWireSuppressed).IsTrue();
-            await Assert.That(result.sortReversed).IsTrue();
             await Assert.That(result.edited).IsTrue();
             await Assert.That(result.guidedHostText).IsEqualTo("compact.example.org");
             await Assert.That(result.snapshotHost).IsEqualTo("compact.example.org");
@@ -114,7 +109,7 @@ public sealed class DesktopCompactTableAndDocumentTests
     {
         using var shell = DesktopTestContext.Root();
         await Assert.That(shell.Loader.LoadDefinition(RichCompactDefinitionBytes())).IsTrue().Because(shell.Status);
-        shell.Navigation.ConfigureMode = DesktopConfigureViewMode.Document;
+        shell.Navigation.IsDocumentOpen = true;
 
         var doc = shell.DocumentEditor;
         string initialHost = shell.Workspace.Form!.Snapshot().Values.TryGetValue("host", out JsonElement v)
@@ -162,7 +157,7 @@ public sealed class DesktopCompactTableAndDocumentTests
     [NotInParallel]
     public async Task InspectorDisplaysPublicSchemaMetadataOnlyWithoutAnswersAndPreservesEditorFocus()
     {
-        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopCompactTableAndDocumentTests));
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopUnifiedWorkspaceAndDocumentTests));
         try
         {
             var result = await session.Dispatch(() =>
@@ -250,7 +245,7 @@ public sealed class DesktopCompactTableAndDocumentTests
     [NotInParallel]
     public async Task DiscoveryFilterChipsAndCommandPaletteFilterAndExecuteCommands()
     {
-        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopCompactTableAndDocumentTests));
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopUnifiedWorkspaceAndDocumentTests));
         try
         {
             var result = await session.Dispatch(() =>
@@ -314,7 +309,7 @@ public sealed class DesktopCompactTableAndDocumentTests
     [NotInParallel]
     public async Task ArtifactPublicationViewSeparatesReviewPreparationFromCreateOnlySave()
     {
-        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopCompactTableAndDocumentTests));
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopUnifiedWorkspaceAndDocumentTests));
         try
         {
             var result = await session.Dispatch(() =>

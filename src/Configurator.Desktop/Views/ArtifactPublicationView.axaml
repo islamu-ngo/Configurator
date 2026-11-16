@@ -39,7 +39,8 @@
           </ItemsControl>
           <TextBlock Text="{Binding Workspace.Strings[SingleFileNameHelp]}" IsVisible="{Binding Publisher.IsSingleSelection}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding Workspace.Strings[MultipleFileNamesHelp]}" IsVisible="{Binding !Publisher.IsSingleSelection}" TextWrapping="Wrap" />
-          <Expander Name="OptionalImport" Header="{Binding Workspace.Strings[OptionalImport]}">
+          <Expander Name="OptionalImport" Header="{Binding Workspace.Strings[OptionalImport]}"
+                    IsExpanded="{Binding ImportTaskExpanded, Mode=TwoWay}">
           <StackPanel Spacing="8">
           <TextBlock Text="{Binding Workspace.Strings[ImportSourceArtifact]}" />
           <ComboBox Name="Artifact" HorizontalAlignment="Stretch"

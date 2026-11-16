@@ -4,39 +4,62 @@
     xmlns:local="using:Configurator.Desktop.Views"
     xmlns:converters="using:Avalonia.Data.Converters"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
-  <StackPanel Spacing="16" MaxWidth="800">
-    <TextBlock Text="{Binding Workspace.Strings[Configure]}" FontSize="{DynamicResource ConfiguratorHeadingFontSize}" FontWeight="SemiBold" />
-    <StackPanel Spacing="8">
-      <TextBlock Text="{Binding Workspace.Strings[Experience]}" />
-      <ComboBox Name="Experience" ItemsSource="{Binding Workspace.Experiences}"
-                SelectedItem="{Binding Workspace.SelectedExperience, Mode=TwoWay}"
-                HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Workspace.Strings[Experience]}">
-        <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:ExperienceChoiceViewModel">
-            <TextBlock Text="{Binding Title}" />
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
+  <StackPanel Spacing="10" MaxWidth="800">
+    <!-- Condensed setup strip so Field #1 leads above the fold at 960x800 -->
+    <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="6" VerticalAlignment="Center">
+      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Workspace.Strings[Experience]}" VerticalAlignment="Center" />
+        <ComboBox Name="Experience" ItemsSource="{Binding Workspace.Experiences}"
+                  SelectedItem="{Binding Workspace.SelectedExperience, Mode=TwoWay}"
+                  MinWidth="150" AutomationProperties.Name="{Binding Workspace.Strings[Experience]}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ExperienceChoiceViewModel">
+              <TextBlock Text="{Binding Title}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
       <CheckBox Name="OptionalEditors" IsChecked="{Binding Workspace.OptionalEditorsExpanded, Mode=TwoWay}"
-                AutomationProperties.Name="{Binding Workspace.Strings[OptionalEditors]}">
+                AutomationProperties.Name="{Binding Workspace.Strings[OptionalEditors]}" VerticalAlignment="Center">
         <TextBlock Text="{Binding Workspace.Strings[OptionalEditors]}" />
       </CheckBox>
-    </StackPanel>
-    <local:ConfigurationDiscoveryView />
-    <StackPanel Spacing="8" IsVisible="{Binding Workspace.HasOutputTasks}">
-      <TextBlock Text="{Binding Workspace.Strings[OutputTask]}" />
-      <ComboBox Name="OutputTask" ItemsSource="{Binding Workspace.OutputTasks}"
-                SelectedItem="{Binding Workspace.OutputTask, Mode=TwoWay}"
-                IsEnabled="{Binding !Workspace.IsBusy}" HorizontalAlignment="Stretch"
-                AutomationProperties.Name="{Binding Workspace.Strings[OutputTask]}">
-        <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:ExperienceChoiceViewModel">
-            <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
-    </StackPanel>
-    <TextBlock Text="{Binding Workspace.TransferStatus}" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Workspace.HasOutputTasks}" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Workspace.Strings[OutputTask]}" VerticalAlignment="Center" />
+        <ComboBox Name="OutputTask" ItemsSource="{Binding Workspace.OutputTasks}"
+                  SelectedItem="{Binding Workspace.OutputTask, Mode=TwoWay}"
+                  IsEnabled="{Binding !Workspace.IsBusy}" MinWidth="150"
+                  AutomationProperties.Name="{Binding Workspace.Strings[OutputTask]}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ExperienceChoiceViewModel">
+              <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Workspace.HasConfigurationContext}" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Workspace.Strings[ConfigurationContext]}" VerticalAlignment="Center" />
+        <ComboBox Name="ConfigurationContext" ItemsSource="{Binding Workspace.ConfigurationChoices}"
+                  SelectedItem="{Binding Workspace.SelectedConfigurationContext, Mode=TwoWay}"
+                  MinWidth="160"
+                  AutomationProperties.Name="{Binding Workspace.Strings[ConfigurationContext]}"
+                  AutomationProperties.HelpText="{Binding Workspace.Strings[ConfigurationContextHelp]}">
+          <ComboBox.ItemTemplate>
+            <DataTemplate x:DataType="vm:ConfigurationContextChoice">
+              <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
+      <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" ItemSpacing="6">
+        <TextBlock Text="{Binding Workspace.Strings[ReadyRequiredCount]}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+        <TextBlock Name="ReadyRequiredCount" Text="{Binding Navigation.ProgressSummary.ReadyRequired}" FontWeight="SemiBold" />
+        <TextBlock Text="/" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+        <TextBlock Text="{Binding Navigation.ProgressSummary.TotalRequired}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+      </WrapPanel>
+    </WrapPanel>
+
+    <TextBlock Text="{Binding Workspace.TransferStatus}" TextWrapping="Wrap"
+               IsVisible="{Binding Workspace.TransferStatus, Converter={x:Static converters:StringConverters.IsNotNullOrEmpty}}" />
     <StackPanel Name="TransferReview" IsVisible="{Binding Workspace.HasTransferReview}" Spacing="8">
       <TextBlock Text="{Binding Workspace.Strings[TransferReviewTitle]}" FontWeight="SemiBold" />
       <ItemsControl ItemsSource="{Binding Workspace.TransferCandidates}">
@@ -60,8 +83,7 @@
         <Button Content="{Binding Workspace.Strings[TransferCancel]}" Command="{Binding Workspace.CancelTransferCommand}" />
       </WrapPanel>
     </StackPanel>
-    <StackPanel Classes="compact-navigation" Spacing="8">
-      <TextBlock Text="{Binding Workspace.Strings[Section]}" />
+    <StackPanel Classes="compact-navigation" Spacing="6">
       <ComboBox Name="SectionSelector" ItemsSource="{Binding Navigation.Sections}"
                 SelectedItem="{Binding Navigation.SelectedSection, Mode=TwoWay}"
                 HorizontalAlignment="Stretch" AutomationProperties.Name="{Binding Workspace.Strings[Section]}">
@@ -71,29 +93,18 @@
           </DataTemplate>
         </ComboBox.ItemTemplate>
       </ComboBox>
-      <TextBlock Text="{Binding Navigation.SelectedSection.Description}" TextWrapping="Wrap" />
     </StackPanel>
-    <StackPanel IsVisible="{Binding Workspace.HasConfigurationContext}" Spacing="8">
-      <TextBlock Text="{Binding Workspace.Strings[ConfigurationContext]}" />
-      <ComboBox Name="ConfigurationContext" ItemsSource="{Binding Workspace.ConfigurationChoices}"
-                SelectedItem="{Binding Workspace.SelectedConfigurationContext, Mode=TwoWay}"
-                AutomationProperties.Name="{Binding Workspace.Strings[ConfigurationContext]}"
-                AutomationProperties.HelpText="{Binding Workspace.Strings[ConfigurationContextHelp]}">
-        <ComboBox.ItemTemplate>
-          <DataTemplate x:DataType="vm:ConfigurationContextChoice">
-            <TextBlock Text="{Binding Title}" TextWrapping="Wrap" />
-          </DataTemplate>
-        </ComboBox.ItemTemplate>
-      </ComboBox>
-      <TextBlock Text="{Binding Workspace.Strings[ConfigurationContextHelp]}" TextWrapping="Wrap" />
-    </StackPanel>
-    <WrapPanel Orientation="Horizontal">
-      <TextBlock Margin="0,0,16,8" Text="{Binding Workspace.Strings[RequiredCount]}" />
-      <TextBlock Margin="0,0,16,8" Text="{Binding Navigation.Progress.Required}" />
-      <TextBlock Margin="0,0,16,8" Text="{Binding Workspace.Strings[MissingCount]}" />
-      <TextBlock Margin="0,0,16,8" Text="{Binding Navigation.Progress.Missing}" />
-      <TextBlock Margin="0,0,16,8" Text="{Binding Workspace.Strings[InvalidCount]}" />
-      <TextBlock Margin="0,0,16,8" Text="{Binding Navigation.Progress.Invalid}" />
+    <WrapPanel Orientation="Horizontal" ItemSpacing="8" VerticalAlignment="Center">
+      <TextBlock Text="{Binding Navigation.SelectedSection.Title}"
+                 FontSize="{DynamicResource ConfiguratorHeadingFontSize}" FontWeight="SemiBold" VerticalAlignment="Center" />
+      <Border Classes="required-pill" IsVisible="{Binding Navigation.SelectedSection.IsAllRequired}" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Workspace.Strings[SectionAllFieldsRequired]}" FontWeight="SemiBold"
+                   Foreground="{DynamicResource ConfiguratorOnPrimaryContainerBrush}" />
+      </Border>
+      <Button Content="{Binding Navigation.SelectedSection.ReviewActionLabel}"
+              Command="{Binding Navigation.SelectedSection.ToggleReviewedCommand}"
+              Classes.active-stage="{Binding Navigation.SelectedSection.IsReviewed}"
+              Padding="8,2" Margin="0" VerticalAlignment="Center" />
     </WrapPanel>
     <ItemsControl Name="UngroupedFields"
                   ItemsSource="{Binding Navigation.UngroupedFields}"

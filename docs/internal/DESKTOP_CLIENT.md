@@ -69,6 +69,19 @@ field projections; it stores no answers. `FormWorkspaceViewModel` and its
 change pages. `DefinitionFormProjection` supplies authored order and global
 required/missing/invalid/deferred progress. Root maps and variants use a neutral
 section rather than depending on ordinary field facades.
+The Open task buttons set a typed pending entry intent in `DesktopShellViewModel`.
+After definition admission and the ordinary form-focus notification, an import
+intent opens Review and focuses file selection; no chooser or file read occurs
+from the entry button. The profile task expands its existing native controls.
+The Configure summary binds `ReadyRequired`, `TotalRequired`, `MissingRequired`
+and `InvalidCount` from the shared `WorkspaceProgressSummary` rather than
+recounting rendered controls; the localized labels remain native XAML resources.
+Desktop view templates no longer pin local numeric font sizes for Compact rows,
+Inspector metadata, section summaries or field help. They inherit the window's
+body size, while title and heading tokens remain independently scaled.
+Recursive field refresh asks the shared form for current facts. Literal root
+reads reuse that revision's validation when available, preventing one full Core
+validation per nested field in large tenant lists.
 
 Root pages contain at most 50 editor references. Page clamping and section
 selection never change input revision. Validation first reveals the affected
@@ -76,14 +89,26 @@ section/page, then requests native focus. The Desktop composition decision is
 recorded in the [workspace ADR](adr/ADR-desktop-workspace-composition.md).
 
 Section projections retain their identity across view and input refreshes;
-localized titles, progress and borrowed editor references update in place.
-This preserves native selector selection instead of replacing its item source
-for every keystroke. Responsive container queries in `MainWindow` switch between
-the compact section picker and the optional 224-unit `SectionRail` /
-`SettingsSectionRail` sidebars, while `DefinitionLoaderView`,
-`ConfigurationWorkspaceView`, `ArtifactPublicationView`, `SettingsWorkspaceView`,
-and `WorkspaceActionBar` retain their controls inside a `WorkspaceScroll` body
-capped at 800 logical units. A compact fixed header keeps stage navigation
+localized titles, progress and borrowed editor references update in place,
+preserving native selector selection instead of replacing item sources on
+keystrokes. In `MainWindow`, `WorkspaceSplitView` (`SplitView` switching between
+`Inline` `>= 900` logical units and `Overlay` `< 900` logical units) hosts the
+`300`-unit `SectionRail` (with explicit per-section `SetSectionReviewed` /
+`ToggleReviewedCommand` buttons) and `SettingsSectionRail`, while `Grid` row `*`
+separates the virtualized `AllSectionsFieldsList` (`VirtualizingStackPanel` over
+shared `FieldViewModel` instances) from `WorkspaceScroll` (`<= 800` logical
+units for Section-by-section cards, `DefinitionLoaderView`,
+`ArtifactPublicationView`, `SettingsWorkspaceView`, and `WorkspaceActionBar`)
+without nesting virtualization inside infinite `ScrollViewer` bounds. Inline
+`ConfigurationDiscoveryView` moves behind `DiscoveryOverlay` (`Ctrl+K`) and
+pre-field controls condense onto a compact setup strip so Field #1 renders above
+the fold at `960×800`; inline `ErrorSummaryBanner` (`ErrorSummaryItems`), `F7`,
+`F8`, and `F9` route focus through `ResolveNextActionableTarget` without
+ejecting `ConfigureLayoutMode`. Field headers in `FieldTemplates.axaml` use a
+3 px `inline-start` semantic border (`Border.field-row` reacting to Light, Dark,
+and HighContrast `ThemePalettes.axaml` brushes), minority `Required` pills (and
+`SectionAllFieldsRequired` header notices when multi-field sections are 100%
+required), and a condensed secondary metadata line. A compact fixed header keeps stage navigation
 (`Open`, `Configure`, `Review outputs`, `Settings`) alongside direct session
 selectors (`Appearance`, `DefinitionLocale`, `DirectionMode` backed by
 `FormWorkspaceViewModel.DirectionModeIndex`) without a display-settings expander;
@@ -291,10 +316,10 @@ recipe/scope pairs, localized through the shared form metadata. The native
 selection to `DefinitionFormModel.SelectConfigurationContext`; Presentation
 owns the single accepted mutation and revision. The two selector fields are represented by this picker rather than duplicate ordinary editors. Unsupported pairs do not change accepted answers.
 
-In **Configure**, operators can switch among three Presentation-backed views:
-- **Guided** (`ConfigurationWorkspaceView` / `FormWorkspaceViewModel`): card-based section/page editors.
-- **Compact** (`CompactSettingsTableView` / `CompactSettingsTableViewModel`): searchable, sortable table over `DefinitionFormModel.GetCompactRows`, keeping sensitive inputs masked and editing leaf scalars/omissions through `EditCompactValue` with explicit focus transfer back to Guided mode for structured or sensitive edits.
-- **Document** (`DocumentEditorView` / `DocumentEditorViewModel`): generation-fenced canonical JSON/YAML source view (`DefinitionDocumentSession`) requiring an explicit pre-apply diff preview (`PreviewChanges`) before `ApplyPreview`; background `InputRevision` or definition-pin changes fence stale pending buffers with `"document-stale"`.
+In **Configure**, operators share one reactive `FormWorkspaceViewModel` across:
+- **Section by section** (`ConfigurationWorkspaceView` / `FormWorkspaceViewModel`): paginated section/group cards (`RootPageSize = 50`) starting cleanly above the fold with inline `ErrorSummaryBanner`.
+- **All sections** (`AllSectionsFieldsList` inside `BoundedConfigureSlot`): built-in `VirtualizingStackPanel` list over `Navigation.AllSectionsFields` inside finite `Grid` `*`-row bounds, editing live `FieldViewModel` controls directly without a separate compact-table view model or `CompactSettingsTableView`.
+- **Document drawer** (`DocumentDrawerOverlay` hosting `DocumentEditorView` / `DocumentEditorViewModel` via `Ctrl+Shift+E`, dismissed with `Escape` without altering `LayoutMode`): generation-fenced canonical JSON/`.env` source view (`DefinitionDocumentSession`) requiring an explicit pre-apply diff preview (`PreviewChanges`) before `ApplyPreview`; background `InputRevision` or definition-pin changes fence stale pending buffers with `"document-stale"`.
 
 The companion metadata-only **Inspector** (`DesktopInspectorView` / `DesktopInspectorViewModel`, toggled via `F2`) displays schema path, wire key, validation constraints, controller dependencies, artifact output bindings, and static guidance links via `DefinitionFormModel.GetFieldMetadata` and `GetEditorPresentation`, while deliberately withholding `AnswerSnapshot` or draft values. Local secret generation offers both quick `GenerateCommand` and modal `SecretGeneratorDialog` (`SecretGeneratorDialogViewModel` backed by `DefinitionSecretGeneratorSession` and `ISecretGeneratorDialogService`) with explicit preview custody and `128`-bit entropy gating.
 

@@ -8,6 +8,13 @@ using Configurator.Core.Definitions;
 using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Presentation;
 
+/// <summary>Single actionable error/required entry displayed inside the inline Desktop ErrorSummary banner.</summary>
+public sealed record DesktopErrorSummaryItem(
+    string Title,
+    string Description,
+    DefinitionDiagnostic Diagnostic,
+    IRelayCommand NavigateCommand);
+
 /// <summary>Owns view selection only. The workspace retains every answer, draft and editor lifetime.</summary>
 public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisposable
 {
@@ -20,8 +27,15 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
     private DesktopSettingsSection? _selectedSettingsSection;
     private readonly ObservableCollection<FieldViewModel> _visibleFields = [];
     private readonly ObservableCollection<FieldViewModel> _ungroupedFields = [];
+    private readonly ObservableCollection<FieldViewModel> _allSectionsFields = [];
+    private DesktopErrorSummaryItem[] _errorSummaryItems = [];
     private DesktopWorkspaceStage _stage;
-    private DesktopConfigureViewMode _configureMode = DesktopConfigureViewMode.Guided;
+    private ConfigureLayoutMode _layoutMode = ConfigureLayoutMode.SectionBySection;
+    private bool _isWideViewport = true;
+    private bool _isNarrowRailOpen;
+    private bool _isDiscoveryOpen;
+    private bool _showErrorSummary;
+    private bool _isDocumentOpen;
     private bool _refreshing;
     private int _pageIndex;
     private string _searchText = string.Empty;
@@ -36,11 +50,14 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
     private bool _disposed;
     private enum DiscoveryFeedback { None, Limit, Inactive, Unavailable }
 
+    public event Action<FieldViewModel>? AllSectionsScrollRequested;
+
     public DesktopNavigationViewModel(FormWorkspaceViewModel workspace)
     {
         _workspace = workspace;
         VisibleFields = new(_visibleFields);
         UngroupedFields = new(_ungroupedFields);
+        AllSectionsFields = new(_allSectionsFields);
         _settingsSections =
         [
             new(DesktopSettingsSectionId.Appearance, workspace.Strings.Read("SettingsAppearanceTitle"), workspace.Strings.Read("SettingsAppearanceDescription")),
@@ -52,6 +69,7 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
         workspace.PropertyChanged += WorkspaceChanged;
         workspace.EditorFocusRequested += Reveal;
         workspace.TransferReviewRequested += ShowTransferReview;
+        workspace.ValidationCompleted += OnWorkspaceValidationCompleted;
         Refresh();
     }
 
@@ -62,12 +80,66 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
         {
             if (_disposed || value is DesktopWorkspaceStage.Configure or DesktopWorkspaceStage.Review && _form is null) return;
             if (!SetProperty(ref _stage, value)) return;
+            if (value is DesktopWorkspaceStage.Open or DesktopWorkspaceStage.Review)
+                _isNarrowRailOpen = false;
             OnPropertyChanged(nameof(IsOpen));
             OnPropertyChanged(nameof(IsConfigure));
             OnPropertyChanged(nameof(IsReview));
             OnPropertyChanged(nameof(IsSettings));
+            OnPropertyChanged(nameof(IsSplitPaneOpen));
+            OnPropertyChanged(nameof(IsOverlayPane));
+            OnPropertyChanged(nameof(SplitPaneOpenLength));
+            OnPropertyChanged(nameof(IsBoundedAllSections));
+            OnPropertyChanged(nameof(ShowRailToggle));
         }
     }
+    public bool IsWideViewport
+    {
+        get => _isWideViewport;
+        set
+        {
+            if (_disposed || !SetProperty(ref _isWideViewport, value)) return;
+            if (value) _isNarrowRailOpen = false;
+            OnPropertyChanged(nameof(IsNarrowViewport));
+            OnPropertyChanged(nameof(IsSplitPaneOpen));
+            OnPropertyChanged(nameof(IsOverlayPane));
+            OnPropertyChanged(nameof(SplitPaneOpenLength));
+            OnPropertyChanged(nameof(ShowRailToggle));
+        }
+    }
+    public bool IsNarrowViewport => !IsWideViewport;
+    public bool IsNarrowRailOpen
+    {
+        get => _isNarrowRailOpen;
+        set
+        {
+            if (_disposed || !SetProperty(ref _isNarrowRailOpen, value)) return;
+            OnPropertyChanged(nameof(IsSplitPaneOpen));
+            OnPropertyChanged(nameof(IsOverlayPane));
+            OnPropertyChanged(nameof(SplitPaneOpenLength));
+        }
+    }
+    public bool IsSplitPaneOpen => (IsConfigure || IsSettings) && (IsWideViewport || IsNarrowRailOpen);
+    public bool IsOverlayPane => !IsWideViewport || (!IsConfigure && !IsSettings);
+    public double SplitPaneOpenLength => IsSplitPaneOpen ? 316 : 0;
+    public bool ShowRailToggle => !IsWideViewport && (IsConfigure || IsSettings);
+    public bool IsDiscoveryOpen
+    {
+        get => _isDiscoveryOpen;
+        private set
+        {
+            if (_disposed || !SetProperty(ref _isDiscoveryOpen, value)) return;
+            OnPropertyChanged(nameof(HasDiscoveryCommands));
+        }
+    }
+    public bool HasErrorSummary => !_disposed && IsConfigure && _showErrorSummary && _errorSummaryItems.Length > 0;
+    public IReadOnlyList<DesktopErrorSummaryItem> ErrorSummaryItems => _errorSummaryItems;
+    public string ErrorSummaryHeading => _errorSummaryItems.Length == 0
+        ? string.Empty
+        : $"{_workspace.Strings.Read("ErrorSummaryTitle")} ({_errorSummaryItems.Length})";
+    public string CompactProgressText => ProgressSummary is { } summary
+        ? $"{summary.ReadyRequired}/{summary.TotalRequired} {(_workspace.Strings.Read("Required"))} · {summary.MissingRequired + summary.InvalidCount}"
+        : string.Empty;
     public bool IsOpen => Stage == DesktopWorkspaceStage.Open;
     public bool IsConfigure => Stage == DesktopWorkspaceStage.Configure;
     public bool IsReview => Stage == DesktopWorkspaceStage.Review;
@@ -100,34 +172,57 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
             if (_disposed || value is null || !_sections.Contains(value) ||
                 !SetProperty(ref _selectedSection, value)) return;
             _pageIndex = 0;
-            if (!_refreshing) _form?.RecordSectionOpened(value.Id);
+            if (_refreshing) return;
+            _form?.RecordSectionOpened(value.Id);
+            if (IsAllSectionsMode && value.Fields.Count > 0)
+                AllSectionsScrollRequested?.Invoke(value.Fields[0]);
             OnPropertyChanged(nameof(HasSectionGroups));
             OnPropertyChanged(nameof(WizardNavigation));
             RefreshPage();
             NotifyWizardCommands();
         }
     }
-    public DesktopConfigureViewMode ConfigureMode
+    public ConfigureLayoutMode LayoutMode
     {
-        get => _configureMode;
+        get => _layoutMode;
         set
         {
-            if (_disposed || !Enum.IsDefined(value) || !SetProperty(ref _configureMode, value)) return;
-            OnPropertyChanged(nameof(IsGuidedMode));
-            OnPropertyChanged(nameof(IsCompactMode));
-            OnPropertyChanged(nameof(IsDocumentMode));
-            OnPropertyChanged(nameof(IsBoundedConfigureMode));
-            _form?.SetWorkspaceLayoutMode(value == DesktopConfigureViewMode.Compact
-                ? WorkspaceLayoutMode.Compact : WorkspaceLayoutMode.Guided);
+            if (_disposed || !Enum.IsDefined(value) || !SetProperty(ref _layoutMode, value)) return;
+            OnPropertyChanged(nameof(IsSectionBySectionMode));
+            OnPropertyChanged(nameof(IsAllSectionsMode));
+            OnPropertyChanged(nameof(IsBoundedAllSections));
+            _form?.SetConfigureLayoutMode(value);
         }
     }
-    public bool IsGuidedMode => ConfigureMode == DesktopConfigureViewMode.Guided;
-    public bool IsCompactMode => ConfigureMode == DesktopConfigureViewMode.Compact;
-    public bool IsDocumentMode => ConfigureMode == DesktopConfigureViewMode.Document;
-    public bool IsBoundedConfigureMode => IsConfigure && ConfigureMode != DesktopConfigureViewMode.Guided;
+
+    public bool IsDocumentOpen
+    {
+        get => _isDocumentOpen;
+        set
+        {
+            if (_disposed || !SetProperty(ref _isDocumentOpen, value)) return;
+            if (value)
+            {
+                Stage = DesktopWorkspaceStage.Configure;
+                _isDiscoveryOpen = false;
+                _isCommandPaletteOpen = false;
+                OnPropertyChanged(nameof(IsDiscoveryOpen));
+                OnPropertyChanged(nameof(IsCommandPaletteOpen));
+                OnPropertyChanged(nameof(HasDiscoveryCommands));
+            }
+            OnPropertyChanged(nameof(IsSectionBySectionMode));
+            OnPropertyChanged(nameof(IsAllSectionsMode));
+            OnPropertyChanged(nameof(IsBoundedAllSections));
+        }
+    }
+
+    public bool IsSectionBySectionMode => LayoutMode == ConfigureLayoutMode.SectionBySection;
+    public bool IsAllSectionsMode => LayoutMode == ConfigureLayoutMode.AllSections;
+    public bool IsBoundedAllSections => IsConfigure && LayoutMode == ConfigureLayoutMode.AllSections;
     public bool HasSectionGroups => SelectedSection?.HasGroups == true;
     public ReadOnlyObservableCollection<FieldViewModel> VisibleFields { get; }
     public ReadOnlyObservableCollection<FieldViewModel> UngroupedFields { get; }
+    public ReadOnlyObservableCollection<FieldViewModel> AllSectionsFields { get; }
     public bool HasUngroupedFields => HasSectionGroups && _ungroupedFields.Count > 0;
     public DefinitionFormProgress? Progress => _form?.Projection.Progress;
     public WorkspaceProgressSummary? ProgressSummary => _form?.Projection.ProgressSummary;
@@ -144,13 +239,19 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
         set
         {
             if (_disposed || !SetProperty(ref _searchText, value ?? string.Empty)) return;
+            if (!string.IsNullOrEmpty(_searchText)) IsDiscoveryOpen = true;
             ApplyDiscovery();
         }
     }
     public bool IncludeInactive
     {
         get => _includeInactive;
-        set { if (!_disposed && SetProperty(ref _includeInactive, value)) ApplyDiscovery(); }
+        set
+        {
+            if (_disposed || !SetProperty(ref _includeInactive, value)) return;
+            if (value) IsDiscoveryOpen = true;
+            ApplyDiscovery();
+        }
     }
     public DefinitionDiscoveryFilter DiscoveryFilter
     {
@@ -158,6 +259,7 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
         set
         {
             if (_disposed || !Enum.IsDefined(value) || !SetProperty(ref _discoveryFilter, value)) return;
+            if (value != DefinitionDiscoveryFilter.All) IsDiscoveryOpen = true;
             OnPropertyChanged(nameof(IsDiscoveryFilterAll));
             OnPropertyChanged(nameof(IsDiscoveryFilterInvalid));
             OnPropertyChanged(nameof(IsDiscoveryFilterMissing));
@@ -177,6 +279,7 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
         set
         {
             if (_disposed || !SetProperty(ref _isCommandPaletteOpen, value)) return;
+            if (value) IsDiscoveryOpen = true;
             OnPropertyChanged(nameof(HasDiscoveryCommands));
         }
     }
@@ -207,17 +310,28 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
     [RelayCommand] private void Configure() => Stage = DesktopWorkspaceStage.Configure;
     [RelayCommand] private void Review() => Stage = DesktopWorkspaceStage.Review;
     [RelayCommand] private void Settings() => Stage = DesktopWorkspaceStage.Settings;
-    [RelayCommand] private void SelectGuidedMode() => ConfigureMode = DesktopConfigureViewMode.Guided;
-    [RelayCommand] private void SelectCompactMode() => ConfigureMode = DesktopConfigureViewMode.Compact;
-    [RelayCommand] private void SelectDocumentMode() => ConfigureMode = DesktopConfigureViewMode.Document;
+    [RelayCommand] private void ToggleNarrowRail() { if (!IsWideViewport) IsNarrowRailOpen = !IsNarrowRailOpen; }
+    [RelayCommand] private void SelectSectionBySectionMode() { IsDocumentOpen = false; LayoutMode = ConfigureLayoutMode.SectionBySection; }
+    [RelayCommand] private void SelectAllSectionsMode() { IsDocumentOpen = false; LayoutMode = ConfigureLayoutMode.AllSections; }
+    [RelayCommand] private void SelectDocumentMode() => IsDocumentOpen = !IsDocumentOpen;
+    [RelayCommand] private void CloseDocumentDrawer() => IsDocumentOpen = false;
     [RelayCommand] private void SetDiscoveryFilter(DefinitionDiscoveryFilter filter) => DiscoveryFilter = filter;
     [RelayCommand] private void ToggleCommandPalette() => IsCommandPaletteOpen = !IsCommandPaletteOpen;
-    [RelayCommand] private void CloseCommandPalette() => IsCommandPaletteOpen = false;
-    public bool FocusInGuided(DefinitionPath path)
+    [RelayCommand] private void CloseCommandPalette() { IsCommandPaletteOpen = false; IsDiscoveryOpen = false; }
+    [RelayCommand] public void OpenDiscovery(bool withCommandPalette = true)
+    {
+        if (_disposed || _form is null) return;
+        Stage = DesktopWorkspaceStage.Configure;
+        IsDocumentOpen = false;
+        if (withCommandPalette) IsCommandPaletteOpen = true;
+        IsDiscoveryOpen = true;
+    }
+    public bool FocusInSectionBySection(DefinitionPath path)
     {
         ArgumentNullException.ThrowIfNull(path);
         if (_disposed || _form is not { } form) return false;
-        ConfigureMode = DesktopConfigureViewMode.Guided;
+        IsDocumentOpen = false;
+        LayoutMode = ConfigureLayoutMode.SectionBySection;
         Stage = DesktopWorkspaceStage.Configure;
         if (!form.FocusEditor(path, preserveDiscovery: true)) return false;
         if (FindEditor(_workspace.Fields, path) is { } target)
@@ -232,16 +346,57 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
     [RelayCommand(CanExecute = nameof(CanAdvanceWizardStep))]
     private void NextStep() => SelectSectionById(WizardNavigation?.NextStepSectionId);
     [RelayCommand(CanExecute = nameof(CanJumpNextError))]
-    private void JumpNextError() => SelectSectionById(WizardNavigation?.NextErrorSectionId);
+    private void JumpNextError() => FocusActionableTarget(errorsOnly: true);
     [RelayCommand(CanExecute = nameof(CanJumpNextRequired))]
-    private void JumpNextRequired() => SelectSectionById(WizardNavigation?.NextRequiredSectionId);
+    private void JumpNextRequired() => FocusActionableTarget(errorsOnly: false);
     [RelayCommand(CanExecute = nameof(CanJumpNextUnvisited))]
-    private void JumpNextUnvisited() => SelectSectionById(WizardNavigation?.NextUnvisitedSectionId);
+    private void JumpNextUnvisited()
+    {
+        string? sectionId = WizardNavigation?.NextUnvisitedSectionId;
+        SelectSectionById(sectionId);
+        if (!string.IsNullOrEmpty(sectionId) &&
+            _sections.FirstOrDefault(s => s.Id == sectionId) is { Fields.Count: > 0 } section)
+        {
+            Reveal(section.Fields[0]);
+            section.Fields[0].RequestFocus();
+        }
+    }
+
+    private bool FocusActionableTarget(bool errorsOnly)
+    {
+        if (_disposed || _form is not { } form) return false;
+        WorkspaceActionableTarget? target = form.ResolveNextActionableTarget(SelectedSection?.Id, errorsOnly);
+        if (target is null)
+        {
+            string? fallbackSection = errorsOnly ? WizardNavigation?.NextErrorSectionId : WizardNavigation?.NextRequiredSectionId;
+            SelectSectionById(fallbackSection);
+            return fallbackSection is not null;
+        }
+        if (FocusPath(target.DefinitionPath))
+        {
+            _showErrorSummary = true;
+            RefreshErrorSummary();
+            return true;
+        }
+        SelectSectionById(target.SectionId);
+        return true;
+    }
+
+    private bool FocusPath(DefinitionPath path)
+    {
+        if (_disposed || _form is not { } form || !form.FocusEditor(path, preserveDiscovery: true))
+            return false;
+        FieldViewModel? target = FindEditor(_workspace.Fields, path);
+        if (target is null) return false;
+        Reveal(target);
+        target.RequestFocus();
+        return true;
+    }
 
     private bool CanMoveBackWizardStep() => !_disposed && WizardNavigation?.CanMoveBackWizardStep == true;
     private bool CanAdvanceWizardStep() => !_disposed && WizardNavigation?.CanAdvanceWizardStep == true;
-    private bool CanJumpNextError() => !_disposed && !string.IsNullOrEmpty(WizardNavigation?.NextErrorSectionId);
-    private bool CanJumpNextRequired() => !_disposed && !string.IsNullOrEmpty(WizardNavigation?.NextRequiredSectionId);
+    private bool CanJumpNextError() => !_disposed && (!string.IsNullOrEmpty(WizardNavigation?.NextErrorSectionId) || _form?.ResolveNextActionableTarget(SelectedSection?.Id, errorsOnly: true) is not null);
+    private bool CanJumpNextRequired() => !_disposed && (!string.IsNullOrEmpty(WizardNavigation?.NextRequiredSectionId) || _form?.ResolveNextActionableTarget(SelectedSection?.Id, errorsOnly: false) is not null);
     private bool CanJumpNextUnvisited() => !_disposed && !string.IsNullOrEmpty(WizardNavigation?.NextUnvisitedSectionId);
 
     private void SelectSectionById(string? sectionId)
@@ -299,7 +454,11 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
                 bool newlyRelevant = status?.HasNewlyRelevantSettings == true;
                 int hiddenOpt = status?.AvailableOptionalCount ?? 0;
                 if (existing is null)
-                    return new(id, title, description, fields, progress, configStatus, coverage, newlyRelevant, hiddenOpt, groups, _workspace.Strings);
+                {
+                    string capturedId = id;
+                    return new(id, title, description, fields, progress, configStatus, coverage, newlyRelevant, hiddenOpt, groups, _workspace.Strings,
+                        reviewed => _form?.SetSectionReviewed(capturedId, reviewed));
+                }
                 existing.Refresh(title, description, fields, progress, configStatus, coverage, newlyRelevant, hiddenOpt, groups, _workspace.Strings);
                 return existing;
             }
@@ -323,11 +482,14 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
             if (replaced)
             {
                 _pageIndex = 0;
-                _configureMode = DesktopConfigureViewMode.Guided;
+                _layoutMode = ConfigureLayoutMode.SectionBySection;
+                _isDocumentOpen = false;
                 _searchText = _form?.DiscoveryQuery ?? string.Empty;
                 _includeInactive = _form?.DiscoverySelection.IncludeInactive ?? false;
                 _discoveryFilter = _form?.DiscoverySelection.Filter ?? DefinitionDiscoveryFilter.All;
                 _isCommandPaletteOpen = false;
+                _isDiscoveryOpen = false;
+                _showErrorSummary = false;
                 _discoveryPageIndex = 0;
                 _discoveryFeedback = DiscoveryFeedback.None;
                 OnPropertyChanged(nameof(SearchText));
@@ -339,12 +501,13 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
                 OnPropertyChanged(nameof(IsDiscoveryFilterModified));
                 OnPropertyChanged(nameof(IsDiscoveryFilterDeferred));
                 OnPropertyChanged(nameof(IsCommandPaletteOpen));
+                OnPropertyChanged(nameof(IsDiscoveryOpen));
                 OnPropertyChanged(nameof(HasDiscoveryCommands));
-                OnPropertyChanged(nameof(ConfigureMode));
-                OnPropertyChanged(nameof(IsGuidedMode));
-                OnPropertyChanged(nameof(IsCompactMode));
-                OnPropertyChanged(nameof(IsDocumentMode));
-                OnPropertyChanged(nameof(IsBoundedConfigureMode));
+                OnPropertyChanged(nameof(LayoutMode));
+                OnPropertyChanged(nameof(IsDocumentOpen));
+                OnPropertyChanged(nameof(IsSectionBySectionMode));
+                OnPropertyChanged(nameof(IsAllSectionsMode));
+                OnPropertyChanged(nameof(IsBoundedAllSections));
                 Stage = _form is null ? DesktopWorkspaceStage.Open : DesktopWorkspaceStage.Configure;
                 if (_form is not null && _selectedSection is not null)
                     _form.RecordSectionOpened(_selectedSection.Id);
@@ -361,11 +524,18 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
             OnPropertyChanged(nameof(HasSectionGroups));
             OnPropertyChanged(nameof(Progress));
             OnPropertyChanged(nameof(ProgressSummary));
+            OnPropertyChanged(nameof(CompactProgressText));
             OnPropertyChanged(nameof(WizardNavigation));
             OnPropertyChanged(nameof(IsWizardMode));
             OnPropertyChanged(nameof(HasWorkspace));
-            OnPropertyChanged(nameof(IsBoundedConfigureMode));
+            OnPropertyChanged(nameof(IsBoundedAllSections));
+            OnPropertyChanged(nameof(IsSplitPaneOpen));
+            OnPropertyChanged(nameof(IsOverlayPane));
+            OnPropertyChanged(nameof(SplitPaneOpenLength));
+            OnPropertyChanged(nameof(ShowRailToggle));
             RefreshPage();
+            RefreshAllSections();
+            RefreshErrorSummary();
             RefreshDiscovery();
             NotifyWizardCommands();
         }
@@ -466,6 +636,8 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
                 _discoveryFeedback = DiscoveryFeedback.Unavailable;
             else
             {
+                IsDiscoveryOpen = false;
+                IsCommandPaletteOpen = false;
                 Reveal(target);
                 target.RequestFocus();
             }
@@ -494,7 +666,8 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
 
     private void ShowTransferReview()
     {
-        ConfigureMode = DesktopConfigureViewMode.Guided;
+        IsDocumentOpen = false;
+        LayoutMode = ConfigureLayoutMode.SectionBySection;
         Stage = DesktopWorkspaceStage.Configure;
     }
 
@@ -504,9 +677,79 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
         DesktopSectionViewModel? section = _sections.FirstOrDefault(item => item.Fields.Contains(root));
         if (section is null) return;
         Stage = DesktopWorkspaceStage.Configure;
+        IsDocumentOpen = false;
         SelectedSection = section;
         _pageIndex = section.Fields.ToList().IndexOf(root) / RootPageSize;
         RefreshPage();
+        if (IsAllSectionsMode)
+            AllSectionsScrollRequested?.Invoke(root);
+    }
+
+    private void RefreshAllSections()
+    {
+        FieldViewModel[] flattened = _sections.SelectMany(section => section.Fields).Distinct().ToArray();
+        FieldProjectionCollection.Synchronize(_allSectionsFields, flattened);
+    }
+
+    private void OnWorkspaceValidationCompleted(bool ready)
+    {
+        _showErrorSummary = !ready;
+        RefreshErrorSummary();
+    }
+
+    private void RefreshErrorSummary()
+    {
+        if (_disposed || _form is null || !_showErrorSummary)
+        {
+            _errorSummaryItems = [];
+            OnPropertyChanged(nameof(ErrorSummaryItems));
+            OnPropertyChanged(nameof(ErrorSummaryHeading));
+            OnPropertyChanged(nameof(HasErrorSummary));
+            return;
+        }
+        DefinitionValidationResult validation = _form.Validate();
+        List<DesktopErrorSummaryItem> items = [];
+        foreach (DefinitionDiagnostic diagnostic in validation.Diagnostics)
+        {
+            FieldViewModel? field = FindFieldForDiagnostic(diagnostic);
+            string title = field?.Title ?? diagnostic.FieldId;
+            string message = field?.ErrorText ?? diagnostic.Code;
+            var captured = diagnostic;
+            items.Add(new DesktopErrorSummaryItem(
+                title,
+                message,
+                captured,
+                new RelayCommand(() =>
+                {
+                    if (captured.Location is { } location)
+                        FocusCorrection(captured.FieldId, location);
+                    else if (_form?.ResolveActionableTarget(captured) is { } actionable)
+                        FocusPath(actionable.DefinitionPath);
+                })));
+            if (items.Count >= 12) break;
+        }
+        _errorSummaryItems = items.ToArray();
+        if (_errorSummaryItems.Length == 0) _showErrorSummary = false;
+        OnPropertyChanged(nameof(ErrorSummaryItems));
+        OnPropertyChanged(nameof(ErrorSummaryHeading));
+        OnPropertyChanged(nameof(HasErrorSummary));
+    }
+
+    private FieldViewModel? FindFieldForDiagnostic(DefinitionDiagnostic diagnostic)
+    {
+        if (_form is null) return null;
+        if (diagnostic.Location is { } location &&
+            _form.TryResolveCorrectionPath(diagnostic.FieldId, location, out DefinitionPath path))
+        {
+            return FindEditor(_workspace.Fields, path)
+                ?? _workspace.Fields.FirstOrDefault(f => string.Equals(f.Id, diagnostic.FieldId, StringComparison.Ordinal));
+        }
+        if (_form.ResolveActionableTarget(diagnostic) is { } actionable)
+        {
+            return FindEditor(_workspace.Fields, actionable.DefinitionPath)
+                ?? _workspace.Fields.FirstOrDefault(f => string.Equals(f.Id, diagnostic.FieldId, StringComparison.Ordinal));
+        }
+        return _workspace.Fields.FirstOrDefault(f => string.Equals(f.Id, diagnostic.FieldId, StringComparison.Ordinal));
     }
 
     public bool FocusCorrection(string fieldId, DefinitionCorrectionLocation location)
@@ -540,10 +783,13 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
         _workspace.PropertyChanged -= WorkspaceChanged;
         _workspace.EditorFocusRequested -= Reveal;
         _workspace.TransferReviewRequested -= ShowTransferReview;
+        _workspace.ValidationCompleted -= OnWorkspaceValidationCompleted;
         _form = null;
         _sections = [];
         _visibleFields.Clear();
         _ungroupedFields.Clear();
+        _allSectionsFields.Clear();
+        _errorSummaryItems = [];
         _selectedSection = null;
         _settingsSections = [];
         _selectedSettingsSection = null;

@@ -6,6 +6,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.ViewModels.Fields;
@@ -14,6 +15,7 @@ public sealed partial class MainWindow : Window
 {
     private bool _allowClose;
     private bool _closed;
+    private DesktopShellViewModel? _attachedShell;
 
     public MainWindow()
     {
@@ -22,10 +24,42 @@ public sealed partial class MainWindow : Window
         AddHandler(InputElement.GotFocusEvent, OnWorkspaceGotFocus, RoutingStrategies.Bubble, handledEventsToo: true);
         Closing += OnClosing;
         Closed += OnClosed;
+        DataContextChanged += (_, _) => BindNavigationViewport();
 #if CONFIGURATOR_NATIVE_IMPORT_PROBE
         Opened += (_, _) => Configurator.Engineering.MeasureNativeImportComparison.Attach(this);
 #endif
     }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if ((change.Property == BoundsProperty || change.Property == WidthProperty) &&
+            DataContext is DesktopShellViewModel shell)
+        {
+            double width = Bounds.Width > 0 ? Bounds.Width : Width;
+            if (!double.IsNaN(width) && width > 0)
+                shell.Navigation.IsWideViewport = width >= 900;
+        }
+    }
+
+    private void BindNavigationViewport()
+    {
+        if (_attachedShell is not null)
+            _attachedShell.Navigation.AllSectionsScrollRequested -= OnAllSectionsScrollRequested;
+        _attachedShell = DataContext as DesktopShellViewModel;
+        if (_attachedShell is null) return;
+        _attachedShell.Navigation.AllSectionsScrollRequested += OnAllSectionsScrollRequested;
+        double width = Bounds.Width > 0 ? Bounds.Width : Width;
+        if (!double.IsNaN(width) && width > 0)
+            _attachedShell.Navigation.IsWideViewport = width >= 900;
+    }
+
+    private void OnAllSectionsScrollRequested(FieldViewModel field) =>
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!_closed)
+                this.FindControl<ListBox>("AllSectionsFieldsList")?.ScrollIntoView(field);
+        });
 
     private void OnWorkspaceGotFocus(object? sender, FocusChangedEventArgs args)
     {
@@ -48,6 +82,33 @@ public sealed partial class MainWindow : Window
             }
             return;
         }
+        if (args.Key == Key.F7 && args.KeyModifiers == KeyModifiers.None)
+        {
+            if (shell.Navigation.JumpNextErrorCommand.CanExecute(null))
+            {
+                shell.Navigation.JumpNextErrorCommand.Execute(null);
+                args.Handled = true;
+            }
+            return;
+        }
+        if (args.Key == Key.F8 && args.KeyModifiers == KeyModifiers.None)
+        {
+            if (shell.Navigation.JumpNextRequiredCommand.CanExecute(null))
+            {
+                shell.Navigation.JumpNextRequiredCommand.Execute(null);
+                args.Handled = true;
+            }
+            return;
+        }
+        if (args.Key == Key.F9 && args.KeyModifiers == KeyModifiers.None)
+        {
+            if (shell.Navigation.JumpNextUnvisitedCommand.CanExecute(null))
+            {
+                shell.Navigation.JumpNextUnvisitedCommand.Execute(null);
+                args.Handled = true;
+            }
+            return;
+        }
         if (args.Key == Key.Escape && args.KeyModifiers == KeyModifiers.None)
         {
             Popup? popup = OpenedPopups.Count > 0 ? OpenedPopups[^1] : null;
@@ -56,9 +117,13 @@ public sealed partial class MainWindow : Window
                 while (popup.OpenedPopups.Count > 0) popup = popup.OpenedPopups[^1];
                 popup.Close();
             }
-            else if (shell.Navigation.IsCommandPaletteOpen)
+            else if (shell.Navigation.IsDiscoveryOpen)
             {
                 shell.Navigation.CloseCommandPaletteCommand.Execute(null);
+            }
+            else if (shell.Navigation.IsDocumentOpen)
+            {
+                shell.Navigation.CloseDocumentDrawerCommand.Execute(null);
             }
             else shell.CancelCommand.Execute(null);
             args.Handled = true;
@@ -123,6 +188,11 @@ public sealed partial class MainWindow : Window
         Closed -= OnClosed;
         RemoveHandler(InputElement.KeyDownEvent, OnUnhandledKeyDown);
         RemoveHandler(InputElement.GotFocusEvent, OnWorkspaceGotFocus);
+        if (_attachedShell is not null)
+        {
+            _attachedShell.Navigation.AllSectionsScrollRequested -= OnAllSectionsScrollRequested;
+            _attachedShell = null;
+        }
         var shell = DataContext as DesktopShellViewModel;
         DataContext = null;
         shell?.Dispose();

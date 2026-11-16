@@ -1,5 +1,6 @@
 namespace Configurator.Desktop.Tests;
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Automation;
@@ -8,6 +9,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Desktop.Views;
@@ -199,6 +201,44 @@ public sealed class DesktopKeyboardAccessibilityTests
             await Assert.That(result.popupClosed).IsTrue();
             await Assert.That(result.retained).IsTrue();
             await Assert.That(result.discarded).IsTrue();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task FieldHeaderUsesSemanticStartStripeAndMinorityRequiredPillWithoutOptionalNoise()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopKeyboardAccessibilityTests));
+        try
+        {
+            var result = await session.Dispatch(() =>
+            {
+                using var shell = DesktopTestContext.Root();
+                shell.Loader.LoadDefinition(DesktopApplicationTests.DefinitionWithExperiences());
+                var window = new MainWindow { DataContext = shell, Width = 1100, Height = 800 };
+                try
+                {
+                    window.Show();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    Border[] fieldRows = window.GetVisualDescendants().OfType<Border>()
+                        .Where(border => border.Classes.Contains("field-row"))
+                        .ToArray();
+                    bool hasStartStripes = fieldRows.Length > 0 &&
+                        fieldRows.All(border => Math.Abs(border.BorderThickness.Left - 3d) < 0.1);
+                    bool anyOptionalNoise = fieldRows.SelectMany(border => border.GetVisualDescendants().OfType<TextBlock>())
+                        .Any(tb => string.Equals(tb.Text, shell.Workspace.Strings["Optional"], StringComparison.Ordinal));
+
+                    return (fieldRowCount: fieldRows.Length, hasStartStripes, anyOptionalNoise);
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+
+            await Assert.That(result.fieldRowCount).IsGreaterThan(0);
+            await Assert.That(result.hasStartStripes).IsTrue();
+            await Assert.That(result.anyOptionalNoise).IsFalse();
         }
         finally { await Task.Run(session.Dispose); }
     }
