@@ -132,6 +132,10 @@
     font-size: .8125rem;
 }
 
+.catalogue__task-pill {
+    display: inline-flex;
+}
+
 .catalogue__details {
     margin-block-start: var(--isl-space-2);
     border-block-start: 1px solid var(--isl-color-border);

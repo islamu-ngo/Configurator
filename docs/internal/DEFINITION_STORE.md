@@ -150,7 +150,11 @@ discovery only before live answer custody. The public projection is
 [definition-store.md](../public/definition-store.md).
 
 In Browser, the `/` catalogue groups candidates by ordinal application identifier
-for navigation only. Canonical family/revision/digest remains the selection identity.
+for navigation only, hides `#catalogue-search` when fewer than four projects exist,
+labels local templates vs directory projects (`data-project-origin`), keeps SHA-256
+digest/family identity collapsed in `<details data-digest-disclosure>`, and pairs
+direct workflow entry (`fresh`, `import`, `profile`) with read-only `/explore/{FamilyId}`
+links. Canonical family/revision/digest remains the selection identity.
 An unambiguous locally available candidate has the primary action; alternatives
 remain in source details. Otherwise only a sole candidate has a primary action.
 Directory configuration awaits `OpenAsync` admission before navigating to a

@@ -3,9 +3,13 @@ namespace Configurator.Browser.Tests;
 using System.Text;
 using System.Text.Json;
 using Bunit;
+using Configurator.Browser.Models;
 using Configurator.Browser.Pages;
+using Configurator.Browser.Services;
 using Configurator.Core.Definitions;
+using Configurator.Presentation.Store;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -289,5 +293,61 @@ public sealed class LaunchRouteTests
             await Assert.That(component.Find("details[data-import-panel]").HasAttribute("open")).IsFalse();
             await Assert.That(component.Find("details[data-profile-panel]").HasAttribute("open")).IsFalse();
         }
+    }
+
+    [Test]
+    public async Task CatalogueHidesFilterBarBelowFourProjectsAndKeepsDigestDetailsCollapsed()
+    {
+        var bundled = BrowserDefinitionRegistry.LoadBundled();
+        await using var fewContext = BrowserFixture.Context(bundled);
+        var fewProvider = TestDefinitionStoreProvider.FromIndex([]);
+        fewContext.Services.AddSingleton<IDefinitionStoreProvider>(fewProvider);
+        var fewCatalogue = fewContext.Render<Catalogue>();
+
+        await Assert.That(fewCatalogue.FindAll("article").Count).IsLessThan(4);
+        await Assert.That(fewCatalogue.FindAll("#catalogue-search")).IsEmpty();
+        await Assert.That(fewCatalogue.FindAll("[data-digest-disclosure]").Count).IsGreaterThan(0);
+        await Assert.That(fewCatalogue.FindAll("[data-digest-disclosure]").All(details => !details.HasAttribute("open"))).IsTrue();
+        await Assert.That(fewCatalogue.FindAll("[data-project-origin='built-in']").Count).IsGreaterThan(0);
+
+        Definition[] many =
+        [
+            BrowserFixture.Definition,
+            BrowserDefinitionStoreTests.WithIdentity(BrowserFixture.Definition, Guid.Parse("11111111-1111-4111-8111-111111111101"), "publisher.example.one", 1),
+            BrowserDefinitionStoreTests.WithIdentity(BrowserFixture.Definition, Guid.Parse("11111111-1111-4111-8111-111111111102"), "publisher.example.two", 1),
+            BrowserDefinitionStoreTests.WithIdentity(BrowserFixture.Definition, Guid.Parse("11111111-1111-4111-8111-111111111103"), "publisher.example.three", 1)
+        ];
+        DefinitionStoreProject[] projects =
+        [
+            BrowserDefinitionStoreTests.CreateProject("one", "Project One", many[1]),
+            BrowserDefinitionStoreTests.CreateProject("two", "Project Two", many[2]),
+            BrowserDefinitionStoreTests.CreateProject("three", "Project Three", many[3])
+        ];
+        await using var manyContext = BrowserFixture.Context(new BrowserDefinitionRegistry([many[0]]));
+        manyContext.Services.AddSingleton<IDefinitionStoreProvider>(
+            TestDefinitionStoreProvider.FromIndex(projects, ("one", 1, many[1]), ("two", 1, many[2]), ("three", 1, many[3])));
+        var manyCatalogue = manyContext.Render<Catalogue>();
+        await Assert.That(manyCatalogue.FindAll("article").Count).IsEqualTo(4);
+        await Assert.That(manyCatalogue.FindAll("#catalogue-search").Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task OpenAdmissionShowsPlainLanguageTaskCardsAndCollapsedDigestDisclosure()
+    {
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
+        await using var policy = new BrowserOfflinePolicy(context.JSInterop.JSRuntime);
+        context.Services.AddSingleton(policy);
+        var page = context.Render<Configurator.Browser.Pages.Open>();
+        var input = page.FindComponent<InputFile>();
+        await page.InvokeAsync(() => input.UploadFiles(
+            InputFileContent.CreateFromBinary(BrowserFixture.Definition.CanonicalBytes.ToArray(), "synthetic-open.json")));
+
+        var digestDetails = page.Find("[data-digest-disclosure]");
+        await Assert.That(digestDetails.HasAttribute("open")).IsFalse();
+        await Assert.That(digestDetails.TextContent).Contains(BrowserFixture.Definition.Digest.Value);
+        await Assert.That(page.FindAll("[data-task-card='fresh']").Count).IsEqualTo(1);
+        await Assert.That(page.FindAll("[data-task-card='import']").Count).IsEqualTo(1);
+        await Assert.That(page.FindAll("[data-task-card='profile']").Count).IsEqualTo(1);
+        await Assert.That(page.Find("[data-action='open-workspace']")).IsNotNull();
     }
 }

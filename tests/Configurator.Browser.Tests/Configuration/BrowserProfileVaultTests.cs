@@ -207,6 +207,38 @@ public sealed partial class BrowserProfileVaultTests
     [Test]
     [Arguments("en")]
     [Arguments("ar")]
+    public async Task VaultDisplaysSequentialStepsCollapsedCryptoDetailsAndPassphraseToggle(string locale)
+    {
+        await using var context = BrowserFixture.Context();
+        using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        form.SelectLocale(locale);
+        ProfileWorkerAuthority Authority() => new(Guid.Parse(BrowserFixture.Family), 1, form.InputRevision, 1, true);
+        var panel = context.Render<ConfigurationVaultPanel>(parameters => parameters
+            .Add(item => item.Form, form).Add(item => item.Ready, true).Add(item => item.Open, true).Add(item => item.CaptureAuthority, Authority));
+
+        var steps = panel.Find("[data-vault-steps]");
+        await Assert.That(steps.QuerySelectorAll("li").Length).IsEqualTo(3);
+        var cryptoDetails = panel.Find("[data-vault-crypto-details]");
+        await Assert.That(cryptoDetails.HasAttribute("open")).IsFalse();
+        await Assert.That(cryptoDetails.TextContent).Contains("JWE");
+
+        var passphraseInput = panel.Find("#profile-open-passphrase");
+        var toggle = panel.Find("[data-passphrase-toggle='profile-open-passphrase']");
+        await Assert.That(passphraseInput.GetAttribute("type")).IsEqualTo("password");
+        await Assert.That(toggle.GetAttribute("aria-pressed")).IsEqualTo("false");
+
+        await toggle.ClickAsync(new MouseEventArgs());
+        await Assert.That(panel.Find("#profile-open-passphrase").GetAttribute("type")).IsEqualTo("text");
+        await Assert.That(panel.Find("[data-passphrase-toggle='profile-open-passphrase']").GetAttribute("aria-pressed")).IsEqualTo("true");
+
+        await panel.InvokeAsync(() => form.SetValue(DefinitionPath.Parse("/endpoint"), JsonSerializer.SerializeToElement("changed")));
+        await Assert.That(panel.Find("#profile-open-passphrase").GetAttribute("type")).IsEqualTo("password");
+        await Assert.That(panel.Find("[data-passphrase-toggle='profile-open-passphrase']").GetAttribute("aria-pressed")).IsEqualTo("false");
+    }
+
+    [Test]
+    [Arguments("en")]
+    [Arguments("ar")]
     public async Task RetainedFieldExplainsProfileCustodyInsteadOfRequestingAlreadyGrantedConsent(string locale)
     {
         await using var context = BrowserFixture.Context();

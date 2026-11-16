@@ -50,7 +50,6 @@
         <AppButton Variant="Variant.Outlined" data-action="reveal-file" aria-expanded="@Revealed.ToString().ToLowerInvariant()"
                    OnClick="InvokeRevealAsync">@Format(Revealed ? "HideArtifact" : "RevealArtifact", Metadata.FileName)</AppButton>
     </div>
-    <p class="form-help configuration-files__download-custody" data-download-custody-note>@Text("FilesDownloadCustodyNote")</p>
     @if (StatusKey is not null)
     {
         <p role="status" class="notice configuration-files__status" data-file-status="@StatusCode">

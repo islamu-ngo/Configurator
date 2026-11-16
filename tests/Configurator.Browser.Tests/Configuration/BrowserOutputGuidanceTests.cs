@@ -304,6 +304,22 @@ public sealed class BrowserOutputGuidanceTests
         await Assert.That(component.FindAll("[data-files-invalidated]").Count).IsEqualTo(1);
     }
 
+    [Test]
+    public async Task MultiArtifactBundleDeduplicatesDownloadCustodyNoticeToOncePerFilesPanel()
+    {
+        var registry = BrowserDefinitionRegistry.LoadBundled();
+        Definition neutral = registry.Current.Resolve(Guid.Parse("4d8950ad-972c-4357-8605-7a7c89c05a17"));
+        await using var context = BrowserFixture.Context(registry);
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, neutral));
+
+        await BrowserFixture.NotifyChoiceAsync(component, "service.mode", "extended");
+        await BrowserFixture.PrepareAsync(component, draft: true);
+
+        await Assert.That(component.FindAll("[data-prepared-file]").Count).IsEqualTo(3);
+        await Assert.That(component.FindAll("[data-custody-disclosure]").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-download-custody-note]").Count).IsEqualTo(1);
+    }
+
     internal static Definition Definition() => DefinitionSourceCodec.ParseJson(Encoding.UTF8.GetBytes("""
         {
           "$schema":"urn:islamu:configurator:authoring:v0.0.1",

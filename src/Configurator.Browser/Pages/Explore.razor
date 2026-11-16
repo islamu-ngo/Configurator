@@ -43,26 +43,75 @@
                 </div>
             </header>
 
-            <dl class="explore-page__identity">
-                <dt>@T("Publisher")</dt><dd><bdi>@_definition.Publisher</bdi></dd>
-                <dt>@T("ApplicationId")</dt><dd><bdi dir="ltr">@_definition.ApplicationId</bdi></dd>
-                <dt>@T("Family")</dt><dd><bdi dir="ltr">@_definition.FamilyId.ToString("D")</bdi></dd>
-                <dt>@T("Revision")</dt><dd><bdi dir="ltr">@_definition.Revision</bdi></dd>
-                <dt>@T("Digest")</dt><dd><code dir="ltr">@_definition.Digest.Value</code></dd>
-                <dt>@T("ApplicationVersions")</dt><dd><bdi dir="ltr">@string.Join(", ", _definition.ApplicationVersions)</bdi></dd>
-                <dt>@T("Locales")</dt><dd><bdi dir="ltr">@string.Join(", ", _definition.Locales)</bdi></dd>
-                @if (_storeProject is not null)
-                {
-                    <dt>@T("License")</dt><dd><bdi dir="ltr">@_storeProject.License</bdi></dd>
-                    <dt>@T("SourceRepository")</dt><dd><a href="@_storeProject.SourceRepository" target="_blank" rel="noopener noreferrer"><bdi dir="ltr">@_storeProject.SourceRepository</bdi></a></dd>
-                }
-            </dl>
+            <details class="explore-page__details" data-digest-disclosure>
+                <summary>@T("SourceDetails")</summary>
+                <dl class="explore-page__identity">
+                    <dt>@T("Publisher")</dt><dd><bdi>@_definition.Publisher</bdi></dd>
+                    <dt>@T("ApplicationId")</dt><dd><bdi dir="ltr">@_definition.ApplicationId</bdi></dd>
+                    <dt>@T("Family")</dt><dd><bdi dir="ltr">@_definition.FamilyId.ToString("D")</bdi></dd>
+                    <dt>@T("Revision")</dt><dd><bdi dir="ltr">@_definition.Revision</bdi></dd>
+                    <dt>@T("Digest")</dt><dd><code dir="ltr">@_definition.Digest.Value</code></dd>
+                    <dt>@T("ApplicationVersions")</dt><dd><bdi dir="ltr">@string.Join(", ", _definition.ApplicationVersions)</bdi></dd>
+                    <dt>@T("Locales")</dt><dd><bdi dir="ltr">@string.Join(", ", _definition.Locales)</bdi></dd>
+                    @if (_storeProject is not null)
+                    {
+                        <dt>@T("License")</dt><dd><bdi dir="ltr">@_storeProject.License</bdi></dd>
+                        <dt>@T("SourceRepository")</dt><dd><a href="@_storeProject.SourceRepository" target="_blank" rel="noopener noreferrer"><bdi dir="ltr">@_storeProject.SourceRepository</bdi></a></dd>
+                    }
+                </dl>
+            </details>
 
+            @{
+                IReadOnlyList<ExploreSectionGroup> filteredGroups = BuildFilteredSections(_definition);
+            }
             <section class="explore-page__section-list" aria-labelledby="explore-sections-heading">
                 <h2 id="explore-sections-heading">@T("ExploreSectionsHeading")</h2>
-                @foreach (ExploreSectionGroup sectionGroup in BuildSections(_definition))
+                <div class="explore-page__controls">
+                    <div class="explore-page__filter-input">
+                        <label for="explore-filter">@T("ExploreFilterLabel")</label>
+                        <input id="explore-filter" class="form-control" type="search" maxlength="128"
+                               placeholder="@T("ExploreFilterPlaceholder")"
+                               @bind="_filterQuery" @bind:event="oninput" />
+                    </div>
+                    <div class="explore-page__requirement-filters" role="group" aria-label="@T("ExploreFilterLabel")">
+                        <button type="button" class="button button--secondary explore-page__filter-chip"
+                                data-explore-requirement="all"
+                                aria-pressed="@(_requirementFilter == "all" ? "true" : "false")"
+                                @onclick='() => _requirementFilter = "all"'>@T("ExploreRequirementAll")</button>
+                        <button type="button" class="button button--secondary explore-page__filter-chip"
+                                data-explore-requirement="required"
+                                aria-pressed="@(_requirementFilter == "required" ? "true" : "false")"
+                                @onclick='() => _requirementFilter = "required"'>@T("Required")</button>
+                        <button type="button" class="button button--secondary explore-page__filter-chip"
+                                data-explore-requirement="secret"
+                                aria-pressed="@(_requirementFilter == "secret" ? "true" : "false")"
+                                @onclick='() => _requirementFilter = "secret"'>@T("DiscoveryOption_secret")</button>
+                    </div>
+                </div>
+                @if (filteredGroups.Count > 0)
                 {
-                    <section class="explore-page__section" data-explore-section="@sectionGroup.Id" @key="sectionGroup.Id">
+                    <nav class="explore-page__outline" data-explore-outline aria-label="@T("ExploreSectionsOutline")">
+                        @foreach (ExploreSectionGroup sectionGroup in filteredGroups)
+                        {
+                            <a class="explore-page__jump" data-explore-jump="@sectionGroup.Id"
+                               href="@($"#explore-sec-{sectionGroup.Id}")">
+                                <bdi>@sectionGroup.Title</bdi>
+                                <span dir="ltr">(@sectionGroup.Fields.Count)</span>
+                            </a>
+                        }
+                    </nav>
+                }
+                else
+                {
+                    <div class="explore-page__empty" data-explore-empty role="status">
+                        <p>@T("ExploreNoMatches")</p>
+                        <button type="button" class="button button--secondary" data-action="clear-explore-filter"
+                                @onclick="ClearFilter">@T("ResetFiltersAction")</button>
+                    </div>
+                }
+                @foreach (ExploreSectionGroup sectionGroup in filteredGroups)
+                {
+                    <section id="@($"explore-sec-{sectionGroup.Id}")" class="explore-page__section" data-explore-section="@sectionGroup.Id" @key="sectionGroup.Id">
                         <h3>@sectionGroup.Title</h3>
                         @if (!string.IsNullOrWhiteSpace(sectionGroup.Description))
                         {
@@ -75,8 +124,14 @@
                                     <div class="explore-page__field-top">
                                         <strong>@field.DisplayTitle</strong>
                                         <code dir="ltr">@field.Name</code>
-                                        <span class="explore-page__badge">@T(field.Required ? "Required" : "Optional")</span>
-                                        <span class="explore-page__badge">@SensitivityLabel(field.Sensitivity)</span>
+                                        @if (field.Required)
+                                        {
+                                            <span class="explore-page__badge explore-page__badge--required">@T("Required")</span>
+                                        }
+                                        @if (field.Sensitivity != FieldSensitivity.Public)
+                                        {
+                                            <span class="explore-page__badge">@SensitivityLabel(field.Sensitivity)</span>
+                                        }
                                         @if (!string.IsNullOrWhiteSpace(field.PresentationMetadata.Units))
                                         {
                                             <span class="explore-page__badge">@field.PresentationMetadata.Units</span>
@@ -145,6 +200,8 @@
     private DefinitionStoreProject? _storeProject;
     private bool _loading;
     private bool _disposed;
+    private string _filterQuery = string.Empty;
+    private string _requirementFilter = "all";
     private CancellationTokenSource _lifetime = new();
     private (string FamilyId, long? Revision, string? Digest)? _loadedKey;
 
@@ -153,6 +210,8 @@
         var key = (FamilyId, RequestedRevision, RequestedDigest);
         if (_loadedKey == key) return;
         _loadedKey = key;
+        _filterQuery = string.Empty;
+        _requirementFilter = "all";
 
         _lifetime.Cancel();
         _lifetime.Dispose();
@@ -231,6 +290,44 @@
             groups.Add(new ExploreSectionGroup("other", definition.Title, null, remaining));
 
         return groups;
+    }
+
+    private IReadOnlyList<ExploreSectionGroup> BuildFilteredSections(Definition definition)
+    {
+        IReadOnlyList<ExploreSectionGroup> all = BuildSections(definition);
+        string query = _filterQuery.Trim();
+        bool hasQuery = query.Length > 0;
+        if (!hasQuery && _requirementFilter == "all")
+            return all;
+
+        var filtered = new List<ExploreSectionGroup>(all.Count);
+        foreach (ExploreSectionGroup group in all)
+        {
+            FieldDefinition[] matching = group.Fields.Where(field => MatchesField(group, field, query)).ToArray();
+            if (matching.Length > 0)
+                filtered.Add(group with { Fields = matching });
+        }
+        return filtered;
+    }
+
+    private bool MatchesField(ExploreSectionGroup group, FieldDefinition field, string query)
+    {
+        if (_requirementFilter == "required" && !field.Required) return false;
+        if (_requirementFilter == "secret" && field.Sensitivity == FieldSensitivity.Public) return false;
+        if (query.Length == 0) return true;
+        return field.DisplayTitle.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || field.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || group.Title.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || (!string.IsNullOrWhiteSpace(field.Help) && field.Help.Contains(query, StringComparison.OrdinalIgnoreCase))
+            || field.OptionMetadata.Any(choice =>
+                choice.DisplayLabel.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || choice.WireToken.Contains(query, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void ClearFilter()
+    {
+        _filterQuery = string.Empty;
+        _requirementFilter = "all";
     }
 
     private string SensitivityLabel(FieldSensitivity sensitivity) => sensitivity switch

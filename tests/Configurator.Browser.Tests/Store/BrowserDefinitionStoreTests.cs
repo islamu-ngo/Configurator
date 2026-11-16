@@ -240,6 +240,38 @@ public sealed class BrowserDefinitionStoreTests
         await Assert.That(emptyRegistry.Current.Definitions).IsEmpty();
     }
 
+    [Test]
+    public async Task ExploreSupportsLiveFilterRequirementFilterSectionOutlineAndReset()
+    {
+        var registry = BrowserDefinitionRegistry.LoadBundled();
+        Definition neutral = registry.Current.Resolve(Guid.Parse("4d8950ad-972c-4357-8605-7a7c89c05a17"));
+        await using var context = BrowserFixture.Context(registry);
+
+        var component = context.Render<Pages.Explore>(parameters => parameters.Add(page => page.FamilyId, neutral.FamilyId.ToString("D")));
+
+        int initialFields = component.FindAll("[data-explore-field]").Count;
+        await Assert.That(initialFields).IsGreaterThan(1);
+        await Assert.That(component.FindAll("[data-explore-outline] [data-explore-jump]").Count).IsEqualTo(component.FindAll("[data-explore-section]").Count);
+        await Assert.That(component.FindAll("[data-explore-field] .explore-page__badge").All(badge => !string.Equals(badge.TextContent, "Optional", StringComparison.Ordinal))).IsTrue();
+
+        await component.Find("[data-explore-requirement='required']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        int requiredFields = component.FindAll("[data-explore-field]").Count;
+        await Assert.That(requiredFields).IsGreaterThan(0);
+        await Assert.That(requiredFields).IsLessThan(initialFields);
+
+        await component.Find("[data-explore-requirement='all']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await component.Find("#explore-filter").InputAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "metrics" });
+        await Assert.That(component.FindAll("[data-explore-field]").Count).IsLessThan(initialFields);
+        await Assert.That(component.FindAll("[data-explore-field]").All(row => row.TextContent.Contains("metrics", StringComparison.OrdinalIgnoreCase))).IsTrue();
+
+        await component.Find("#explore-filter").InputAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "zz-nonexistent-setting" });
+        await Assert.That(component.FindAll("[data-explore-field]")).IsEmpty();
+        await Assert.That(component.FindAll("[data-explore-empty]").Count).IsEqualTo(1);
+
+        await component.Find("[data-action='clear-explore-filter']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await Assert.That(component.FindAll("[data-explore-field]").Count).IsEqualTo(initialFields);
+    }
+
     internal static DefinitionStoreProject CreateProject(
         string projectId,
         string name,

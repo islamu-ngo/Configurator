@@ -14,18 +14,23 @@
         <p class="lede">@T("CatalogueIntro")</p>
     </header>
     <div class="catalogue__controls">
-        <div class="catalogue__search">
-            <label for="catalogue-search">@T("ProjectSearch")</label>
-            <input class="form-control" id="catalogue-search" type="search" maxlength="256"
-                   placeholder="@T("ProjectSearch")"
-                   @bind="_query" @bind:event="oninput" />
-        </div>
+        @if (_groups.Count >= 4)
+        {
+            <div class="catalogue__search">
+                <label for="catalogue-search">@T("ProjectSearch")</label>
+                <input class="form-control" id="catalogue-search" type="search" maxlength="256"
+                       placeholder="@T("ProjectSearch")"
+                       @bind="_query" @bind:event="oninput" />
+            </div>
+        }
         <p class="catalogue__count" role="status"><span class="catalogue__count-num">@Visible.Count()</span> @T("ProjectCount")</p>
     </div>
     <div class="catalogue__definitions">
         @foreach (CatalogueProject project in Visible)
         {
-            <article class="catalogue__definition" @key="project.ApplicationId" data-project="@ProjectIdentifier(project)">
+            <article class="catalogue__definition" @key="project.ApplicationId"
+                     data-project="@ProjectIdentifier(project)"
+                     data-project-origin="@(project.Primary?.Local is not null ? "built-in" : "directory")">
                 <div class="catalogue__definition-header">
                     <h2><bdi>@project.Title</bdi></h2>
                     @if (project.Primary is { Local: { } local })
@@ -51,18 +56,30 @@
                 <div class="catalogue__card-actions">
                     @if (project.Primary is { Local: { } localAction })
                     {
-                        <AppButton Href="@($"launch/{localAction.FamilyId:D}?digest={localAction.Digest.Value}")"
-                                   aria-label="@string.Format(System.Globalization.CultureInfo.GetCultureInfo(Culture.Locale), T("ConfigureProject"), localAction.Title)">@T("Configure")</AppButton>
-                        <AppButton Variant="Variant.Outlined" data-catalogue-entry="import"
-                                   OnClick='() => OpenLocal(localAction, "import")'>@T("UseExistingConfigurationEntry")</AppButton>
-                        <AppButton Variant="Variant.Outlined" data-catalogue-entry="profile"
-                                   OnClick='() => OpenLocal(localAction, "profile")'>@T("OpenSavedProfileEntry")</AppButton>
+                        <div class="catalogue__task-pill" data-task-card="fresh">
+                            <AppButton Href="@($"launch/{localAction.FamilyId:D}?digest={localAction.Digest.Value}")"
+                                       aria-label="@string.Format(System.Globalization.CultureInfo.GetCultureInfo(Culture.Locale), T("ConfigureProject"), localAction.Title)">@T("Configure")</AppButton>
+                        </div>
+                        <div class="catalogue__task-pill" data-task-card="import">
+                            <AppButton Variant="Variant.Outlined" data-catalogue-entry="import"
+                                       OnClick='() => OpenLocal(localAction, "import")'>@T("UseExistingConfigurationEntry")</AppButton>
+                        </div>
+                        <div class="catalogue__task-pill" data-task-card="profile">
+                            <AppButton Variant="Variant.Outlined" data-catalogue-entry="profile"
+                                       OnClick='() => OpenLocal(localAction, "profile")'>@T("OpenSavedProfileEntry")</AppButton>
+                        </div>
                     }
                     else if (project.Primary is { } directory)
                     {
-                        <AppButton data-action="open-directory" OnClick='() => OpenDirectoryAsync(directory, "fresh")' Disabled="@_opening">@T(_opening ? "CheckingSnapshot" : "Configure")</AppButton>
-                        <AppButton Variant="Variant.Outlined" data-catalogue-entry="import" OnClick='() => OpenDirectoryAsync(directory, "import")' Disabled="@_opening">@T("UseExistingConfigurationEntry")</AppButton>
-                        <AppButton Variant="Variant.Outlined" data-catalogue-entry="profile" OnClick='() => OpenDirectoryAsync(directory, "profile")' Disabled="@_opening">@T("OpenSavedProfileEntry")</AppButton>
+                        <div class="catalogue__task-pill" data-task-card="fresh">
+                            <AppButton data-action="open-directory" OnClick='() => OpenDirectoryAsync(directory, "fresh")' Disabled="@_opening">@T(_opening ? "CheckingSnapshot" : "Configure")</AppButton>
+                        </div>
+                        <div class="catalogue__task-pill" data-task-card="import">
+                            <AppButton Variant="Variant.Outlined" data-catalogue-entry="import" OnClick='() => OpenDirectoryAsync(directory, "import")' Disabled="@_opening">@T("UseExistingConfigurationEntry")</AppButton>
+                        </div>
+                        <div class="catalogue__task-pill" data-task-card="profile">
+                            <AppButton Variant="Variant.Outlined" data-catalogue-entry="profile" OnClick='() => OpenDirectoryAsync(directory, "profile")' Disabled="@_opening">@T("OpenSavedProfileEntry")</AppButton>
+                        </div>
                     }
                     @if ((project.Primary ?? project.Choices.FirstOrDefault()) is { } exploreChoice)
                     {
@@ -70,7 +87,7 @@
                            href="@($"explore/{exploreChoice.Family:D}?revision={exploreChoice.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)}&digest={exploreChoice.Digest}")">@T("ExploreDefinitionAction")</a>
                     }
                 </div>
-                <details class="catalogue__details" open="@(project.Primary is null)">
+                <details class="catalogue__details" data-digest-disclosure>
                     <summary class="catalogue__summary"><span class="catalogue__summary-chevron" aria-hidden="true"></span>@T("SourceDetails")</summary>
                     <p class="catalogue__trust-note">@T("TrustBoundary")</p>
                     @foreach (CatalogueDefinition choice in project.Choices)

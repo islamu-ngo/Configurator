@@ -44,12 +44,28 @@ public sealed class BrowserStoreIndependenceTests
             Description = "<script>alert(1)</script>Public metadata",
             Tags = ["identity", "directory"]
         };
+        Definition extra1 = BrowserDefinitionStoreTests.WithIdentity(
+            BrowserFixture.Definition, Guid.Parse("11111111-1111-4111-8111-222222222201"), "publisher.example.alpha", 1);
+        Definition extra2 = BrowserDefinitionStoreTests.WithIdentity(
+            BrowserFixture.Definition, Guid.Parse("11111111-1111-4111-8111-222222222202"), "publisher.example.beta", 1);
+        Definition extra3 = BrowserDefinitionStoreTests.WithIdentity(
+            BrowserFixture.Definition, Guid.Parse("11111111-1111-4111-8111-222222222203"), "publisher.example.gamma", 1);
         context.Services.AddSingleton<IDefinitionStoreProvider>(
-            TestDefinitionStoreProvider.FromIndex([demo], ("demo", BrowserFixture.Definition.Revision, BrowserFixture.Definition)));
+            TestDefinitionStoreProvider.FromIndex(
+                [
+                    demo,
+                    BrowserDefinitionStoreTests.CreateProject("alpha", "Alpha Service", extra1),
+                    BrowserDefinitionStoreTests.CreateProject("beta", "Beta Service", extra2),
+                    BrowserDefinitionStoreTests.CreateProject("gamma", "Gamma Service", extra3)
+                ],
+                ("demo", BrowserFixture.Definition.Revision, BrowserFixture.Definition),
+                ("alpha", 1, extra1),
+                ("beta", 1, extra2),
+                ("gamma", 1, extra3)));
 
         var component = context.Render<Pages.Catalogue>();
-        await Assert.That(component.FindAll("article")).Count().IsEqualTo(1);
-        await Assert.That(component.Find("article").TextContent).Contains("Demo Portal");
+        await Assert.That(component.FindAll("article")).Count().IsEqualTo(4);
+        await Assert.That(component.FindAll("article").Count(card => card.TextContent.Contains("Demo Portal", StringComparison.Ordinal))).IsEqualTo(1);
         await Assert.That(component.FindAll("script")).IsEmpty();
 
         await component.Find("#catalogue-search").InputAsync(new ChangeEventArgs { Value = "Demo Portal" });
@@ -61,7 +77,7 @@ public sealed class BrowserStoreIndependenceTests
         await component.Find("#catalogue-search").InputAsync(new ChangeEventArgs { Value = "nomatch" });
         await Assert.That(component.FindAll("article")).IsEmpty();
         await component.Find("#catalogue-search").InputAsync(new ChangeEventArgs { Value = "" });
-        await Assert.That(component.FindAll("article")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("article")).Count().IsEqualTo(4);
     }
 
     [Test]

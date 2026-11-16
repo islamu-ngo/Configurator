@@ -6,9 +6,17 @@
 <details class="configuration-vault" data-profile-panel data-operation-phase="private-profile" open="@Open">
     <summary>@Text("ProfileTitle")</summary>
     <h3 id="profile-vault-heading" @ref="_heading" tabindex="-1">@Text("ProfileTitle")</h3>
-    <p>@Text("ProfileLocalOnly")</p>
-    <p>@Text("ProfileAlgorithm") <bdi dir="ltr">JWE · A256GCM · PBES2-HS512+A256KW · 600000</bdi></p>
-    <p>@Text("ProfileNoRecoveryBackdoor")</p>
+    <ol class="configuration-vault__steps" data-vault-steps aria-label="@Text("VaultSequenceIntro")">
+        <li>@Text("VaultStep1LockUnlock")</li>
+        <li>@Text("VaultStep2ReviewDiff")</li>
+        <li>@Text("VaultStep3DownloadCopy")</li>
+    </ol>
+    <details class="configuration-vault__crypto" data-vault-crypto-details>
+        <summary>@Text("VaultCryptoDetails")</summary>
+        <p>@Text("ProfileLocalOnly")</p>
+        <p>@Text("ProfileAlgorithm") <bdi dir="ltr">JWE · A256GCM · PBES2-HS512+A256KW · 600000</bdi></p>
+        <p>@Text("ProfileNoRecoveryBackdoor")</p>
+    </details>
     <p role="status" aria-live="polite" data-profile-status="@_status">
         @Text(_status) @if (_code is not null) { <bdi dir="ltr">@_code</bdi> }
     </p>
@@ -45,8 +53,16 @@
                    disabled="@(Form.BrowserProfile is not null)" aria-describedby="profile-open-help"
                    OnChange="args => { if (Current(rendered) && !Busy && Consented) _vaultFile = args.File; }" />
         <label for="profile-open-passphrase">@Text("ProfilePassphrase")</label>
-        <input id="profile-open-passphrase" class="form-control" type="password" autocomplete="off" maxlength="1024"
-               value="@_passphrase" @oninput='args => SetCredential(rendered, "open", args)' />
+        <div class="configuration-vault__secret-row">
+            <input id="profile-open-passphrase" class="form-control" type="@(IsPassphraseVisible("open") ? "text" : "password")" autocomplete="off" maxlength="1024"
+                   value="@_passphrase" @oninput='args => SetCredential(rendered, "open", args)' />
+            <button type="button" class="button button--secondary configuration-vault__toggle"
+                    data-passphrase-toggle="profile-open-passphrase"
+                    aria-controls="profile-open-passphrase"
+                    aria-pressed="@IsPassphraseVisible("open").ToString().ToLowerInvariant()"
+                    aria-label="@Format("TogglePassphraseVisibility", Text("ProfilePassphrase"))"
+                    @onclick='() => TogglePassphraseVisibility("open")'>@Text(IsPassphraseVisible("open") ? "HidePassphrase" : "ShowPassphrase")</button>
+        </div>
         <label for="profile-recipient">@Text("ProfileRecipientIndex")</label>
         <input id="profile-recipient" class="form-control" type="number" min="0" max="7" value="@_recipientIndex"
                @onchange="args => SetRecipient(rendered, args, false)" aria-describedby="profile-recipient-help" />
@@ -138,11 +154,27 @@
             </select>
         }
         <label for="profile-new-passphrase">@Text("ProfileNewPassphrase")</label>
-        <input id="profile-new-passphrase" class="form-control" type="password" autocomplete="new-password" maxlength="1024"
-               aria-describedby="profile-save-help" value="@_newPassphrase" @oninput='args => SetCredential(rendered, "new", args)' />
+        <div class="configuration-vault__secret-row">
+            <input id="profile-new-passphrase" class="form-control" type="@(IsPassphraseVisible("new") ? "text" : "password")" autocomplete="new-password" maxlength="1024"
+                   aria-describedby="profile-save-help" value="@_newPassphrase" @oninput='args => SetCredential(rendered, "new", args)' />
+            <button type="button" class="button button--secondary configuration-vault__toggle"
+                    data-passphrase-toggle="profile-new-passphrase"
+                    aria-controls="profile-new-passphrase"
+                    aria-pressed="@IsPassphraseVisible("new").ToString().ToLowerInvariant()"
+                    aria-label="@Format("TogglePassphraseVisibility", Text("ProfileNewPassphrase"))"
+                    @onclick='() => TogglePassphraseVisibility("new")'>@Text(IsPassphraseVisible("new") ? "HidePassphrase" : "ShowPassphrase")</button>
+        </div>
         <label for="profile-confirm-passphrase">@Text("ProfileConfirmPassphrase")</label>
-        <input id="profile-confirm-passphrase" class="form-control" type="password" autocomplete="new-password" maxlength="1024"
-               value="@_confirmation" @oninput='args => SetCredential(rendered, "confirmation", args)' />
+        <div class="configuration-vault__secret-row">
+            <input id="profile-confirm-passphrase" class="form-control" type="@(IsPassphraseVisible("confirmation") ? "text" : "password")" autocomplete="new-password" maxlength="1024"
+                   value="@_confirmation" @oninput='args => SetCredential(rendered, "confirmation", args)' />
+            <button type="button" class="button button--secondary configuration-vault__toggle"
+                    data-passphrase-toggle="profile-confirm-passphrase"
+                    aria-controls="profile-confirm-passphrase"
+                    aria-pressed="@IsPassphraseVisible("confirmation").ToString().ToLowerInvariant()"
+                    aria-label="@Format("TogglePassphraseVisibility", Text("ProfileConfirmPassphrase"))"
+                    @onclick='() => TogglePassphraseVisibility("confirmation")'>@Text(IsPassphraseVisible("confirmation") ? "HidePassphrase" : "ShowPassphrase")</button>
+        </div>
         <label class="configuration-vault__confirmation">
             <input id="profile-add-recovery" type="checkbox" checked="@_addRecovery"
                    @onchange="args => { if (Current(rendered) && !Busy) _addRecovery = args.Value is true; }" />@Text("ProfileAddRecovery")
@@ -150,11 +182,27 @@
         @if (_addRecovery)
         {
             <label for="profile-backup-passphrase">@Text("ProfileRecoveryPassphrase")</label>
-            <input id="profile-backup-passphrase" class="form-control" type="password" autocomplete="new-password" maxlength="1024"
-                   value="@_backupPassphrase" @oninput='args => SetCredential(rendered, "backup", args)' />
+            <div class="configuration-vault__secret-row">
+                <input id="profile-backup-passphrase" class="form-control" type="@(IsPassphraseVisible("backup") ? "text" : "password")" autocomplete="new-password" maxlength="1024"
+                       value="@_backupPassphrase" @oninput='args => SetCredential(rendered, "backup", args)' />
+                <button type="button" class="button button--secondary configuration-vault__toggle"
+                        data-passphrase-toggle="profile-backup-passphrase"
+                        aria-controls="profile-backup-passphrase"
+                        aria-pressed="@IsPassphraseVisible("backup").ToString().ToLowerInvariant()"
+                        aria-label="@Format("TogglePassphraseVisibility", Text("ProfileRecoveryPassphrase"))"
+                        @onclick='() => TogglePassphraseVisibility("backup")'>@Text(IsPassphraseVisible("backup") ? "HidePassphrase" : "ShowPassphrase")</button>
+            </div>
             <label for="profile-backup-confirmation">@Text("ProfileConfirmRecovery")</label>
-            <input id="profile-backup-confirmation" class="form-control" type="password" autocomplete="new-password" maxlength="1024"
-                   value="@_backupConfirmation" @oninput='args => SetCredential(rendered, "backupConfirmation", args)' />
+            <div class="configuration-vault__secret-row">
+                <input id="profile-backup-confirmation" class="form-control" type="@(IsPassphraseVisible("backupConfirmation") ? "text" : "password")" autocomplete="new-password" maxlength="1024"
+                       value="@_backupConfirmation" @oninput='args => SetCredential(rendered, "backupConfirmation", args)' />
+                <button type="button" class="button button--secondary configuration-vault__toggle"
+                        data-passphrase-toggle="profile-backup-confirmation"
+                        aria-controls="profile-backup-confirmation"
+                        aria-pressed="@IsPassphraseVisible("backupConfirmation").ToString().ToLowerInvariant()"
+                        aria-label="@Format("TogglePassphraseVisibility", Text("ProfileConfirmRecovery"))"
+                        @onclick='() => TogglePassphraseVisibility("backupConfirmation")'>@Text(IsPassphraseVisible("backupConfirmation") ? "HidePassphrase" : "ShowPassphrase")</button>
+            </div>
         }
         <button type="button" class="button" data-action="profile-save" @onclick="() => SaveAsync(rendered)">@Text("ProfileSave")</button>
     </fieldset>
@@ -169,8 +217,16 @@
                        aria-describedby="profile-recovery-help"
                        OnChange="args => { if (Current(rendered) && !Busy && Consented) _recoveryFile = args.File; }" />
             <label for="profile-recovery-passphrase">@Text("ProfileRecoveryPassphrase")</label>
-            <input id="profile-recovery-passphrase" class="form-control" type="password" autocomplete="off" maxlength="1024"
-                   value="@_recoveryPassphrase" @oninput='args => SetCredential(rendered, "recovery", args)' />
+            <div class="configuration-vault__secret-row">
+                <input id="profile-recovery-passphrase" class="form-control" type="@(IsPassphraseVisible("recovery") ? "text" : "password")" autocomplete="off" maxlength="1024"
+                       value="@_recoveryPassphrase" @oninput='args => SetCredential(rendered, "recovery", args)' />
+                <button type="button" class="button button--secondary configuration-vault__toggle"
+                        data-passphrase-toggle="profile-recovery-passphrase"
+                        aria-controls="profile-recovery-passphrase"
+                        aria-pressed="@IsPassphraseVisible("recovery").ToString().ToLowerInvariant()"
+                        aria-label="@Format("TogglePassphraseVisibility", Text("ProfileRecoveryPassphrase"))"
+                        @onclick='() => TogglePassphraseVisibility("recovery")'>@Text(IsPassphraseVisible("recovery") ? "HidePassphrase" : "ShowPassphrase")</button>
+            </div>
             <label for="profile-recovery-index">@Text("ProfileRecipientIndex")</label>
             <input id="profile-recovery-index" class="form-control" type="number" min="0" max="7" value="@_recoveryIndex"
                    @onchange="args => SetRecipient(rendered, args, true)" />

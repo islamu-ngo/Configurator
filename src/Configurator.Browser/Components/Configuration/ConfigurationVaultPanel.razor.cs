@@ -49,11 +49,21 @@ public partial class ConfigurationVaultPanel : ComponentBase, IAsyncDisposable
     private bool _adopting;
     private bool _disposed;
     private long _fileKey;
+    private readonly HashSet<string> _visiblePassphrases = new(StringComparer.Ordinal);
     private ElementReference _heading;
     private bool _focusHeading;
     private bool Busy => _operation is not null;
     private bool Consented => Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
     private string Text(string key) => BrowserStrings.Get(key, Form.Locale);
+    private string Format(string key, params object?[] arguments) =>
+        string.Format(System.Globalization.CultureInfo.GetCultureInfo(Form.Locale), Text(key), arguments);
+    private bool IsPassphraseVisible(string field) => Consented && !Busy && _visiblePassphrases.Contains(field);
+    private void TogglePassphraseVisibility(string field)
+    {
+        if (!Consented || Busy) return;
+        if (!_visiblePassphrases.Add(field))
+            _visiblePassphrases.Remove(field);
+    }
     private bool Current(ProfileWorkerAuthority captured) =>
         !_disposed && Ready && ReferenceEquals(_subscribed, Form) && captured == CaptureAuthority();
 
@@ -204,6 +214,7 @@ public partial class ConfigurationVaultPanel : ComponentBase, IAsyncDisposable
     private void ClearCredentials()
     {
         _passphrase = _newPassphrase = _confirmation = _backupPassphrase = _backupConfirmation = _recoveryPassphrase = "";
+        _visiblePassphrases.Clear();
     }
 
     private void SetCredential(ProfileWorkerAuthority captured, string field, ChangeEventArgs args)

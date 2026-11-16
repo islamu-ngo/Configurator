@@ -25,7 +25,7 @@
         <div class="actions">
             <a class="button button--secondary" data-action="explore-definition" href="@($"explore/{_project.FamilyId:D}")">@T("ExploreDefinitionAction")</a>
         </div>
-        <details>
+        <details data-digest-disclosure>
         <summary>@T("SourceDetails")</summary>
         <dl class="store-project__metadata">
             <dt>@T("SourceRepository")</dt><dd><a href="@_project.SourceRepository" target="_blank" rel="noopener noreferrer"><bdi dir="ltr">@_project.SourceRepository</bdi><span class="sr-only">@T("NewTab")</span></a></dd>

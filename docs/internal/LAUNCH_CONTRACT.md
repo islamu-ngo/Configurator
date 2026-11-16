@@ -287,13 +287,23 @@ tokens retain `off` and acquisition/custom-field guidance. No fake username,
 submitting form or vendor vault API is introduced. Password managers have
 independent custody, outside workspace clearing.
 
-The Browser's exclusion from secret managers is **permanent**
-([secret-store decision](adr/ADR-secret-store-integration-and-credential-sources.md)):
+The ISLAMU public instance and current static Browser package are permanently
+excluded from secret managers and PaaS targets as deployed
+([hosting decision](adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md),
+[secret-store decision](adr/ADR-secret-store-integration-and-credential-sources.md)):
 - no provider credentials, vault or secret-manager API, SecretKit dependency,
-  CLI integration or provider network request in Browser;
-- vault operations belong only to native clients;
-- a future launch route may hand vault work off through `configurator://` but
-  never performs it in the web origin.
+  CLI integration or target-provider network request in the static Browser;
+- no ISLAMU-operated credential/target proxy on `configurator.islamu.org`;
+- a future public launch route may hand vault work off through `configurator://`
+  but never performs it in the public web origin.
+
+A separate self-hosted connected package is **planned, not implemented**. Its
+same local WebAssembly editor may request an explicitly reviewed target delta
+through an operator-owned authenticated connector only after native provider
+pilots and the connected custody/security contract are qualified. This does not
+add an endpoint, dependency or mode switch to the current static Host, does not
+permit hosted workspaces or arbitrary answer-bearing requests, and does not
+change the static capability ratchet.
 
 Each rendered scalar input callback captures its form, copied literal path and
 input revision. The same rendered handler advances its captured revision only
@@ -405,10 +415,12 @@ and capabilities are generator-owned; see [Packaging](PACKAGING.md).
 
 `/explore/{FamilyId}` renders a read-only inspection view backed solely by
 `BrowserDefinitionRegistry` and `IDefinitionStoreProvider`. It projects admitted
-schema sections, field descriptions, choices, sensitivity and declared artifacts
-without instantiating `DefinitionFormModel` or referencing
-`Configurator.Artifacts`, preserving clean entry into `/store` or `/open` when the
-operator chooses to start configuring.
+schema sections, field descriptions, choices, sensitivity (`Public` vs minority
+`Required`/`Secret`/`Sensitive` pills), live metadata and requirement filters,
+clickable section outline jumps, zero-match filter reset, and declared artifacts
+behind a collapsed **Source details** digest disclosure without instantiating
+`DefinitionFormModel` or referencing `Configurator.Artifacts`, preserving clean
+entry into `/launch`, `/store`, or `/open` when the operator chooses to start configuring.
 
 ## Extended launch routes and protocol handshake
 
@@ -418,7 +430,7 @@ operator chooses to start configuring.
 2. **The Protocol Handshake (`configurator://`):**
    * Web launch routes present an interactive prompt: *"Open in Configurator Desktop or continue in Web?"*
    * Desktop launch passes parameters directly to native storage, auto-matching local profiles in `~/.config/islamu-configurator/profiles/<app-id>/`.
-   * This is also the only route from a web link to secret-manager work; the web client never performs vault operations itself.
+   * This is the route from the **ISLAMU public or static** web client to native secret-manager work; those clients never perform vault operations themselves. A future separately self-hosted connected package may instead use its operator-owned reviewed-delta connector ([hosting decision](adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md)); that package is planned, not an existing launch route.
 3. **Embeddable Documentation Widgets (`/embed`):**
    * Lightweight layout rendering inside sandboxed iframes (`sandbox="allow-scripts allow-downloads"`) on external project documentation pages.
 

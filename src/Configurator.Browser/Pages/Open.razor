@@ -26,7 +26,7 @@
 </header>
 @if (_selection is { } selection)
 {
-    <details class="open-page__identity">
+    <details class="open-page__identity" data-digest-disclosure>
         <summary>@T("SourceDetails")@if (!_workspaceOpen) { <text>: </text><bdi>@selection.Definition.Title</bdi> }</summary>
         <p>@T("Publisher"): <bdi>@selection.Definition.Publisher</bdi></p>
         <p>@T("Family"): <bdi dir="ltr">@selection.Definition.FamilyId.ToString("D")</bdi></p>
@@ -42,14 +42,30 @@
     }
     else
     {
-        <p>@T("RetentionHelp")</p>
-        <label><input type="checkbox" @bind="_publicSafeConfirmed" /> @T("ConfirmPublicMetadata")</label>
-        <div class="actions">
-            <AppButton Variant="Variant.Outlined" Disabled="@(!_publicSafeConfirmed)" OnClick="RetainAsync">@T("RetainDefinition")</AppButton>
-            <a class="button button--secondary" data-action="explore-definition" href="@($"explore/{selection.Definition.FamilyId:D}?digest={selection.Definition.Digest.Value}")">@T("ExploreDefinitionAction")</a>
-            <AppButton data-action="open-workspace" OnClick='() => OpenWorkspace("fresh")'>@T("OpenWorkspace")</AppButton>
-            <AppButton Variant="Variant.Outlined" data-action="open-workspace-import" OnClick='() => OpenWorkspace("import")'>@T("UseExistingConfigurationEntry")</AppButton>
-            <AppButton Variant="Variant.Outlined" data-action="open-workspace-profile" OnClick='() => OpenWorkspace("profile")'>@T("OpenSavedProfileEntry")</AppButton>
+        <div class="open-page__tasks">
+            <section class="open-page__task-card" data-task-card="fresh">
+                <h2>@T("StartFreshEntry")</h2>
+                <p>@T("FreshEntryDescription")</p>
+                <AppButton data-action="open-workspace" OnClick='() => OpenWorkspace("fresh")'>@T("OpenWorkspace")</AppButton>
+            </section>
+            <section class="open-page__task-card" data-task-card="import">
+                <h2>@T("UseExistingConfigurationEntry")</h2>
+                <p>@T("ImportEntryDescription")</p>
+                <AppButton Variant="Variant.Outlined" data-action="open-workspace-import" OnClick='() => OpenWorkspace("import")'>@T("UseExistingConfigurationEntry")</AppButton>
+            </section>
+            <section class="open-page__task-card" data-task-card="profile">
+                <h2>@T("OpenSavedProfileEntry")</h2>
+                <p>@T("ProfileEntryDescription")</p>
+                <AppButton Variant="Variant.Outlined" data-action="open-workspace-profile" OnClick='() => OpenWorkspace("profile")'>@T("OpenSavedProfileEntry")</AppButton>
+            </section>
+        </div>
+        <div class="open-page__retention">
+            <p>@T("RetentionHelp")</p>
+            <label><input type="checkbox" @bind="_publicSafeConfirmed" /> @T("ConfirmPublicMetadata")</label>
+            <div class="actions">
+                <AppButton Variant="Variant.Outlined" Disabled="@(!_publicSafeConfirmed)" OnClick="RetainAsync">@T("RetainDefinition")</AppButton>
+                <a class="button button--secondary" data-action="explore-definition" href="@($"explore/{selection.Definition.FamilyId:D}?digest={selection.Definition.Digest.Value}")">@T("ExploreDefinitionAction")</a>
+            </div>
         </div>
         @if (_shareLink is { } shareLink)
         {

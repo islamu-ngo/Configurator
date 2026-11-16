@@ -3,9 +3,14 @@
 
 <section class="configuration-files-panel" data-files-state="@(OutputInvalidated && !HasPreparedFiles ? "invalidated" : Readiness)" aria-labelledby="configuration-prepare-heading">
     <h3 @ref="_heading" class="configuration-files-panel__heading" id="configuration-prepare-heading" tabindex="-1">@BrowserStrings.Get("FilesTitle", Locale)</h3>
+    <p class="form-help configuration-files-panel__steps" data-files-steps>@BrowserStrings.Get("FilesStepSequence", Locale)</p>
     <p class="form-help">@BrowserStrings.Get("FilesHelp", Locale)</p>
     <p class="form-help">@BrowserStrings.Get("HelpTargetBody", Locale)</p>
     <p class="notice configuration-files-panel__custody" data-custody-disclosure>@BrowserStrings.Get("FilesCustodyDisclosure", Locale)</p>
+    @if (HasPreparedFiles)
+    {
+        <p class="form-help configuration-files-panel__download-custody" data-download-custody-note>@BrowserStrings.Get("FilesDownloadCustodyNote", Locale)</p>
+    }
     @if (OutputInvalidated && !HasPreparedFiles)
     {
         <p class="notice configuration-files-panel__invalidated" data-files-invalidated role="status">@BrowserStrings.Get("FilesInvalidatedNotice", Locale)</p>
