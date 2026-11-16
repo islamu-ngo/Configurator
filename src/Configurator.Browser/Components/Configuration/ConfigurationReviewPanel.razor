@@ -36,7 +36,6 @@
     </section>
     <ConfigurationReview Definition="Form.Definition" Form="Form" ShowEffects="true" Validation="Validation" DiagnosticCodes="DiagnosticCodes"
                          InvalidFields="Form.InputDiagnostics" SecretsEnabled="@(Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
-                         CompactPresentation="CompactPresentation"
                          ChangeField="ChangeField" CorrectField="CorrectField" EnableSecrets="EnableSecrets" />
 </section>
 
@@ -48,7 +47,6 @@
     [Parameter] public EventCallback<DefinitionDiagnostic> CorrectField { get; set; }
     [Parameter] public EventCallback EnableSecrets { get; set; }
     [Parameter] public string Readiness { get; set; } = "blocked";
-    [Parameter] public bool CompactPresentation { get; set; }
     [Parameter] public EventCallback PrepareComplete { get; set; }
     [Parameter] public EventCallback PrepareDraft { get; set; }
     private ElementReference _heading;

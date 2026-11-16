@@ -1,5 +1,4 @@
 @using Microsoft.JSInterop
-@using MudBlazor.Extensions
 @implements IAsyncDisposable
 @inject WorkspaceSearchState SearchState
 @inject IJSRuntime Javascript
@@ -7,12 +6,25 @@
 @if (SearchState.IsActive)
 {
     long generation = SearchState.Generation;
+    string? activeOptionId = _open ? SearchState.ActiveOptionId : null;
     <div class="workspace-search @(_open ? "workspace-search--open" : "")" @ref="_root" @onkeydown="args => HandleKey(generation, args)">
         <div class="workspace-search__entry" @onclick="() => OpenAsync(generation)">
-            <MudTextField T="string" @ref="_input" InputId="configuration-search" Label="@T("FindSetting")"
-                          Value="@SearchState.Query" ValueChanged="value => Search(generation, value)"
-                          Immediate="true" Variant="Variant.Outlined" Margin="Margin.Dense"
-                          MaxLength="256" UserAttributes="@InputAttributes" />
+            <label class="sr-only" for="configuration-search">@T("FindSetting")</label>
+            <input @ref="_inputElement"
+                   id="configuration-search"
+                   type="search"
+                   class="workspace-search__input"
+                   role="combobox"
+                   aria-autocomplete="list"
+                   aria-expanded="@(_open ? "true" : "false")"
+                   aria-controls="workspace-search-results"
+                   aria-activedescendant="@activeOptionId"
+                   autocomplete="off"
+                   spellcheck="false"
+                   maxlength="256"
+                   placeholder="@T("FindSetting")"
+                   value="@SearchState.Query"
+                   @oninput="args => Search(generation, args.Value?.ToString() ?? string.Empty)" />
         </div>
         <button type="button" class="button button--secondary workspace-search__trigger"
                 aria-label="@T("OpenSettingSearch")" aria-expanded="@(_open ? "true" : "false")"
@@ -36,11 +48,7 @@
 @code {
     [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
     private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
-    private static readonly Dictionary<string, object> InputAttributes = new()
-    {
-        ["autocomplete"] = "off", ["spellcheck"] = "false"
-    };
-    private MudTextField<string>? _input;
+    private ElementReference _inputElement;
     private ElementReference _root;
     private IJSObjectReference? _module;
     private DotNetObjectReference<WorkspaceSearch>? _reference;
@@ -51,6 +59,7 @@
     private bool _open;
     private bool _queryRejected;
     private bool _disposed;
+
     protected override void OnInitialized()
     {
         _generation = SearchState.Generation;
@@ -58,6 +67,7 @@
         SearchState.Navigated += Navigated;
         SearchState.OpenRequested += OpenRequested;
     }
+
     private void OpenRequested(object? sender, EventArgs args)
     {
         if (_disposed) return;
@@ -65,10 +75,9 @@
         _focusQueryGeneration = _generation;
         _ = InvokeAsync(StateHasChanged);
     }
+
     private void Changed(object? sender, EventArgs args)
     {
-        if (_generation == SearchState.Generation && !_open && _input?.GetState(input => input.Value) == SearchState.Query)
-            return;
         if (_generation != SearchState.Generation)
         {
             _generation = SearchState.Generation;
@@ -79,11 +88,13 @@
         }
         _ = InvokeAsync(StateHasChanged);
     }
+
     private void Navigated(object? sender, EventArgs args)
     {
         _open = false;
         _ = InvokeAsync(StateHasChanged);
     }
+
     private void Search(long generation, string value)
     {
         if (generation != SearchState.Generation) return;
@@ -91,6 +102,7 @@
         catch (ArgumentException) { _queryRejected = true; }
         _open = true;
     }
+
     [JSInvokable]
     public async Task OpenAsync(long generation)
     {
@@ -99,24 +111,48 @@
         _focusQueryGeneration = generation;
         await InvokeAsync(StateHasChanged);
     }
+
     [JSInvokable]
     public async Task DismissAsync(long generation)
     {
         if (_disposed || generation != SearchState.Generation || !_open) return;
         _open = false;
+        SearchState.ResetActiveOption(generation);
         await InvokeAsync(StateHasChanged);
     }
+
     private async Task CloseAsync(long generation)
     {
         if (_disposed || generation != SearchState.Generation) return;
         _open = false;
+        SearchState.ResetActiveOption(generation);
         _focusEntryGeneration = generation;
         await InvokeAsync(StateHasChanged);
     }
+
     private async Task HandleKey(long generation, KeyboardEventArgs args)
     {
-        if (args.Key == "Escape") await CloseAsync(generation);
+        if (generation != SearchState.Generation) return;
+        switch (args.Key)
+        {
+            case "Escape":
+                await CloseAsync(generation);
+                break;
+            case "ArrowDown":
+                if (!_open) _open = true;
+                SearchState.MoveActiveOption(generation, +1);
+                break;
+            case "ArrowUp":
+                if (!_open) _open = true;
+                SearchState.MoveActiveOption(generation, -1);
+                break;
+            case "Enter":
+                if (_open)
+                    SearchState.TryActivateOption(generation);
+                break;
+        }
     }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_disposed) return;
@@ -140,12 +176,13 @@
             _focusEntryGeneration = null;
             await _module.InvokeVoidAsync("returnFocus", _root, _watchedGeneration);
         }
-        if (_focusQueryGeneration == SearchState.Generation && _open && _input is not null)
+        if (_focusQueryGeneration == SearchState.Generation && _open)
         {
             _focusQueryGeneration = null;
             await _module.InvokeVoidAsync("focusEntry", _root);
         }
     }
+
     public async ValueTask DisposeAsync()
     {
         _disposed = true;

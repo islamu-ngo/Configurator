@@ -40,11 +40,9 @@ second answer buffer or duplicate blur edit.
 when unchanged parameter-driven visual output can be skipped. Internal popup
 events keep their renders; the adapter retains no second answer snapshot.
 
-Keep current-section mounting in Guided mode and continuous multi-section mounting in
-Compact mode (`ConfigurationCompactWorkspace`) separate from answer ownership.
-`ConfigurationSectionFields` and `ConfigurationCompactWorkspace` retain mounted controls and introduce only
-metadata root-ID sets, a pending count and a mount generation. New roots arrive
-through bounded frame-separated batches; a correction target can mount directly.
+Keep `SectionBySection` and `AllSections` continuous mounting inside the unified `ConfigurationConfigurePanel` and `ConfigurationSectionFields` owner separate from answer ownership.
+`ConfigurationSectionFields` mounts lightweight semantic HTML5 `ConfigurationSettingRow` controls for scalars in `AllSections` (with `[center ± 1]` section windowing, `<Virtualize ItemSize="72" OverscanCount="2">` via `ItemsProvider` inside height-reserved tracks above 16 rows, `DirectSliceCount = 4`, an in-flow pinned-focus slot, and full DOM omission of collapsed groups and filtered non-matches) while retaining bounded incremental admission for complex containers and `SectionBySection` fields.
+Metadata root-ID sets, a pending count and a mount generation track only active admission work; complex roots arrive through bounded frame-separated batches and a correction target can mount directly.
 Form replacement, view supersession and disposal fence every awaited continuation.
 Secret denial and output retirement remain synchronous. A local control-only
 channel task separates rendering work without a worker or answer-bearing message.
@@ -79,8 +77,8 @@ the dialog, not a tooltip. Revocation, replacement and disposal close the owning
 inspector and invalidate late opens. Named field menus retain deliberate
 omission, explicitly identifying nested answers when omitting a container.
 Collapsing remains distinct from omission.
-Help uses a named native button and the packaged Mud icon rather than mounting
-a tooltip per field. Omission menus mount on first use and remain ordinary
+Help uses a named native button with a lightweight inline `?` glyph rather than mounting
+a tooltip per field, keeping row DOM budgets bounded in continuous mode. Omission menus mount on first use and remain ordinary
 `MudMenu` instances afterward. Their open state participates in the render
 signature, and cold mounting and close explicitly restore activator focus.
 Public-metadata render boundaries still refresh current help-binding delegates.

@@ -1,30 +1,19 @@
-@implements IDisposable
+@implements IAsyncDisposable
+@using System.Globalization
 @using Configurator.Core.Definitions
 @using Configurator.Presentation
 @using Configurator.Browser.Resources
 @using Microsoft.AspNetCore.Components.Sections
+@using Microsoft.JSInterop
+@inject IJSRuntime Javascript
 
 @if (!_disposed && !MountCancellation.IsCancellationRequested)
 {
     _renderedStamp = CurrentRenderStamp();
     _hasRendered = true;
-    bool compact = Form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact;
+    bool allSections = Form.ConfigureLayoutMode == ConfigureLayoutMode.AllSections;
+    bool literalRoot = !DefinitionEditingSupport.HasPropertyRoot(Form.Definition);
     var experience = Form.DisplayExperiences.Single(item => item.Id == Form.SelectedExperienceId);
-    if (compact)
-    {
-        <SectionContent SectionName="configuration-sections"></SectionContent>
-        <div class="configuration-configure-panel configuration-configure-panel--single" data-navigation="@experience.Navigation" data-layout-active="compact">
-            <div class="configuration-configure-panel__fields">
-                <ConfigurationCompactWorkspace @ref="_compactWorkspace" @key="Form" Form="Form"
-                                               MountCancellation="MountCancellation" Validation="Validation"
-                                               FocusField="@FocusField" FocusGeneration="@(FocusField is not null ? FocusGeneration : 0L)" FocusPath="FocusPath"
-                                               ShowMatchesOnly="CompactShowMatchesOnly"
-                                               ShowMatchesOnlyChanged="CompactShowMatchesOnlyChanged" />
-            </div>
-        </div>
-    }
-    else
-    {
     var projection = Form.Projection;
     var actionForm = Form;
     long inputRevision = Form.InputRevision;
@@ -33,103 +22,292 @@
     string? outputField = Form.Definition.Presentation?.OutputSelector is { } selector
         ? DefinitionProfile.FieldId(selector.Location.Segments[0]) : null;
     var sections = Sections.Where(section =>
-        experience.Sections.Contains(section.Id)
-        || section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && projection.IsFieldVisible(fieldId))).ToArray();
+        allSections
+            ? section.IsApplicable &&
+              projection.SectionStatuses.GetValueOrDefault(section.Id)?.ConfigurationStatus != SectionConfigurationStatus.OutsideSelectedScope &&
+              section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && projection.IsFieldVisible(fieldId))
+            : (experience.Sections.Contains(section.Id)
+              || section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && projection.IsFieldVisible(fieldId)))).ToArray();
     string? selected = sections.Any(section => section.Id == SelectedSection)
         ? SelectedSection
         : sections.FirstOrDefault(section => section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive
               && (experience.Sections.Contains(section.Id) || projection.IsFieldVisible(fieldId))))?.Id
           ?? sections.FirstOrDefault()?.Id;
-<SectionContent SectionName="configuration-sections">
-    @if (sections.Length > 1)
-    {
-        <ConfigurationNavigation Sections="@(sections.Select(section => new ConfigurationSection(section.Id, section.Title, projection.SectionProgress[section.Id], projection.SectionStatuses.GetValueOrDefault(section.Id))).ToArray())"
-                                 Selected="@selected" SelectedChanged="SelectedChanged" Locale="@Form.Locale"
-                                 NavigationMode="@experience.Navigation" Navigation="@projection.Navigation" />
-    }
-</SectionContent>
-<div class="configuration-configure-panel @(sections.Length == 1 ? "configuration-configure-panel--single" : "")" data-navigation="@experience.Navigation" data-layout-active="guided">
-    <div class="configuration-configure-panel__fields">
-        @if (!DefinitionEditingSupport.HasPropertyRoot(Form.Definition))
+    string? activeScrollspySection = allSections
+        ? (sections.Any(section => section.Id == _scrollspySectionId) ? _scrollspySectionId : selected)
+        : null;
+    string? railActiveSection = allSections ? activeScrollspySection : selected;
+
+    <SectionContent SectionName="configuration-sections">
+        @if (sections.Length > 1)
         {
-            <ConfigurationRoot @ref="_root" Form="Form" Validation="Validation" MountCancellation="MountCancellation"
-                               FocusFirstControl="@(FocusField == string.Empty)" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
-            <AppButton Variant="Variant.Outlined" OnClick="() => ReviewRequested.InvokeAsync()">@BrowserStrings.Get("ReviewConfiguration", Form.Locale)</AppButton>
+            <ConfigurationNavigation Sections="@(sections.Select(section => new ConfigurationSection(section.Id, section.Title, projection.SectionProgress[section.Id], projection.SectionStatuses.GetValueOrDefault(section.Id))).ToArray())"
+                                     Selected="@railActiveSection" ActiveSectionId="@railActiveSection"
+                                     LayoutMode="@Form.ConfigureLayoutMode"
+                                     SelectedChanged="HandleSectionSelectedAsync" Locale="@Form.Locale"
+                                     NavigationMode="@experience.Navigation" Navigation="@projection.Navigation" />
+        }
+    </SectionContent>
+
+    <div @ref="_panelElement" class="configuration-configure-panel @(allSections || sections.Length <= 1 ? "configuration-configure-panel--single" : "")"
+         data-navigation="@experience.Navigation" data-layout-active="@(allSections ? "all-sections" : "section-by-section")">
+        <div class="configuration-configure-panel__toolbar" data-layout-switcher role="group"
+             aria-label="@BrowserStrings.Get("ConfigureLayoutLabel", Form.Locale)">
+            <div class="configuration-configure-panel__layout-modes">
+                <button type="button"
+                        class="button button--secondary configuration-configure-panel__layout-btn @(!allSections ? "configuration-configure-panel__layout-btn--active" : "")"
+                        data-layout-mode="section-by-section"
+                        aria-pressed="@((!allSections).ToString().ToLowerInvariant())"
+                        @onclick="() => LayoutModeChanged.InvokeAsync(ConfigureLayoutMode.SectionBySection)">
+                    @BrowserStrings.Get("LayoutSectionBySection", Form.Locale)
+                </button>
+                <button type="button"
+                        class="button button--secondary configuration-configure-panel__layout-btn @(allSections ? "configuration-configure-panel__layout-btn--active" : "")"
+                        data-layout-mode="all-sections"
+                        aria-pressed="@(allSections.ToString().ToLowerInvariant())"
+                        @onclick="() => LayoutModeChanged.InvokeAsync(ConfigureLayoutMode.AllSections)">
+                    @BrowserStrings.Get("LayoutAllSections", Form.Locale)
+                </button>
+            </div>
+            @if (allSections && !literalRoot)
+            {
+                <label class="configuration-configure-panel__matches-filter">
+                    <input type="checkbox" data-compact-matches-only checked="@CompactShowMatchesOnly"
+                           @onchange="args => CompactShowMatchesOnlyChanged.InvokeAsync(args.Value is true)" />
+                    <span>@BrowserStrings.Get("CompactShowMatchesOnly", Form.Locale)</span>
+                </label>
+            }
+        </div>
+
+        @if (allSections)
+        {
+            <div class="configuration-configure-panel__fields">
+                @if (literalRoot)
+                {
+                    <section data-section-panel="root">
+                        <ConfigurationSectionFields @key="Form" Form="Form" LiteralRoot="true"
+                                                    ContinuousMode="true" MountCancellation="MountCancellation" Validation="Validation"
+                                                    FocusField="@FocusField" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
+                    </section>
+                }
+                else
+                {
+                    HashSet<string>? matchedIds = CompactShowMatchesOnly ? GetMatchedFieldIds(projection) : null;
+                    string? focusSectionId = FocusField is null ? null : sections.FirstOrDefault(section => section.Fields.Contains(FocusField))?.Id;
+                    var renderedSections = new List<(DefinitionFormSection Section, FieldState[] VisibleFields)>(sections.Length);
+                    foreach (var section in sections)
+                    {
+                        FieldState[] sectionFields = section.Fields
+                            .Where(fieldId => fieldId != outputField && states.TryGetValue(fieldId, out var fs) && fs.IsActive &&
+                                              projection.IsFieldVisible(fieldId) &&
+                                              (matchedIds is null || matchedIds.Contains(fieldId)))
+                            .Select(fieldId => states[fieldId])
+                            .ToArray();
+                        if (matchedIds is not null && sectionFields.Length == 0) continue;
+                        renderedSections.Add((section, sectionFields));
+                    }
+
+                    if (CompactShowMatchesOnly && renderedSections.Count == 0)
+                    {
+                        DiscoveryZeroMatchSummary? zeroSummary = Form.GetDiscoveryZeroMatchSummary();
+                        <div class="configuration-configure-panel__empty" role="status" data-empty-matches-state>
+                            <p>@BrowserStrings.Get("CompactNoMatches", Form.Locale)</p>
+                            @if (zeroSummary is { HasOutOfScopeMatches: true })
+                            {
+                                <p class="configuration-configure-panel__description">
+                                    @string.Format(CultureInfo.GetCultureInfo(Form.Locale), BrowserStrings.Get("ZeroMatchesOutOfScope", Form.Locale), zeroSummary.FilterOrFacetExcludedCount, zeroSummary.HiddenInactiveMatchCount)
+                                </p>
+                            }
+                            <button type="button" class="button button--secondary" data-action="reset-discovery-filters"
+                                    @onclick="ResetDiscoveryFiltersAsync">
+                                @BrowserStrings.Get("ResetFiltersAction", Form.Locale)
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        string? centerId = renderedSections.Any(entry => entry.Section.Id == _windowCenterSectionId)
+                            ? _windowCenterSectionId
+                            : (focusSectionId is not null && renderedSections.Any(entry => entry.Section.Id == focusSectionId)
+                                ? focusSectionId
+                                : (renderedSections.Any(entry => entry.Section.Id == railActiveSection)
+                                    ? railActiveSection
+                                    : renderedSections.FirstOrDefault().Section?.Id));
+                        int centerIndex = centerId is null ? 0 : renderedSections.FindIndex(entry => entry.Section.Id == centerId);
+
+                        <div class="configuration-configure-panel__continuous" data-configuration-continuous>
+                            @for (int i = 0; i < renderedSections.Count; i++)
+                            {
+                                var (section, visibleFields) = renderedSections[i];
+                                string headingId = AllSectionsHeadingId(section.Id);
+                                var sectionStatus = projection.SectionStatuses.GetValueOrDefault(section.Id);
+                                bool sectionReviewed = sectionStatus?.Coverage == SectionReviewCoverage.Reviewed;
+                                bool focusHere = FocusField is not null && string.Equals(focusSectionId, section.Id, StringComparison.Ordinal);
+                                bool inWindow = Math.Abs(i - centerIndex) <= 1 || focusHere;
+                                var sectionProgress = projection.SectionProgress.GetValueOrDefault(section.Id) ?? new(0, 0, 0, 0, 0);
+                                bool sectionAllRequired = visibleFields.Length > 0 && visibleFields.All(field => field.IsRequired);
+                                string countText = sectionProgress.Required > 0
+                                    ? $"{sectionProgress.Ready}/{sectionProgress.Required} {BrowserStrings.Get("Required", Form.Locale)}"
+                                    : BrowserStrings.Get("CompactSectionOptionalStatus", Form.Locale);
+
+                                <section @key="section.Id"
+                                         id="@(headingId + "-section")"
+                                         class="configuration-configure-panel__continuous-section"
+                                         data-section-panel="@section.Id"
+                                         data-compact-section="@section.Id"
+                                         data-section-windowed="@(inWindow ? "hydrated" : "deferred")"
+                                         aria-labelledby="@headingId"
+                                         aria-describedby="@(string.IsNullOrWhiteSpace(section.Description) ? null : headingId + "-description")">
+                                    <header class="configuration-configure-panel__section-header">
+                                        <h3 id="@headingId" class="configuration-configure-panel__heading" tabindex="-1"><bdi>@section.Title</bdi></h3>
+                                        <div class="configuration-configure-panel__section-actions">
+                                            @if (sectionAllRequired)
+                                            {
+                                                <span class="configuration-configure-panel__all-required" data-section-requirement="all-required">
+                                                    @BrowserStrings.Get("SectionAllFieldsRequired", Form.Locale)
+                                                </span>
+                                            }
+                                            <span class="configuration-configure-panel__section-count"
+                                                  data-compact-section-count
+                                                  aria-label="@countText">@countText</span>
+                                            <button type="button" class="button button--secondary configuration-configure-panel__review-toggle"
+                                                    data-action="toggle-section-reviewed" data-section-id="@section.Id"
+                                                    aria-pressed="@(sectionReviewed ? "true" : "false")"
+                                                    @onclick="() => { if (!_disposed && !actionMount.IsCancellationRequested && ReferenceEquals(Form, actionForm)) Form.SetSectionReviewed(section.Id, !sectionReviewed); }">
+                                                @BrowserStrings.Get(sectionReviewed ? "SectionReviewedAction" : "MarkSectionReviewedAction", Form.Locale)
+                                            </button>
+                                        </div>
+                                    </header>
+                                    @if (!string.IsNullOrWhiteSpace(section.Description))
+                                    {
+                                        <p id="@(headingId + "-description")" class="configuration-configure-panel__description">@section.Description</p>
+                                    }
+                                    @if (inWindow)
+                                    {
+                                        <ConfigurationSectionFields @key="Form"
+                                                                    Form="Form"
+                                                                    SectionId="@section.Id"
+                                                                    Groups="section.Groups"
+                                                                    Fields="@visibleFields"
+                                                                    ContinuousMode="true"
+                                                                    SectionAllRequired="sectionAllRequired"
+                                                                    MountCancellation="MountCancellation"
+                                                                    Validation="Validation"
+                                                                    FocusField="@(focusHere ? FocusField : null)"
+                                                                    FocusGeneration="@(focusHere ? FocusGeneration : 0L)"
+                                                                    FocusPath="@(focusHere ? FocusPath : Array.Empty<string>())" />
+                                    }
+                                    else
+                                    {
+                                        <div class="configuration-configure-panel__window-placeholder" aria-hidden="true"></div>
+                                    }
+                                </section>
+                            }
+                        </div>
+                    }
+                }
+            </div>
         }
         else
         {
-        @foreach (var section in sections.Where(section => section.Id == selected))
-        {
-            <section @key="section.Id" data-section-panel="@section.Id" aria-labelledby="@SectionId(section.Id)"
-                     aria-describedby="@(string.IsNullOrWhiteSpace(section.Description) ? null : SectionId(section.Id) + "-description")">
-                <h3 @ref="_heading" class="configuration-configure-panel__heading" id="@SectionId(section.Id)" tabindex="-1">@section.Title</h3>
-                @if (!string.IsNullOrWhiteSpace(section.Description))
+            <div class="configuration-configure-panel__fields">
+                @if (literalRoot)
                 {
-                    <p id="@(SectionId(section.Id) + "-description")" class="configuration-configure-panel__description">@section.Description</p>
+                    <ConfigurationRoot @ref="_root" Form="Form" Validation="Validation" MountCancellation="MountCancellation"
+                                       FocusFirstControl="@(FocusField == string.Empty)" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
+                    <AppButton Variant="Variant.Outlined" OnClick="() => ReviewRequested.InvokeAsync()">@BrowserStrings.Get("ReviewConfiguration", Form.Locale)</AppButton>
                 }
-                @{
-                    var visibleFields = section.Fields
-                        .Where(fieldId => fieldId != outputField && projection.IsFieldVisible(fieldId))
-                        .Select(fieldId => states[fieldId])
-                        .ToArray();
-                    var sectionStatus = projection.SectionStatuses.GetValueOrDefault(section.Id);
-                    bool hasHiddenOptional = section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && !projection.IsFieldVisible(fieldId));
-                }
-                @if (visibleFields.Length > 0)
+                else
                 {
-                    <ConfigurationSectionFields @key="Form" Form="Form" SectionId="@section.Id" Groups="section.Groups"
-                                                Fields="visibleFields" MountCancellation="MountCancellation" Validation="Validation"
-                                                FocusField="@FocusField" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
-                    @if (hasHiddenOptional)
+                    @foreach (var section in sections.Where(section => section.Id == selected))
                     {
-                        <AppButton Variant="Variant.Outlined" data-action="show-section-options"
-                                   OnClick="() => { if (!_disposed && !actionMount.IsCancellationRequested && ReferenceEquals(Form, actionForm) && Form.InputRevision == inputRevision) Form.SetSectionExpanded(section.Id, true); }">@BrowserStrings.Get("ShowOptionalSettings", Form.Locale)</AppButton>
+                        var sectionStatus = projection.SectionStatuses.GetValueOrDefault(section.Id);
+                        bool sectionReviewed = sectionStatus?.Coverage == SectionReviewCoverage.Reviewed;
+                        var visibleFields = section.Fields
+                            .Where(fieldId => fieldId != outputField && projection.IsFieldVisible(fieldId))
+                            .Select(fieldId => states[fieldId])
+                            .ToArray();
+                        bool sectionAllRequired = visibleFields.Length > 0 && visibleFields.All(field => field.IsRequired);
+                        bool hasHiddenOptional = section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && !projection.IsFieldVisible(fieldId));
+                        <section @key="section.Id" data-section-panel="@section.Id" aria-labelledby="@SectionId(section.Id)"
+                                 aria-describedby="@(string.IsNullOrWhiteSpace(section.Description) ? null : SectionId(section.Id) + "-description")">
+                            <header class="configuration-configure-panel__section-header">
+                                <h3 @ref="_heading" class="configuration-configure-panel__heading" id="@SectionId(section.Id)" tabindex="-1">@section.Title</h3>
+                                <div class="configuration-configure-panel__section-actions">
+                                    @if (sectionAllRequired)
+                                    {
+                                        <span class="configuration-configure-panel__all-required" data-section-requirement="all-required">
+                                            @BrowserStrings.Get("SectionAllFieldsRequired", Form.Locale)
+                                        </span>
+                                    }
+                                    <button type="button" class="button button--secondary configuration-configure-panel__review-toggle"
+                                            data-action="toggle-section-reviewed" data-section-id="@section.Id"
+                                            aria-pressed="@(sectionReviewed ? "true" : "false")"
+                                            @onclick="() => { if (!_disposed && !actionMount.IsCancellationRequested && ReferenceEquals(Form, actionForm)) Form.SetSectionReviewed(section.Id, !sectionReviewed); }">
+                                        @BrowserStrings.Get(sectionReviewed ? "SectionReviewedAction" : "MarkSectionReviewedAction", Form.Locale)
+                                    </button>
+                                </div>
+                            </header>
+                            @if (!string.IsNullOrWhiteSpace(section.Description))
+                            {
+                                <p id="@(SectionId(section.Id) + "-description")" class="configuration-configure-panel__description">@section.Description</p>
+                            }
+                            @if (visibleFields.Length > 0)
+                            {
+                                <ConfigurationSectionFields @key="Form" Form="Form" SectionId="@section.Id" Groups="section.Groups"
+                                                            Fields="visibleFields" ContinuousMode="false" SectionAllRequired="sectionAllRequired"
+                                                            MountCancellation="MountCancellation" Validation="Validation"
+                                                            FocusField="@FocusField" FocusGeneration="FocusGeneration" FocusPath="FocusPath" />
+                                @if (hasHiddenOptional)
+                                {
+                                    <AppButton Variant="Variant.Outlined" data-action="show-section-options"
+                                               OnClick="() => { if (!_disposed && !actionMount.IsCancellationRequested && ReferenceEquals(Form, actionForm) && Form.InputRevision == inputRevision) Form.SetSectionExpanded(section.Id, true); }">@BrowserStrings.Get("ShowOptionalSettings", Form.Locale)</AppButton>
+                                }
+                            }
+                            else if (sectionStatus?.ConfigurationStatus == SectionConfigurationStatus.OutsideSelectedScope)
+                            {
+                                <div class="configuration-configure-panel__empty" role="status" data-empty-section-state="outside-scope">
+                                    <p>@BrowserStrings.Get("EmptySectionOutsideScope", Form.Locale)</p>
+                                </div>
+                            }
+                            else if (hasHiddenOptional)
+                            {
+                                <div class="configuration-configure-panel__empty" role="status" data-empty-section-state="hidden-optional">
+                                    <p>@BrowserStrings.Get("EmptySectionHiddenOptional", Form.Locale)</p>
+                                    <AppButton Variant="Variant.Outlined" data-action="show-section-options"
+                                               OnClick="() => { if (!_disposed && !actionMount.IsCancellationRequested && ReferenceEquals(Form, actionForm) && Form.InputRevision == inputRevision) Form.SetSectionExpanded(section.Id, true); }">@BrowserStrings.Get("ShowOptionalSettings", Form.Locale)</AppButton>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="configuration-configure-panel__empty" role="status" data-empty-section-state="no-fields">
+                                    <p>@BrowserStrings.Get("EmptySectionNoFields", Form.Locale)</p>
+                                </div>
+                            }
+                        </section>
                     }
                 }
-                else if (sectionStatus?.ConfigurationStatus == SectionConfigurationStatus.OutsideSelectedScope)
+                @if (!literalRoot && sections.Length > 0)
                 {
-                    <div class="configuration-configure-panel__empty" role="status" data-empty-section-state="outside-scope">
-                        <p>@BrowserStrings.Get("EmptySectionOutsideScope", Form.Locale)</p>
+                    int index = Array.FindIndex(sections, section => section.Id == selected);
+                    <div class="actions configuration-configure-panel__actions">
+                        @if (index > 0)
+                        {
+                            <AppButton Variant="Variant.Outlined" data-action="previous-section" OnClick="() => SelectedChanged.InvokeAsync(sections[index - 1].Id)">@BrowserStrings.Get("PreviousSection", Form.Locale)</AppButton>
+                        }
+                        @if (index < sections.Length - 1)
+                        {
+                            <AppButton Variant="Variant.Outlined" data-action="next-section" OnClick="() => SelectedChanged.InvokeAsync(sections[index + 1].Id)">@BrowserStrings.Get("NextSection", Form.Locale)</AppButton>
+                        }
+                        else
+                        {
+                            <AppButton Variant="Variant.Outlined" OnClick="() => ReviewRequested.InvokeAsync()">@BrowserStrings.Get("ReviewConfiguration", Form.Locale)</AppButton>
+                        }
                     </div>
-                }
-                else if (hasHiddenOptional)
-                {
-                    <div class="configuration-configure-panel__empty" role="status" data-empty-section-state="hidden-optional">
-                        <p>@BrowserStrings.Get("EmptySectionHiddenOptional", Form.Locale)</p>
-                        <AppButton Variant="Variant.Outlined" data-action="show-section-options"
-                                   OnClick="() => { if (!_disposed && !actionMount.IsCancellationRequested && ReferenceEquals(Form, actionForm) && Form.InputRevision == inputRevision) Form.SetSectionExpanded(section.Id, true); }">@BrowserStrings.Get("ShowOptionalSettings", Form.Locale)</AppButton>
-                    </div>
-                }
-                else
-                {
-                    <div class="configuration-configure-panel__empty" role="status" data-empty-section-state="no-fields">
-                        <p>@BrowserStrings.Get("EmptySectionNoFields", Form.Locale)</p>
-                    </div>
-                }
-            </section>
-        }
-        }
-        @if (DefinitionEditingSupport.HasPropertyRoot(Form.Definition) && sections.Length > 0)
-        {
-            int index = Array.FindIndex(sections, section => section.Id == selected);
-            <div class="actions configuration-configure-panel__actions">
-                @if (index > 0)
-                {
-                    <AppButton Variant="Variant.Outlined" data-action="previous-section" OnClick="() => SelectedChanged.InvokeAsync(sections[index - 1].Id)">@BrowserStrings.Get("PreviousSection", Form.Locale)</AppButton>
-                }
-                @if (index < sections.Length - 1)
-                {
-                    <AppButton Variant="Variant.Outlined" data-action="next-section" OnClick="() => SelectedChanged.InvokeAsync(sections[index + 1].Id)">@BrowserStrings.Get("NextSection", Form.Locale)</AppButton>
-                }
-                else
-                {
-                    <AppButton Variant="Variant.Outlined" OnClick="() => ReviewRequested.InvokeAsync()">@BrowserStrings.Get("ReviewConfiguration", Form.Locale)</AppButton>
                 }
             </div>
         }
     </div>
-</div>
-    }
 }
 
 @code {
@@ -144,11 +322,20 @@
     [Parameter] public IReadOnlyList<string> FocusPath { get; set; } = [];
     [Parameter] public EventCallback ReviewRequested { get; set; }
     [Parameter] public EventCallback RequestSecretConsent { get; set; }
+    [Parameter] public EventCallback<ConfigureLayoutMode> LayoutModeChanged { get; set; }
     [Parameter] public bool CompactShowMatchesOnly { get; set; }
     [Parameter] public EventCallback<bool> CompactShowMatchesOnlyChanged { get; set; }
     private ElementReference _heading;
+    private ElementReference _panelElement;
     private ConfigurationRoot? _root;
-    private ConfigurationCompactWorkspace? _compactWorkspace;
+    private Task<IJSObjectReference>? _scrollspyModule;
+    private DotNetObjectReference<ConfigurationConfigurePanel>? _scrollspyRef;
+    private string? _scrollspySectionId;
+    private string? _windowCenterSectionId;
+    private long _scrollspyGeneration;
+    private bool _scrollspyActive;
+    private DefinitionFormProjection? _cachedMatchProjection;
+    private HashSet<string>? _cachedMatchedFieldIds;
     private bool _disposed;
     private bool _hasRendered;
     private RenderStamp _renderedStamp;
@@ -158,17 +345,19 @@
         bool Cancelled,
         CancellationToken MountCancellation,
         DefinitionFormModel Form,
-        DefinitionFormProjection? GuidedProjection,
+        DefinitionFormProjection Projection,
         IReadOnlyList<DefinitionFormSection> ProjectionSections,
         DefinitionDiscoverySelection? CompactDiscoverySelection,
         long InputRevision,
         string Locale,
-        WorkspaceLayoutMode LayoutMode,
+        ConfigureLayoutMode LayoutMode,
         WorkspaceDensity Density,
         WorkspaceNamingMode NamingMode,
         string SelectedExperienceId,
         FieldDisclosure? DisclosureOverride,
         string? SelectedSection,
+        string? ScrollspySectionId,
+        string? WindowCenterSectionId,
         DefinitionValidationResult? Validation,
         string? FocusField,
         long FocusGeneration,
@@ -177,7 +366,7 @@
 
     private RenderStamp CurrentRenderStamp()
     {
-        bool compact = Form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact;
+        bool allSections = Form.ConfigureLayoutMode == ConfigureLayoutMode.AllSections;
         DefinitionFormProjection projection = Form.Projection;
         bool hasFocus = FocusField is not null;
         return new RenderStamp(
@@ -185,17 +374,19 @@
             MountCancellation.IsCancellationRequested,
             MountCancellation,
             Form,
-            compact ? null : projection,
+            projection,
             projection.Sections,
-            compact && CompactShowMatchesOnly ? Form.DiscoverySelection : null,
+            allSections && CompactShowMatchesOnly ? Form.DiscoverySelection : null,
             Form.InputRevision,
             Form.Locale,
-            Form.WorkspaceLayoutMode,
+            Form.ConfigureLayoutMode,
             Form.WorkspaceDensity,
             Form.WorkspaceNamingMode,
             Form.SelectedExperienceId,
             Form.DisclosureOverride,
-            compact ? null : SelectedSection,
+            allSections ? null : SelectedSection,
+            allSections ? _scrollspySectionId : null,
+            allSections ? _windowCenterSectionId : null,
             Validation,
             FocusField,
             hasFocus ? FocusGeneration : 0L,
@@ -203,16 +394,165 @@
             CompactShowMatchesOnly);
     }
 
+    private HashSet<string> GetMatchedFieldIds(DefinitionFormProjection projection)
+    {
+        if (!ReferenceEquals(_cachedMatchProjection, projection) || _cachedMatchedFieldIds is null)
+        {
+            _cachedMatchProjection = projection;
+            _cachedMatchedFieldIds = projection.Matches
+                .Select(match => match.Entry.FieldId)
+                .ToHashSet(StringComparer.Ordinal);
+        }
+        return _cachedMatchedFieldIds;
+    }
+
+    private async Task ResetDiscoveryFiltersAsync()
+    {
+        if (_disposed || MountCancellation.IsCancellationRequested) return;
+        await CompactShowMatchesOnlyChanged.InvokeAsync(false);
+        Form.SetDiscovery(string.Empty);
+    }
+
     protected override bool ShouldRender() => !_hasRendered || !_renderedStamp.Equals(CurrentRenderStamp());
 
     protected override void OnParametersSet()
     {
         if (DefinitionEditingSupport.HasPropertyRoot(Form.Definition)) _root = null;
-        if (Form.WorkspaceLayoutMode != WorkspaceLayoutMode.Compact) _compactWorkspace = null;
+        if (Form.ConfigureLayoutMode != ConfigureLayoutMode.AllSections)
+        {
+            _scrollspySectionId = null;
+            _windowCenterSectionId = null;
+        }
+        else
+        {
+            if (_scrollspySectionId is null && SelectedSection is not null)
+                _scrollspySectionId = SelectedSection;
+            if (_windowCenterSectionId is null)
+                _windowCenterSectionId = SelectedSection ?? Sections.FirstOrDefault()?.Id;
+        }
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || MountCancellation.IsCancellationRequested) return;
+        bool wantScrollspy = Form.ConfigureLayoutMode == ConfigureLayoutMode.AllSections;
+        if (!wantScrollspy && _scrollspyActive)
+        {
+            await DetachScrollspyAsync();
+            return;
+        }
+        if (wantScrollspy && !_scrollspyActive)
+        {
+            await AttachScrollspyAsync();
+        }
+    }
+
+    private async Task AttachScrollspyAsync()
+    {
+        if (_disposed || MountCancellation.IsCancellationRequested || string.IsNullOrEmpty(_panelElement.Id)) return;
+        _scrollspyActive = true;
+        long generation = ++_scrollspyGeneration;
+        _scrollspyRef ??= DotNetObjectReference.Create(this);
+        try
+        {
+            _scrollspyModule ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
+            IJSObjectReference module = await _scrollspyModule.WaitAsync(MountCancellation);
+            if (_disposed || MountCancellation.IsCancellationRequested || generation != _scrollspyGeneration ||
+                Form.ConfigureLayoutMode != ConfigureLayoutMode.AllSections) return;
+            await module.InvokeVoidAsync("observeScrollspy", _panelElement, _scrollspyRef, generation);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or JSException)
+        {
+        }
+    }
+
+    private async Task DetachScrollspyAsync()
+    {
+        _scrollspyActive = false;
+        ++_scrollspyGeneration;
+        if (_scrollspyModule is { IsCompletedSuccessfully: true } && !string.IsNullOrEmpty(_panelElement.Id))
+        {
+            try
+            {
+                IJSObjectReference module = await _scrollspyModule;
+                await module.InvokeVoidAsync("unobserveScrollspy", _panelElement);
+            }
+            catch (JSException)
+            {
+            }
+        }
+    }
+
+    private async Task HandleSectionSelectedAsync(string sectionId)
+    {
+        if (Form.ConfigureLayoutMode == ConfigureLayoutMode.AllSections)
+        {
+            _scrollspySectionId = sectionId;
+            _windowCenterSectionId = sectionId;
+        }
+        await SelectedChanged.InvokeAsync(sectionId);
+    }
+
     public ElementReference? SectionHeading => _disposed ? null : _root?.Heading ?? _heading;
-    public bool IsCompactSettled => _compactWorkspace is { IsSettled: true };
-    public Task JumpToCompactSectionAsync(string sectionId) => _compactWorkspace?.JumpToSectionAsync(sectionId) ?? Task.CompletedTask;
+    public bool IsCompactSettled => _hasRendered;
+    public async Task JumpToCompactSectionAsync(string sectionId)
+    {
+        if (_disposed) return;
+        _scrollspySectionId = sectionId;
+        _windowCenterSectionId = sectionId;
+        StateHasChanged();
+        try
+        {
+            _scrollspyModule ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
+            IJSObjectReference module = await _scrollspyModule.WaitAsync(MountCancellation);
+            if (!_disposed && !MountCancellation.IsCancellationRequested && !string.IsNullOrEmpty(_panelElement.Id))
+                await module.InvokeVoidAsync("revealHeading", _panelElement, AllSectionsHeadingId(sectionId)).AsTask().WaitAsync(MountCancellation);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or JSException)
+        {
+        }
+    }
+
+    [JSInvokable]
+    public Task OnScrollspySectionChangedAsync(string sectionId)
+    {
+        if (_disposed || MountCancellation.IsCancellationRequested ||
+            Form.ConfigureLayoutMode != ConfigureLayoutMode.AllSections ||
+            !Sections.Any(section => string.Equals(section.Id, sectionId, StringComparison.Ordinal)))
+            return Task.CompletedTask;
+        if (!string.Equals(_scrollspySectionId, sectionId, StringComparison.Ordinal) ||
+            !string.Equals(_windowCenterSectionId, sectionId, StringComparison.Ordinal))
+        {
+            _scrollspySectionId = sectionId;
+            _windowCenterSectionId = sectionId;
+            StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+
     private string SectionId(string id) => "configuration-section-" + Array.FindIndex(Sections.ToArray(), section => section.Id == id);
-    public void Dispose() { _disposed = true; _heading = default; _compactWorkspace = null; }
+    private string AllSectionsHeadingId(string id) => "configuration-continuous-section-" + Array.FindIndex(Sections.ToArray(), section => section.Id == id);
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        await DetachScrollspyAsync();
+        _scrollspyRef?.Dispose();
+        _scrollspyRef = null;
+        if (_scrollspyModule is { IsCompletedSuccessfully: true })
+        {
+            try
+            {
+                IJSObjectReference module = await _scrollspyModule;
+                await module.DisposeAsync();
+            }
+            catch (JSException)
+            {
+            }
+        }
+        _scrollspyModule = null;
+        _heading = default;
+        _panelElement = default;
+    }
 }

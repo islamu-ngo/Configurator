@@ -32,8 +32,11 @@
         {
             var status = section.Status;
             bool outsideScope = status?.ConfigurationStatus == SectionConfigurationStatus.OutsideSelectedScope;
-            <li class="@(Selected == section.Id ? "configuration-navigation__item configuration-navigation__item--current" : "configuration-navigation__item") @(outsideScope ? "configuration-navigation__item--muted" : "")"><button type="button" class="configuration-navigation__button" data-section="@section.Id"
-                           aria-current="@(Selected == section.Id ? "true" : null)" @onclick="() => SelectedChanged.InvokeAsync(section.Id)">
+            string? currentId = LayoutMode == ConfigureLayoutMode.AllSections ? (ActiveSectionId ?? Selected) : Selected;
+            bool isCurrent = string.Equals(currentId, section.Id, StringComparison.Ordinal);
+            string? ariaCurrent = isCurrent ? (LayoutMode == ConfigureLayoutMode.AllSections ? "location" : "step") : null;
+            <li class="@(isCurrent ? "configuration-navigation__item configuration-navigation__item--current" : "configuration-navigation__item") @(outsideScope ? "configuration-navigation__item--muted" : "")"><button type="button" class="configuration-navigation__button" data-section="@section.Id"
+                           aria-current="@ariaCurrent" @onclick="() => SelectedChanged.InvokeAsync(section.Id)">
                 <span class="configuration-navigation__entry">
                     <span>@section.Title</span>
                     <span class="configuration-navigation__count">
@@ -75,6 +78,8 @@
     [Parameter] public string Locale { get; set; } = "en";
     [Parameter] public string NavigationMode { get; set; } = "sections";
     [Parameter] public WorkspaceNavigationProjection? Navigation { get; set; }
+    [Parameter] public ConfigureLayoutMode LayoutMode { get; set; } = ConfigureLayoutMode.SectionBySection;
+    [Parameter] public string? ActiveSectionId { get; set; }
 
     private string NormalizedMode => string.Equals(NavigationMode, "wizard", StringComparison.OrdinalIgnoreCase)
         ? "wizard"

@@ -152,4 +152,23 @@ public sealed class BrowserFieldHelpTests
         await Assert.That(pane.QuerySelector("[data-output-key]")!.TextContent).IsEqualTo("CREDENTIAL");
         await Assert.That(pane.TextContent).DoesNotContain("synthetic-docked-secret-value");
     }
+
+    [Test]
+    public async Task MobileInspectorSheetExposesDismissibleDialogSemanticsAndClosesOnEscape()
+    {
+        await using var context = BrowserFixture.Context();
+        var renderingModule = context.JSInterop.SetupModule("./js/configuration-rendering.js");
+        renderingModule.Setup<bool>("isNarrowViewport", _ => true).SetResult(true);
+        var component = BrowserFixture.RenderWorkspace(context, BrowserFixture.Definition);
+
+        await component.Find("[data-action='toggle-inspector']").ClickAsync(new MouseEventArgs());
+
+        var pane = component.Find("[data-inspector-pane]");
+        await Assert.That(pane.GetAttribute("data-mobile-sheet")).IsEqualTo("true");
+        await Assert.That(pane.GetAttribute("role")).IsEqualTo("dialog");
+        await Assert.That(pane.GetAttribute("aria-modal")).IsEqualTo("true");
+
+        await pane.KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+        await Assert.That(component.FindAll("[data-inspector-pane]")).IsEmpty();
+    }
 }

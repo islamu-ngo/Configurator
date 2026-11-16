@@ -290,25 +290,26 @@ public sealed class BrowserConfigurationReviewTests
     }
 
     [Test]
-    public async Task ReviewDisplaysDeploymentScopeSummaryAndCompactInlineReviewUsesConciseStatusBadgesWhileKeepingWorkspaceMounted()
+    public async Task ReviewDisplaysDeploymentScopeSummaryWithoutCompactPresentationInEitherConfigureLayout()
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, BrowserDeploymentScopeTests.Deployment()));
 
-        // Guided Review shows [data-review-scope] without Compact status badges.
+        // Section-by-section Review shows [data-review-scope] without Compact status badges.
         await BrowserFixture.SelectPanelAsync(component, "review");
         var scopeSummary = component.Find("[data-review-scope]");
         await Assert.That(scopeSummary.TextContent).Contains("Standalone · All components");
         await Assert.That(scopeSummary.TextContent).Contains("dashboard.json");
         await Assert.That(component.FindAll("[data-review-compact-status]")).IsEmpty();
 
-        // Compact inline Review shows [data-review-scope] AND [data-review-compact-status] badges while keeping [data-compact-workspace] mounted.
-        await component.Find("[data-layout-mode='compact']").ClickAsync(new MouseEventArgs());
+        // All-sections mode shares the single unified top-level Review stage with zero inline panel or CompactPresentation badges.
+        await BrowserFixture.SelectPanelAsync(component, "configure");
+        await component.Find("[data-layout-mode='all-sections']").ClickAsync(new MouseEventArgs());
         await component.Find("[data-workflow-step='review']").ClickAsync(new MouseEventArgs());
-        await Assert.That(component.FindAll("[data-compact-inline-panel='review'] [data-review-scope]").Count).IsEqualTo(1);
-        await Assert.That(component.FindAll("[data-compact-inline-panel='review'] [data-review-compact-status]").Count).IsGreaterThan(0);
-        await Assert.That(component.FindAll("[data-compact-workspace]").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-compact-inline-panel]")).IsEmpty();
+        await Assert.That(component.FindAll("[data-review-scope]").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-review-compact-status]")).IsEmpty();
     }
 
     private static Definition Definition()

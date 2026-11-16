@@ -12,11 +12,11 @@
 
 `ConfigurationVaultPanel` owns the deliberate upload, unlock, public comparison,
 private download, new-snapshot and exact-copy recovery interactions. It renders
-after the active stage panel and remains mounted across Configure/Review/Prepare
-stages while `WorkspaceHeader` leads with the definition title, scope chip,
-consent chip, and Guided/Compact/Review/Files stage controls and secondary
+after the active stage panel and remains mounted across Configure/Review/Files
+stages while `WorkspaceHeader` leads with the definition title, Scope toggle chip (`[data-action="change-scope"]` controlling `#configuration-context`),
+consent chip, and top-level `Configure`, `Review`, and `Files` stage buttons; `ConfigurationConfigurePanel` owns the orthogonal `[data-layout-switcher]` (`SectionBySection` / `AllSections`) and persistent `ConfigurationNavigation` section rail (`aria-current="location"` scrollspy via `IntersectionObserver`), while `[data-returning-entry]` choices and secondary
 editor tools (`details.configuration-editor__view-options`) follow the active
-questions. Its English/Arabic resource pair
+questions, and `[data-status-slot="reserved"]` keeps live status announcements layout-shift free (`CLS = 0`). Its English/Arabic resource pair
 labels modes, the single reviewed algorithm, recipient selection, recovery limits
 and value-free findings; declared paths and protocol identifiers use bidi isolation.
 
@@ -505,6 +505,13 @@ startup authority after module import and frame completion, then constructs and
 registers the form. Replacement, discard and disposal synchronously retire
 obsolete startup authority; public begin/import calls cannot bypass it. Discard
 reconstruction uses the same boundary and preserves the explicit restart action.
+If module import or the initial paint fails with a JS interop error, the editor
+constructs only the empty form, exposes the preparation-failed gate and retry,
+and drops a faulted import task so disposal cannot rethrow it. No workspace
+lease or answer input starts before the retry.
+Import comparison treats JS rendering failures as value-safe read failures: it
+clears only the pending comparison, keeps accepted answers, and exposes the
+import recovery action. A faulted module-import task is released for retry.
 This is a paint opportunity, not evidence of the feedback or uninterrupted-work
 budgets; form initialization and later work remain subject to actual timing.
 
@@ -530,7 +537,7 @@ that every offscreen box has been painted. Focus, find, correction reveal and
 portal overlays remain required real-browser acceptance checks.
 
 Initial discovery advances ordinal routes within that owner, resolving and
-admitting six nodes initially and at most ten after each boundary. Child
+admitting six nodes initially and at most six after each boundary. Child
 coordinates are captured only during synchronous borrows. Changed immutable
 paths and incremental counts avoid rescanning the whole growing tree for
 each initial increment; coordinate enumeration and array copying still cost
@@ -695,8 +702,7 @@ answers and input drafts survive while previous export eligibility is retired.
 Review lists the current output selector's artifact set, retaining the declared
 set for definitions without output selection, and surfaces `Form.Projection.ContextSummary`
 (`[data-review-scope]`) when deployment recipes/scopes apply. Origins and bindings are secondary
-details, and Compact's inline Review panel passes `CompactPresentation=true` to render
-concise `[data-review-compact-status]` badges. The effects region mounts at Review and pages 50 entries
+details; Review and Files always render their dedicated top-level stages (`WorkspaceStage.Review` and `WorkspaceStage.Files`) without `CompactPresentation` overrides or duplicate inline panels. The effects region mounts at Review and pages 50 entries
 at a time. Its default selection includes active required work, corrections,
 deferred secrets and supplied/defaulted entries; separate controls inspect
 omitted optional and inactive metadata without enabling it. Diagnostic correction
@@ -713,23 +719,13 @@ while `ConfigurationFilesPanel` renders `data-files-state` (`complete`, `deferre
 or `invalidated`), `[data-files-invalidated]`, `[data-custody-disclosure]`, and
 `[data-download-custody-note]` explaining browser-local transient custody and download limits.
 
-`ConfigurationCompactWorkspace` implements the continuous **Compact** editing mode inside
-`ConfigurationConfigurePanel`: switching to Compact transitions `DefinitionFormModel` to
-`(WorkspaceLayoutMode.Compact, DefinitionEditorVisibilityPolicy.Continuous)` while preserving
-`SelectedExperienceId` for Guided round-trip. It renders all applicable sections in a single
-vertical flow under one `ConfigurationMountPlan` admission budget (`6` initial / `10` per yield),
-provides a section jump bar (`revealHeading`), hides collapsed groups and non-matching
-`Show matches only` slots via DOM `hidden` and `inert` attributes without disposing admitted
-`ConfigurationField` instances, and renders concise status badges (`CompactPresentation=true`,
-`[data-compact-status]`, `data-field-state`, `data-field-origin`) on each field. Opening
-**Review** or **Files** while in Compact renders inline panels (`[data-compact-inline-panel]`)
-while keeping `ConfigurationCompactWorkspace` mounted; closing the inline Files panel calls
-`RetireCompactFilesPanel()` to synchronously cancel and invalidate preview/export state.
+`ConfigurationConfigurePanel` implements both `ConfigureLayoutMode.SectionBySection` and `ConfigureLayoutMode.AllSections` (`ConfigurationSettingRow` for scalars and lazy `ConfigurationField` for complex containers without any legacy `CompactPresentation` branch) through the shared `ConfigurationSectionFields` mount boundary: switching layouts transitions `DefinitionFormModel` between `(ConfigureLayoutMode.SectionBySection, DefinitionEditorVisibilityPolicy.Authored)` and `(ConfigureLayoutMode.AllSections, DefinitionEditorVisibilityPolicy.Continuous)` while preserving `SelectedExperienceId`, `WorkspaceStage.Configure`, and unparsed input drafts across round-trips. In `AllSections` mode it renders all applicable sections in a continuous flow with `[center ± 1]` section windowing (keeping `<section>` landmark headings static across deferred windows while freeing off-window field components), row virtualization via Blazor `<Virtualize ItemSize="72" OverscanCount="2">` above `16` items (`DirectSliceCount = 4`, height-reserved virtual tracks to prevent off-screen sections collapsing into the initial viewport, plus an in-flow `data-pinned-focus-slot` for deep-focused targets), persistent `ConfigurationNavigation` left rail with `IntersectionObserver` scrollspy (`observeScrollspy`/`OnScrollspySectionChangedAsync`) and per-section `SetSectionReviewed` toggles, omits unexpanded groups and non-matching filtered fields from the DOM without `hidden`/`inert` wrappers, renders `[data-empty-matches-state]` with a `[data-action="reset-discovery-filters"]` CTA using `DiscoveryZeroMatchSummary`, and uses `ProgressSummary.IsReadyForExport` so optional validation errors never produce a false green completion state. `ConfigurationSettingRow` marks requirement via minority `Required` pills (and section-header `[data-section-requirement="all-required"]` indicators when every visible section field is required) alongside a 3 px `inline-start` semantic status stripe and `sr-only` `[data-compact-status]` text. `ConfigurationErrorSummary` surfaces invalid/incomplete items when export validation fails or recovery links trigger, while `ConfigurationEditor` routes `F7` (blocking validation error), `F8` (`value-required` / next actionable field), `F9` (next unreviewed section), and `/` (`WorkspaceSearch` outside editable inputs).
 
-Supporting workspace surfaces cover `ConfigurationInspectorPane` (docked inspector at
-`>= 1280px` with dialog fallback below), `ConfigurationSecretGeneratorDialog` (modal recipe
+Supporting workspace surfaces cover `ConfigurationInspectorPane` (docked `<aside>` inspector at
+`>= 768px` transitioning below `768px` via `watchInspectorViewport` into a dismissible,
+focus-trapped `role="dialog" aria-modal="true"` sheet with `Escape` dismissal and focus restoration), `WorkspaceSearch` / `WorkspaceSearchState` (WAI-ARIA 1.2 `role="combobox"` with `aria-controls`, `aria-expanded`, `aria-activedescendant`, `role="listbox"`/`role="option"`, `ArrowDown`/`ArrowUp`/`Enter`/`Escape`, and `<bdi dir="ltr">` wrapping around technical identifiers), `ConfigurationSecretGeneratorDialog` (modal recipe
 generator keeping revealed plaintext passwords outside prepared output),
-`KeyboardShortcutsDialog` (`?` reference dialog), `ISnackbar` Undo/Redo notifications
+`KeyboardShortcutsDialog` (`?` reference dialog documenting `Ctrl+K`/`/`, `F7`/`F8`/`F9`, `Ctrl+Z`, `Ctrl+Shift+Z`, `Ctrl+Shift+K`, `F2`, and `?`), `ISnackbar` Undo/Redo notifications
 (`Ctrl+Z`/`Ctrl+Shift+Z` via `DefinitionFormUndoHistory` with synchronous secret purge on
 consent revocation), collapsible groups auto-expanding on validation errors, and the
 read-only `/explore/{FamilyId}` route (`Pages.Explore`) consuming

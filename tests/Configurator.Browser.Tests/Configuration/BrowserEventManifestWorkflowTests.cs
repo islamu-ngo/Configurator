@@ -119,12 +119,12 @@ public sealed class BrowserEventManifestWorkflowTests
         await Assert.That(form.Snapshot().Values["apiEndpoint"].GetString()).IsEqualTo("https://api-two.example.org");
 
         // Compact continuous workspace round-trip without prematurely unlocking secrets.
-        await layout.Find("[data-layout-mode='compact']").ClickAsync(new MouseEventArgs());
-        await Assert.That(layout.FindAll("[data-compact-workspace]").Count).IsEqualTo(1);
+        await layout.Find("[data-layout-mode='all-sections']").ClickAsync(new MouseEventArgs());
+        await Assert.That(layout.FindAll("[data-layout-active='all-sections']").Count).IsEqualTo(1);
         await Assert.That(form.SessionPrivacy).IsEqualTo(DefinitionSessionPrivacy.BrowserNoSecrets);
         await Assert.That(layout.FindAll("[data-field='apiEndpoint']").Count).IsEqualTo(1);
 
-        await layout.Find("[data-layout-mode='guided']").ClickAsync(new MouseEventArgs());
+        await layout.Find("[data-layout-mode='section-by-section']").ClickAsync(new MouseEventArgs());
         await Assert.That(layout.Find("[data-field='apiEndpoint'] input").GetAttribute("value"))
             .IsEqualTo("https://api-two.example.org");
 
@@ -186,10 +186,10 @@ public sealed class BrowserEventManifestWorkflowTests
         await Assert.That(grafanaForm.Snapshot().Values["server"].GetProperty("domain").GetString()).IsEqualTo("grafana-1.example.org");
         await grafanaLayout.Find("[data-action='redo']").ClickAsync(new MouseEventArgs());
 
-        await grafanaLayout.Find("[data-layout-mode='compact']").ClickAsync(new MouseEventArgs());
-        await Assert.That(grafanaLayout.FindAll("[data-compact-workspace]").Count).IsEqualTo(1);
+        await grafanaLayout.Find("[data-layout-mode='all-sections']").ClickAsync(new MouseEventArgs());
+        await Assert.That(grafanaLayout.FindAll("[data-layout-active='all-sections']").Count).IsEqualTo(1);
         await Assert.That(grafanaLayout.FindAll("[data-field='server.domain']").Count).IsEqualTo(1);
-        await grafanaLayout.Find("[data-layout-mode='guided']").ClickAsync(new MouseEventArgs());
+        await grafanaLayout.Find("[data-layout-mode='section-by-section']").ClickAsync(new MouseEventArgs());
 
         await grafanaLayout.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "guided" });
         await BrowserFixture.SectionNavigation(grafanaContext, grafanaLayout).Find("[data-section='datasource']").ClickAsync(new MouseEventArgs());

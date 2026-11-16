@@ -40,7 +40,7 @@ public partial class ConfigurationEditor
         }
         RetireDeveloper();
         _selectedSection = null;
-        SelectWorkflowStage(WorkflowStage.Configure);
+        SelectWorkflowStage(WorkspaceStage.Configure);
         RequestFocus(FocusTarget.Context);
         SetStatus("ContextSelectionChangedStatus");
         _statusCode = "deployment-context-changed";

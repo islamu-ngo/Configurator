@@ -85,13 +85,13 @@ public sealed class BrowserEditingTests
         var field = context.Render<ConfigurationSectionFields>(parameters => parameters
             .Add(component => component.Form, form)
             .Add(component => component.Fields, form.Validate().Fields.Where(item => item.Id == "settings").ToArray()));
-        await Assert.That(field.Find("[data-field='settings.value'] .configuration-field__requirement").TextContent).IsEqualTo("Optional");
+        await Assert.That(field.FindAll("[data-field='settings.value'] .configuration-field__requirement")).IsEmpty();
         form.SetValue(["settings", "enabled"], JsonSerializer.SerializeToElement(true));
         field.Render();
         await Assert.That(field.Find("[data-field='settings.value'] .configuration-field__requirement").TextContent).IsEqualTo("Required");
         form.SetValue(["settings", "enabled"], JsonSerializer.SerializeToElement(false));
         field.Render();
-        await Assert.That(field.Find("[data-field='settings.value'] .configuration-field__requirement").TextContent).IsEqualTo("Optional");
+        await Assert.That(field.FindAll("[data-field='settings.value'] .configuration-field__requirement")).IsEmpty();
     }
     [Test]
     public async Task LocalFilePickerUsesDeclaredDefaultLocaleBeforeAnswerCollection()

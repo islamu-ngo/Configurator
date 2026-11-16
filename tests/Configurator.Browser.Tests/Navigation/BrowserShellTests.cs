@@ -338,8 +338,10 @@ public sealed class BrowserShellTests
         await Assert.That(component.Find("[data-action='toggle-naming-mode']")).IsNotNull();
         string[] densities = component.FindAll("#configuration-density option").Select(item => item.GetAttribute("value") ?? "").ToArray();
         await Assert.That(densities).IsEquivalentTo(["spacious", "comfortable", "compact", "dense"]);
+        string[] workflowSteps = component.FindAll("[data-workflow-step]").Select(item => item.GetAttribute("data-workflow-step") ?? "").ToArray();
+        await Assert.That(workflowSteps).IsEquivalentTo(["configure", "review", "prepare"]);
         string[] layoutModes = component.FindAll("[data-layout-mode]").Select(item => item.GetAttribute("data-layout-mode") ?? "").ToArray();
-        await Assert.That(layoutModes).IsEquivalentTo(["guided", "compact", "review", "files"]);
+        await Assert.That(layoutModes).IsEquivalentTo(["section-by-section", "all-sections"]);
 
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
@@ -365,8 +367,8 @@ public sealed class BrowserShellTests
 
         var staleStageSelected = editor.FindComponent<WorkspaceHeader>().Instance.StageSelected;
         await editor.InvokeAsync(() => form.EditValue(["dashboard"], "updated-dashboard"));
-        await editor.InvokeAsync(() => staleStageSelected.InvokeAsync(("review", WorkspaceLayoutMode.Compact)));
-        await Assert.That(form.WorkspaceLayoutMode).IsEqualTo(WorkspaceLayoutMode.Guided);
+        await editor.InvokeAsync(() => staleStageSelected.InvokeAsync(WorkspaceStage.Review));
+        await Assert.That(form.ConfigureLayoutMode).IsEqualTo(ConfigureLayoutMode.SectionBySection);
         await Assert.That(editor.Find("[data-workflow-step='configure']").GetAttribute("aria-current")).IsEqualTo("step");
 
         await BrowserFixture.SelectPanelAsync(editor, "review");
@@ -415,5 +417,52 @@ public sealed class BrowserShellTests
         await Assert.That(component.Find("[data-field='HTTPServer_URL'] .configuration-field__key").GetAttribute("dir")).IsEqualTo("ltr");
         await component.Find("[data-field='HTTPServer_URL'] [data-action='field-help']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("[data-definition-path]").GetAttribute("dir")).IsEqualTo("ltr");
+    }
+
+    [Test]
+    public async Task UnifiedHeaderSeparatesStagesFromLayoutToggleScopeChipTogglesContextAndProgressBarIsTrimmed()
+    {
+        await using var context = BrowserFixture.Context();
+        Definition definition = BrowserDeploymentScopeTests.Deployment();
+        var editor = context.Render<ConfigurationEditor>(parameters =>
+            parameters.Add(item => item.Definition, definition));
+        var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
+
+        // Stage bar strictly contains 3 workflow steps and zero layout toggles.
+        var header = editor.Find("header.workspace-header");
+        string[] steps = header.QuerySelectorAll("[data-workflow-step]").Select(el => el.GetAttribute("data-workflow-step") ?? "").ToArray();
+        await Assert.That(steps).IsEquivalentTo(["configure", "review", "prepare"]);
+        await Assert.That(header.QuerySelectorAll("[data-layout-mode]").Length).IsEqualTo(0);
+
+        // Configure panel owns the orthogonal layout switcher.
+        var configurePanel = editor.Find(".configuration-configure-panel");
+        string[] layoutSwitches = configurePanel.QuerySelectorAll("[data-layout-mode]").Select(el => el.GetAttribute("data-layout-mode") ?? "").ToArray();
+        await Assert.That(layoutSwitches).IsEquivalentTo(["section-by-section", "all-sections"]);
+
+        // Progress bar excludes returning-user entry choices, which remain accessible in workspace tools.
+        await Assert.That(editor.FindAll(".configuration-editor__progress [data-returning-entry]")).IsEmpty();
+        await Assert.That(editor.FindAll("[data-returning-entry] [data-entry-choice]").Count).IsGreaterThan(0);
+
+        // Context disclosure starts hidden/collapsed at rest and toggles open via Scope chip.
+        var scopeChip = editor.Find("[data-workspace-scope][data-action='change-scope']");
+        await Assert.That(scopeChip.GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(editor.Find("#configuration-context").HasAttribute("hidden")).IsTrue();
+        await scopeChip.ClickAsync(new MouseEventArgs());
+        await Assert.That(scopeChip.GetAttribute("aria-expanded")).IsEqualTo("true");
+        await Assert.That(editor.Find("#configuration-context").HasAttribute("hidden")).IsFalse();
+        await scopeChip.ClickAsync(new MouseEventArgs());
+        await Assert.That(scopeChip.GetAttribute("aria-expanded")).IsEqualTo("false");
+
+        // AllSections mode navigates to the single top-level Review stage preserving unparsed drafts without inline panels or CompactPresentation.
+        await editor.Find("[data-layout-mode='all-sections']").ClickAsync(new MouseEventArgs());
+        await editor.Find("[data-field='dashboard'] input").InputAsync(new ChangeEventArgs { Value = "draft-before-review" });
+        await BrowserFixture.SelectPanelAsync(editor, "review");
+        await Assert.That(editor.FindAll("[data-compact-inline-panel]")).IsEmpty();
+        await Assert.That(editor.FindAll("[data-review-compact-status]")).IsEmpty();
+        await Assert.That(editor.Find("[data-workflow-step='review']").GetAttribute("aria-current")).IsEqualTo("step");
+
+        await BrowserFixture.SelectPanelAsync(editor, "configure");
+        await Assert.That(form.ConfigureLayoutMode).IsEqualTo(ConfigureLayoutMode.AllSections);
+        await Assert.That(editor.Find("[data-field='dashboard'] input").GetAttribute("value")).IsEqualTo("draft-before-review");
     }
 }

@@ -1,0 +1,87 @@
+@using System.Globalization
+@using Configurator.Core.Definitions
+@using Configurator.Presentation
+@using Configurator.Browser.Resources
+
+@{
+    IReadOnlyList<ErrorItem> items = CollectItems();
+    bool visible = items.Count > 0 && (_hasErrors || ShowRequiredSummary);
+}
+
+@if (visible)
+{
+    int shown = Math.Min(MaxItemsShown, items.Count);
+    <div class="configuration-error-summary" role="region" aria-labelledby="configuration-error-summary-title"
+         data-error-summary tabindex="-1">
+        <div class="configuration-error-summary__header">
+            <h3 id="configuration-error-summary-title" class="configuration-error-summary__title">
+                @BrowserStrings.Get("ErrorSummaryTitle", Form.Locale)
+            </h3>
+            <span class="configuration-error-summary__count" data-error-summary-count="@items.Count">
+                @string.Format(CultureInfo.GetCultureInfo(Form.Locale), BrowserStrings.Get("ErrorSummaryCount", Form.Locale), items.Count)
+            </span>
+        </div>
+        <ul class="configuration-error-summary__list">
+            @for (int index = 0; index < shown; index++)
+            {
+                ErrorItem item = items[index];
+                <li @key="item.Key">
+                    <button type="button" class="configuration-error-summary__link"
+                            data-error-summary-item="@item.Target.FieldId"
+                            data-error-blocking="@(item.Target.IsBlockingError ? "true" : "false")"
+                            @onclick="() => TargetSelected.InvokeAsync(item.Target)">
+                        <bdi>@item.Title</bdi><span class="configuration-error-summary__sep"> — </span><span>@item.Message</span>
+                    </button>
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    private const int MaxItemsShown = 12;
+    private bool _hasErrors;
+
+    [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
+    [Parameter] public DefinitionValidationResult? Validation { get; set; }
+    [Parameter] public bool ShowRequiredSummary { get; set; }
+    [Parameter] public EventCallback<WorkspaceActionableTarget> TargetSelected { get; set; }
+
+    private sealed record ErrorItem(string Key, string Title, string Message, WorkspaceActionableTarget Target);
+
+    private IReadOnlyList<ErrorItem> CollectItems()
+    {
+        DefinitionValidationResult validation = Validation ?? Form.Validate();
+        var items = new List<ErrorItem>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        _hasErrors = false;
+
+        foreach (DefinitionDiagnostic diagnostic in Form.InputDiagnostics.Concat(validation.Diagnostics))
+        {
+            WorkspaceActionableTarget? target = Form.ResolveActionableTarget(diagnostic);
+            if (target is null) continue;
+            bool blocking = target.IsBlockingError;
+            if (!blocking && !ShowRequiredSummary) continue;
+            string dedupeKey = $"{target.FieldId}\0{target.DefinitionPath.ToPointer()}";
+            if (!seen.Add(dedupeKey)) continue;
+            if (blocking) _hasErrors = true;
+            string title = ResolveFieldTitle(target);
+            DefinitionFieldValidation facts = Form.GetFieldValidation(target.DefinitionPath);
+            string message = PresentationStrings.FieldCorrection(facts, Form.Locale);
+            if (string.IsNullOrWhiteSpace(message))
+                message = BrowserStrings.Get(blocking ? "CompactStateInvalid" : "CompactStateMissingRequired", Form.Locale);
+            items.Add(new ErrorItem(dedupeKey, title, message, target));
+        }
+        return items;
+    }
+
+    private string ResolveFieldTitle(WorkspaceActionableTarget target)
+    {
+        if (Form.GetEditorPresentation(target.DefinitionPath) is { Title.Length: > 0 } presentation)
+            return presentation.Title;
+        if (!string.IsNullOrEmpty(target.FieldId) &&
+            Form.Definition.Fields.FirstOrDefault(field => string.Equals(field.Id, target.FieldId, StringComparison.Ordinal)) is { } field)
+            return DefinitionDisplayText.Resolve(field.Title, field.Id);
+        return target.DefinitionPath.Segments.Count > 0 ? target.DefinitionPath.Segments[^1] : Form.Definition.Title;
+    }
+}

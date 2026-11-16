@@ -177,4 +177,130 @@ public sealed class BrowserSecretBoundaryTests
             .FindComponent<MudSelect<string>>().Instance.Value).IsEqualTo("");
         await Assert.That(component.FindAll("[data-field='private.mode'] .configuration-field__choice").Count).IsEqualTo(1);
     }
+
+    [Test]
+    public async Task UnmountedScrolledSectionRetainsUnparsedDraftsAndWipesRevokedSecretsAgainstStaleCallbacks()
+    {
+        var properties = new JsonObject
+        {
+            ["unparsedPort"] = JsonNode.Parse("""{"type":"integer","title":"Unparsed Port","x-configurator":{"sensitivity":"public","detail":"basic"}}""")
+        };
+        var sections = new JsonArray();
+        var sectionIds = new JsonArray();
+        for (int s = 0; s < 12; s++)
+        {
+            string secId = $"sec{s}";
+            sectionIds.Add(secId);
+            var pointers = new JsonArray();
+            if (s == 0) pointers.Add("/unparsedPort");
+            for (int f = 0; f < 6; f++)
+            {
+                string name = s == 11 && f == 0 ? "deepSecret" : $"sec{s}_f{f}";
+                bool secret = s == 11 && f == 0;
+                properties[name] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["title"] = secret ? "Deep Secret" : $"Setting {s}-{f}",
+                    ["x-configurator"] = secret
+                        ? new JsonObject
+                        {
+                            ["sensitivity"] = "secret",
+                            ["detail"] = "basic",
+                            ["secret"] = new JsonObject { ["kind"] = "password", ["acquisition"] = "local" }
+                        }
+                        : new JsonObject { ["sensitivity"] = "public", ["detail"] = "basic" }
+                };
+                pointers.Add("/" + name);
+            }
+            sections.Add(new JsonObject { ["id"] = secId, ["title"] = $"Section {s}", ["detail"] = "basic", ["pointers"] = pointers });
+        }
+        var doc = new JsonObject
+        {
+            ["schemaVersion"] = "0.0.1",
+            ["profile"] = "bounded-v0.0.1",
+            ["familyId"] = "f26b4e93-6e21-4c9a-a2a0-4810a1a0f202",
+            ["revision"] = 1,
+            ["project"] = new JsonObject { ["id"] = "custody-unmount-test", ["publisher"] = "example", ["name"] = "Custody Unmount Test" },
+            ["applicationVersions"] = new JsonArray("1.0.0"),
+            ["entryPoints"] = new JsonArray("setup"),
+            ["locales"] = new JsonArray("en"),
+            ["configuration"] = new JsonObject
+            {
+                ["type"] = "object",
+                ["additionalProperties"] = false,
+                ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" },
+                ["required"] = new JsonArray("deepSecret"),
+                ["properties"] = properties
+            },
+            ["presentation"] = new JsonObject
+            {
+                ["defaultJourney"] = "default",
+                ["navigation"] = "sections",
+                ["sections"] = sections,
+                ["journeys"] = new JsonArray(new JsonObject { ["id"] = "default", ["title"] = "Default", ["sections"] = sectionIds })
+            },
+            ["artifacts"] = JsonNode.Parse("""[{"id":"out","format":"json","fileName":"out.json","targetUpdateMode":"create","restartRequirement":"none","projection":{"op":"literal","value":{}}}]"""),
+            ["requiredCapabilities"] = new JsonArray("projection.literal", "schema.integer", "schema.object", "schema.secret", "schema.string")
+        };
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(doc.ToJsonString()));
+        await using var context = BrowserFixture.Context();
+        context.ComponentFactories.Add<ConfigurationSettingRow, EmittedSettingRow>();
+        var component = BrowserFixture.RenderWorkspace(context, definition);
+        var panel = component.FindComponent<ConfigurationConfigurePanel>();
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+
+        await component.Find("[data-layout-mode='all-sections']").ClickAsync(new MouseEventArgs());
+
+        // Enter an unparsed invalid numeric draft in section 0, then scroll window to section 11.
+        await component.Find("[data-field='unparsedPort'] input").InputAsync(new ChangeEventArgs { Value = "99999-draft" });
+        await panel.InvokeAsync(() => panel.Instance.OnScrollspySectionChangedAsync("sec11"));
+        await Assert.That(component.FindAll("[data-section-panel='sec0'] input")).IsEmpty();
+
+        // Enable consent and enter a secret in section 11 while sec0 is unmounted, capturing its @oninput callback.
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find("[data-field='deepSecret'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-unmounted-secret-s04" });
+        object staleDeepCallback = component.FindComponents<EmittedSettingRow>()
+            .Single(row => row.Instance.Path.SequenceEqual(["deepSecret"]))
+            .Instance.CaptureInput();
+
+        // Scroll back to sec0 so sec11 unmounts, verifying sec0 still holds the exact unparsed draft.
+        await panel.InvokeAsync(() => panel.Instance.OnScrollspySectionChangedAsync("sec0"));
+        await Assert.That(component.FindAll("[data-section-panel='sec11'] input")).IsEmpty();
+        await Assert.That(component.Find("[data-field='unparsedPort'] input").GetAttribute("value")).IsEqualTo("99999-draft");
+
+        // Revoke consent while sec11 is unmounted, fire stale input callback against retired control, then verify zero resurrection.
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        long revisionAfterRevoke = form.InputRevision;
+        await component.InvokeAsync(() => staleDeepCallback switch
+        {
+            EventCallback<ChangeEventArgs> typed => typed.InvokeAsync(new ChangeEventArgs { Value = "synthetic-late-stale-secret" }),
+            EventCallback untyped => untyped.InvokeAsync(new ChangeEventArgs { Value = "synthetic-late-stale-secret" }),
+            MulticastDelegate handler => new EventCallbackWorkItem(handler).InvokeAsync(new ChangeEventArgs { Value = "synthetic-late-stale-secret" }),
+            _ => throw new InvalidOperationException("input-handler-missing")
+        });
+        await Assert.That(form.InputRevision).IsEqualTo(revisionAfterRevoke);
+        await Assert.That(component.Markup).DoesNotContain("synthetic-unmounted-secret-s04");
+        await Assert.That(component.Markup).DoesNotContain("synthetic-late-stale-secret");
+
+        await panel.InvokeAsync(() => panel.Instance.OnScrollspySectionChangedAsync("sec11"));
+        await Assert.That(component.FindAll("[data-field='deepSecret'] [data-secret-denied]").Count).IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-field='deepSecret'] input")).IsEmpty();
+
+        // Search must never expose secret value or leak matches across revoked state.
+        await component.InvokeAsync(() => form.SetDiscovery("synthetic-unmounted-secret-s04"));
+        await Assert.That(form.Projection.Matches).IsEmpty();
+    }
+
+    public sealed class EmittedSettingRow : ConfigurationSettingRow
+    {
+        public object CaptureInput()
+        {
+            using var builder = new Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder();
+            BuildRenderTree(builder);
+            var frames = builder.GetFrames();
+            return frames.Array.Take(frames.Count).Single(frame =>
+                frame.FrameType == Microsoft.AspNetCore.Components.RenderTree.RenderTreeFrameType.Attribute &&
+                frame.AttributeName == "oninput").AttributeValue;
+        }
+    }
 }

@@ -677,6 +677,9 @@
   <data name="ShortcutRedoDesc" xml:space="preserve"><value>Redo the previously undone change</value></data>
   <data name="ShortcutNamingDesc" xml:space="preserve"><value>Switch between Humanized and Technical names</value></data>
   <data name="ShortcutInspectorDesc" xml:space="preserve"><value>Toggle the docked field inspector</value></data>
+  <data name="ShortcutNextErrorDesc" xml:space="preserve"><value>Jump to next field with an error</value></data>
+  <data name="ShortcutNextRequiredDesc" xml:space="preserve"><value>Jump to next missing required field</value></data>
+  <data name="ShortcutNextUnvisitedDesc" xml:space="preserve"><value>Jump to next unreviewed section</value></data>
   <data name="ShortcutHelpDesc" xml:space="preserve"><value>Open this keyboard shortcuts guide</value></data>
   <data name="GroupExpandLabel" xml:space="preserve"><value>Expand {0}</value></data>
   <data name="GroupCollapseLabel" xml:space="preserve"><value>Collapse {0}</value></data>
@@ -742,4 +745,34 @@
   <data name="SecretGenerationFailed" xml:space="preserve"><value>Secret generation failed in this browser context. Your existing value is unchanged; you can retry or enter a value.</value></data>
   <data name="RetrySecretGeneration" xml:space="preserve"><value>Retry secret generation</value></data>
   <data name="RetryProfileTask" xml:space="preserve"><value>Reset profile message and retry</value></data>
+  <data name="ConfigureLayoutLabel" xml:space="preserve"><value>Configure layout</value></data>
+  <data name="LayoutSectionBySection" xml:space="preserve"><value>Section by section</value></data>
+  <data name="LayoutAllSections" xml:space="preserve"><value>All sections</value></data>
+  <data name="MarkSectionReviewedAction" xml:space="preserve"><value>Mark reviewed</value></data>
+  <data name="SectionReviewedAction" xml:space="preserve"><value>Reviewed</value></data>
+  <data name="RequiredReadyOptionalIssue" xml:space="preserve"><value>All required set — 1 issue in optional settings</value></data>
+  <data name="RequiredReadyOptionalIssues" xml:space="preserve"><value>All required set — {0} issues in optional settings</value></data>
+  <data name="ResetFiltersAction" xml:space="preserve"><value>Reset filters</value></data>
+  <data name="ZeroMatchesOutOfScope" xml:space="preserve"><value>{0} matches excluded by active filters and {1} in inactive conditional settings (private values hidden).</value></data>
+  <data name="ErrorSummaryTitle" xml:space="preserve"><value>There is a problem</value></data>
+  <data name="ErrorSummaryCount" xml:space="preserve"><value>{0} items need attention</value></data>
+  <data name="SectionAllFieldsRequired" xml:space="preserve"><value>All fields required</value></data>
+  <data name="FreshEntryDescription" xml:space="preserve"><value>Start with clean default settings in this browser tab.</value></data>
+  <data name="ImportEntryDescription" xml:space="preserve"><value>Load public values from an existing JSON, dotenv, YAML, or TOML file.</value></data>
+  <data name="ProfileEntryDescription" xml:space="preserve"><value>Unlock an encrypted .cfgvault profile to continue privately.</value></data>
+  <data name="ExploreFilterLabel" xml:space="preserve"><value>Filter sections and settings</value></data>
+  <data name="ExploreFilterPlaceholder" xml:space="preserve"><value>Filter by field name, title, or option...</value></data>
+  <data name="ExploreRequirementAll" xml:space="preserve"><value>All settings</value></data>
+  <data name="ExploreSectionsOutline" xml:space="preserve"><value>Sections</value></data>
+  <data name="ExploreNoMatches" xml:space="preserve"><value>No settings match your current filter.</value></data>
+  <data name="ShowPassphrase" xml:space="preserve"><value>Show</value></data>
+  <data name="HidePassphrase" xml:space="preserve"><value>Hide</value></data>
+  <data name="TogglePassphraseVisibility" xml:space="preserve"><value>Show or hide passphrase for {0}</value></data>
+  <data name="VaultSequenceIntro" xml:space="preserve"><value>Encrypted profile workflow</value></data>
+  <data name="VaultStep1LockUnlock" xml:space="preserve"><value>1. Lock / Unlock</value></data>
+  <data name="VaultStep2ReviewDiff" xml:space="preserve"><value>2. Review / Diff</value></data>
+  <data name="VaultStep3DownloadCopy" xml:space="preserve"><value>3. Download / Copy</value></data>
+  <data name="VaultCryptoDetails" xml:space="preserve"><value>Technical encryption details</value></data>
+  <data name="StartupThreeTasksNote" xml:space="preserve"><value>Once ready, choose whether to start fresh, import an existing file, or unlock an encrypted profile.</value></data>
+  <data name="FilesStepSequence" xml:space="preserve"><value>1. Review values -> 2. Prepare files -> 3. Download or copy</value></data>
 </root>

@@ -39,8 +39,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private readonly List<PreparedArtifact> _prepared = [];
     private BrowserArtifactBundleExport? _bundleExport;
     private readonly List<string> _diagnostics = [];
-    private WorkflowStage _activeWorkflowStage = WorkflowStage.Configure;
-    private enum WorkflowStage { Configure, Review, Prepare }
+    private WorkspaceStage _activeWorkflowStage = WorkspaceStage.Configure;
     private long _viewGeneration;
     private (DefinitionFormModel Form, long Generation, FocusTarget Target)? _pendingFocus;
     private enum FocusTarget { Configure, Review, Files, Consent, Import, Profile, Start, Output, Context, DeveloperDestination, TransferReview }
@@ -51,11 +50,9 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private ConfigurationFilesPanel? _filesPanel;
     private ConfigurationDeveloper? _developerPanel;
     private bool _developerMode;
-    private bool _compactReviewOpen;
-    private bool _compactFilesOpen;
     private bool _compactShowMatchesOnly;
     private bool _hadPreparedOutput;
-    private WorkspaceLayoutMode _observedLayoutMode = WorkspaceLayoutMode.Guided;
+    private ConfigureLayoutMode _observedLayoutMode = ConfigureLayoutMode.SectionBySection;
     private bool _contextOpen;
     private bool _consentOpen;
     private bool _taskToolsOpen;
@@ -79,19 +76,11 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private string? _sectionLocale;
     private string DisplayDirection => Appearance.Current.Direction == "auto"
         ? _form?.Direction ?? _startup!.Direction : Appearance.Current.Direction;
-    private WorkspaceLayoutMode LayoutMode => _form?.WorkspaceLayoutMode ?? WorkspaceLayoutMode.Guided;
+    private ConfigureLayoutMode LayoutMode => _form?.ConfigureLayoutMode ?? ConfigureLayoutMode.SectionBySection;
     private WorkspaceDensity Density => _form?.WorkspaceDensity ?? Appearance.Current.ToWorkspaceDensity();
     private WorkspaceNamingMode NamingMode => _form?.WorkspaceNamingMode ?? Appearance.Current.ToWorkspaceNamingMode();
-    private bool IsFilesSurfaceActive => _activeWorkflowStage == WorkflowStage.Prepare ||
-        (LayoutMode == WorkspaceLayoutMode.Compact && _compactFilesOpen);
-    private string WorkflowStageToken => LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode
-        ? (_compactFilesOpen ? "prepare" : _compactReviewOpen ? "review" : "configure")
-        : _activeWorkflowStage switch
-        {
-            WorkflowStage.Review => "review",
-            WorkflowStage.Prepare => "prepare",
-            _ => "configure"
-        };
+    private bool IsFilesSurfaceActive => _activeWorkflowStage == WorkspaceStage.Files;
+    private WorkspaceStage ActiveHeaderStage => _activeWorkflowStage;
     private string? ScopeSummary => _form?.Projection.ContextSummary?.Summary
         ?? (_form?.ConfigurationContext is not { } context ? null : $"{context.RecipeId} · {context.ScopeId}");
     protected override void OnInitialized()
@@ -99,6 +88,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         Appearance.Changed += AppearanceChanged;
         _suggestionReviewCallback = EventCallback.Factory.Create<DefinitionPath>(this, HandleSuggestionReviewRequestedAsync);
         _fieldFocusCallback = OnFieldFocused;
+        _keyDownCallback = HandleWorkspaceKeyAsync;
         RefreshConsentAction();
     }
     private void AppearanceChanged(object? sender, EventArgs args)
@@ -132,10 +122,15 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private bool _disposed;
     private bool _ready;
     private bool _inspectorOpen;
+    private bool _inspectorMobileSheet;
+    private bool _focusInspectorToggleOnClose;
+    private ElementReference _inspectorToggleControl;
+    private bool _errorSummaryRequested;
     private DefinitionPath? _inspectedPath;
     private bool _suppressUndoToast;
     private long _lastToastRevision = -1;
     private Action<DefinitionPath> _fieldFocusCallback = null!;
+    private Func<KeyboardEventArgs, Task> _keyDownCallback = null!;
     private bool _preparing;
     private bool _preparationFailed;
     private WorkspaceStartupStage StartupStage => _ready && _form is not null ? WorkspaceStartupStage.Ready
@@ -150,14 +145,14 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         get
         {
             if (_form!.RequiresBrowserProfileComposition) return "blocked";
-            DefinitionFormProgress progress = _form!.Projection.Progress;
-            return _form.ConfigurationContext is { IsReady: false } || _form.HasInputErrors || _form.HasAnswerBudgetError || progress.Invalid > 0 || progress.Missing > progress.Deferred
-                ? "blocked" : progress.Deferred > 0 ? "deferred" : "complete";
+            WorkspaceProgressSummary summary = _form!.Projection.ProgressSummary;
+            return _form.ConfigurationContext is { IsReady: false } || _form.HasInputErrors || _form.HasAnswerBudgetError ||
+                   summary.TotalInvalidCount > 0 || summary.MissingRequired > summary.DeferredSecretCount
+                ? "blocked" : summary.DeferredSecretCount > 0 ? "deferred" : "complete";
         }
     }
     private long _offlineLease;
     private DefinitionValidationResult? _validation;
-    private DefinitionValidationResult? _reviewValidation;
     private BrowserNavigationState? _navigation;
     private long _navigationLease;
     private WorkspaceSearchState? _search;
@@ -175,18 +170,15 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _configurePanel = null;
         _reviewPanel = null;
         _filesPanel = null;
-        _compactReviewOpen = false;
-        _reviewValidation = null;
-        _compactFilesOpen = false;
         _compactShowMatchesOnly = false;
-        _observedLayoutMode = WorkspaceLayoutMode.Guided;
+        _observedLayoutMode = ConfigureLayoutMode.SectionBySection;
         InvalidateMounts();
         Invalidate();
         _search?.Release(this, _searchLease);
         _navigation?.Release(this, _navigationLease);
         if (_form is not null) _form.ImportComparisonChanged -= ImportComparisonChanged;
         _form?.Dispose();
-        _activeWorkflowStage = WorkflowStage.Configure;
+        _activeWorkflowStage = WorkspaceStage.Configure;
         _returnToReview = false;
         _selectedSection = null;
         _focusField = null;
@@ -234,6 +226,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _form = new DefinitionFormModel(startup.Definition, DefinitionSessionPrivacy.BrowserNoSecrets,
             BrowserLaunchSelection.EditingCapabilities, startup.Definition.Presentation is null
                 ? DefinitionEditorVisibilityPolicy.Direct : DefinitionEditorVisibilityPolicy.Authored);
+        _errorSummaryRequested = false;
+        _inspectorMobileSheet = false;
         _workspaceLifetime = Guid.NewGuid().ToString("N");
         _hadPreparedOutput = false;
         ++_profileConsentEpoch;
@@ -304,28 +298,44 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _statusArguments = arguments;
     }
 
-    private sealed record StatusRecoveryAction(string Target, string LabelKey);
+    private enum StatusRecoveryTarget { Correction, Consent, Import, Profile, RetryAggregateExport, Files, Context, Review }
+
+    private sealed record StatusRecoveryAction(StatusRecoveryTarget Target, string LabelKey)
+    {
+        public string TargetToken => Target switch
+        {
+            StatusRecoveryTarget.Correction => "correction",
+            StatusRecoveryTarget.Consent => "consent",
+            StatusRecoveryTarget.Import => "import",
+            StatusRecoveryTarget.Profile => "profile",
+            StatusRecoveryTarget.RetryAggregateExport => "retry-aggregate-export",
+            StatusRecoveryTarget.Files => "files",
+            StatusRecoveryTarget.Context => "context",
+            StatusRecoveryTarget.Review => "review",
+            _ => throw new ArgumentOutOfRangeException(nameof(Target))
+        };
+    }
 
     private StatusRecoveryAction? StatusRecovery => _statusCode switch
     {
         "input-type-invalid" or "preparation-rejected" or "answer-budget-exceeded"
-            => new("correction", "RecoverCorrection"),
+            => new(StatusRecoveryTarget.Correction, "RecoverCorrection"),
         "import-secret-consent-required"
-            => new("consent", "ReviewSecretConsent"),
+            => new(StatusRecoveryTarget.Consent, "ReviewSecretConsent"),
         "import-too-large" or "import-read-failed" or "import-cancelled" or "inverse-unsupported"
-            => new("import", "RecoverImport"),
+            => new(StatusRecoveryTarget.Import, "RecoverImport"),
         _ when _statusKey is "ImportRefusedStatus" or "AutofillRefusedStatus" or "ImportUnsupportedStatus"
-            => new("import", "RecoverImport"),
+            => new(StatusRecoveryTarget.Import, "RecoverImport"),
         "profile-private-output-required"
-            => new("profile", "RecoverProfile"),
+            => new(StatusRecoveryTarget.Profile, "RecoverProfile"),
         "aggregate-export-unavailable"
-            => new("retry-aggregate-export", "RetryFileExport"),
+            => new(StatusRecoveryTarget.RetryAggregateExport, "RetryFileExport"),
         "aggregate-export-rejected"
-            => new("files", "RecoverExportFiles"),
+            => new(StatusRecoveryTarget.Files, "RecoverExportFiles"),
         "deployment-context-invalid"
-            => new("context", "ConfigurationContext"),
+            => new(StatusRecoveryTarget.Context, "ConfigurationContext"),
         "transfer-rejected"
-            => new("review", "WorkflowReview"),
+            => new(StatusRecoveryTarget.Review, "WorkflowReview"),
         _ => null
     };
 
@@ -334,59 +344,48 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (_disposed || !_ready || _form is null || StatusRecovery is not { } recovery) return;
         switch (recovery.Target)
         {
-            case "correction":
-                if (_form.GetNextActionableDiagnostic(_selectedSection) is { } diagnostic)
+            case StatusRecoveryTarget.Correction:
+                _errorSummaryRequested = true;
+                if (_form.ResolveNextActionableTarget(_selectedSection) is { } target)
                 {
-                    CorrectField(diagnostic);
+                    await JumpToActionableTargetAsync(target);
                     return;
                 }
-                if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
-                    CloseCompactInlinePanel();
-                else
-                    SelectWorkflowStage(WorkflowStage.Configure);
+                SelectWorkflowStage(WorkspaceStage.Configure);
                 RequestFocus(FocusTarget.Configure);
                 break;
-            case "consent":
+            case StatusRecoveryTarget.Consent:
                 _consentOpen = true;
                 RequestFocus(FocusTarget.Consent);
                 break;
-            case "import":
-                if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
-                    CloseCompactInlinePanel();
-                else if (_activeWorkflowStage != WorkflowStage.Configure)
-                    SelectWorkflowStage(WorkflowStage.Configure);
+            case StatusRecoveryTarget.Import:
+                if (_activeWorkflowStage != WorkspaceStage.Configure)
+                    SelectWorkflowStage(WorkspaceStage.Configure);
                 _importOpen = true;
                 _profileOpen = false;
                 RequestFocus(FocusTarget.Import);
                 break;
-            case "profile":
+            case StatusRecoveryTarget.Profile:
                 _profileOpen = true;
                 _importOpen = false;
                 RequestFocus(FocusTarget.Profile);
                 break;
-            case "retry-aggregate-export":
+            case StatusRecoveryTarget.RetryAggregateExport:
                 await ExportAllAsync(_lastAggregateExportWasArchive);
                 break;
-            case "files":
-                if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
-                    OpenCompactFilesPanel();
-                else if (_activeWorkflowStage != WorkflowStage.Prepare)
-                    SelectWorkflowStage(WorkflowStage.Prepare);
+            case StatusRecoveryTarget.Files:
+                if (_activeWorkflowStage != WorkspaceStage.Files)
+                    SelectWorkflowStage(WorkspaceStage.Files);
                 RequestFocus(FocusTarget.Files);
                 break;
-            case "context":
-                if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
-                    CloseCompactInlinePanel();
-                else if (_activeWorkflowStage != WorkflowStage.Configure)
-                    SelectWorkflowStage(WorkflowStage.Configure);
+            case StatusRecoveryTarget.Context:
+                if (_activeWorkflowStage != WorkspaceStage.Configure)
+                    SelectWorkflowStage(WorkspaceStage.Configure);
                 _contextOpen = true;
                 RequestFocus(FocusTarget.Context);
                 break;
-            case "review":
-                if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
-                    OpenCompactReviewPanel();
-                else
-                    SelectWorkflowStage(WorkflowStage.Review);
+            case StatusRecoveryTarget.Review:
+                SelectWorkflowStage(WorkspaceStage.Review);
                 break;
         }
     }
@@ -430,69 +429,20 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         RetireDeveloper();
         _developerMode = developer;
         _configurePanel = null;
-        SelectWorkflowStage(WorkflowStage.Configure);
+        SelectWorkflowStage(WorkspaceStage.Configure);
     }
 
-    private async Task RequestWorkflowStageAsync(WorkflowStage stage)
+    private async Task RequestWorkflowStageAsync(WorkspaceStage stage)
     {
         if (!await ResolvePendingAsync()) return;
-        if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
+        if (_developerMode && stage == WorkspaceStage.Configure)
         {
-            if (stage == WorkflowStage.Review) OpenCompactReviewPanel();
-            else if (stage == WorkflowStage.Prepare) OpenCompactFilesPanel();
-            else CloseCompactInlinePanel();
-            return;
+            RetireDeveloper();
+            _developerMode = false;
+            _configurePanel = null;
         }
         if (_activeWorkflowStage == stage) return;
         SelectWorkflowStage(stage);
-    }
-
-    private void OpenCompactReviewPanel()
-    {
-        if (_compactFilesOpen) RetireCompactFilesPanel();
-        else RetireView();
-        _compactReviewOpen = true;
-        _reviewValidation = _form!.Validate();
-        RequestFocus(FocusTarget.Review);
-    }
-
-    private void OpenCompactFilesPanel()
-    {
-        if (_compactFilesOpen) return;
-        _compactReviewOpen = false;
-        _reviewValidation = null;
-        _reviewPanel = null;
-        RetireView();
-        _compactFilesOpen = true;
-        RequestFocus(FocusTarget.Files);
-    }
-
-    private void RetireCompactFilesPanel()
-    {
-        if (!_compactFilesOpen) return;
-        _compactFilesOpen = false;
-        _filesPanel = null;
-        RetireView();
-        Task[] retirements = _prepared.Select(artifact =>
-        {
-            artifact.Revealed = false;
-            artifact.View = null;
-            return artifact.Export.InvalidateAsync().AsTask();
-        }).Concat(_bundleExport is null ? [] : new[] { _bundleExport.InvalidateAsync().AsTask() }).ToArray();
-        _outputRetirement = Task.WhenAll(_outputRetirement, ObserveRetirementAsync(retirements));
-    }
-
-    private void CloseCompactInlinePanel()
-    {
-        if (_compactFilesOpen)
-            RetireCompactFilesPanel();
-        else if (_compactReviewOpen)
-        {
-            _compactReviewOpen = false;
-            _reviewValidation = null;
-            _reviewPanel = null;
-            RetireView();
-        }
     }
 
     private async Task FocusNextRequiredWorkAsync()
@@ -500,15 +450,13 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (_disposed || _form is null) return;
         DefinitionFormModel form = _form;
         if (!await ResolvePendingAsync() || _disposed || !ReferenceEquals(form, _form)) return;
-        if (form.GetNextActionableDiagnostic(_selectedSection) is { } diagnostic)
+        _errorSummaryRequested = true;
+        if (form.ResolveNextActionableTarget(_selectedSection) is { } target)
         {
-            CorrectField(diagnostic);
+            await JumpToActionableTargetAsync(target);
             return;
         }
-        if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
-            OpenCompactReviewPanel();
-        else
-            SelectWorkflowStage(WorkflowStage.Review);
+        SelectWorkflowStage(WorkspaceStage.Review);
     }
 
     private async Task RequestOutputChangeAsync(ChangeEventArgs args)
@@ -545,23 +493,22 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private DefinitionFormModel? _renderedConfigureForm;
     private long _renderedConfigureView;
 
-    private void SelectSection(string section)
+    private Task SelectSectionAsync(string section)
     {
         _selectedSection = section;
         _focusField = null;
         _form?.RecordSectionOpened(section);
-        if (_activeWorkflowStage == WorkflowStage.Configure && LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
-        {
-            CloseCompactInlinePanel();
-            return;
-        }
-        SelectWorkflowStage(WorkflowStage.Configure);
+        if (_activeWorkflowStage == WorkspaceStage.Configure && LayoutMode == ConfigureLayoutMode.AllSections && !_developerMode)
+            return _configurePanel?.JumpToCompactSectionAsync(section) ?? Task.CompletedTask;
+        SelectWorkflowStage(WorkspaceStage.Configure);
+        return Task.CompletedTask;
     }
 
-    private void HandleConfigureSectionSelected(string section)
+    private Task HandleConfigureSectionSelectedAsync(string section)
     {
         if (_renderedConfigureForm is not null && IsCurrentView(_renderedConfigureForm, _renderedConfigureView))
-            SelectSection(section);
+            return SelectSectionAsync(section);
+        return Task.CompletedTask;
     }
 
     private void HandleCompactShowMatchesOnlyChanged(bool value)
@@ -573,14 +520,14 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private void HandleConfigureReviewRequested()
     {
         if (_renderedConfigureForm is not null && IsCurrentView(_renderedConfigureForm, _renderedConfigureView))
-            SelectWorkflowStage(WorkflowStage.Review);
+            SelectWorkflowStage(WorkspaceStage.Review);
     }
 
-    private void SelectWorkflowStage(WorkflowStage stage)
+    private void SelectWorkflowStage(WorkspaceStage stage)
     {
-        if (_activeWorkflowStage == WorkflowStage.Configure && _developerMode && stage != WorkflowStage.Configure)
+        if (_activeWorkflowStage == WorkspaceStage.Configure && _developerMode && stage != WorkspaceStage.Configure)
             RetireDeveloper();
-        bool leavingFiles = _activeWorkflowStage == WorkflowStage.Prepare && stage != WorkflowStage.Prepare;
+        bool leavingFiles = _activeWorkflowStage == WorkspaceStage.Files && stage != WorkspaceStage.Files;
         RetireView();
         InvalidateMounts();
         // Retire in-flight work without discarding a completed comparison owned by the form.
@@ -592,11 +539,11 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         }
         else ++_generation;
         _activeWorkflowStage = stage;
-        if (stage != WorkflowStage.Configure) _configurePanel = null;
-        if (stage != WorkflowStage.Review) _reviewPanel = null;
-        if (stage != WorkflowStage.Prepare) _filesPanel = null;
-        if (stage == WorkflowStage.Review) _validation = _form!.Validate();
-        RequestFocus(stage switch { WorkflowStage.Review => FocusTarget.Review, WorkflowStage.Prepare => FocusTarget.Files, _ => FocusTarget.Configure });
+        if (stage != WorkspaceStage.Configure) _configurePanel = null;
+        if (stage != WorkspaceStage.Review) _reviewPanel = null;
+        if (stage != WorkspaceStage.Files) _filesPanel = null;
+        if (stage == WorkspaceStage.Review) _validation = _form!.Validate();
+        RequestFocus(stage switch { WorkspaceStage.Review => FocusTarget.Review, WorkspaceStage.Files => FocusTarget.Files, _ => FocusTarget.Configure });
         if (leavingFiles)
         {
             Task[] retirements = _prepared.Select(artifact =>
@@ -631,7 +578,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _developerMode = false;
         if (OutputSelector is { } selector && field.Name == selector.Location.Segments[0] && path.Count == 1)
         {
-            SelectWorkflowStage(WorkflowStage.Configure);
+            SelectWorkflowStage(WorkspaceStage.Configure);
             RequestFocus(FocusTarget.Output);
             return;
         }
@@ -639,7 +586,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             && DefinitionPath.FromSegments(new[] { field.Name }.Concat(path.Skip(1)).ToArray()).ToPointer() is var selectorPointer
             && (selectorPointer == deployment.RecipePointer || selectorPointer == deployment.ScopePointer))
         {
-            SelectWorkflowStage(WorkflowStage.Configure);
+            SelectWorkflowStage(WorkspaceStage.Configure);
             RequestFocus(FocusTarget.Context);
             return;
         }
@@ -657,17 +604,16 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         bool focused = _form!.FocusEditor(path, preserveDiscovery: true);
         bool denied = !_form.CanEdit(path);
         if (!focused && !denied) return;
-        if (_form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact)
+        if (_form.ConfigureLayoutMode == ConfigureLayoutMode.AllSections)
         {
             _compactShowMatchesOnly = false;
-            CloseCompactInlinePanel();
-            if (_activeWorkflowStage != WorkflowStage.Configure)
-                SelectWorkflowStage(WorkflowStage.Configure);
+            if (_activeWorkflowStage != WorkspaceStage.Configure)
+                SelectWorkflowStage(WorkspaceStage.Configure);
             _selectedSection = EditorSections().FirstOrDefault(section => section.Fields.Contains(fieldId))?.Id ?? _selectedSection;
         }
         else
         {
-            SelectWorkflowStage(WorkflowStage.Configure);
+            SelectWorkflowStage(WorkspaceStage.Configure);
             _selectedSection = EditorSections().Single(section => section.Fields.Contains(fieldId)).Id;
         }
         _focusField = denied ? null : field.Id;
@@ -682,15 +628,9 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         RetireDeveloper();
         _developerMode = false;
         if (canEdit) _form.FocusEditor(location, preserveDiscovery: true);
-        if (_form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact)
-        {
-            _compactShowMatchesOnly = false;
-            CloseCompactInlinePanel();
-            if (_activeWorkflowStage != WorkflowStage.Configure)
-                SelectWorkflowStage(WorkflowStage.Configure);
-        }
-        else
-            SelectWorkflowStage(WorkflowStage.Configure);
+        if (_activeWorkflowStage != WorkspaceStage.Configure)
+            SelectWorkflowStage(WorkspaceStage.Configure);
+        _compactShowMatchesOnly = false;
         _focusField = canEdit ? "" : null;
         _focusPath = canEdit ? location.Segments : [];
         _pendingFocus = null;
@@ -705,14 +645,11 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private void ReturnToReview()
     {
         _returnToReview = false;
-        if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
-            OpenCompactReviewPanel();
-        else
-            SelectWorkflowStage(WorkflowStage.Review);
+        SelectWorkflowStage(WorkspaceStage.Review);
     }
     private void ReviewImportConsent()
     {
-        SelectWorkflowStage(WorkflowStage.Configure);
+        SelectWorkflowStage(WorkspaceStage.Configure);
         RequestFocus(FocusTarget.Consent);
     }
     private void ImportComparisonChanged(object? sender, EventArgs args)
@@ -733,7 +670,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         await ConsentAsync(new ChangeEventArgs { Value = true });
         if (!_disposed && ReferenceEquals(form, _form) && form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)
         {
-            SelectWorkflowStage(WorkflowStage.Configure);
+            SelectWorkflowStage(WorkspaceStage.Configure);
             RequestFocus(FocusTarget.Consent);
         }
     }
@@ -742,13 +679,12 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     {
         if (_disposed || !ReferenceEquals(sender, _form)) return;
         RetireView();
-        bool keepSettledCompactMounts = _activeWorkflowStage == WorkflowStage.Configure &&
-            LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode && _configurePanel?.IsCompactSettled == true;
+        bool keepSettledCompactMounts = _activeWorkflowStage == WorkspaceStage.Configure &&
+            LayoutMode == ConfigureLayoutMode.AllSections && !_developerMode && _configurePanel?.IsCompactSettled == true;
         if (!keepSettledCompactMounts)
             InvalidateMounts();
         _focusField = null;
         Invalidate();
-        if (_compactReviewOpen) _reviewValidation = _form!.Validate();
         RefreshImportArtifacts();
         if (_importOutputSelection != OutputSelection || !ImportArtifacts.Any(artifact => artifact.Id == _importArtifact)) SelectCurrentImportArtifact();
         int required = _form!.Projection.Progress.Required;
@@ -778,16 +714,16 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (!ReferenceEquals(_observedDiscoverySelection, _form!.DiscoverySelection))
         {
             _observedDiscoverySelection = _form.DiscoverySelection;
-            if (_form.WorkspaceLayoutMode == WorkspaceLayoutMode.Compact && _compactShowMatchesOnly)
+            if (_form.ConfigureLayoutMode == ConfigureLayoutMode.AllSections && _compactShowMatchesOnly)
                 StateHasChanged();
             return;
         }
-        bool layoutChanged = _observedLayoutMode != _form.WorkspaceLayoutMode;
-        _observedLayoutMode = _form.WorkspaceLayoutMode;
-        if (layoutChanged && _form.WorkspaceLayoutMode != WorkspaceLayoutMode.Compact)
+        bool layoutChanged = _observedLayoutMode != _form.ConfigureLayoutMode;
+        _observedLayoutMode = _form.ConfigureLayoutMode;
+        if (layoutChanged && _form.ConfigureLayoutMode != ConfigureLayoutMode.AllSections)
             _compactShowMatchesOnly = false;
         RetireView();
-        if (layoutChanged || _form.WorkspaceLayoutMode != WorkspaceLayoutMode.Compact)
+        if (layoutChanged || _form.ConfigureLayoutMode != ConfigureLayoutMode.AllSections)
             InvalidateMounts();
         _focusField = null;
         StateHasChanged();
@@ -852,8 +788,15 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     }
     private void OpenScopeSelector()
     {
-        _contextOpen = true;
-        RequestFocus(FocusTarget.Context);
+        if (_activeWorkflowStage != WorkspaceStage.Configure)
+        {
+            SelectWorkflowStage(WorkspaceStage.Configure);
+            _contextOpen = true;
+            RequestFocus(FocusTarget.Context);
+            return;
+        }
+        _contextOpen = !_contextOpen;
+        if (_contextOpen) RequestFocus(FocusTarget.Context);
     }
     private Task ChangeNamingModeAsync(WorkspaceNamingMode mode)
     {
@@ -876,45 +819,26 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         };
         return ChangeDensityValueAsync(target);
     }
-    private async Task SelectStageAndLayoutAsync((string Stage, WorkspaceLayoutMode Layout) selection)
+    private async Task SelectLayoutModeAsync(ConfigureLayoutMode layout)
     {
         if (_disposed || _form is null) return;
         DefinitionFormModel form = _form;
         if (!await ResolvePendingAsync() || _disposed || !ReferenceEquals(form, _form)) return;
-        if (_developerMode && selection.Stage == "configure")
+        if (_developerMode)
         {
             RetireDeveloper();
             _developerMode = false;
             _configurePanel = null;
         }
-        if (selection.Stage == "configure")
+        if (layout == ConfigureLayoutMode.AllSections)
+            _form?.SetConfigureLayoutMode(ConfigureLayoutMode.AllSections, DefinitionEditorVisibilityPolicy.Continuous);
+        else
         {
-            CloseCompactInlinePanel();
-            if (selection.Layout == WorkspaceLayoutMode.Compact)
-                _form?.SetWorkspaceLayoutMode(WorkspaceLayoutMode.Compact, DefinitionEditorVisibilityPolicy.Continuous);
-            else
-            {
-                _compactShowMatchesOnly = false;
-                _form?.SetWorkspaceLayoutMode(WorkspaceLayoutMode.Guided);
-            }
-            if (_activeWorkflowStage != WorkflowStage.Configure)
-                SelectWorkflowStage(WorkflowStage.Configure);
-            return;
+            _compactShowMatchesOnly = false;
+            _form?.SetConfigureLayoutMode(ConfigureLayoutMode.SectionBySection);
         }
-        if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
-        {
-            if (selection.Stage == "review") OpenCompactReviewPanel();
-            else if (selection.Stage == "prepare") OpenCompactFilesPanel();
-            return;
-        }
-        WorkflowStage target = selection.Stage switch
-        {
-            "review" => WorkflowStage.Review,
-            "prepare" => WorkflowStage.Prepare,
-            _ => WorkflowStage.Configure
-        };
-        if (_activeWorkflowStage != target)
-            SelectWorkflowStage(target);
+        if (_activeWorkflowStage != WorkspaceStage.Configure)
+            SelectWorkflowStage(WorkspaceStage.Configure);
     }
     private Task HandleWorkspaceKeyAsync(KeyboardEventArgs args)
     {
@@ -947,13 +871,67 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (!args.CtrlKey && !args.MetaKey && !args.AltKey)
         {
             if (args.Key == "F2")
+                return ToggleInspectorAsync();
+            if (args.Key == "F7")
+                return JumpToNextActionableAsync(errorsOnly: true);
+            if (args.Key == "F8")
+                return JumpToNextActionableAsync(errorsOnly: false);
+            if (args.Key == "F9")
+                return JumpToNextUnvisitedAsync();
+            if (args.Key == "/")
             {
-                ToggleInspector();
+                _search?.RequestOpen(this, _searchLease);
                 return Task.CompletedTask;
             }
             if (args.Key == "?")
                 return OpenShortcutsHelpAsync();
         }
+        return Task.CompletedTask;
+    }
+
+    private Task JumpToNextActionableAsync(bool errorsOnly)
+    {
+        if (_disposed || _form is null) return Task.CompletedTask;
+        WorkspaceActionableTarget? target = null;
+        if (errorsOnly)
+        {
+            target = _form.ResolveNextActionableTarget(_selectedSection, errorsOnly: true)
+                ?? _form.ResolveNextActionableTarget(_selectedSection, errorsOnly: false);
+        }
+        else
+        {
+            DefinitionValidationResult validation = _validation ?? _form.Validate();
+            foreach (DefinitionDiagnostic diagnostic in validation.Diagnostics)
+            {
+                if (diagnostic.Code == "value-required" &&
+                    _form.ResolveActionableTarget(diagnostic) is { CanEdit: true } candidate)
+                {
+                    target = candidate;
+                    break;
+                }
+            }
+            target ??= _form.ResolveNextActionableTarget(_selectedSection, errorsOnly: false);
+        }
+        if (target is not null)
+            return JumpToActionableTargetAsync(target);
+        return Task.CompletedTask;
+    }
+
+    private Task JumpToNextUnvisitedAsync()
+    {
+        if (_disposed || _form is null) return Task.CompletedTask;
+        if (_form.Projection.Navigation.NextUnvisitedSectionId is { } sectionId)
+        {
+            _compactShowMatchesOnly = false;
+            return SelectSectionAsync(sectionId);
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task JumpToActionableTargetAsync(WorkspaceActionableTarget target)
+    {
+        if (_disposed || _form is null) return Task.CompletedTask;
+        CorrectField(target.Diagnostic);
         return Task.CompletedTask;
     }
 
@@ -966,10 +944,29 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             _ = InvokeAsync(StateHasChanged);
     }
 
-    private void ToggleInspector()
+    private async Task ToggleInspectorAsync()
     {
         if (_disposed) return;
-        _inspectorOpen = !_inspectorOpen;
+        if (_inspectorOpen)
+        {
+            _inspectorOpen = false;
+            _inspectorMobileSheet = false;
+            _focusInspectorToggleOnClose = true;
+            return;
+        }
+        try
+        {
+            _comparisonRendering ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
+            IJSObjectReference module = await _comparisonRendering;
+            if (_disposed) return;
+            _inspectorMobileSheet = await module.InvokeAsync<bool>("isNarrowViewport");
+        }
+        catch (JSException)
+        {
+            _inspectorMobileSheet = false;
+        }
+        if (_disposed) return;
+        _inspectorOpen = true;
     }
 
     private void PerformUndo()
@@ -1048,46 +1045,36 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         {
             case WorkspaceCommandId.Undo: PerformUndo(); break;
             case WorkspaceCommandId.Redo: PerformRedo(); break;
-            case WorkspaceCommandId.SwitchToGuided:
-                await SelectStageAndLayoutAsync(("configure", WorkspaceLayoutMode.Guided));
+            case WorkspaceCommandId.SwitchToSectionBySection:
+                await SelectLayoutModeAsync(ConfigureLayoutMode.SectionBySection);
                 break;
-            case WorkspaceCommandId.SwitchToCompact:
-                await SelectStageAndLayoutAsync(("configure", WorkspaceLayoutMode.Compact));
+            case WorkspaceCommandId.SwitchToAllSections:
+                await SelectLayoutModeAsync(ConfigureLayoutMode.AllSections);
                 break;
             case WorkspaceCommandId.SwitchToReview:
-                await RequestWorkflowStageAsync(WorkflowStage.Review);
+                await RequestWorkflowStageAsync(WorkspaceStage.Review);
                 break;
             case WorkspaceCommandId.SwitchToFiles:
-                await RequestWorkflowStageAsync(WorkflowStage.Prepare);
+                await RequestWorkflowStageAsync(WorkspaceStage.Files);
                 break;
             case WorkspaceCommandId.ToggleNamingMode:
                 await ChangeNamingModeAsync(NamingMode == WorkspaceNamingMode.Technical
                     ? WorkspaceNamingMode.Humanized : WorkspaceNamingMode.Technical);
                 break;
             case WorkspaceCommandId.ToggleInspector:
-                ToggleInspector();
+                await ToggleInspectorAsync();
                 break;
             case WorkspaceCommandId.OpenShortcutsHelp:
                 await OpenShortcutsHelpAsync();
                 break;
             case WorkspaceCommandId.JumpToNextError:
+                await JumpToNextActionableAsync(errorsOnly: true);
+                break;
             case WorkspaceCommandId.JumpToNextRequired:
+                await JumpToNextActionableAsync(errorsOnly: false);
+                break;
             case WorkspaceCommandId.JumpToNextUnvisited:
-                if (command.TargetSectionId is { } sectionId)
-                {
-                    if (LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode)
-                    {
-                        _compactShowMatchesOnly = false;
-                        CloseCompactInlinePanel();
-                        if (_configurePanel is not null)
-                            await _configurePanel.JumpToCompactSectionAsync(sectionId);
-                    }
-                    else
-                    {
-                        await SelectStageAndLayoutAsync(("configure", WorkspaceLayoutMode.Guided));
-                        SelectSection(sectionId);
-                    }
-                }
+                await JumpToNextUnvisitedAsync();
                 break;
         }
     }
@@ -1096,7 +1083,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     {
         if (args.Value is not string id || !_form!.SelectExperience(id)) return;
         _selectedSection = null;
-        SelectWorkflowStage(WorkflowStage.Configure);
+        SelectWorkflowStage(WorkspaceStage.Configure);
     }
     private async Task ConsentAsync(ChangeEventArgs args)
     {
@@ -1125,16 +1112,35 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         {
             if (_startup is not { } startup || _startupScheduled || !IsCurrentStartup(startup)) return;
             _startupScheduled = true;
-            _comparisonRendering ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
-            IJSObjectReference module = await _comparisonRendering;
-            if (!IsCurrentStartup(startup)) return;
             try
             {
+                _comparisonRendering ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
+                IJSObjectReference module = await _comparisonRendering;
+                if (!IsCurrentStartup(startup)) return;
                 await module.InvokeVoidAsync("paintWorkspace", startup.Cancellation, _startupControl,
                     startup.View.ToString(CultureInfo.InvariantCulture));
             }
-            catch (OperationCanceledException) when (!IsCurrentStartup(startup)) { return; }
-            catch (JSException) when (!IsCurrentStartup(startup)) { return; }
+            catch (OperationCanceledException) when (!IsCurrentStartup(startup))
+            {
+                if (_comparisonRendering?.IsCanceled == true) _comparisonRendering = null;
+                return;
+            }
+            catch (JSException) when (!IsCurrentStartup(startup))
+            {
+                if (_comparisonRendering?.IsFaulted == true) _comparisonRendering = null;
+                return;
+            }
+            catch (JSException)
+            {
+                if (_comparisonRendering?.IsFaulted == true) _comparisonRendering = null;
+                InitializeForm(startup);
+                _preparing = false;
+                _preparationFailed = true;
+                SetStatus("AppPreparationIncompleteStatus");
+                _statusCode = "app-preparation-incomplete";
+                StateHasChanged();
+                return;
+            }
             if (!IsCurrentStartup(startup)) return;
             InitializeForm(startup);
             if (startup.Begin)
@@ -1152,18 +1158,24 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         }
         DefinitionFormModel form = _form;
         long generation = _viewGeneration;
+        if (_focusInspectorToggleOnClose && _ready && !_inspectorOpen)
+        {
+            _focusInspectorToggleOnClose = false;
+            if (!string.IsNullOrEmpty(_inspectorToggleControl.Id))
+                await _inspectorToggleControl.FocusAsync(preventScroll: true);
+        }
         if (!IsCurrentView(form, generation) || _pendingFocus is not { } request) return;
         _pendingFocus = null;
         if (!IsCurrentView(request.Form, request.Generation)) return;
         ElementReference? target = request.Target switch
         {
-            FocusTarget.Configure when _ready && _activeWorkflowStage == WorkflowStage.Configure => _developerMode
+            FocusTarget.Configure when _ready && _activeWorkflowStage == WorkspaceStage.Configure => _developerMode
                 ? _developerPanel?.Heading : _configurePanel?.SectionHeading,
-            FocusTarget.Review when _ready && (_activeWorkflowStage == WorkflowStage.Review || (LayoutMode == WorkspaceLayoutMode.Compact && _compactReviewOpen)) => _reviewPanel?.Heading,
+            FocusTarget.Review when _ready && _activeWorkflowStage == WorkspaceStage.Review => _reviewPanel?.Heading,
             FocusTarget.Files when _ready && IsFilesSurfaceActive => _filesPanel?.Heading,
             FocusTarget.TransferReview when _ready && _transferReview is not null => _nextActionsPanel?.ReviewHeading,
             FocusTarget.Consent when _ready => _consentControl,
-            FocusTarget.Import when _ready && _activeWorkflowStage == WorkflowStage.Configure => _fileInput?.Element,
+            FocusTarget.Import when _ready && _activeWorkflowStage == WorkspaceStage.Configure => _fileInput?.Element,
             FocusTarget.Profile when _ready => _vaultPanel?.Heading,
             FocusTarget.Output when _ready && OutputSelector is not null => _outputControl,
             FocusTarget.Context when _ready && _form!.ConfigurationContext is not null => _contextControl,
@@ -1261,7 +1273,6 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _prepared.Clear();
         _diagnostics.Clear();
         _validation = null;
-        _reviewValidation = null;
         _navigation?.RefreshWork(this, _navigationLease);
         // Start every retirement before awaiting any JS cleanup. Each owner
         // revokes its workspace, bytes and generation synchronously.
@@ -1343,13 +1354,10 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _taskToolsOpen = false;
         _importOpen = false;
         _profileOpen = false;
-        _activeWorkflowStage = WorkflowStage.Configure;
-        _compactReviewOpen = false;
-        _reviewValidation = null;
-        _compactFilesOpen = false;
+        _activeWorkflowStage = WorkspaceStage.Configure;
         _compactShowMatchesOnly = false;
         _hadPreparedOutput = false;
-        _observedLayoutMode = WorkspaceLayoutMode.Guided;
+        _observedLayoutMode = ConfigureLayoutMode.SectionBySection;
         _configurePanel = null;
         _reviewPanel = null;
         _filesPanel = null;

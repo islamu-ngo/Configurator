@@ -677,6 +677,9 @@
   <data name="ShortcutRedoDesc" xml:space="preserve"><value>إعادة التغيير المتراجع عنه</value></data>
   <data name="ShortcutNamingDesc" xml:space="preserve"><value>التبديل بين الأسماء المبسطة والتقنية</value></data>
   <data name="ShortcutInspectorDesc" xml:space="preserve"><value>إظهار أو إخفاء فاحص الحقل الجانبي</value></data>
+  <data name="ShortcutNextErrorDesc" xml:space="preserve"><value>الانتقال إلى الحقل التالي الذي يحتوي على خطأ</value></data>
+  <data name="ShortcutNextRequiredDesc" xml:space="preserve"><value>الانتقال إلى الحقل المطلوب الناقص التالي</value></data>
+  <data name="ShortcutNextUnvisitedDesc" xml:space="preserve"><value>الانتقال إلى القسم التالي غير المراجَع</value></data>
   <data name="ShortcutHelpDesc" xml:space="preserve"><value>فتح دليل اختصارات لوحة المفاتيح</value></data>
   <data name="GroupExpandLabel" xml:space="preserve"><value>توسيع {0}</value></data>
   <data name="GroupCollapseLabel" xml:space="preserve"><value>طي {0}</value></data>
@@ -742,4 +745,34 @@
   <data name="SecretGenerationFailed" xml:space="preserve"><value>فشل توليد السر في سياق المتصفح هذا. بقيت قيمتك الحالية دون تغيير؛ يمكنك إعادة المحاولة أو إدخال قيمة.</value></data>
   <data name="RetrySecretGeneration" xml:space="preserve"><value>إعادة محاولة توليد السر</value></data>
   <data name="RetryProfileTask" xml:space="preserve"><value>إعادة ضبط رسالة ملف التعريف والمحاولة مجددًا</value></data>
+  <data name="ConfigureLayoutLabel" xml:space="preserve"><value>تخطيط التكوين</value></data>
+  <data name="LayoutSectionBySection" xml:space="preserve"><value>قسمًا بقسم</value></data>
+  <data name="LayoutAllSections" xml:space="preserve"><value>كل الأقسام</value></data>
+  <data name="MarkSectionReviewedAction" xml:space="preserve"><value>تعيين كمُراجَع</value></data>
+  <data name="SectionReviewedAction" xml:space="preserve"><value>مُراجَع</value></data>
+  <data name="RequiredReadyOptionalIssue" xml:space="preserve"><value>كل الإعدادات المطلوبة مكتملة — مشكلة واحدة في الإعدادات الاختيارية</value></data>
+  <data name="RequiredReadyOptionalIssues" xml:space="preserve"><value>كل الإعدادات المطلوبة مكتملة — {0} مشكلات في الإعدادات الاختيارية</value></data>
+  <data name="ResetFiltersAction" xml:space="preserve"><value>إعادة ضبط الفلاتر</value></data>
+  <data name="ZeroMatchesOutOfScope" xml:space="preserve"><value>توجد {0} نتائج مطابقة مستبعدة بالفلاتر النشطة و{1} في إعدادات غير نشطة (القيم الخاصة مخفية).</value></data>
+  <data name="ErrorSummaryTitle" xml:space="preserve"><value>توجد مشكلة</value></data>
+  <data name="ErrorSummaryCount" xml:space="preserve"><value>تتطلب {0} عناصر اهتمامًا</value></data>
+  <data name="SectionAllFieldsRequired" xml:space="preserve"><value>جميع الحقول مطلوبة</value></data>
+  <data name="FreshEntryDescription" xml:space="preserve"><value>ابدأ بإعدادات افتراضية جديدة في علامة التبويب هذه.</value></data>
+  <data name="ImportEntryDescription" xml:space="preserve"><value>حمّل القيم العامة من ملف JSON أو dotenv أو YAML أو TOML موجود لديك.</value></data>
+  <data name="ProfileEntryDescription" xml:space="preserve"><value>افتح ملف .cfgvault المشفّر للمتابعة بخصوصية.</value></data>
+  <data name="ExploreFilterLabel" xml:space="preserve"><value>تصفية الأقسام والإعدادات</value></data>
+  <data name="ExploreFilterPlaceholder" xml:space="preserve"><value>ابحث باسم الحقل أو العنوان أو الخيار...</value></data>
+  <data name="ExploreRequirementAll" xml:space="preserve"><value>كل الإعدادات</value></data>
+  <data name="ExploreSectionsOutline" xml:space="preserve"><value>الأقسام</value></data>
+  <data name="ExploreNoMatches" xml:space="preserve"><value>لا توجد إعدادات تطابق الفلتر الحالي.</value></data>
+  <data name="ShowPassphrase" xml:space="preserve"><value>إظهار</value></data>
+  <data name="HidePassphrase" xml:space="preserve"><value>إخفاء</value></data>
+  <data name="TogglePassphraseVisibility" xml:space="preserve"><value>إظهار أو إخفاء عبارة المرور لحقل {0}</value></data>
+  <data name="VaultSequenceIntro" xml:space="preserve"><value>خطوات ملف التعريف المشفّر</value></data>
+  <data name="VaultStep1LockUnlock" xml:space="preserve"><value>1. قفل / فتح القفل</value></data>
+  <data name="VaultStep2ReviewDiff" xml:space="preserve"><value>2. مراجعة / مقارنة</value></data>
+  <data name="VaultStep3DownloadCopy" xml:space="preserve"><value>3. تنزيل / نسخ</value></data>
+  <data name="VaultCryptoDetails" xml:space="preserve"><value>تفاصيل التشفير التقنية</value></data>
+  <data name="StartupThreeTasksNote" xml:space="preserve"><value>عند الجاهزية، اختر البدء من جديد أو استيراد ملف موجود أو فتح ملف تعريف مشفّر.</value></data>
+  <data name="FilesStepSequence" xml:space="preserve"><value>1. مراجعة القيم ← 2. تحضير الملفات ← 3. التنزيل أو النسخ</value></data>
 </root>

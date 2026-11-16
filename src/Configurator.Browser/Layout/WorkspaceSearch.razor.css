@@ -1,5 +1,7 @@
 .workspace-search { position: relative; flex: 1 1 16rem; max-inline-size: 24rem; min-inline-size: 0; }
 .workspace-search__entry { min-inline-size: 0; }
+.workspace-search__input { inline-size: 100%; min-block-size: var(--isl-target-min, 2.5rem); padding: var(--isl-space-1) var(--isl-space-3); border: 1px solid var(--isl-color-control-border); border-radius: var(--isl-radius-sm); background: var(--isl-color-surface); color: var(--isl-color-text); font: inherit; font-size: .875rem; }
+.workspace-search__input:focus-visible { outline: 2px solid var(--isl-color-primary); outline-offset: 1px; }
 .workspace-search__trigger { display: none; }
 .workspace-search__results { position: absolute; inset-block-start: calc(100% + var(--isl-space-2)); inset-inline-end: 0; inline-size: min(40rem, calc(100vw - 2rem)); max-block-size: min(32rem, 70dvh); overflow: auto; overscroll-behavior: contain; background: var(--isl-color-surface); color: var(--isl-color-text); border: 1px solid var(--isl-color-border); border-radius: var(--isl-radius-card); padding: var(--isl-space-4); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); }
 .workspace-search__heading { display: flex; align-items: center; justify-content: space-between; gap: var(--isl-space-3); }

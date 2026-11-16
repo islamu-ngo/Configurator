@@ -29,8 +29,8 @@ public partial class ConfigurationEditor
                 RetireDeveloper();
                 _developerMode = false;
             }
-            if (_activeWorkflowStage != WorkflowStage.Configure)
-                SelectWorkflowStage(WorkflowStage.Configure);
+            if (_activeWorkflowStage != WorkspaceStage.Configure)
+                SelectWorkflowStage(WorkspaceStage.Configure);
             _importOpen = true;
             _profileOpen = false;
             RequestFocus(FocusTarget.Import);
@@ -43,8 +43,8 @@ public partial class ConfigurationEditor
         }
         _importOpen = false;
         _profileOpen = false;
-        if (_activeWorkflowStage != WorkflowStage.Configure)
-            SelectWorkflowStage(WorkflowStage.Configure);
+        if (_activeWorkflowStage != WorkspaceStage.Configure)
+            SelectWorkflowStage(WorkspaceStage.Configure);
         else
             RequestFocus(FocusTarget.Configure);
     }
@@ -275,8 +275,9 @@ public partial class ConfigurationEditor
                 await AdoptComparisonAsync(result.Report!, cancellation.Token);
             }
         }
-        catch (Exception exception) when (exception is IOException or OperationCanceledException or InvalidOperationException or DefinitionException)
+        catch (Exception exception) when (exception is IOException or OperationCanceledException or InvalidOperationException or DefinitionException or JSException)
         {
+            if (_comparisonRendering?.IsFaulted == true) _comparisonRendering = null;
             if (generation == _generation && ReferenceEquals(form, _form))
             {
                 form.ClearImportComparison();

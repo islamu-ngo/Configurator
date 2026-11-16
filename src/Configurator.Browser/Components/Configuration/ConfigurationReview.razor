@@ -58,6 +58,7 @@
 @if (ShowEffects && Form is not null)
 {
     <section class="configuration-review__effects" data-review-effects aria-label="@Ui("ReviewEffects")">
+        <p class="form-help configuration-review__steps" data-review-steps>@Ui("FilesStepSequence")</p>
         <p>@Ui("ReviewEffectsHelp")</p>
         <p>@Ui("ReviewDeclaredOutputs")</p>
         <ul class="configuration-review__outputs">
@@ -100,23 +101,13 @@
                     data-review-path="@string.Join(".", entry.FieldId.Length == 0 ? entry.RelativePath : new[] { entry.FieldId }.Concat(entry.RelativePath))" data-origin="@entry.Origin">
                     <div class="configuration-review__answer">
                         <strong>@entryTitle</strong>
-                        @if (CompactPresentation)
-                        {
-                            <span class="configuration-review__compact-status" data-review-compact-status
-                                  data-entry-state="@EntryStateToken(entry)" data-entry-origin="@entry.Origin.ToString().ToLowerInvariant()">
-                                @StateText(entry) · @OriginText(entry.Origin)
-                            </span>
-                        }
                         @if (entry.IsActive)
                         {
                             <button type="button" class="button button--secondary" data-action="review-focus-row" @onclick="() => ChangeField.InvokeAsync(diagnostic)"
                                     aria-label="@UiFormat("ReviewChangeField", entryTitle)">@Ui("ReviewChange")</button>
                         }
                     </div>
-                    @if (!CompactPresentation)
-                    {
-                        <p>@StateText(entry)</p>
-                    }
+                    <p>@StateText(entry)</p>
                     @if (entry.Sensitivity != FieldSensitivity.Public && entry.Origin != DefinitionAnswerOrigin.Omitted)
                     {
                         <p>@Ui("ReviewPrivateMasked")</p>
@@ -155,7 +146,6 @@
     [Parameter] public IReadOnlyList<string> DiagnosticCodes { get; set; } = [];
     [Parameter] public IReadOnlyList<DefinitionDiagnostic> InvalidFields { get; set; } = [];
     [Parameter] public bool SecretsEnabled { get; set; }
-    [Parameter] public bool CompactPresentation { get; set; }
     [Parameter] public EventCallback<DefinitionDiagnostic> CorrectField { get; set; }
     [Parameter] public EventCallback EnableSecrets { get; set; }
     private const int PageSize = 50;

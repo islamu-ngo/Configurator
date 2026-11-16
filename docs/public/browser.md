@@ -151,7 +151,9 @@ flowchart LR
 > **Browser Environment & Custody Considerations:**
 > While Blazor WebAssembly executes locally and sends no answer data to the web host, browser environments cannot enforce OS-level file permissions (such as Linux `0600`) or prevent malicious browser extensions from inspecting DOM memory. For high-value production secrets, prefer the native [Desktop](desktop.md), [Terminal](terminal.md), or [CLI](cli.md) clients on a trusted workstation.
 
-**No secret-manager access, permanently.** The Browser never connects to Infisical, Azure Key Vault or any other secret manager, and never holds their credentials. This is a permanent product boundary, not a missing feature. Planned vault operations run only in the native clients through ISLAMU SecretKit, and web links hand off to Desktop. See the [secret-store decision](../internal/adr/ADR-secret-store-integration-and-credential-sources.md).
+**The public and static packages have no secret-manager or PaaS access.** The ISLAMU public instance and the default self-hosted static Browser never connect to Infisical, Azure Key Vault, Coolify or another management target, and never hold their credentials. On the ISLAMU public instance this is a permanent product boundary: ISLAMU will not operate a credential or target proxy. The planned `configurator://` handoff is the public route to native provisioning.
+
+A **separate self-hosted connected package is planned, not implemented**. It would keep editing, validation, encryption and file composition in WebAssembly while an operator-owned authenticated connector performs only explicitly reviewed target deltas, preferably using server-side target aliases and credentials. It is not a setting or hidden capability in the current static package. Public/static operation remains unchanged, target operations remain subject to provider authorization, and no connected image is currently distributed. See the [hosting and custody decision](../internal/adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md) for rationale, alternatives and security gates, and the [secret-store decision](../internal/adr/ADR-secret-store-integration-and-credential-sources.md) for provider transport.
 
 ---
 
@@ -162,6 +164,8 @@ Configurator uses standalone Blazor WebAssembly rather than Blazor Server:
 - **Local Data Custody:** Forms, validation rules, and file preparation execute client-side. The hosting server acts solely as a static file CDN.
 - **Offline Capability:** Once assets are cached, operators can disconnect from the network and complete configurations entirely offline.
 - **AOT Performance:** Release builds use ahead-of-time (AOT) WebAssembly compilation to minimize interactive latency and provide snappy form navigation.
+
+Blazor Server and Interactive Auto were rejected because server-side circuits would retain interactive workspace state and input events, require connectivity and make answer custody depend on runtime selection. The planned connected package retains this WebAssembly editor: only an explicitly reviewed target operation would cross the network. See [why the deployment modes remain separate](../internal/adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md#local-webassembly-remains-the-editor-in-every-mode).
 
 ---
 
@@ -199,27 +203,20 @@ the same shared eligibility and masking rules.
 
 ### Loading Definitions
 
-Start at **Choose a project**. One search covers definitions available in the
-local workspace and the bundled [Definition Store](definition-store.md). A card identifies
-the application and whether its primary definition is available locally or comes
-from the directory. **Configure**, **Use an existing configuration**, and
-**Open a saved profile** admit an exact directory snapshot and open the
-requested entry flow after workspace startup. **Source details** preserves alternate families and revisions;
-ambiguous sources require a deliberate choice. Projects group by exact
-application identifier, never by title alone.
+Start at **Choose a project**. Definitions are grouped by exact application identifier, never by title alone, distinguishing built-in local templates (`built-in`) from bundled [Definition Store](definition-store.md) catalog entries (`directory`). When four or more projects are available, a search box filters cards dynamically; when fewer than four projects exist, the redundant filter bar stays hidden. Each card exposes plain-language task actions (**Configure** / **Start fresh**, **Use an existing configuration**, and **Open a saved profile**) plus a read-only **Explore** route, admitting exact snapshots cleanly before opening a workspace. **Source details** keeps family GUIDs, alternate revisions, and SHA-256 digests collapsed inside an expandable disclosure (`<details data-digest-disclosure>`) until inspected. Ambiguous multi-revision candidates require a deliberate choice.
 Matching family, revision and digest identify the same content; a publisher label
 does not establish authenticity or target approval.
 
-**Open a local file or public link** is the secondary entry for your own definition.
+**Open a local file or public link** (`/open`) is the secondary entry for your own definition.
 Local `.json` or `.yaml` files are limited to 4 MiB; compact maintainer sources
 compile locally. Public links use the bounded, credential-free HTTPS admission
-flow before answer collection. Source details expose title, publisher, family,
-revision and computed digest without making that metadata the main editing task,
-and offer **Open workspace**, **Use an existing configuration**, and **Open a saved profile**
-actions once the definition is admitted. Inside the workspace, returning-user
-entry controls (**Start fresh**, **Use an existing configuration**, and **Open a saved profile**)
-open the corresponding import or profile vault task in place without auto-enabling
-secret consent or reading any file before user selection.
+flow before answer collection. After admission, family, revision and computed SHA-256
+digest stay inside a collapsed **Source details** disclosure while three plain-language
+task cards (**Start fresh**, **Use an existing configuration**, and **Open a saved profile**)
+launch the matching workflow without reading files or enabling secret consent automatically.
+Inside the workspace, the same three returning-user choices
+live inside the **Editor tools and detail** panel and open the corresponding
+import or profile vault task in place without crowding the initial field viewport.
 
 ### Workspace Layout & Appearance
 
@@ -232,27 +229,25 @@ Opening a workspace first shows a localized preparation status before answer
 controls are constructed. This pending view does not claim answer readiness or
 show progress counts. Leaving or replacing it retires that startup; a late
 completion cannot reopen the old workspace.
+If the rendering helper cannot start, the workspace shows a preparation failure
+with a **Retry** action. No answer controls open until the retry succeeds.
 Scalar controls remain in the document while the browser can defer their
 offscreen layout. Keyboard focus and browser search reveal those controls;
 this does not change which answers are required or ready.
 
-The workspace header displays the definition title, active recipe/scope summary,
-and secret-consent status alongside **Guided**, **Compact**, **Review**, and
-**Files** mode controls. Concise deployment context and **Output task**
-selectors precede the active section heading and first editable question so
-questions lead the initial viewport at `1366 x 768` and `1440 x 900`. In
-**Guided**, **Configure**, **Review** and **Files** mount one active stage at a
-time. Changing stages, sections or language preserves accepted answers,
-unfinished inputs, secret consent and the pinned definition. After the active
-panel, **Editor tools and detail** contains Form/Developer document switching,
+The workspace header displays the definition title, active recipe/scope toggle chip,
+and secret-consent status alongside the three primary workflow stages (**Configure**, **Review**, and
+**Files**). Inside **Configure**, the orthogonal layout switcher (**Section by section** vs. **All sections**)
+sits beside the persistent left section rail, which tracks your selected step or active scroll position in both layouts. When a preparation check highlights incomplete or invalid required answers, an inline **Error summary** banner appears above the active fields so you can jump straight to each field (`F7` for the next blocking error, `F8` for the next missing required field, `F9` for the next unreviewed section). Required scalar settings display minority **Required** indicators and a 3 px inline-start semantic status stripe (without repetitive Optional/Not set clutter), and sections whose visible settings are all required show a concise **All fields required** notice on the section header instead. Deployment recipe and component scope selectors stay tucked behind the header scope chip until toggled, and the **Output task** selector and slim readiness progress bar lead cleanly into the active section heading and first editable question so questions start immediately above the fold at `1366 x 768` and `1440 x 900`. Changing stages, layouts, sections or language preserves accepted answers,
+unfinished inputs, secret consent and the pinned definition; validation errors on optional settings still keep the progress indicator and export summary from claiming complete readiness (`IsReadyForExport`). After the active
+panel, **Editor tools and detail** contains returning-user entry actions, Form/Developer document switching,
 Humanized/Technical field naming (`Ctrl + Shift + K`), experience/detail profile
 and density controls, Undo/Redo (`Ctrl + Z` / `Ctrl + Shift + Z` with transient
-feedback), schema inspector toggle, and the `?` keyboard shortcuts dialog,
+feedback), schema inspector toggle (`F2`), and the `?` keyboard shortcuts dialog,
 followed by portable profile tools, **Language** (when multiple locales are
 declared), and the secret-consent disclosure.
-Wide viewports (`>= 1280px`) show schema help in a docked inspector panel beside
-the editor instead of blocking modal overlays, while narrower screens use a drawer
-or dialog. Local Previous/Next actions move between sections; the final section leads to Review.
+Wide viewports (`>= 768px`) show schema help in a docked inspector panel beside
+the editor instead of blocking modal overlays, while narrower screens (`< 768px`) open a dismissible focus-trapped inspector sheet (`Escape` to close and restore focus). Local Previous/Next actions move between sections; the final section leads to Review.
 Authored optional tuning and secondary groups stay collapsed by default, while groups containing active validation errors open automatically so missing or malformed settings remain reachable. Required text and choice controls expose the same requirement to
 assistive technology as their visible labels, including provider-dependent changes.
 **Show optional settings** opens the section's optional controls in
@@ -297,10 +292,10 @@ Inputs dynamically adapt to their declared data types:
 - **List Rows:** Use bounded row controls to add or remove list items. Removed rows are excluded from output bundles.
 - **Explicit Omission:** Use **Actions for...** to explicitly omit a setting without affecting sibling fields. Empty strings (`""`) and `false` are valid supplied values distinct from omission.
 
-### Continuous Compact Editing & Definition Explorer
+### Continuous All-Sections Editing & Definition Explorer
 
-- **Continuous Compact Mode:** Switch to **Compact** in Configure to scan and edit all applicable sections in a single continuous vertical flow (`ConfigurationCompactWorkspace`) with a section jump bar, a **Show matches only** filter paired with the appbar search (`Ctrl+K` / `/`), and concise icon-plus-label field status badges. Secret fields remain locked until workspace secret consent is explicitly enabled, and omitted optional or `DefaultText` fields remain omitted until explicitly edited. Opening **Review** or **Files** while in Compact mode opens an inline panel above the continuous workspace without unmounting your active form controls.
-- **Definition Explorer (`/explore/{FamilyId}`):** Inspect catalog definitions, revisions, sections, fields, validation constraints, and declared output tasks in a read-only Explorer from the catalog or Open menu before starting a configuration workspace or entering answers.
+- **All-Sections Continuous Mode:** Switch to **All sections** inside Configure to scan and edit all applicable sections in a single continuous vertical flow with the persistent left section rail acting as a live scrollspy outline, explicit per-section **Mark reviewed** toggles, and a **Show matches only** filter paired with the WAI-ARIA combobox appbar search (`Ctrl+K` or `/` outside editable inputs, with `ArrowDown`/`ArrowUp` and `Enter` option selection). Secret fields remain locked until workspace secret consent is explicitly enabled, and omitted optional or `DefaultText` fields remain omitted until explicitly edited. Switching to **Review** or **Files** navigates cleanly to that dedicated stage while keeping your active layout and unparsed edits intact.
+- **Definition Explorer (`/explore/{FamilyId}`):** Inspect catalog definitions, revisions, sections, fields, validation constraints, and declared output tasks in a read-only Explorer from the catalog, Store project page, or Open menu before starting a configuration workspace or entering answers. Use the live metadata filter (`#explore-filter`), requirement/sensitivity chips (`All settings`, `Required`, `Secret`), and section jump outline to inspect large schemas cleanly (including a reset control on empty filter matches), with SHA-256 digests kept inside a collapsed **Source details** disclosure.
 
 ### Developer Editing
 
@@ -398,8 +393,8 @@ It does not display private answer values.
 
 - **Active Corrections:** Displays validation errors before output decisions, with direct links to jump to the affected field. Files uses the same corrections when preparation fails.
 - **Deployment Scope Summary:** When a definition declares deployment recipes and scopes, the Review summary (`[data-review-scope]`) displays the active recipe, scope, and eligible output filenames before preparation.
-- **Configuration Inventory:** Inspect active settings, filter by provenance **Origin** (`All`, `Explicit`, `Generated`, `Defaulted`, `Imported`), inspect authored-default origins, supplied/omitted states, deferred secrets and declared output bindings, and click any active row to jump straight back to that setting in Configure. In Compact's inline Review panel, entries render concise status-and-origin badges (`[data-review-compact-status]`) while keeping the continuous workspace mounted.
-- **Output Inspection & Delivery Boundaries:** Review the selected task's declared filenames, formats and restart guidance. In **Files**, prepared artifacts distinguish `complete`, `deferred` (drafts with `[data-deferred-secret-summary]` and per-field completion coordinates `[data-completion-field]`), and `invalidated` (`[data-files-invalidated]` when subsequent edits or consent changes retire a previous bundle), remind operators that browser downloads write to the local browser download folder without native `0600` file-permission guarantees (`[data-download-custody-note]`), and offer per-file retry (`[data-action="retry-file-export"]`) if a clipboard or download action fails.
+- **Configuration Inventory:** Inspect active settings, filter by provenance **Origin** (`All`, `Explicit`, `Generated`, `Defaulted`, `Imported`), inspect authored-default origins, supplied/omitted states, deferred secrets and declared output bindings, and click any active row to jump straight back to that setting in Configure while retaining your selected Configure layout.
+- **Output Inspection & Delivery Boundaries:** Review (`1. Review values -> 2. Prepare files -> 3. Download or copy`) lets you inspect the selected task's declared filenames, formats and restart guidance. In **Files**, prepared artifacts distinguish `complete`, `deferred` (drafts with `[data-deferred-secret-summary]` and per-field completion coordinates `[data-completion-field]`), and `invalidated` (`[data-files-invalidated]` when subsequent edits or consent changes retire a previous bundle), display a single consolidated custody and download boundary disclosure (`[data-custody-disclosure]` and `[data-download-custody-note]`, without repeating footer notices across multi-file cards), and offer per-file retry (`[data-action="retry-file-export"]`) if a clipboard or download action fails.
 
 When ready, prepare complete files directly from the summary. If only secrets
 remain unresolved, the summary offers a clearly incomplete draft instead.
@@ -432,16 +427,19 @@ Protected equality is unavailable without its independently protected key;
 missing historical schema also limits structural comparison.
 
 For an encrypted `.cfgvault`, enable secret entry, choose the file, enter its
-passphrase and select one recipient index. Opening deliberately replaces
-editable answers with a public projection. Both encrypted modes initially keep
-retained values inside the dedicated worker; the ordinary form, undo, preview
-and clipboard do not receive them. Browser never consults an OS keyring or tries
-alternative recipients automatically. A native vault's portable recipient may
+passphrase (with explicit **Show / Hide** passphrase toggles that re-mask automatically
+on workspace edits or consent changes) and select one recipient index. Opening follows
+three clear steps (**1. Lock / Unlock -> 2. Review / Diff -> 3. Download / Copy**) and
+deliberately replaces editable answers with a public projection. Both encrypted modes
+initially keep retained values inside the dedicated worker; the ordinary form, undo,
+preview and clipboard do not receive them. Browser never consults an OS keyring or
+tries alternative recipients automatically. A native vault's portable recipient may
 be at index 1 when index 0 belongs to the device.
 
-The panel displays the single supported JWE profile: `A256GCM` with
-`PBES2-HS512+A256KW`, using exactly `600000` iterations. Unsupported profiles are
-rejected, with no alternative algorithm or adjustable cost setting.
+Technical cryptographic parameters (`JWE`, `A256GCM`, `PBES2-HS512+A256KW`,
+`600000` iterations) and permanent key-custody reminders stay available inside a
+collapsed **Technical encryption details** disclosure (`<details data-vault-crypto-details>`).
+Unsupported profiles are rejected, with no alternative algorithm or adjustable cost setting.
 
 Review the value-free upgrade findings. To change a retained field, choose
 **Replace retained field**, then confirm retirement. The worker permanently
@@ -535,6 +533,9 @@ diagnostic codes retain their own identities when you switch language.
 5. Choose **Fill fields from comparison** deliberately, or select **Fill fields**
    before choosing a file. The shared form rechecks consent, current revision
    and conflicts, then applies all eligible recovered answers in one change.
+
+If the local comparison helper fails, current answers remain in place. Use the
+recovery action to return to the import controls and choose the file again.
 
 Comparison does not change answers, valid or invalid drafts, origins, omissions
 or prepared output. It assesses represented file content, not historical renames,
@@ -633,7 +634,7 @@ docker run --rm --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   -p 127.0.0.1:8080:8080 islamu-configurator-browser
 ```
 
-The container builds and serves one static Browser distribution with the bundled Definition Store already embedded.
+The container builds and serves one static Browser distribution with the bundled Definition Store already embedded. **This image does not include the planned connected host.** A future connected image will be separately named and qualified; setting an environment variable or deploying this static image with Coolify will not enable SecretKit, vault or Coolify target operations. Its local WebAssembly editor will remain the same, while an operator-owned connector API will require explicit authentication, target allowlists and additional security qualification. See the [connected-host decision](../internal/adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md).
 
 ### Deploying with Coolify
 

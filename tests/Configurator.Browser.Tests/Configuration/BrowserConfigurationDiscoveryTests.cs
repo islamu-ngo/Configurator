@@ -165,6 +165,49 @@ public sealed class BrowserConfigurationDiscoveryTests
             argument?.ToString()?.Contains("synthetic-discovery-private-value", StringComparison.Ordinal) == true))).IsFalse();
     }
 
+    [Test]
+    public async Task SearchInputImplementsWaiAriaComboboxActiveDescendantSlashHotkeyAndRtlBdi()
+    {
+        var arabicDef = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(
+            JsonNode.Parse(Definition().CanonicalBytes.Span)!.AsObject() is { } doc
+                ? doc.ToJsonString()
+                : "{}"));
+        await using var context = BrowserFixture.Context();
+        var component = BrowserFixture.RenderWorkspace(context, arabicDef);
+
+        var input = component.Find("#configuration-search");
+        await Assert.That(input.GetAttribute("role")).IsEqualTo("combobox");
+        await Assert.That(input.GetAttribute("aria-autocomplete")).IsEqualTo("list");
+        await Assert.That(input.GetAttribute("aria-controls")).IsEqualTo("workspace-search-results");
+        await Assert.That(input.GetAttribute("aria-expanded")).IsEqualTo("false");
+
+        // Typing '/' on a form text field does not open search palette.
+        await component.Find("[data-field='host.name'] input").KeyDownAsync(new KeyboardEventArgs { Key = "/" });
+        await Assert.That(component.FindAll("#workspace-search-results")).IsEmpty();
+
+        // Typing '/' outside inputs opens the search combobox palette.
+        await component.Find(".configuration-editor").KeyDownAsync(new KeyboardEventArgs { Key = "/" });
+        await Assert.That(component.Find("#configuration-search").GetAttribute("aria-expanded")).IsEqualTo("true");
+
+        await component.Find("#configuration-search").InputAsync(new ChangeEventArgs { Value = "host" });
+        await Assert.That(component.FindAll("[role='listbox']").Count).IsGreaterThan(0);
+        await Assert.That(component.FindAll("[role='option']").Count).IsGreaterThan(0);
+
+        // ArrowDown highlights first option via aria-activedescendant; Enter navigates without editing answers.
+        await component.Find("#configuration-search").KeyDownAsync(new KeyboardEventArgs { Key = "ArrowDown" });
+        string? activeId = component.Find("#configuration-search").GetAttribute("aria-activedescendant");
+        await Assert.That(string.IsNullOrEmpty(activeId)).IsFalse();
+        await Assert.That(component.Find($"#{activeId!}").GetAttribute("aria-selected")).IsEqualTo("true");
+
+        // Technical identifiers render with explicit LTR BDI isolation in discovery results.
+        await Assert.That(component.FindAll("[data-discovery-result] bdi[dir='ltr']").Count).IsGreaterThan(0);
+
+        // Escape dismisses popup and clears active descendant.
+        await component.Find(".workspace-search").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
+        await Assert.That(component.Find("#configuration-search").GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(component.Find("#configuration-search").GetAttribute("aria-activedescendant")).IsNull();
+    }
+
     private static Task OpenDiscovery(IRenderedComponent<MainLayout> component) =>
         component.Find("#configuration-search").ClickAsync(new MouseEventArgs());
 

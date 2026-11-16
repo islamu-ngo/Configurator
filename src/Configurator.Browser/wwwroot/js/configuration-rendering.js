@@ -188,3 +188,116 @@ export function revealHeading(owner, headingId) {
     timeoutId = win.setTimeout(cleanup, 600);
     scheduleFrame();
 }
+
+const scrollspyObservers = new WeakMap();
+
+export function unobserveScrollspy(owner) {
+    if (!owner) return;
+    const entry = scrollspyObservers.get(owner);
+    if (!entry) return;
+    entry.observer.disconnect();
+    scrollspyObservers.delete(owner);
+}
+
+export function observeScrollspy(owner, dotNetRef, generation) {
+    unobserveScrollspy(owner);
+    if (!owner?.isConnected || !dotNetRef || typeof IntersectionObserver !== 'function') return;
+
+    const doc = owner.ownerDocument;
+    const win = doc.defaultView;
+    const targets = Array.from(owner.querySelectorAll('[data-compact-section], [data-section-panel]'));
+    if (targets.length === 0) return;
+
+    const state = { observer: null, generation, visible: new Set(), lastId: null };
+    const sectionIdOf = element => element.getAttribute('data-compact-section')
+        ?? element.getAttribute('data-section-panel');
+
+    const pickActive = () => {
+        if (!owner.isConnected || scrollspyObservers.get(owner)?.generation !== state.generation) {
+            unobserveScrollspy(owner);
+            return;
+        }
+        const candidates = targets.filter(el => el.isConnected && !el.hidden && state.visible.has(el));
+        if (candidates.length === 0) return;
+        const active = candidates.reduce((best, item) =>
+            item.getBoundingClientRect().top < best.getBoundingClientRect().top ? item : best);
+        const id = sectionIdOf(active);
+        if (!id || id === state.lastId) return;
+        state.lastId = id;
+        dotNetRef.invokeMethodAsync('OnScrollspySectionChangedAsync', id).catch(() => {});
+    };
+
+    const observer = new (win?.IntersectionObserver ?? IntersectionObserver)(entries => {
+        for (const entry of entries) {
+            if (entry.isIntersecting) state.visible.add(entry.target);
+            else state.visible.delete(entry.target);
+        }
+        pickActive();
+    }, { root: null, rootMargin: '-18% 0px -65% 0px', threshold: 0 });
+
+    state.observer = observer;
+    scrollspyObservers.set(owner, state);
+    for (const target of targets) observer.observe(target);
+}
+
+export function isNarrowViewport() {
+    return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia('(max-width: 767.98px)').matches
+        : false;
+}
+
+const inspectorViewports = new WeakMap();
+
+export function watchInspectorViewport(owner, dotNetRef) {
+    unwatchInspectorViewport(owner);
+    if (!owner?.isConnected || !dotNetRef || typeof window.matchMedia !== 'function') return false;
+    const mq = window.matchMedia('(max-width: 767.98px)');
+    const handler = event => {
+        if (!owner.isConnected) {
+            unwatchInspectorViewport(owner);
+            return;
+        }
+        dotNetRef.invokeMethodAsync('OnInspectorViewportModeChangedAsync', !!event.matches).catch(() => {});
+    };
+    mq.addEventListener('change', handler);
+    inspectorViewports.set(owner, { mq, handler });
+    return !!mq.matches;
+}
+
+export function unwatchInspectorViewport(owner) {
+    if (!owner) return;
+    const entry = inspectorViewports.get(owner);
+    if (!entry) return;
+    entry.mq.removeEventListener('change', entry.handler);
+    inspectorViewports.delete(owner);
+}
+
+export function focusSheetStart(sheet) {
+    if (!sheet?.isConnected) return;
+    if (!sheet.contains(sheet.ownerDocument.activeElement)) {
+        const firstFocusable = sheet.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        (firstFocusable ?? sheet).focus({ preventScroll: true });
+    }
+    if (!sheet._sheetKeyBound) {
+        sheet._sheetKeyBound = true;
+        sheet.addEventListener('keydown', event => {
+            if (event.key !== 'Tab' || !sheet.isConnected) return;
+            const focusables = Array.from(sheet.querySelectorAll('button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'));
+            if (focusables.length === 0) {
+                event.preventDefault();
+                sheet.focus();
+                return;
+            }
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            const active = sheet.ownerDocument.activeElement;
+            if (event.shiftKey && (active === first || active === sheet)) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && active === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
+    }
+}

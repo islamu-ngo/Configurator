@@ -10,6 +10,8 @@
         {
             <button type="button" class="workspace-header__chip workspace-header__chip--scope"
                     data-workspace-scope data-action="change-scope"
+                    aria-controls="configuration-context"
+                    aria-expanded="@ContextOpen.ToString().ToLowerInvariant()"
                     @onclick="() => OnScopeRequested.InvokeAsync()">
                 <MudIcon Icon="@Icons.Material.Outlined.Tune" Size="Size.Small" aria-hidden="true" />
                 <span><bdi>@ScopeSummary</bdi> · @T("ScopeChangeAction")</span>
@@ -24,24 +26,19 @@
         </button>
     </div>
     <nav class="workspace-header__modes" aria-label="@T("WorkspaceModes")">
-        <button type="button" class="workspace-header__mode" data-workflow-step="configure" data-layout-mode="guided"
-                aria-current="@(!DeveloperMode && ActiveStage == "configure" && LayoutMode == WorkspaceLayoutMode.Guided ? "step" : null)"
-                @onclick='() => StageSelected.InvokeAsync(("configure", WorkspaceLayoutMode.Guided))'>
-            @T("ModeGuided")
+        <button type="button" class="workspace-header__mode" data-workflow-step="configure"
+                aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Configure ? "step" : null)"
+                @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Configure)">
+            @T("Configure")
         </button>
-        <button type="button" class="workspace-header__mode" data-layout-mode="compact"
-                aria-current="@(!DeveloperMode && ActiveStage == "configure" && LayoutMode == WorkspaceLayoutMode.Compact ? "step" : null)"
-                @onclick='() => StageSelected.InvokeAsync(("configure", WorkspaceLayoutMode.Compact))'>
-            @T("ModeCompact")
-        </button>
-        <button type="button" class="workspace-header__mode" data-workflow-step="review" data-layout-mode="review"
-                aria-current="@(!DeveloperMode && ActiveStage == "review" ? "step" : null)"
-                @onclick='() => StageSelected.InvokeAsync(("review", LayoutMode))'>
+        <button type="button" class="workspace-header__mode" data-workflow-step="review"
+                aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Review ? "step" : null)"
+                @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Review)">
             @T("WorkflowReview")
         </button>
-        <button type="button" class="workspace-header__mode" data-workflow-step="prepare" data-layout-mode="files"
-                aria-current="@(!DeveloperMode && ActiveStage == "prepare" ? "step" : null)"
-                @onclick='() => StageSelected.InvokeAsync(("prepare", LayoutMode))'>
+        <button type="button" class="workspace-header__mode" data-workflow-step="prepare"
+                aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Files ? "step" : null)"
+                @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Files)">
             @T("WorkflowFiles")
         </button>
     </nav>
@@ -50,17 +47,17 @@
 @code {
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter, EditorRequired] public string Locale { get; set; } = "en";
-    [Parameter, EditorRequired] public string ActiveStage { get; set; } = "configure";
-    [Parameter, EditorRequired] public WorkspaceLayoutMode LayoutMode { get; set; } = WorkspaceLayoutMode.Guided;
+    [Parameter, EditorRequired] public WorkspaceStage ActiveStage { get; set; } = WorkspaceStage.Configure;
     [Parameter] public WorkspaceDensity Density { get; set; } = WorkspaceDensity.Comfortable;
     [Parameter] public WorkspaceNamingMode NamingMode { get; set; } = WorkspaceNamingMode.Humanized;
     [Parameter] public bool DeveloperMode { get; set; }
+    [Parameter] public bool ContextOpen { get; set; }
     [Parameter] public string? ScopeSummary { get; set; }
     [Parameter] public EventCallback OnScopeRequested { get; set; }
     [Parameter] public EventCallback OnSecretConsentRequested { get; set; }
     [Parameter] public EventCallback<WorkspaceNamingMode> NamingModeChanged { get; set; }
     [Parameter] public EventCallback<WorkspaceDensity> DensityChanged { get; set; }
-    [Parameter] public EventCallback<(string Stage, WorkspaceLayoutMode Layout)> StageSelected { get; set; }
+    [Parameter] public EventCallback<WorkspaceStage> StageSelected { get; set; }
 
     private bool SecretsEnabled => Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
     private string T(string key) => BrowserStrings.Get(key, Locale);

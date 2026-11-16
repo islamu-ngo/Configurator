@@ -1,0 +1,280 @@
+@implements IDisposable
+@using System.Globalization
+@using System.Text.Json
+
+@{
+    string type = Schema.JsonType;
+    var actionForm = Form;
+    IReadOnlyList<string> actionPath = Path.ToArray();
+    long actionRevision = Form.InputRevision;
+    long actionControlGeneration = _controlGeneration;
+    long actionGeneration = _actionGeneration;
+    string error = Error;
+    var correctionFacts = CorrectionFacts;
+    bool canEdit = correctionFacts.CanEdit;
+    bool required = Required;
+    bool isSecret = IsSecret;
+    bool isMasked = correctionFacts.RequiresMasking;
+    string? describedBy = BuildDescribedBy(isMasked, error);
+}
+
+<div class="configuration-setting-row"
+     data-field="@FieldKey"
+     data-field-state="@CompactFieldState"
+     data-field-origin="@CompactFieldOrigin"
+     @onfocusin="NotifyFocused"
+     @onfocusin:stopPropagation="true">
+    @if (isSecret && !canEdit)
+    {
+        <div class="configuration-setting-row__head">
+            <span class="configuration-setting-row__label">
+                @Title
+                @if (required && !SectionAllRequired)
+                {
+                    <span class="configuration-field__requirement" data-requirement-badge="required">@Ui("Required")</span>
+                }
+                <span class="configuration-field__compact-status sr-only"
+                      data-compact-status
+                      data-field-state="@CompactFieldState"
+                      data-field-origin="@CompactFieldOrigin"
+                      aria-label="@CompactStatusLabel">@CompactStatusLabel</span>
+            </span>
+            <div class="configuration-setting-row__actions" data-field-actions-id="@ControlId">
+                <button type="button" class="configuration-field-help__trigger"
+                        aria-label="@HelpButtonTitle" data-action="field-help"
+                        @onclick="OpenHelpAsync">
+                    <span class="configuration-field-help__glyph" aria-hidden="true">?</span>
+                </button>
+            </div>
+        </div>
+        <div class="configuration-setting-row__locked">
+            @if (IsRetainedByProfile)
+            {
+                <p class="configuration-setting-row__help" data-profile-retained>@Ui("ProfileRetainedHelp")</p>
+            }
+            else
+            {
+                <p class="configuration-setting-row__help" data-secret-denied>@Ui("FieldSecretDenied")</p>
+                @if (RequestSecretConsent.HasDelegate)
+                {
+                    <button type="button" class="button button--secondary configuration-setting-row__btn"
+                            data-action="field-secret-consent"
+                            @onclick="RequestSecretConsent">@Ui("ReviewSecretConsent")</button>
+                }
+            }
+        </div>
+    }
+    else
+    {
+        <div class="configuration-setting-row__head">
+            <label id="@(ControlId + "-label")" for="@ControlId" class="configuration-setting-row__label"
+                   @onclick="() => FocusControlAsync()">
+                @Title
+                @if (required && !SectionAllRequired)
+                {
+                    <span class="configuration-field__requirement" data-requirement-badge="required">@Ui("Required")</span>
+                }
+                <span class="configuration-field__compact-status sr-only"
+                      data-compact-status
+                      data-field-state="@CompactFieldState"
+                      data-field-origin="@CompactFieldOrigin"
+                      aria-label="@CompactStatusLabel">@CompactStatusLabel</span>
+                @if (!string.IsNullOrWhiteSpace(_presentation?.Units))
+                {
+                    <span class="configuration-field__units" data-field-units>@_presentation.Units</span>
+                }
+                @if (_presentation?.IsDeprecated == true)
+                {
+                    <span class="configuration-field__badge configuration-field__badge--deprecated" data-field-deprecated>@Ui("FieldDeprecated")</span>
+                }
+                @if (_presentation?.IsController == true)
+                {
+                    <span class="configuration-field__badge configuration-field__badge--controller" data-controller-impact>@_presentation.ControllerImpactSummary</span>
+                }
+                @if (_presentation is { HasCopyableWireToken: false } && Path.Count > 0 && Title != Path[^1] && !IsDynamicPrivateMapEntry)
+                {
+                    <code class="configuration-field__key" dir="ltr">@Path[^1]</code>
+                }
+            </label>
+            @if (_presentation is { HasCopyableWireToken: true })
+            {
+                <span class="configuration-setting-row__key-row">
+                    @if (Title != _presentation.WireToken || _presentation.SecondaryLabel is not null)
+                    {
+                        <code class="configuration-field__key" dir="ltr" data-wire-key>@_presentation.WireToken</code>
+                    }
+                    <button type="button" class="configuration-field__copy-key" data-action="copy-wire-key"
+                            aria-label="@UiFormat("WireKeyCopyTitle", _presentation.WireToken)"
+                            @onclick="CopyWireKeyAsync">@Ui("CopyWireKey")</button>
+                </span>
+            }
+            <div class="configuration-setting-row__actions" data-field-actions-id="@ControlId">
+                <button type="button" class="configuration-field-help__trigger"
+                        aria-label="@HelpButtonTitle" data-action="field-help"
+                        @onclick="OpenHelpAsync">
+                    <span class="configuration-field-help__glyph" aria-hidden="true">?</span>
+                </button>
+                @if (correctionFacts.CanReset)
+                {
+                    <button type="button" class="configuration-setting-row__action" data-action="reset"
+                            aria-label="@UiFormat("ResetField", Title)"
+                            @onclick="() => Reset(actionForm, actionPath, actionRevision, actionGeneration)">@Ui("Reset")</button>
+                }
+                @if (!required && correctionFacts.CanOmit && canEdit)
+                {
+                    <button type="button" class="configuration-setting-row__action" data-action="omit" data-omit-owner="@ControlId"
+                            aria-label="@UiFormat("OmitField", Title)"
+                            @onclick="() => OmitCurrent(actionForm, actionPath, actionRevision, actionGeneration)">@Ui("Omit")</button>
+                }
+            </div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(_presentation?.DeprecationGuidance))
+        {
+            <p class="configuration-setting-row__help" data-deprecation-guidance>@_presentation.DeprecationGuidance</p>
+        }
+        <div class="configuration-setting-row__control" @onkeydown="HandleControlKeyDownAsync" @onkeydown:stopPropagation="true">
+            @if (UseSwitch)
+            {
+                <button @ref="_controlElement"
+                        id="@ControlId"
+                        type="button"
+                        role="switch"
+                        class="configuration-setting-row__switch @(Value is { ValueKind: JsonValueKind.True } ? "configuration-setting-row__switch--on" : "")"
+                        aria-checked="@SwitchAriaChecked"
+                        aria-labelledby="@(ControlId + "-label")"
+                        aria-describedby="@describedBy"
+                        disabled="@(!canEdit)"
+                        @onclick="() => ToggleSwitch(actionForm, actionPath, actionRevision, actionControlGeneration)">
+                    <span>@SwitchLabelText</span>
+                </button>
+            }
+            else if (HasChoices || (type == "boolean" && !isMasked))
+            {
+                <select @ref="_controlElement"
+                        id="@ControlId"
+                        name="@ControlId"
+                        class="configuration-setting-row__select"
+                        value="@(isMasked ? string.Empty : Selection)"
+                        disabled="@(!canEdit)"
+                        required="@required"
+                        aria-invalid="@HasError(error).ToString().ToLowerInvariant()"
+                        aria-labelledby="@(ControlId + "-label")"
+                        aria-describedby="@describedBy"
+                        @onchange="args => EditSelect(args, actionForm, actionPath, actionRevision, actionControlGeneration)">
+                    <option value="">@SelectionLabel(string.Empty)</option>
+                    @if (HasChoices)
+                    {
+                        int choiceIndex = 0;
+                        @foreach (JsonElement choice in Choices.EnumerateArray())
+                        {
+                            int index = choiceIndex++;
+                            <option value="@ChoiceIdentity(index)">@ChoiceLabel(index, choice)</option>
+                        }
+                    }
+                    else
+                    {
+                        <option value="true">@(_presentation?.BooleanLabels?.TrueLabel ?? Ui("Yes"))</option>
+                        <option value="false">@(_presentation?.BooleanLabels?.FalseLabel ?? Ui("No"))</option>
+                    }
+                </select>
+            }
+            else if (UseSlider && TryGetSliderBounds(out double sliderMin, out double sliderMax, out double sliderStep))
+            {
+                <div class="configuration-setting-row__slider" data-widget="slider">
+                    <input type="range"
+                           class="configuration-field__slider-range"
+                           min="@sliderMin.ToString(CultureInfo.InvariantCulture)"
+                           max="@sliderMax.ToString(CultureInfo.InvariantCulture)"
+                           step="@sliderStep.ToString(CultureInfo.InvariantCulture)"
+                           value="@TextFor(canEdit)"
+                           disabled="@(!canEdit)"
+                           aria-labelledby="@(ControlId + "-label")"
+                           @oninput="args => EditScalarText(args.Value?.ToString(), actionForm, actionPath, actionRevision, actionControlGeneration, changeOnly: false)"
+                           @onchange="args => EditScalarText(args.Value?.ToString(), actionForm, actionPath, actionRevision, actionControlGeneration, changeOnly: true)" />
+                    <input @ref="_controlElement"
+                           id="@ControlId"
+                           name="@ControlId"
+                           class="configuration-setting-row__input"
+                           type="text"
+                           inputmode="@InputModeToken"
+                           autocomplete="off"
+                           spellcheck="false"
+                           value="@TextFor(canEdit)"
+                           disabled="@(!canEdit)"
+                           required="@required"
+                           aria-invalid="@HasError(error).ToString().ToLowerInvariant()"
+                           aria-describedby="@describedBy"
+                           @oninput="args => EditScalarText(args.Value?.ToString(), actionForm, actionPath, actionRevision, actionControlGeneration, changeOnly: false)"
+                           @onchange="args => EditScalarText(args.Value?.ToString(), actionForm, actionPath, actionRevision, actionControlGeneration, changeOnly: true)" />
+                </div>
+            }
+            else if (IsMultilineWidget && !isMasked)
+            {
+                <textarea @ref="_controlElement"
+                          id="@ControlId"
+                          name="@ControlId"
+                          class="configuration-setting-row__input configuration-setting-row__input--multiline"
+                          rows="@ResolvedRows"
+                          spellcheck="false"
+                          placeholder="@_presentation?.Placeholder"
+                          value="@TextFor(canEdit)"
+                          disabled="@(!canEdit)"
+                          required="@required"
+                          aria-invalid="@HasError(error).ToString().ToLowerInvariant()"
+                          aria-describedby="@describedBy"
+                          @oninput="args => EditScalarText(args.Value?.ToString(), actionForm, actionPath, actionRevision, actionControlGeneration, changeOnly: false)"
+                          @onchange="args => EditScalarText(args.Value?.ToString(), actionForm, actionPath, actionRevision, actionControlGeneration, changeOnly: true)"></textarea>
+            }
+            else
+            {
+                <input @ref="_controlElement"
+                       id="@ControlId"
+                       name="@ControlId"
+                       class="configuration-setting-row__input"
+                       type="@(isMasked && !_secretRevealed ? "password" : "text")"
+                       inputmode="@InputModeToken"
+                       autocomplete="@Autocomplete(canEdit)"
+                       spellcheck="false"
+                       placeholder="@(isMasked ? null : _presentation?.Placeholder)"
+                       value="@TextFor(canEdit)"
+                       readonly="@(IsMultilineSecret && !_secretRevealed)"
+                       disabled="@(!canEdit)"
+                       required="@required"
+                       aria-invalid="@HasError(error).ToString().ToLowerInvariant()"
+                       aria-describedby="@describedBy"
+                       @oninput="args => EditScalarText(args.Value?.ToString(), actionForm, actionPath, actionRevision, actionControlGeneration, changeOnly: false)"
+                       @onchange="args => EditScalarText(args.Value?.ToString(), actionForm, actionPath, actionRevision, actionControlGeneration, changeOnly: true)" />
+            }
+            @if (isSecret && canEdit && type == "string")
+            {
+                <ConfigurationSecretActions Form="Form" Schema="Schema" Location="EditorPath" ControlId="@ControlId" Title="@Title"
+                                            Value="@TextFor(canEdit)" Revealed="_secretRevealed" RevealedChanged="SetSecretRevealed" />
+            }
+        </div>
+        @if (HasHelp(isMasked))
+        {
+            <p id="@(ControlId + "-help")" class="configuration-setting-row__help">
+                @Help
+                @if (InputPurposeHelp is { } purposeHelp) { <span>@purposeHelp</span> }
+                @if (IsMultilineSecret) { <span>@Ui("SecretMultilineHelp")</span> }
+            </p>
+        }
+        @if (!string.IsNullOrWhiteSpace(_presentation?.IfOmittedDisplay))
+        {
+            <p class="configuration-setting-row__help" data-if-omitted>@_presentation.IfOmittedDisplay</p>
+        }
+        @if (Schema.Secret is not null && canEdit)
+        {
+            <ul class="configuration-setting-row__rules" id="@(ControlId + "-rules")">
+                @foreach (var rule in Form.GetSecretValidation(EditorPath).Requirements)
+                {
+                    <li data-secret-rule="@rule.Code">@rule.Message</li>
+                }
+            </ul>
+        }
+        @if (HasError(error))
+        {
+            <p id="@(ControlId + "-error")" class="configuration-setting-row__error" role="alert">@ErrorMessage(error)</p>
+        }
+    }
+</div>

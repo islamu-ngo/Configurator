@@ -3,13 +3,11 @@
 @using Configurator.Presentation
 @inject IDialogService Dialogs
 
-<span class="configuration-field-help">
-    <button type="button" class="configuration-field-help__trigger"
-            aria-label="@HelpTitle" data-action="field-help"
-            @onclick="OpenAsync">
-        <MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" aria-hidden="true" />
-    </button>
-</span>
+<button type="button" class="configuration-field-help__trigger"
+        aria-label="@HelpTitle" data-action="field-help"
+        @onclick="OpenAsync">
+    <span class="configuration-field-help__glyph" aria-hidden="true">?</span>
+</button>
 
 @code {
     [Parameter, EditorRequired] public JsonElement Schema { get; set; }
@@ -35,8 +33,44 @@
         (PublicTitle, ContextTitle, Description, SectionDescription, Locale);
     private long _generation;
     private string PublicTitle => Presentation?.Title ?? Title;
-    private string HelpTitle => string.Format(System.Globalization.CultureInfo.GetCultureInfo(Locale),
-        BrowserStrings.Get("HelpWithField", Locale), PublicTitle);
+    private string HelpTitle => FormatHelpTitle(Locale, PublicTitle);
+
+    internal static string FormatHelpTitle(string locale, string publicTitle) =>
+        string.Format(System.Globalization.CultureInfo.GetCultureInfo(locale),
+            BrowserStrings.Get("HelpWithField", locale), publicTitle);
+
+    internal static Task<IDialogReference> OpenInspectorAsync(
+        IDialogService dialogs,
+        JsonElement schema,
+        string locale,
+        DefinitionEditorPresentation? presentation,
+        string title,
+        string fieldPath,
+        string? contextTitle,
+        string? description,
+        string? sectionDescription,
+        Func<(IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys)>? getBindings)
+    {
+        string helpTitle = FormatHelpTitle(locale, presentation?.Title ?? title);
+        var parameters = new DialogParameters
+        {
+            [nameof(ConfigurationInspector.Schema)] = schema,
+            [nameof(ConfigurationInspector.Locale)] = locale,
+            [nameof(ConfigurationInspector.Presentation)] = presentation,
+            [nameof(ConfigurationInspector.FieldPath)] = fieldPath,
+            [nameof(ConfigurationInspector.ContextTitle)] = contextTitle,
+            [nameof(ConfigurationInspector.Description)] = description,
+            [nameof(ConfigurationInspector.SectionDescription)] = sectionDescription
+        };
+        if (getBindings is not null)
+        {
+            var bindings = getBindings();
+            parameters[nameof(ConfigurationInspector.OutputArtifactIds)] = bindings.ArtifactIds;
+            parameters[nameof(ConfigurationInspector.BindingKeys)] = bindings.BindingKeys;
+        }
+        return dialogs.ShowAsync<ConfigurationInspector>(helpTitle, parameters,
+            new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+    }
     protected override bool ShouldRender() => !_rendered.Equals(RenderState) ||
         !SamePublicMetadata(_renderedPresentation, Presentation);
     protected override void OnAfterRender(bool firstRender)
@@ -65,24 +99,8 @@
         long generation = _generation;
         try
         {
-            var parameters = new DialogParameters
-            {
-                [nameof(ConfigurationInspector.Schema)] = Schema,
-                [nameof(ConfigurationInspector.Locale)] = Locale,
-                [nameof(ConfigurationInspector.Presentation)] = Presentation,
-                [nameof(ConfigurationInspector.FieldPath)] = FieldPath,
-                [nameof(ConfigurationInspector.ContextTitle)] = ContextTitle,
-                [nameof(ConfigurationInspector.Description)] = Description,
-                [nameof(ConfigurationInspector.SectionDescription)] = SectionDescription
-            };
-            if (GetBindings is not null)
-            {
-                var bindings = GetBindings();
-                parameters[nameof(ConfigurationInspector.OutputArtifactIds)] = bindings.ArtifactIds;
-                parameters[nameof(ConfigurationInspector.BindingKeys)] = bindings.BindingKeys;
-            }
-            var dialog = await Dialogs.ShowAsync<ConfigurationInspector>(HelpTitle, parameters,
-                new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+            var dialog = await OpenInspectorAsync(
+                Dialogs, Schema, Locale, Presentation, Title, FieldPath, ContextTitle, Description, SectionDescription, GetBindings);
             if (_disposed || generation != _generation) dialog.Close();
             else _dialog = dialog;
         }

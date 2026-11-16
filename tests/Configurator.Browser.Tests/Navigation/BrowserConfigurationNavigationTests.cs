@@ -281,4 +281,37 @@ public sealed class BrowserConfigurationNavigationTests
         await Assert.That(overviewNav.FindAll("[data-navigation-mode='sections']")).Count().IsEqualTo(1);
         await Assert.That(overviewNav.Find("[data-section='credentials'] [data-review-state]").GetAttribute("data-review-state")).IsEqualTo("not-visited");
     }
+
+    [Test]
+    public async Task PersistentLeftSectionRailStaysPopulatedInAllSectionsWithScrollspyLocationAndSectionReviewedAction()
+    {
+        Definition definition = GroupedDefinition();
+        await using var context = BrowserFixture.Context();
+        var component = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
+        {
+            builder.OpenComponent<ConfigurationEditor>(0);
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
+            builder.CloseComponent();
+        }));
+        var panel = component.FindComponent<ConfigurationConfigurePanel>();
+
+        await component.Find("[data-layout-mode='all-sections']").ClickAsync(new MouseEventArgs());
+
+        // Left section rail stays persistently populated in AllSections with zero horizontal jump pills.
+        await Assert.That(component.FindAll("#application-navigation [data-section]").Count).IsEqualTo(2);
+        await Assert.That(component.FindAll(".configuration-compact-workspace__jumps, [data-compact-section-jump]")).IsEmpty();
+        await Assert.That(component.Find("#application-navigation [data-section='connection']").GetAttribute("aria-current")).IsEqualTo("location");
+
+        // Scrollspy intersection callback updates active section aria-current="location" cleanly.
+        await panel.InvokeAsync(() => panel.Instance.OnScrollspySectionChangedAsync("credentials"));
+        await Assert.That(component.Find("#application-navigation [data-section='credentials']").GetAttribute("aria-current")).IsEqualTo("location");
+        await Assert.That(component.Find("#application-navigation [data-section='connection']").GetAttribute("aria-current")).IsNull();
+
+        // Explicit review toggle marks section reviewed and preserves state across layout switching.
+        await component.Find("[data-action='toggle-section-reviewed'][data-section-id='connection']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("#application-navigation [data-section='connection'] [data-review-state]").GetAttribute("data-review-state")).IsEqualTo("reviewed");
+
+        await component.Find("[data-layout-mode='section-by-section']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("#application-navigation [data-section='connection'] [data-review-state]").GetAttribute("data-review-state")).IsEqualTo("reviewed");
+    }
 }

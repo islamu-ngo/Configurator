@@ -1,4 +1,7 @@
 @implements IAsyncDisposable
+@using Configurator.Core.Definitions
+@using Configurator.Presentation
+@using Microsoft.AspNetCore.Components.Web.Virtualization
 
 <div @ref="_mountElement" class="configuration-section-fields" data-configuration-mount
      data-mount-generation="@_mountGeneration.ToString(System.Globalization.CultureInfo.InvariantCulture)"
@@ -20,36 +23,15 @@
     @if (Groups.Count > 0 && SectionId is not null && !LiteralRoot)
     {
         var groupedIds = Groups.Where(group => group.IsApplicable).SelectMany(group => group.Fields).ToHashSet(StringComparer.Ordinal);
-        @for (int index = 0; index < _activeFields.Length; index++)
-        {
-            if (groupedIds.Contains(_activeFields[index].Id)) continue;
-            var state = _activeFields[index];
-            var node = _plan.Roots[index];
-            var editor = Form.GetFieldEditor(state.Id);
-            <div @key="editor.Input" class="configuration-section-fields__slot">
-                @if (node.Admitted)
-                {
-                    <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
-                                        MountNode="node" MountRevision="_planRevision" Validation="Validation" RequiredOverride="state.IsRequired"
-                                        FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
-                                        FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
-                }
-                else
-                {
-                    <div class="configuration-section-fields__placeholder" aria-hidden="true">
-                        @(Form.GetEditorPresentation([state.Id])?.Title ?? Configurator.Core.Definitions.DefinitionDisplayText.Resolve(state.Definition.Title, state.Id))
-                    </div>
-                }
-            </div>
-        }
+        FieldState[] ungroupedFields = _activeFields.Where(state => !groupedIds.Contains(state.Id)).ToArray();
+        @RenderFieldCollection(ungroupedFields)
         <div class="configuration-section-fields__groups">
             @foreach (var group in Groups)
             {
                 if (!group.IsApplicable) continue;
                 var groupFieldSet = group.Fields.ToHashSet(StringComparer.Ordinal);
-                int[] groupIndices = Enumerable.Range(0, _activeFields.Length)
-                    .Where(index => groupFieldSet.Contains(_activeFields[index].Id)).ToArray();
-                if (groupIndices.Length == 0) continue;
+                FieldState[] groupFields = _activeFields.Where(state => groupFieldSet.Contains(state.Id)).ToArray();
+                if (groupFields.Length == 0) continue;
                 <section @key="group.Id" class="configuration-section-group" data-group="@group.Id"
                          data-group-expanded="@(group.IsExpanded ? "true" : "false")">
                     <button type="button" class="configuration-section-group__toggle" data-group-toggle
@@ -59,63 +41,244 @@
                         <span>@group.Title</span>
                         <span aria-hidden="true">@(group.IsExpanded ? "−" : "+")</span>
                     </button>
-                    @if (!string.IsNullOrWhiteSpace(group.Description))
+                    @if (!string.IsNullOrWhiteSpace(group.Description) && (!ContinuousMode || group.IsExpanded))
                     {
                         <p class="configuration-section-group__description" hidden="@(!group.IsExpanded)" inert="@(!group.IsExpanded)">@group.Description</p>
                     }
-                    <div class="configuration-section-group__fields" hidden="@(!group.IsExpanded)" inert="@(!group.IsExpanded)">
-                        @foreach (int index in groupIndices)
+                    @if (ContinuousMode)
+                    {
+                        @if (group.IsExpanded)
                         {
-                            var state = _activeFields[index];
-                            var node = _plan.Roots[index];
-                            var editor = Form.GetFieldEditor(state.Id);
-                            <div @key="editor.Input" class="configuration-section-fields__slot">
-                                @if (node.Admitted)
-                                {
-                                    <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
-                                                        MountNode="node" MountRevision="_planRevision" Validation="Validation" RequiredOverride="state.IsRequired"
-                                                        FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
-                                                        FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
-                                }
-                                else
-                                {
-                                    <div class="configuration-section-fields__placeholder" aria-hidden="true">
-                                        @(Form.GetEditorPresentation([state.Id])?.Title ?? Configurator.Core.Definitions.DefinitionDisplayText.Resolve(state.Definition.Title, state.Id))
-                                    </div>
-                                }
+                            <div class="configuration-section-group__fields">
+                                @RenderFieldCollection(groupFields)
                             </div>
                         }
-                    </div>
+                    }
+                    else
+                    {
+                        <div class="configuration-section-group__fields" hidden="@(!group.IsExpanded)" inert="@(!group.IsExpanded)">
+                            @foreach (FieldState state in groupFields)
+                            {
+                                @if (PrepareSlot(state, continuous: false) is var slot && slot.MountNode is { } node)
+                                {
+                                    <div @key="slot.Key" class="configuration-section-fields__slot">@RenderComplexSlotBody(slot, node)</div>
+                                }
+                            }
+                        </div>
+                    }
                 </section>
             }
         </div>
     }
-    else
+    else if (!LiteralRoot)
     {
-    @for (int index = 0; index < _activeFields.Length && !LiteralRoot; index++)
-    {
-        var state = _activeFields[index];
-        var node = _plan.Roots[index];
-        var editor = Form.GetFieldEditor(state.Id);
-        <div @key="editor.Input" class="configuration-section-fields__slot">
-            @if (node.Admitted)
-            {
-                <ConfigurationField @key="editor.Input" Form="Form" Schema="editor.Schema" Path="@(new[] { state.Id })"
-                                    MountNode="node" MountRevision="_planRevision" Validation="Validation" RequiredOverride="state.IsRequired"
-                                    FocusFirstControl="@(FocusField == state.Id)" FocusGeneration="FocusGeneration"
-                                    FocusPath="@(FocusField == state.Id ? FocusPath : Array.Empty<string>())" />
-            }
-            else
-            {
-                <div class="configuration-section-fields__placeholder" aria-hidden="true">
-                    @(Form.GetEditorPresentation([state.Id])?.Title ?? Configurator.Core.Definitions.DefinitionDisplayText.Resolve(state.Definition.Title, state.Id))
-                </div>
-            }
-        </div>
-    }
+        @RenderFieldCollection(_activeFields)
     }
 </div>
 @if (Busy)
 {
     <p class="configuration-section-fields__status" role="status" data-mount-status="pending">@Configurator.Browser.Resources.BrowserStrings.Get("SectionSettingsLoading", Form.Locale)</p>
+}
+
+@code {
+    private readonly record struct PreparedSlot(
+        string Key,
+        FieldState State,
+        DefinitionFieldInput Input,
+        DefinitionNode Schema,
+        DefinitionPath Location,
+        string Identity,
+        bool Focused,
+        bool ContinuousScalar,
+        ConfigurationMountNode? MountNode);
+
+    private PreparedSlot PrepareSlot(FieldState state, bool continuous)
+    {
+        var editor = Form.GetFieldEditor(state.Id);
+        DefinitionPath location = DefinitionPath.FromSegments([editor.Input.Definition.Name]);
+        string identity = Form.GetEditorIdentity(location);
+        bool focused = string.Equals(FocusField, state.Id, StringComparison.Ordinal);
+        bool scalar = continuous && !IsComplexField(editor.Schema);
+        ConfigurationMountNode? mountNode = scalar ? null : ResolvePlanNode(state.Id);
+        return new PreparedSlot(state.Id, state, editor.Input, editor.Schema, location, identity, focused, scalar, mountNode);
+    }
+
+    private RenderFragment RenderFieldCollection(FieldState[] items)
+    {
+        if (!ContinuousMode || items.Length <= VirtualizeRowThreshold)
+        {
+            return @<text>
+                @foreach (FieldState item in items)
+                {
+                    PreparedSlot slot = PrepareSlot(item, continuous: ContinuousMode);
+                    @if (slot.ContinuousScalar)
+                    {
+                        <ConfigurationSettingRow @key="slot.Key" Form="Form" Schema="slot.Schema" Path="@(new[] { slot.State.Id })"
+                                                 Identity="@slot.Identity" Location="slot.Location" Validation="Validation"
+                                                 RequiredOverride="slot.State.IsRequired" SectionAllRequired="SectionAllRequired" FocusFirstControl="@slot.Focused"
+                                                 FocusGeneration="@(slot.Focused ? FocusGeneration : 0L)"
+                                                 FocusPath="@(slot.Focused ? FocusPath : Array.Empty<string>())" />
+                    }
+                    else if (slot.MountNode is { } node)
+                    {
+                        <div @key="slot.Key" class="configuration-section-fields__slot">@RenderComplexSlotBody(slot, node)</div>
+                    }
+                }
+            </text>;
+        }
+
+        int directCount = Math.Min(DirectSliceCount, items.Length);
+        int pinnedIndex = ResolvePinnedFocusIndex(items, FocusField);
+        if (pinnedIndex >= directCount)
+        {
+            FieldState[] middleSlice = items[directCount..pinnedIndex];
+            FieldState pinnedItem = items[pinnedIndex];
+            FieldState[] tailSlice = pinnedIndex + 1 < items.Length ? items[(pinnedIndex + 1)..] : [];
+            return @<text>
+                @for (int index = 0; index < directCount; index++)
+                {
+                    PreparedSlot slot = PrepareSlot(items[index], continuous: true);
+                    @if (slot.ContinuousScalar)
+                    {
+                        <ConfigurationSettingRow @key="slot.Key" Form="Form" Schema="slot.Schema" Path="@(new[] { slot.State.Id })"
+                                                 Identity="@slot.Identity" Location="slot.Location" Validation="Validation"
+                                                 RequiredOverride="slot.State.IsRequired" SectionAllRequired="SectionAllRequired" FocusFirstControl="@slot.Focused"
+                                                 FocusGeneration="@(slot.Focused ? FocusGeneration : 0L)"
+                                                 FocusPath="@(slot.Focused ? FocusPath : Array.Empty<string>())" />
+                    }
+                    else if (slot.MountNode is { } node)
+                    {
+                        <div @key="slot.Key" class="configuration-section-fields__slot">@RenderComplexSlotBody(slot, node)</div>
+                    }
+                }
+                @if (middleSlice.Length > 0)
+                {
+                    <div class="configuration-section-fields__virtual-region" style="@($"min-block-size:{middleSlice.Length * 56}px")">
+                        <Virtualize @key="@($"middle-{_sliceTopologyVersion}")" TItem="FieldState"
+                                    ItemsProvider="@(request => ProvideSlice(middleSlice, request))"
+                                    ItemSize="72" OverscanCount="2" Context="item">
+                            @{
+                                PreparedSlot slot = PrepareSlot(item, continuous: true);
+                            }
+                            @if (slot.ContinuousScalar)
+                            {
+                                <ConfigurationSettingRow @key="slot.Key" Form="Form" Schema="slot.Schema" Path="@(new[] { slot.State.Id })"
+                                                         Identity="@slot.Identity" Location="slot.Location" Validation="Validation"
+                                                         RequiredOverride="slot.State.IsRequired" SectionAllRequired="SectionAllRequired" FocusFirstControl="@slot.Focused"
+                                                         FocusGeneration="@(slot.Focused ? FocusGeneration : 0L)"
+                                                         FocusPath="@(slot.Focused ? FocusPath : Array.Empty<string>())" />
+                            }
+                            else if (slot.MountNode is { } node)
+                            {
+                                <div @key="slot.Key" class="configuration-section-fields__slot">@RenderComplexSlotBody(slot, node)</div>
+                            }
+                        </Virtualize>
+                    </div>
+                }
+                <div class="configuration-section-fields__pinned-slot" data-pinned-focus-slot="@pinnedItem.Id">
+                    @{
+                        PreparedSlot pinnedSlot = PrepareSlot(pinnedItem, continuous: true);
+                    }
+                    @if (pinnedSlot.ContinuousScalar)
+                    {
+                        <ConfigurationSettingRow @key="pinnedSlot.Key" Form="Form" Schema="pinnedSlot.Schema" Path="@(new[] { pinnedSlot.State.Id })"
+                                                 Identity="@pinnedSlot.Identity" Location="pinnedSlot.Location" Validation="Validation"
+                                                 RequiredOverride="pinnedSlot.State.IsRequired" SectionAllRequired="SectionAllRequired" FocusFirstControl="@pinnedSlot.Focused"
+                                                 FocusGeneration="@(pinnedSlot.Focused ? FocusGeneration : 0L)"
+                                                 FocusPath="@(pinnedSlot.Focused ? FocusPath : Array.Empty<string>())" />
+                    }
+                    else if (pinnedSlot.MountNode is { } pinnedNode)
+                    {
+                        <div @key="pinnedSlot.Key" class="configuration-section-fields__slot">@RenderComplexSlotBody(pinnedSlot, pinnedNode)</div>
+                    }
+                </div>
+                @if (tailSlice.Length > 0)
+                {
+                    <div class="configuration-section-fields__virtual-region" style="@($"min-block-size:{tailSlice.Length * 56}px")">
+                        <Virtualize @key="@($"tail-{_sliceTopologyVersion}")" TItem="FieldState"
+                                    ItemsProvider="@(request => ProvideSlice(tailSlice, request))"
+                                    ItemSize="72" OverscanCount="2" Context="item">
+                            @{
+                                PreparedSlot slot = PrepareSlot(item, continuous: true);
+                            }
+                            @if (slot.ContinuousScalar)
+                            {
+                                <ConfigurationSettingRow @key="slot.Key" Form="Form" Schema="slot.Schema" Path="@(new[] { slot.State.Id })"
+                                                         Identity="@slot.Identity" Location="slot.Location" Validation="Validation"
+                                                         RequiredOverride="slot.State.IsRequired" SectionAllRequired="SectionAllRequired" FocusFirstControl="@slot.Focused"
+                                                         FocusGeneration="@(slot.Focused ? FocusGeneration : 0L)"
+                                                         FocusPath="@(slot.Focused ? FocusPath : Array.Empty<string>())" />
+                            }
+                            else if (slot.MountNode is { } node)
+                            {
+                                <div @key="slot.Key" class="configuration-section-fields__slot">@RenderComplexSlotBody(slot, node)</div>
+                            }
+                        </Virtualize>
+                    </div>
+                }
+            </text>;
+        }
+
+        FieldState[] remaining = items[directCount..];
+        return @<text>
+            @for (int index = 0; index < directCount; index++)
+            {
+                PreparedSlot slot = PrepareSlot(items[index], continuous: true);
+                @if (slot.ContinuousScalar)
+                {
+                    <ConfigurationSettingRow @key="slot.Key" Form="Form" Schema="slot.Schema" Path="@(new[] { slot.State.Id })"
+                                             Identity="@slot.Identity" Location="slot.Location" Validation="Validation"
+                                             RequiredOverride="slot.State.IsRequired" SectionAllRequired="SectionAllRequired" FocusFirstControl="@slot.Focused"
+                                             FocusGeneration="@(slot.Focused ? FocusGeneration : 0L)"
+                                             FocusPath="@(slot.Focused ? FocusPath : Array.Empty<string>())" />
+                }
+                else if (slot.MountNode is { } node)
+                {
+                    <div @key="slot.Key" class="configuration-section-fields__slot">@RenderComplexSlotBody(slot, node)</div>
+                }
+            }
+            <div class="configuration-section-fields__virtual-region" style="@($"min-block-size:{remaining.Length * 56}px")">
+                <Virtualize @key="@($"rest-{_sliceTopologyVersion}")" TItem="FieldState"
+                            ItemsProvider="@(request => ProvideSlice(remaining, request))"
+                            ItemSize="72" OverscanCount="2" Context="item">
+                    @{
+                        PreparedSlot slot = PrepareSlot(item, continuous: true);
+                    }
+                    @if (slot.ContinuousScalar)
+                    {
+                        <ConfigurationSettingRow @key="slot.Key" Form="Form" Schema="slot.Schema" Path="@(new[] { slot.State.Id })"
+                                                 Identity="@slot.Identity" Location="slot.Location" Validation="Validation"
+                                                 RequiredOverride="slot.State.IsRequired" SectionAllRequired="SectionAllRequired" FocusFirstControl="@slot.Focused"
+                                                 FocusGeneration="@(slot.Focused ? FocusGeneration : 0L)"
+                                                 FocusPath="@(slot.Focused ? FocusPath : Array.Empty<string>())" />
+                    }
+                    else if (slot.MountNode is { } node)
+                    {
+                        <div @key="slot.Key" class="configuration-section-fields__slot">@RenderComplexSlotBody(slot, node)</div>
+                    }
+                </Virtualize>
+            </div>
+        </text>;
+    }
+
+    private RenderFragment RenderComplexSlotBody(PreparedSlot slot, ConfigurationMountNode node) => @<text>
+        @if (node.Admitted)
+        {
+            <ConfigurationField @key="slot.Input" Form="Form" Schema="slot.Schema" Path="@(new[] { slot.State.Id })"
+                                MountNode="node" MountRevision="_planRevision" Validation="Validation" RequiredOverride="slot.State.IsRequired" SectionAllRequired="SectionAllRequired"
+                                FocusFirstControl="@slot.Focused" FocusGeneration="FocusGeneration"
+                                FocusPath="@(slot.Focused ? FocusPath : Array.Empty<string>())" />
+        }
+        else
+        {
+            <div class="configuration-section-fields__placeholder" aria-hidden="true">
+                @(Form.GetEditorPresentation([slot.State.Id])?.Title ?? DefinitionDisplayText.Resolve(slot.State.Definition.Title, slot.State.Id))
+            </div>
+        }
+    </text>;
+
+    private ConfigurationMountNode? ResolvePlanNode(string fieldId) =>
+        _planIndicesByFieldId.TryGetValue(fieldId, out int planIndex) && planIndex < _plan.Roots.Count
+            ? _plan.Roots[planIndex]
+            : null;
 }

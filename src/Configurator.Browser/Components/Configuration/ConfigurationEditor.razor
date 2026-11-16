@@ -53,22 +53,21 @@ else
         @{ var projection = _form.Projection; var progress = projection.Progress; var viewSections = EditorSections();
             string? currentSectionId = SelectedSection(viewSections); }
         <WorkspaceHeader Form="_form" Locale="@_form.Locale"
-                         ActiveStage="@WorkflowStageToken"
-                         LayoutMode="@LayoutMode"
+                         ActiveStage="@ActiveHeaderStage"
                          Density="@Density"
                          NamingMode="@NamingMode"
                          DeveloperMode="@_developerMode"
+                         ContextOpen="@_contextOpen"
                          ScopeSummary="@ScopeSummary"
                          OnScopeRequested="() => { if (IsCurrentView(actionForm, actionView)) OpenScopeSelector(); }"
                          OnSecretConsentRequested="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }"
                          NamingModeChanged="mode => IsCurrentView(actionForm, actionView) ? ChangeNamingModeAsync(mode) : Task.CompletedTask"
                          DensityChanged="density => IsCurrentView(actionForm, actionView) ? ChangeDensityValueAsync(density) : Task.CompletedTask"
-                         StageSelected="selection => IsCurrentView(actionForm, actionView) ? SelectStageAndLayoutAsync(selection) : Task.CompletedTask" />
+                         StageSelected="stage => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(stage) : Task.CompletedTask" />
         @if (_form.ConfigurationContext is { } configurationContext)
         {
-            <details class="configuration-editor__context" open="@_contextOpen">
-                <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _contextOpen = !_contextOpen; }" @onclick:preventDefault>@UiText("ConfigurationContext")</summary>
-            <fieldset id="configuration-context" @key="(_form, _contextChoiceKey)">
+            <section id="configuration-context" class="configuration-editor__context" hidden="@(!_contextOpen)" inert="@(!_contextOpen)">
+            <fieldset class="configuration-editor__context-fields" @key="(_form, _contextChoiceKey)">
                 <legend class="sr-only">@UiText("ConfigurationContext")</legend>
                 <p id="configuration-context-help">@UiText("ConfigurationContextHelp")</p>
                 @if (projection.ContextSummary is { } contextSummary)
@@ -123,11 +122,27 @@ else
                     </div>
                 </details>
             </fieldset>
-            </details>
+            </section>
         }
-        <div class="configuration-editor__progress" aria-live="polite" aria-atomic="true"
-             data-required-count="@progress.Required" data-ready-count="@progress.Ready">
-            @if (progress.Required == 0)
+        @{
+            var summary = projection.ProgressSummary;
+            string readyState = !summary.IsReadyForExport
+                ? (summary.MissingRequired == 0 && summary.DeferredSecretCount == 0 && summary.OptionalInvalidCount > 0 ? "issues"
+                    : summary.MissingRequired == 0 && summary.DeferredSecretCount > 0 ? "deferred" : "incomplete")
+                : progress.Required == 0 ? "none" : "complete";
+            int totalAttention = summary.MissingRequired + summary.TotalInvalidCount;
+        }
+        <div class="configuration-editor__progress configuration-editor__progress--@readyState" aria-live="polite" aria-atomic="true"
+             data-required-count="@progress.Required" data-ready-count="@progress.Ready" data-ready-state="@readyState">
+            @if (summary.MissingRequired == 0 && summary.DeferredSecretCount == 0 && summary.OptionalInvalidCount > 0)
+            {
+                <strong>@UiFormat(summary.OptionalInvalidCount == 1 ? "RequiredReadyOptionalIssue" : "RequiredReadyOptionalIssues", summary.OptionalInvalidCount)</strong>
+                @if (progress.Required > 0)
+                {
+                    <progress value="@Math.Max(0, progress.Required - summary.OptionalInvalidCount)" max="@progress.Required" aria-label="@UiText("RequiredAnswersProgress")"></progress>
+                }
+            }
+            else if (progress.Required == 0)
             {
                 <strong>@UiText("NoRequiredAnswers")</strong>
             }
@@ -136,32 +151,20 @@ else
                 <strong>@UiFormat(progress.Required == 1 ? "RequiredAnswerReady" : "RequiredAnswersReady", progress.Ready, progress.Required)</strong>
                 <progress value="@progress.Ready" max="@progress.Required" aria-label="@UiText("RequiredAnswersProgress")"></progress>
             }
-            @if (progress.Missing + progress.Invalid > 0)
+            @if (totalAttention > 0)
             {
                 <button type="button" class="button button--secondary" data-action="review-required-work"
-                        @onclick="() => IsCurrentView(actionForm, actionView) ? FocusNextRequiredWorkAsync() : Task.CompletedTask">@UiText("NeedsAttention"): @(progress.Missing + progress.Invalid)</button>
+                        @onclick="() => IsCurrentView(actionForm, actionView) ? FocusNextRequiredWorkAsync() : Task.CompletedTask">@UiText("NeedsAttention"): @totalAttention</button>
             }
-            <div class="configuration-editor__entry-choices" data-returning-entry role="group" aria-label="@UiText("ReturningUserEntry")">
-                <button type="button" class="button button--secondary" data-entry-choice="fresh"
-                        aria-pressed="@((!_importOpen && !_profileOpen).ToString().ToLowerInvariant())"
-                        @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectReturningEntry("fresh"); }'>@UiText("StartFreshEntry")</button>
-                @if (ImportArtifacts.Length > 0)
-                {
-                    <button type="button" class="button button--secondary" data-entry-choice="import"
-                            aria-pressed="@(_importOpen.ToString().ToLowerInvariant())"
-                            @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectReturningEntry("import"); }'>@UiText("UseExistingConfigurationEntry")</button>
-                }
-                <button type="button" class="button button--secondary" data-entry-choice="profile"
-                        aria-pressed="@(_profileOpen.ToString().ToLowerInvariant())"
-                        @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectReturningEntry("profile"); }'>@UiText("OpenSavedProfileEntry")</button>
-            </div>
         </div>
-        <div class="configuration-editor__status" data-workspace-phase="private-workspace" data-status-code="@_statusCode">
-            <p role="status" class="@(_statusCode == "workspace-ready" ? "sr-only" : "notice")" data-code="@_statusCode">@UiFormat(_statusKey, _statusArguments)</p>
+        <div class="configuration-editor__status" data-workspace-phase="private-workspace"
+             data-status-code="@_statusCode" data-status-slot="reserved">
+            <p role="status" class="configuration-editor__status-text @(_statusCode == "workspace-ready" ? "configuration-editor__status-text--quiet" : "notice")"
+               data-code="@_statusCode">@UiFormat(_statusKey, _statusArguments)</p>
             @if (StatusRecovery is { } recovery)
             {
                 <button type="button" class="button button--secondary" data-action="recover-status"
-                        data-recovery-target="@recovery.Target"
+                        data-recovery-target="@recovery.TargetToken"
                         @onclick="() => IsCurrentView(actionForm, actionView) ? ExecuteStatusRecoveryAsync() : Task.CompletedTask">
                     @UiText(recovery.LabelKey)
                 </button>
@@ -183,7 +186,7 @@ else
                 </select>
             </div>
         }
-        @if (_activeWorkflowStage == WorkflowStage.Configure)
+        @if (_activeWorkflowStage == WorkspaceStage.Configure)
         {
         @if (_developerMode)
         {
@@ -209,70 +212,17 @@ else
         }
         else
         {
-        @if (LayoutMode == WorkspaceLayoutMode.Compact && (_compactReviewOpen || _compactFilesOpen))
-        {
-            <section class="configuration-editor__compact-panel"
-                     data-compact-inline-panel="@(_compactFilesOpen ? "files" : "review")"
-                     aria-label="@UiText(_compactFilesOpen ? "WorkflowFiles" : "WorkflowReview")">
-                <div class="configuration-editor__compact-panel-header">
-                    <button type="button" class="button button--secondary" data-action="close-compact-panel"
-                            @onclick="() => { if (IsCurrentView(actionForm, actionView)) CloseCompactInlinePanel(); }">
-                        @UiText("CloseCompactPanel")
-                    </button>
-                </div>
-                @if (_compactReviewOpen)
-                {
-                    <ConfigurationReviewPanel @ref="_reviewPanel" Form="_form"
-                                              Readiness="@PreparationReadiness"
-                                              CompactPresentation="true"
-                                              PrepareComplete="() => IsCurrentView(actionForm, actionView) ? PrepareAsync(false) : Task.CompletedTask"
-                                              ChangeField="diagnostic => { if (IsCurrentView(actionForm, actionView)) ChangeReviewField(diagnostic); }" Validation="@(_reviewValidation ?? _validation)" DiagnosticCodes="_diagnostics"
-                                              CorrectField="diagnostic => { if (IsCurrentView(actionForm, actionView)) ChangeReviewField(diagnostic); }"
-                                              EnableSecrets="() => IsCurrentView(actionForm, actionView) ? EnableSecretsAsync() : Task.CompletedTask"
-                                              PrepareDraft="() => IsCurrentView(actionForm, actionView) ? PrepareAsync(true) : Task.CompletedTask" />
-                }
-                else if (_compactFilesOpen)
-                {
-                    <ConfigurationFilesPanel @ref="_filesPanel" Locale="@_form.Locale"
-                                             Readiness="@PreparationReadiness" HasPreparedFiles="@(_prepared.Count > 0)"
-                                             OutputInvalidated="@(_hadPreparedOutput && _prepared.Count == 0)"
-                                             Review='() => { if (IsCurrentView(actionForm, actionView)) OpenCompactReviewPanel(); }'
-                                             Prepare="draft => IsCurrentView(actionForm, actionView) ? PrepareAsync(draft) : Task.CompletedTask"
-                                             Clear="() => IsCurrentView(actionForm, actionView) ? ClearAsync() : Task.CompletedTask">
-                        <ConfigurationReview Definition="Definition" Form="_form" Validation="@(_reviewValidation ?? _validation)" DiagnosticCodes="_diagnostics"
-                                             InvalidFields="_form.InputDiagnostics" SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
-                                             CompactPresentation="true"
-                                             CorrectField="diagnostic => { if (IsCurrentView(actionForm, actionView)) ChangeReviewField(diagnostic); }"
-                                             EnableSecrets="() => IsCurrentView(actionForm, actionView) ? EnableSecretsAsync() : Task.CompletedTask" />
-                        @if (_prepared.Count > 1)
-                        {
-                            <div class="actions">
-                                <AppButton Variant="Variant.Outlined" data-action="copy-all-files"
-                                           OnClick="() => IsCurrentView(actionForm, actionView) ? ExportAllAsync(false) : Task.CompletedTask">@UiText("CopyAllArtifacts")</AppButton>
-                                <AppButton data-action="download-all-files"
-                                           OnClick="() => IsCurrentView(actionForm, actionView) ? ExportAllAsync(true) : Task.CompletedTask">@UiText("DownloadAllArtifacts")</AppButton>
-                            </div>
-                        }
-                        @foreach (var prepared in _prepared)
-                        {
-                            <div class="configuration-editor__artifact" @key="prepared">
-                                <ConfigurationFiles @ref="prepared.View" Metadata="prepared.Metadata" Form="_form" Locale="@_form.Locale"
-                                                    Destination="@Definition.Artifacts.Single(artifact => artifact.Id == prepared.Metadata.ArtifactId)"
-                                                    Revealed="@prepared.Revealed" StatusKey="@prepared.StatusKey" StatusCode="@prepared.StatusCode"
-                                                    Copy="() => IsCurrentView(actionForm, actionView) ? CopyAsync(prepared) : Task.CompletedTask"
-                                                    Download="() => IsCurrentView(actionForm, actionView) ? DownloadAsync(prepared) : Task.CompletedTask"
-                                                    Reveal="() => IsCurrentView(actionForm, actionView) ? RevealAsync(prepared) : Task.CompletedTask" />
-                            </div>
-                        }
-                    </ConfigurationFilesPanel>
-                }
-            </section>
-        }
         <CascadingValue @key="_workspaceLifetime" Name="WorkspaceConsentAction" Value="_consentAction" IsFixed="true">
         <CascadingValue Name="OnFieldFocused" Value="_fieldFocusCallback" IsFixed="true">
+        <CascadingValue Name="OnWorkspaceKeyDown" Value="_keyDownCallback" IsFixed="true">
+        <ConfigurationErrorSummary Form="_form"
+                                   Validation="_validation"
+                                   ShowRequiredSummary="_errorSummaryRequested"
+                                   TargetSelected="target => IsCurrentView(actionForm, actionView) ? JumpToActionableTargetAsync(target) : Task.CompletedTask" />
         <div class="@(_inspectorOpen ? "configuration-editor__workbench" : string.Empty)">
             <ConfigurationConfigurePanel @ref="_configurePanel" Form="_form" Sections="viewSections" SelectedSection="@_selectedSection"
-                                         SelectedChanged="HandleConfigureSectionSelected"
+                                         SelectedChanged="HandleConfigureSectionSelectedAsync"
+                                         LayoutModeChanged="layout => IsCurrentView(actionForm, actionView) ? SelectLayoutModeAsync(layout) : Task.CompletedTask"
                                          MountCancellation="_mountCancellation.Token" Validation="_validation"
                                          FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath"
                                          RequestSecretConsent="_consentAction"
@@ -282,9 +232,11 @@ else
             @if (_inspectorOpen)
             {
                 <ConfigurationInspectorPane Form="_form" InspectedPath="@_inspectedPath" ProjectionRevision="_form.InputRevision"
-                                            Locale="@_form.Locale" CloseRequested="() => ToggleInspector()" />
+                                            Locale="@_form.Locale" IsMobileSheet="_inspectorMobileSheet"
+                                            CloseRequested="() => ToggleInspectorAsync()" />
             }
         </div>
+        </CascadingValue>
         </CascadingValue>
         </CascadingValue>
         @if (_returnToReview)
@@ -295,6 +247,20 @@ else
         <div class="configuration-editor__toolbar">
             <details class="configuration-editor__view-options">
             <summary>@UiText("WorkspaceEditorTools")</summary>
+            <div class="configuration-editor__entry-choices" data-returning-entry role="group" aria-label="@UiText("ReturningUserEntry")">
+                <button type="button" class="button button--secondary" data-entry-choice="fresh"
+                        aria-pressed="@((!_importOpen && !_profileOpen).ToString().ToLowerInvariant())"
+                        @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectReturningEntry("fresh"); }'>@UiText("StartFreshEntry")</button>
+                @if (ImportArtifacts.Length > 0)
+                {
+                    <button type="button" class="button button--secondary" data-entry-choice="import"
+                            aria-pressed="@(_importOpen.ToString().ToLowerInvariant())"
+                            @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectReturningEntry("import"); }'>@UiText("UseExistingConfigurationEntry")</button>
+                }
+                <button type="button" class="button button--secondary" data-entry-choice="profile"
+                        aria-pressed="@(_profileOpen.ToString().ToLowerInvariant())"
+                        @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectReturningEntry("profile"); }'>@UiText("OpenSavedProfileEntry")</button>
+            </div>
             <div class="configuration-editor__quick-actions">
                 <button type="button" class="button button--secondary" data-action="undo"
                         disabled="@(!_form.CanUndo)" aria-label="@UiText("UndoAction")"
@@ -302,9 +268,9 @@ else
                 <button type="button" class="button button--secondary" data-action="redo"
                         disabled="@(!_form.CanRedo)" aria-label="@UiText("RedoAction")"
                         @onclick="() => { if (IsCurrentView(actionForm, actionView)) PerformRedo(); }">@UiText("RedoAction")</button>
-                <button type="button" class="button button--secondary" data-action="toggle-inspector"
+                <button @ref="_inspectorToggleControl" type="button" class="button button--secondary" data-action="toggle-inspector"
                         aria-pressed="@(_inspectorOpen ? "true" : "false")"
-                        @onclick="() => { if (IsCurrentView(actionForm, actionView)) ToggleInspector(); }">@UiText("ToggleInspector")</button>
+                        @onclick="() => IsCurrentView(actionForm, actionView) ? ToggleInspectorAsync() : Task.CompletedTask">@UiText("ToggleInspector")</button>
                 <button type="button" class="button button--secondary" data-action="open-shortcuts"
                         @onclick="() => IsCurrentView(actionForm, actionView) ? OpenShortcutsHelpAsync() : Task.CompletedTask">?</button>
                 <button type="button" class="button button--secondary"
@@ -416,7 +382,7 @@ else
             </details>
         }
         }
-        @if (_activeWorkflowStage == WorkflowStage.Review)
+        @if (_activeWorkflowStage == WorkspaceStage.Review)
         {
             <ConfigurationReviewPanel @ref="_reviewPanel" Form="_form"
                                  Readiness="@PreparationReadiness"
@@ -426,12 +392,12 @@ else
                                  EnableSecrets="() => IsCurrentView(actionForm, actionView) ? EnableSecretsAsync() : Task.CompletedTask"
                                  PrepareDraft="() => IsCurrentView(actionForm, actionView) ? PrepareAsync(true) : Task.CompletedTask" />
         }
-        @if (_activeWorkflowStage == WorkflowStage.Prepare)
+        @if (_activeWorkflowStage == WorkspaceStage.Files)
         {
         <ConfigurationFilesPanel @ref="_filesPanel" Locale="@_form.Locale"
                                  Readiness="@PreparationReadiness" HasPreparedFiles="@(_prepared.Count > 0)"
                                  OutputInvalidated="@(_hadPreparedOutput && _prepared.Count == 0)"
-                                 Review='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage(WorkflowStage.Review); }'
+                                 Review='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage(WorkspaceStage.Review); }'
                                  Prepare="draft => IsCurrentView(actionForm, actionView) ? PrepareAsync(draft) : Task.CompletedTask"
                                  Clear="() => IsCurrentView(actionForm, actionView) ? ClearAsync() : Task.CompletedTask">
         <ConfigurationReview Definition="Definition" Form="_form" Validation="_validation" DiagnosticCodes="_diagnostics"

@@ -1,5 +1,7 @@
 @using Configurator.Presentation
 @using Configurator.Core.Definitions
+@using Configurator.Browser.Services
+@inject WorkspaceSearchState SearchState
 
 <div class="configuration-discovery">
     <div class="configuration-discovery__status-chips" role="group" aria-label="@T("DiscoveryFilters")">
@@ -38,14 +40,26 @@
     {
         <p>@T("DiscoveryNoMatches")</p>
     }
-    <ul class="configuration-discovery__results">
-        @foreach (var match in Form.Projection.Matches.Skip(_page * PageSize).Take(PageSize))
+    <ul class="configuration-discovery__results" role="listbox" aria-label="@T("SettingSearchResults")">
+        @{
+            var pageMatches = Form.Projection.Matches.Skip(_page * PageSize).Take(PageSize).ToArray();
+            long activeGeneration = SearchState.Generation;
+        }
+        @for (int index = 0; index < pageMatches.Length; index++)
         {
+            var match = pageMatches[index];
             var entry = match.Entry;
+            string optionId = $"workspace-search-option-{activeGeneration}-{index}";
+            bool isSelected = index == SearchState.ActiveIndex;
             <li @key="Form.GetEditorIdentity(new[] { entry.FieldId }.Concat(entry.RelativePath).ToArray())"
+                id="@optionId"
+                role="option"
+                aria-selected="@(isSelected ? "true" : "false")"
+                class="@(isSelected ? "configuration-discovery__option--active" : null)"
                 data-discovery-result="@entry.FieldId" data-match="@match.MatchReason.ToToken()" data-active="@entry.IsActive.ToString().ToLowerInvariant()">
                 <div class="configuration-discovery__result-heading">
-                    <strong>@entry.Title</strong>
+                    <strong><bdi>@entry.Title</bdi></strong>
+                    <code dir="ltr"><bdi dir="ltr">@entry.FieldId</bdi></code>
                     @if (entry.IsActive)
                     {
                         <button type="button" class="button button--secondary" @onclick='() => Navigate.InvokeAsync(new DefinitionDiagnostic("discovery", entry.FieldId, entry.RelativePath))'
@@ -56,13 +70,13 @@
                         <button type="button" class="button button--secondary" @onclick='() => Navigate.InvokeAsync(new DefinitionDiagnostic("discovery-controller", entry.ActiveControllerFields[0]))'>@T("DiscoveryReviewActivation")</button>
                     }
                 </div>
-                <p>@entry.SectionTitle / @T(entry.IsActive ? entry.IsRequired ? "Required" : "Optional" : "DiscoveryInactive")</p>
+                <p><bdi>@entry.SectionTitle</bdi> / @T(entry.IsActive ? entry.IsRequired ? "Required" : "Optional" : "DiscoveryInactive")</p>
                 @if (!entry.IsActive)
                 {
                     <p>@T("DiscoveryInactiveHelp")</p>
                 }
                 <details><summary>@T("DiscoveryMatchDetails")</summary>
-                    <code dir="ltr">@string.Join(" / ", new[] { entry.FieldId }.Concat(entry.RelativePath))</code>
+                    <code dir="ltr"><bdi dir="ltr">@string.Join(" / ", new[] { entry.FieldId }.Concat(entry.RelativePath))</bdi></code>
                     <p>@T("DiscoveryMatchReason"): @MatchTitle(match.MatchReason).</p>
                     @if (entry.ActiveControllerFields.Count > 0)
                     {
@@ -162,6 +176,25 @@
         _observedSelection = Form.DiscoverySelection;
         _observedExperience = Form.SelectedExperienceId;
         _page = Math.Min(_page, PageCount - 1);
+        SearchState.RegisterListbox(
+            SearchState.Generation,
+            () => Form.Projection.Matches.Skip(_page * PageSize).Take(PageSize).Count(),
+            ActivateMatchAt);
+    }
+
+    private void ActivateMatchAt(int index)
+    {
+        var pageMatches = Form.Projection.Matches.Skip(_page * PageSize).Take(PageSize).ToArray();
+        if ((uint)index >= (uint)pageMatches.Length) return;
+        var entry = pageMatches[index].Entry;
+        if (entry.IsActive)
+        {
+            _ = Navigate.InvokeAsync(new DefinitionDiagnostic("discovery", entry.FieldId, entry.RelativePath));
+        }
+        else if (entry.ActiveControllerFields.Count > 0)
+        {
+            _ = Navigate.InvokeAsync(new DefinitionDiagnostic("discovery-controller", entry.ActiveControllerFields[0]));
+        }
     }
     private void ClearQuery() { _page = 0; Form.ClearDiscoveryQuery(); }
     private void ClearFilters() { _page = 0; Form.ClearDiscoveryFilters(); }

@@ -7,6 +7,7 @@ using Configurator.Core.Composition;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using MudBlazor;
 
@@ -21,17 +22,18 @@ public partial class ConfigurationField
     [Parameter, EditorRequired] public IReadOnlyList<string> Path { get; set; } = [];
     [Parameter] public bool LiteralPath { get; set; }
     [CascadingParameter(Name = "OnFieldFocused")] private Action<DefinitionPath>? OnFieldFocused { get; set; }
+    [CascadingParameter(Name = "OnWorkspaceKeyDown")] private Func<KeyboardEventArgs, Task>? OnWorkspaceKeyDown { get; set; }
     [CascadingParameter(Name = "SuggestionReviewRequested")] private EventCallback<DefinitionPath> SuggestionReviewRequested { get; set; }
     [Parameter] public DefinitionValidationResult? Validation { get; set; }
     [Parameter] public EventCallback<(string Id, string FieldId, bool Invalid)> ValidationChanged { get; set; }
     [Parameter] public bool InheritedSecret { get; set; }
     [Parameter] public bool? RequiredOverride { get; set; }
+    [Parameter] public bool SectionAllRequired { get; set; }
     [Parameter] public string? TitleOverride { get; set; }
     [Parameter] public bool FocusFirstControl { get; set; }
     [Parameter] public long FocusGeneration { get; set; }
     [Parameter] public int FocusRow { get; set; } = -1;
     [Parameter] public IReadOnlyList<string> FocusPath { get; set; } = [];
-    [Parameter] public bool CompactPresentation { get; set; }
     private ElementReference _addButton;
     private ElementReference _group;
     private ElementReference _radioGroup;
@@ -99,7 +101,7 @@ public partial class ConfigurationField
             && !Changed(nameof(FocusGeneration), FocusGeneration)
             && !Changed(nameof(FocusRow), FocusRow)
             && !PathChanged(nameof(FocusPath), FocusPath)
-            && !Changed(nameof(CompactPresentation), CompactPresentation);
+            && !Changed(nameof(SectionAllRequired), SectionAllRequired);
         try
         {
             Task updating = base.SetParametersAsync(parameters);
@@ -158,38 +160,6 @@ public partial class ConfigurationField
         string.Format(System.Globalization.CultureInfo.GetCultureInfo(Form.Locale), Ui(key), values);
     private string Type => Schema.JsonType;
     private string Title => TitleOverride ?? _presentation?.Title ?? (Schema.Keywords.TryGetProperty("title", out var value) ? value.GetString()! : Ui("FieldItem"));
-    private DefinitionAnswerOrigin CompactOrigin => Form.AnswerOrigin(Path);
-    private string CompactFieldOrigin => CompactOrigin.ToString().ToLowerInvariant();
-    private string CompactFieldState
-    {
-        get
-        {
-            if (_invalid || Error.Length > 0) return "invalid";
-            if (IsSecret && !CanEdit) return "secret-locked";
-            if (Required && Value is null) return "missing-required";
-            if (Value is not null && CompactOrigin == DefinitionAnswerOrigin.Defaulted) return "defaulted";
-            if (Value is not null) return "supplied";
-            return "omitted";
-        }
-    }
-    private string CompactStatusIcon => CompactFieldState switch
-    {
-        "invalid" => Icons.Material.Outlined.ErrorOutline,
-        "secret-locked" => Icons.Material.Outlined.Lock,
-        "missing-required" => Icons.Material.Outlined.PriorityHigh,
-        "defaulted" => Icons.Material.Outlined.RestartAlt,
-        "supplied" => Icons.Material.Outlined.CheckCircleOutline,
-        _ => Icons.Material.Outlined.RemoveCircleOutline
-    };
-    private string CompactStatusLabel => CompactFieldState switch
-    {
-        "invalid" => Ui("CompactStateInvalid"),
-        "secret-locked" => Ui("CompactStateSecretLocked"),
-        "missing-required" => Ui("CompactStateMissingRequired"),
-        "defaulted" => Ui("CompactStateDefaulted"),
-        "supplied" => UiFormat("CompactStateSupplied", CompactFieldOrigin),
-        _ => Ui("CompactStateOmitted")
-    };
     private string? Help => _presentation?.Instructions ?? _presentation?.Description
         ?? (Schema.Keywords.TryGetProperty("description", out var value) ? value.GetString() : null);
     private DefinitionNode ObjectSchema => Value is { } value ? DefinitionValidator.SelectVariant(Schema, value) ?? Schema : Schema;
@@ -434,7 +404,7 @@ public partial class ConfigurationField
     private string? _renderedMountIdentity;
     private DefinitionPath? _renderedMountLocation;
     private bool _renderedMountAdmitted;
-    private bool _renderedCompactPresentation;
+    private bool _renderedSectionAllRequired;
     private bool? _renderedRequiredOverride;
     private bool _renderedInheritedSecret;
     private string? _renderedTitleOverride;
@@ -449,14 +419,14 @@ public partial class ConfigurationField
     private bool CanSkipScalarRender()
     {
         if (!_renderedScalarStamp.SupportsSkip || _selfRenderRequested || LiteralPath || Path.Count == 0 ||
-            Schema.Secret is not null || (HasChoices && !CompactPresentation) ||
+            Schema.Secret is not null || HasChoices ||
             MountNode is null || !MountNode.Admitted || MountNode.Children.Count > 0 ||
             !ReferenceEquals(_renderedScalarForm, Form) ||
             !ReferenceEquals(_renderedSchema, Schema) ||
             _renderedMountIdentity != MountNode.Identity ||
             _renderedMountAdmitted != MountNode.Admitted ||
             !Equals(_renderedMountLocation, MountNode.Location) ||
-            _renderedCompactPresentation != CompactPresentation ||
+            _renderedSectionAllRequired != SectionAllRequired ||
             _renderedRequiredOverride != RequiredOverride ||
             _renderedInheritedSecret != InheritedSecret ||
             !string.Equals(_renderedTitleOverride, TitleOverride, StringComparison.Ordinal) ||
@@ -502,7 +472,7 @@ public partial class ConfigurationField
         return false;
     }
 
-    private static bool PathChangedFrom(string[] previous, IReadOnlyList<string> current)
+    internal static bool PathChangedFrom(string[] previous, IReadOnlyList<string> current)
     {
         if (previous.Length != current.Count) return true;
         for (int i = 0; i < previous.Length; i++)
@@ -640,7 +610,7 @@ public partial class ConfigurationField
         _renderedMountIdentity = MountNode.Identity;
         _renderedMountLocation = MountNode.Location;
         _renderedMountAdmitted = MountNode.Admitted;
-        _renderedCompactPresentation = CompactPresentation;
+        _renderedSectionAllRequired = SectionAllRequired;
         _renderedRequiredOverride = RequiredOverride;
         _renderedInheritedSecret = InheritedSecret;
         _renderedTitleOverride = TitleOverride;
@@ -912,6 +882,12 @@ public partial class ConfigurationField
         _focusMapEntry = null;
     }
     private static string Display(JsonElement value) => value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
+
+    private Task HandleInputKeyDownAsync(KeyboardEventArgs args) =>
+        !args.CtrlKey && !args.MetaKey && !args.AltKey && args.Key is "/" or "?"
+            ? Task.CompletedTask
+            : (OnWorkspaceKeyDown?.Invoke(args) ?? Task.CompletedTask);
+
     public void Dispose()
     {
         _disposed = true;

@@ -25,22 +25,13 @@ public partial class ConfigurationEditor
             _statusCode = "profile-private-output-required";
             return;
         }
-        bool compactInline = LayoutMode == WorkspaceLayoutMode.Compact && !_developerMode;
-        if (compactInline)
-        {
-            _compactReviewOpen = false;
-            _reviewPanel = null;
-            _compactFilesOpen = true;
-            RetireView();
-        }
-        else if (_activeWorkflowStage != WorkflowStage.Prepare)
-            SelectWorkflowStage(WorkflowStage.Prepare);
+        if (_activeWorkflowStage != WorkspaceStage.Files)
+            SelectWorkflowStage(WorkspaceStage.Files);
         DefinitionFormModel form = _form!;
         long generation = _generation + 1;
         await InvalidateOutputAsync();
         if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
-        if (compactInline) _compactFilesOpen = true;
-        else _activeWorkflowStage = WorkflowStage.Prepare;
+        _activeWorkflowStage = WorkspaceStage.Files;
         AnswerSnapshot answers;
         try { answers = form.Snapshot(); }
         catch (DefinitionException)
@@ -58,10 +49,10 @@ public partial class ConfigurationEditor
             return;
         }
         DefinitionValidationResult validation = draft ? DefinitionValidator.ValidateDraft(Definition, answers) : form.Validate();
-        if (compactInline) _reviewValidation = validation;
-        else _validation = validation;
+        _validation = validation;
         if (form.HasInputErrors)
         {
+            _errorSummaryRequested = true;
             _diagnostics.Add("input-type-invalid");
             SetStatus("InputTypeInvalidStatus");
             _statusCode = "input-type-invalid";
@@ -78,6 +69,7 @@ public partial class ConfigurationEditor
                 draftBundle = DefinitionDraftArtifactComposer.ComposeActiveBundle(Definition, answers);
                 if (draftBundle.Artifacts.Count == 0 || draftBundle.Diagnostics.Any(item => item.Code is not ("draft-dependency-unresolved" or "artifact-omitted")))
                 {
+                    _errorSummaryRequested = true;
                     _diagnostics.AddRange(draftBundle.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
                     SetStatus("PreparationRejectedStatus");
                     _statusCode = "preparation-rejected";
@@ -91,6 +83,7 @@ public partial class ConfigurationEditor
                 completeBundle = DefinitionBundleComposer.ComposeActive(Definition, answers);
                 if (!completeBundle.Succeeded)
                 {
+                    _errorSummaryRequested = true;
                     _diagnostics.AddRange(completeBundle.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
                     SetStatus("PreparationRejectedStatus");
                     _statusCode = "preparation-rejected";

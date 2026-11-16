@@ -66,7 +66,7 @@
 
 .workspace-header__mode[aria-current="step"] {
     background: var(--isl-surface-container-high);
-    border-color: var(--isl-color-primary);
+    border-color: var(--isl-color-accent);
     color: var(--isl-color-text);
     font-weight: 600;
 }
@@ -75,7 +75,7 @@
     font-family: var(--isl-font-family-mono);
     font-size: .6875rem;
     padding: 1px 5px;
-    border-radius: 3px;
+    border-radius: var(--isl-radius-2xs);
     border: 1px solid var(--isl-color-border);
     background: var(--isl-surface-container);
     color: var(--isl-color-text-secondary);

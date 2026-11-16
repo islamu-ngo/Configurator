@@ -208,9 +208,55 @@ public sealed class BrowserExperienceRecoveryTests
     }
 
     [Test]
-    [Arguments(WorkspaceLayoutMode.Guided)]
-    [Arguments(WorkspaceLayoutMode.Compact)]
-    public async Task FailedAndCanceledPrivateOperationsPreserveInputAndOfferReachableRecovery(WorkspaceLayoutMode mode)
+    public async Task RenderingModuleFailureOffersStartupRetryWithoutOpeningWorkspace()
+    {
+        await using var context = BrowserFixture.Context();
+        using var js = new RecoveryJsBoundary(context.JSInterop.JSRuntime)
+        {
+            FailRenderingImport = true
+        };
+        context.Services.AddSingleton<IJSRuntime>(js);
+        await using var policy = new BrowserOfflinePolicy(js);
+        context.Services.AddSingleton(policy);
+
+        var editor = context.Render<ConfigurationEditor>(parameters => parameters
+            .Add(item => item.Definition, CreateRecoveryDefinition()));
+
+        await Assert.That(editor.Find("[data-startup-state='failed']").TextContent).DoesNotContain("Exception");
+        await Assert.That(editor.FindAll("[data-field]")).IsEmpty();
+        js.FailRenderingImport = false;
+        await editor.Find("[data-action='start-workspace']").ClickAsync(new MouseEventArgs());
+        await js.DrainAllMountsAsync(editor);
+        await Assert.That(editor.Find(".configuration-editor").GetAttribute("data-workspace-phase")).IsEqualTo("ready");
+    }
+
+    [Test]
+    public async Task ImportRenderingFailurePreservesAnswersAndOffersRetry()
+    {
+        await using var context = BrowserFixture.Context();
+        using var js = new RecoveryJsBoundary(context.JSInterop.JSRuntime);
+        context.Services.AddSingleton<IJSRuntime>(js);
+        var editor = context.Render<ConfigurationEditor>(parameters => parameters
+            .Add(item => item.Definition, CreateRecoveryDefinition()));
+        await js.ReleaseStartupFrameAsync(editor);
+        await js.DrainAllMountsAsync(editor);
+        await editor.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await editor.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "kept.example.test" });
+        var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
+
+        js.FailComparisonYield = true;
+        await editor.InvokeAsync(() => editor.Instance.LoadAsync(new MemoryStream("{}"u8.ToArray())));
+        await Assert.That(editor.Find("[role='status'][data-code='import-read-failed']")).IsNotNull();
+        await Assert.That(editor.Find("[data-action='recover-status']").GetAttribute("data-recovery-target")).IsEqualTo("import");
+        await editor.Find("[data-action='recover-status']").ClickAsync(new MouseEventArgs());
+        await Assert.That(editor.Find("#import-artifact")).IsNotNull();
+        await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("kept.example.test");
+    }
+
+    [Test]
+    [Arguments(ConfigureLayoutMode.SectionBySection)]
+    [Arguments(ConfigureLayoutMode.AllSections)]
+    public async Task FailedAndCanceledPrivateOperationsPreserveInputAndOfferReachableRecovery(ConfigureLayoutMode mode)
     {
         Definition definition = CreateRecoveryDefinition(multiArtifact: true, withGeneratedSecret: true);
         await using var context = BrowserFixture.Context();
@@ -219,8 +265,9 @@ public sealed class BrowserExperienceRecoveryTests
 
         var editor = context.Render<ConfigurationEditor>(parameters => parameters
             .Add(item => item.Definition, definition));
-        if (mode == WorkspaceLayoutMode.Compact)
-            await editor.Find("[data-layout-mode='compact']").ClickAsync(new MouseEventArgs());
+        var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
+        if (mode == ConfigureLayoutMode.AllSections)
+            await editor.Find("[data-layout-mode='all-sections']").ClickAsync(new MouseEventArgs());
 
         await editor.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "preserved.example.test" });
         await editor.Find("[data-field='port'] input").InputAsync(new ChangeEventArgs { Value = "not-a-number" });
@@ -232,8 +279,8 @@ public sealed class BrowserExperienceRecoveryTests
         var correctionRecovery = editor.Find("[data-action='recover-status']");
         await Assert.That(correctionRecovery.GetAttribute("data-recovery-target")).IsEqualTo("correction");
         await correctionRecovery.ClickAsync(new MouseEventArgs());
-        await Assert.That(editor.FindAll("[data-compact-workspace]")).Count().IsEqualTo(mode == WorkspaceLayoutMode.Compact ? 1 : 0);
-        var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await Assert.That(editor.Find("[data-layout-active]").GetAttribute("data-layout-active"))
+            .IsEqualTo(mode == ConfigureLayoutMode.AllSections ? "all-sections" : "section-by-section");
         await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("preserved.example.test");
 
         // Fix port so valid preparation succeeds.
@@ -447,6 +494,8 @@ public sealed class BrowserExperienceRecoveryTests
         internal BrowserOfflineState OfflineState { get; set; } = new(true, true, true);
         internal bool AcceptWorkspace { get; set; } = true;
         internal bool HoldBeginWorkspace { get; set; }
+        internal bool FailRenderingImport { get; set; }
+        internal bool FailComparisonYield { get; set; }
         internal bool HoldMountSteps { get; set; } = true;
         internal Func<Task<bool>>? OnCopy { get; set; }
         internal TaskCompletionSource StartupRenderEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -515,7 +564,11 @@ public sealed class BrowserExperienceRecoveryTests
             if (identifier == "import" && args?.Length > 0)
             {
                 string? path = args[0]?.ToString();
-                if (path == "./js/configuration-rendering.js") return (TValue)(object)_rendering;
+                if (path == "./js/configuration-rendering.js")
+                {
+                    if (FailRenderingImport) throw new JSException("synthetic rendering module failure");
+                    return (TValue)(object)_rendering;
+                }
                 if (path == "./pwa-lifecycle.js") return (TValue)(object)_offline;
                 if (path == "./js/browser-artifacts.js") return (TValue)(object)_artifacts;
             }
@@ -546,7 +599,11 @@ public sealed class BrowserExperienceRecoveryTests
                 if (identifier == "paintWorkspace")
                     await owner.WaitStepAsync(isStartup: true, cancellationToken);
                 else if (identifier is "nextFrame" or "nextTask")
+                {
+                    if (identifier == "nextTask" && owner.FailComparisonYield)
+                        throw new JSException("synthetic comparison rendering failure");
                     await owner.WaitStepAsync(isStartup: false, cancellationToken);
+                }
                 return default!;
             }
 

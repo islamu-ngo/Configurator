@@ -35,4 +35,5 @@
     color: var(--isl-color-text-secondary);
     border-block-end: var(--isl-card-border);
 }
+.configuration-section-fields__pinned-slot { min-inline-size: 0; }
 .configuration-section-fields__status { color: var(--isl-color-text-secondary); }

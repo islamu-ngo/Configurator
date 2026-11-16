@@ -10,6 +10,7 @@
                 <bdi>@(string.IsNullOrWhiteSpace(Title) ? T("WorkspaceTitle") : Title)</bdi>
             </h3>
             <p class="workspace-startup-gate__privacy">@T("StartupBeforeEntryBody")</p>
+            <p class="workspace-startup-gate__privacy" data-startup-tasks>@T("StartupThreeTasksNote")</p>
 
             @if (Stage == WorkspaceStartupStage.Preparing)
             {

@@ -4,16 +4,22 @@ using System.Globalization;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web.Virtualization;
 using Microsoft.JSInterop;
 
 public partial class ConfigurationSectionFields
 {
+    internal const int DirectSliceCount = 4;
+    internal const int VirtualizeRowThreshold = 16;
+
     [Inject] private IJSRuntime Javascript { get; set; } = null!;
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter] public string? SectionId { get; set; }
     [Parameter] public IReadOnlyList<DefinitionFormSectionGroup> Groups { get; set; } = [];
     [Parameter] public IReadOnlyList<FieldState> Fields { get; set; } = [];
     [Parameter] public bool LiteralRoot { get; set; }
+    [Parameter] public bool ContinuousMode { get; set; }
+    [Parameter] public bool SectionAllRequired { get; set; }
     [Parameter] public CancellationToken MountCancellation { get; set; }
     [Parameter] public DefinitionValidationResult? Validation { get; set; }
     [Parameter] public string? FocusField { get; set; }
@@ -26,12 +32,16 @@ public partial class ConfigurationSectionFields
     private ConfigurationMountPlan.InitialDiscovery? _discovery;
     private long _planRevision = -1;
     private FieldState[] _activeFields = [];
+    private FieldState[] _planFields = [];
+    private Dictionary<string, int> _planIndicesByFieldId = new(StringComparer.Ordinal);
     private DefinitionFormModel? _observedForm;
     private DefinitionFormProjection? _observedProjection;
     private bool _observedLiteralRoot;
+    private bool _observedContinuousMode;
     private CancellationToken _observedCancellation;
     private CancellationTokenSource _mountWait = new();
     private long _observedRevision = -1;
+    private long _sliceTopologyVersion;
     private string? _observedFocusField;
     private long _observedFocusGeneration;
     private Task<IJSObjectReference>? _module;
@@ -42,6 +52,29 @@ public partial class ConfigurationSectionFields
     private bool _renderAcknowledged;
     private bool _settlementPending;
     private bool _firstBoundaryPending = true;
+
+    internal static bool IsComplexField(DefinitionNode schema) =>
+        schema.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence || schema.Variants.Count > 0;
+
+    internal bool IsSettled => !Busy;
+
+    private static int ResolvePinnedFocusIndex(FieldState[] items, string? focusField)
+    {
+        if (string.IsNullOrEmpty(focusField)) return -1;
+        for (int index = 0; index < items.Length; index++)
+            if (string.Equals(items[index].Id, focusField, StringComparison.Ordinal))
+                return index;
+        return -1;
+    }
+
+    private static ValueTask<ItemsProviderResult<FieldState>> ProvideSlice(
+        FieldState[] slice, ItemsProviderRequest request)
+    {
+        int start = Math.Clamp(request.StartIndex, 0, slice.Length);
+        int count = Math.Clamp(request.Count, 0, slice.Length - start);
+        FieldState[] page = count == 0 ? [] : slice[start..(start + count)];
+        return ValueTask.FromResult(new ItemsProviderResult<FieldState>(page, slice.Length));
+    }
 
     private int PendingCount => _plan.PendingCount;
     private bool Discovering => _discovery is not null;
@@ -56,34 +89,68 @@ public partial class ConfigurationSectionFields
         bool replacement = !ReferenceEquals(_observedForm, Form);
         if (replacement) _settlementPending = false;
         FieldState[] activeFields = Fields.Where(state => state.IsActive).ToArray();
-        bool viewChanged = !ReferenceEquals(_observedProjection, Form.Projection) ||
-            _observedLiteralRoot != LiteralRoot || !_activeFields.Select(field => field.Id).SequenceEqual(activeFields.Select(field => field.Id));
+        bool activeFieldIdsChanged = !_activeFields.Select(field => field.Id).SequenceEqual(activeFields.Select(field => field.Id));
+        bool projectionTriggerChanged = !ContinuousMode || activeFields.Any(state => IsComplexField(Form.GetFieldEditor(state.Id).Schema));
+        bool viewChanged = _observedLiteralRoot != LiteralRoot ||
+            _observedContinuousMode != ContinuousMode ||
+            activeFieldIdsChanged ||
+            (projectionTriggerChanged && !ReferenceEquals(_observedProjection, Form.Projection));
         bool discovering = Discovering;
-        ConfigurationMountPlan previous = replacement ? ConfigurationMountPlan.Empty : _plan;
+        ConfigurationMountPlan previous = replacement || _observedContinuousMode != ContinuousMode ? ConfigurationMountPlan.Empty : _plan;
         bool reconcile = replacement || viewChanged || _observedRevision != Form.InputRevision ||
             _observedCancellation != MountCancellation;
-        // Retire private routes before borrowing any changed current state. The
-        // partial published plan supplies survivor identities to full reconciliation.
+
         if (reconcile)
         {
             _discovery?.Clear();
             _discovery = null;
         }
+
+        if (replacement || _observedContinuousMode != ContinuousMode || activeFieldIdsChanged ||
+            _observedFocusField != FocusField || _observedFocusGeneration != FocusGeneration)
+        {
+            ++_sliceTopologyVersion;
+        }
+
         _activeFields = activeFields;
-        if (replacement)
+        _planFields = ContinuousMode && !LiteralRoot
+            ? activeFields.Where(state => IsComplexField(Form.GetFieldEditor(state.Id).Schema)).ToArray()
+            : activeFields;
+        _planIndicesByFieldId = _planFields
+            .Select((state, index) => (state.Id, index))
+            .ToDictionary(pair => pair.Id, pair => pair.index, StringComparer.Ordinal);
+
+        if (_planFields.Length == 0 && !LiteralRoot)
+        {
+            _plan = ConfigurationMountPlan.Empty;
+        }
+        else if (replacement || _observedContinuousMode != ContinuousMode)
         {
             _discovery = new();
-            _plan = _discovery.Start(Form, _activeFields, LiteralRoot);
+            _plan = _discovery.Start(Form, _planFields, LiteralRoot);
         }
         else if (reconcile)
-            _plan = ConfigurationMountPlan.Reconcile(Form, _activeFields, LiteralRoot, previous);
+        {
+            _plan = ConfigurationMountPlan.Reconcile(Form, _planFields, LiteralRoot, previous);
+        }
+
         _planRevision = Form.InputRevision;
         bool topologyChanged = !ReferenceEquals(previous, _plan);
         _settlementPending |= topologyChanged;
         bool focusChanged = FocusField is not null &&
             (_observedFocusField != FocusField || _observedFocusGeneration != FocusGeneration);
-        bool superseded = replacement || _observedCancellation != MountCancellation ||
-            _observedRevision != Form.InputRevision || viewChanged || topologyChanged || focusChanged;
+        bool scalarSameTopology = ReferenceEquals(_observedForm, Form) &&
+            !replacement && _observedContinuousMode == ContinuousMode && !discovering &&
+            PendingCount == 0 && !viewChanged && !focusChanged &&
+            _observedCancellation == MountCancellation && _renderAcknowledged &&
+            _planFields.Length == 0;
+        if (scalarSameTopology)
+        {
+            _observedProjection = Form.Projection;
+            _observedRevision = Form.InputRevision;
+        }
+        bool superseded = !scalarSameTopology && (replacement || _observedCancellation != MountCancellation ||
+            _observedRevision != Form.InputRevision || viewChanged || topologyChanged || focusChanged);
         if (superseded)
         {
             ++_mountGeneration;
@@ -93,13 +160,21 @@ public partial class ConfigurationSectionFields
             _observedForm = Form;
             _observedProjection = Form.Projection;
             _observedLiteralRoot = LiteralRoot;
+            _observedContinuousMode = ContinuousMode;
             _observedCancellation = MountCancellation;
             _observedRevision = Form.InputRevision;
             _renderAcknowledged = false;
         }
         _observedFocusField = FocusField;
         _observedFocusGeneration = FocusGeneration;
-        if (replacement || topologyChanged && !discovering || focusChanged)
+        if (_planFields.Length == 0 && !LiteralRoot)
+        {
+            _discovery?.Clear();
+            _discovery = null;
+            _settlementPending = focusChanged;
+            _renderAcknowledged = !focusChanged;
+        }
+        else if (replacement || _observedContinuousMode != ContinuousMode || (topologyChanged && !discovering) || focusChanged)
         {
             _firstBoundaryPending = true;
             MountBatch(FirstBatchSize);
@@ -108,12 +183,15 @@ public partial class ConfigurationSectionFields
 
     private void MountBatch(int maximumFields)
     {
+        if (_planFields.Length == 0 && !LiteralRoot) return;
         DefinitionPath? priority = FocusField is null ? null : LiteralRoot
             ? DefinitionPath.FromSegments(FocusPath)
-            : DefinitionPath.FromSegments(new[] { Form.GetFieldEditor(FocusField).Input.Definition.Name }.Concat(FocusPath.Skip(1)));
+            : _planIndicesByFieldId.ContainsKey(FocusField)
+                ? DefinitionPath.FromSegments(new[] { Form.GetFieldEditor(FocusField).Input.Definition.Name }.Concat(FocusPath.Skip(1)))
+                : null;
         if (_discovery is { } discovery)
         {
-            _plan = discovery.Advance(Form, _activeFields, LiteralRoot, _plan, maximumFields, priority);
+            _plan = discovery.Advance(Form, _planFields, LiteralRoot, _plan, maximumFields, priority);
             if (discovery.Complete)
             {
                 discovery.Clear();
@@ -149,11 +227,8 @@ public partial class ConfigurationSectionFields
             if (!IsCurrentMount(generation, cancellation)) return;
             if (!Discovering && PendingCount == 0)
             {
-                // Child after-render actions can focus a surviving control after this
-                // parent's render, including removals that admit no new descendants.
                 await module.InvokeVoidAsync("nextTask").AsTask().WaitAsync(cancellation);
                 if (!IsCurrentMount(generation, cancellation)) return;
-                // Reveal current focus only after leaving that renderer turn.
                 await module.InvokeVoidAsync("revealFocusedControl", _mountElement, generation.ToString(CultureInfo.InvariantCulture))
                     .AsTask().WaitAsync(cancellation);
                 if (!IsCurrentMount(generation, cancellation)) return;
@@ -163,8 +238,6 @@ public partial class ConfigurationSectionFields
                 StateHasChanged();
                 return;
             }
-            // Paint the initial controls once, then yield later bounded increments
-            // to browser tasks without imposing one display frame per ten nodes.
             await module.InvokeVoidAsync(_firstBoundaryPending ? "nextFrame" : "nextTask").AsTask().WaitAsync(cancellation);
             if (!IsCurrentMount(generation, cancellation)) return;
             _firstBoundaryPending = false;
@@ -174,7 +247,6 @@ public partial class ConfigurationSectionFields
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
-            // Supersession retires the continuation even if the browser frame is still held.
         }
     }
 
@@ -191,6 +263,8 @@ public partial class ConfigurationSectionFields
         _mountElement = default;
         _settlementPending = false;
         _activeFields = [];
+        _planFields = [];
+        _planIndicesByFieldId.Clear();
         _observedForm = null;
         _observedProjection = null;
         if (_module is not null)
