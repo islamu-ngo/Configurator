@@ -8,6 +8,13 @@ namespace Configurator.Architecture.Tests;
 [NotInParallel]
 public sealed class ReleaseContractTests
 {
+    private static readonly string[] OperatorSchemas =
+    [
+        "setup-definition.schema.json", "configurator-authoring.schema.json",
+        "configurator-answers.schema.json", "configurator-cli.schema.json",
+        "definition-store-curation.schema.json"
+    ];
+
     [Test]
     [Arguments("PublishConfigurator", "ConfiguratorImportComparisonMemoryProbe")]
     [Arguments("PublishConfigurator", "ConfiguratorImportComparisonOwnershipProbe")]
@@ -90,7 +97,7 @@ public sealed class ReleaseContractTests
         string outputRoot = Path.Combine(Path.GetTempPath(), $"configurator-schema-refresh-{Guid.NewGuid():N}");
         string package = Path.Combine(outputRoot, surface, "linux-x64");
         string schemas = Path.Combine(package, "schemas");
-        string[] currentSchemas = Directory.GetFiles(Path.Combine(ReleaseTestPaths.Root, "schemas"), "*.schema.json");
+        string[] currentSchemas = OperatorSchemas.Select(name => Path.Combine(ReleaseTestPaths.Root, "schemas", name)).ToArray();
         try
         {
             Directory.CreateDirectory(schemas);

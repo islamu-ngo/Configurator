@@ -40,12 +40,23 @@ public sealed class CliExecutableRouteTests
         new("definition answer-schema", "--definition definition.json --output result.json", "definition output", "answer-schema", "output", "written")
     ];
 
+    // These operations have dedicated behavioral suites with their own input and custody fixtures.
+    // Keep this literal list independent of the registry so a new route cannot silently escape coverage.
+    private static readonly string[] DedicatedRoutes =
+    [
+        "definition inspect", // DefinitionWorkflowInspectionTests
+        "profile adopt", "profile diff", "profile inspect", "profile list",
+        "profile recovery-check", "profile save", "profile slots", "profile unlock",
+        "profile upgrade-plan" // CliProfileCommandTests
+    ];
+
     [Test]
     public async Task EveryExecutableRegistrationHasAnIndependentBehavioralCase()
     {
         string[] actual = CliCommandRegistry.Families.SelectMany(family => family.Operations.Select(operation =>
             family.Name == "doctor" ? "doctor" : family.Name + " " + operation.Name)).Order(StringComparer.Ordinal).ToArray();
-        await Assert.That(actual).IsEquivalentTo(Routes.Select(route => route.Path).Order(StringComparer.Ordinal).ToArray());
+        await Assert.That(actual).IsEquivalentTo(Routes.Select(route => route.Path)
+            .Concat(DedicatedRoutes).Order(StringComparer.Ordinal).ToArray());
     }
 
     [Test]

@@ -63,8 +63,8 @@ public sealed class BuildInputCaptureTests
             value!["name"]!.GetValue<string>() == "ReadWasmProps." + invocation["id"]!.GetValue<string>())!["value"]!;
         await Assert.That(setting["outcome"]!["outputs"]!.AsArray().Count).IsEqualTo(5);
         await Assert.That(setting["barrier"]!["tools"]!.AsArray().Any(tool =>
-            tool!["path"]!.GetValue<string>() == "sdk/packs/Microsoft.NET.Runtime.MonoTargets.Sdk/10.0.9/tasks/net10.0/MonoTargetsTasks.dll"
-            && tool["sha256"]!.GetValue<string>() == "cb321810c0d58ee645113d3677a10635814dd02536086ab7815bd16822e8d8ce")).IsTrue();
+            tool!["path"]!.GetValue<string>() == "sdk/packs/Microsoft.NET.Runtime.MonoTargets.Sdk/10.0.15/tasks/net10.0/MonoTargetsTasks.dll"
+            && tool["sha256"]!.GetValue<string>() == "1b0f12c5506b95357e45e17ed383f185a58b09c096d4676a3c12cf6f178dcb4d")).IsTrue();
         await Assert.That(setting["barrier"]!["tools"]!.AsArray().Any(tool =>
             tool!["path"]!.GetValue<string>().StartsWith("capture-tool/host-runtime/", StringComparison.Ordinal)
             && tool["path"]!.GetValue<string>().Contains("libicu", StringComparison.Ordinal))).IsTrue();
@@ -188,10 +188,10 @@ public sealed class BuildInputCaptureTests
         using var fixture = new Fixture();
         string probe = await fixture.PrepareNativeJsonProbe();
         string recipe = Path.Combine(fixture.Session,
-            "frozen/sdk/packs/Microsoft.NET.Runtime.WebAssembly.Sdk/10.0.9/Sdk/WasmApp.Common.targets");
+            "frozen/sdk/packs/Microsoft.NET.Runtime.WebAssembly.Sdk/10.0.15/Sdk/WasmApp.Common.targets");
         if (attack == "assembly")
             await File.AppendAllTextAsync(Path.Combine(fixture.Session,
-                "frozen/sdk/packs/Microsoft.NET.Runtime.MonoTargets.Sdk/10.0.9/tasks/net10.0/MonoTargetsTasks.dll"), "changed");
+                "frozen/sdk/packs/Microsoft.NET.Runtime.MonoTargets.Sdk/10.0.15/tasks/net10.0/MonoTargetsTasks.dll"), "changed");
         else if (attack == "recipe") await File.AppendAllTextAsync(recipe, "\n");
         else if (attack is "group" or "body" or "factory")
         {
@@ -1284,7 +1284,7 @@ public sealed class BuildInputCaptureTests
     [Arguments("GenerateBlazorBootExtensionJson",
         "sdk/sdk/10.0.404/Sdks/Microsoft.NET.Sdk.BlazorWebAssembly/tools/net10.0/Microsoft.NET.Sdk.BlazorWebAssembly.Tasks.dll", true)]
     [Arguments("MonoAOTCompiler",
-        "sdk/packs/Microsoft.NET.Runtime.MonoAOTCompiler.Task/10.0.9/tasks/net10.0/MonoAOTCompiler.dll", false)]
+        "sdk/packs/Microsoft.NET.Runtime.MonoAOTCompiler.Task/10.0.15/tasks/net10.0/MonoAOTCompiler.dll", false)]
     [Arguments("ComputeManagedAssemblies",
         "package/microsoft.net.illink.tasks/10.0.10/tools/net/ILLink.Tasks.dll", true)]
     public async Task GeneratedInventoryIncludesDeclaredShapesFromFrozenSdk(string task, string assembly, bool required)
@@ -1812,7 +1812,7 @@ public sealed class BuildInputCaptureTests
             const string readerDeclaration = """
                 <Project>
                   <UsingTask TaskName="ReadWasmProps" TaskFactory="JsonToItemsTaskFactory.JsonToItemsTaskFactory"
-                    AssemblyFile="$(MSBuildToolsPath)/../../packs/Microsoft.NET.Runtime.MonoTargets.Sdk/10.0.9/tasks/net10.0/MonoTargetsTasks.dll"
+                    AssemblyFile="$(MSBuildToolsPath)/../../packs/Microsoft.NET.Runtime.MonoTargets.Sdk/10.0.15/tasks/net10.0/MonoTargetsTasks.dll"
                     Override="true">
                     <ParameterGroup>
                       <EmccProperties ParameterType="Microsoft.Build.Framework.ITaskItem[]" Output="true" />

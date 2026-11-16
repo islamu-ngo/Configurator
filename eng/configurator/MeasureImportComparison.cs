@@ -1,4 +1,5 @@
 #:property RestorePackagesWithLockFile=false
+#:property NuGetLockFilePath=$(MSBuildProjectExtensionsPath)MeasureImportComparison.packages.lock.json
 #:property JsonSerializerIsReflectionEnabledByDefault=true
 #:property AssemblyName=Configurator.ImportComparisonMeasurement
 #:property RootNamespace=Configurator.Engineering

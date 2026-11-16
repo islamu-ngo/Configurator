@@ -11,7 +11,7 @@
     },
     "workloadVersion": {
       "type": "string",
-      "const": "10.0.301.1"
+      "const": "10.0.404"
     },
     "project": {
       "type": "string"

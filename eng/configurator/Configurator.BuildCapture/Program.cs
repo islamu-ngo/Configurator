@@ -187,9 +187,9 @@ internal static class ReadWasmPropsProfile
     internal const string AdapterFactory = "Configurator.BuildCapture.ReadWasmPropsCaptureFactory";
     internal const string AdapterTask = "Configurator.BuildCapture.ReadWasmPropsCaptureTask";
     internal const string Event = "Configurator.ReadWasmProps.Capture";
-    internal const string Assembly = "sdk/packs/Microsoft.NET.Runtime.MonoTargets.Sdk/10.0.9/tasks/net10.0/MonoTargetsTasks.dll";
-    internal const string AssemblyHash = "cb321810c0d58ee645113d3677a10635814dd02536086ab7815bd16822e8d8ce";
-    internal const string Recipe = "sdk/packs/Microsoft.NET.Runtime.WebAssembly.Sdk/10.0.9/Sdk/WasmApp.Common.targets";
+    internal const string Assembly = "sdk/packs/Microsoft.NET.Runtime.MonoTargets.Sdk/10.0.15/tasks/net10.0/MonoTargetsTasks.dll";
+    internal const string AssemblyHash = "1b0f12c5506b95357e45e17ed383f185a58b09c096d4676a3c12cf6f178dcb4d";
+    internal const string Recipe = "sdk/packs/Microsoft.NET.Runtime.WebAssembly.Sdk/10.0.15/Sdk/WasmApp.Common.targets";
     internal const string RecipeHash = "c92ba321b041e8cf155e7a58fc7875cc6b4d8c94147600c74db63c1335d32b97";
     internal const string GroupHash = "69a09ff309c1996612b7f4c7809415507b18b019a15473f51afd6ce04eed651a";
     internal const string Body = "pinned-json-reader-10.0.404";
@@ -229,7 +229,7 @@ internal sealed record Observation(string Operation, string Path, string Kind, s
 public sealed class CaptureSession
 {
     internal const string SdkVersion = "10.0.404";
-    internal const string WorkloadVersion = "10.0.301.1";
+    internal const string WorkloadVersion = "10.0.404";
     internal const int MaximumRepositoryNames = 100_000;
     internal const int MaximumRepositoryNameLength = 4096;
     private const int MaximumRepositoryNamesBytes = 16 * 1024 * 1024;
@@ -472,14 +472,14 @@ public sealed class CaptureSession
             Path.Combine(sdk, "Sdks/Microsoft.SourceLink.AzureRepos.Git/tools/net/Microsoft.SourceLink.AzureRepos.Git.dll")
         ];
         string testingTasks = Path.Combine(Frozen,
-            "package/microsoft.testing.platform.msbuild/2.3.3/_MSBuildTasks/netstandard2.0/Microsoft.Testing.Platform.MSBuild.dll");
+            "package/microsoft.testing.platform.msbuild/2.5.2/_MSBuildTasks/netstandard2.0/Microsoft.Testing.Platform.MSBuild.dll");
         if (File.Exists(testingTasks)) assemblies = [.. assemblies, testingTasks];
         foreach (string path in new[]
         {
             Path.Combine(Frozen, "package/avalonia/12.1.3/tools/netstandard2.0/Avalonia.Build.Tasks.dll"),
             Path.Combine(Frozen, "package/microsoft.net.illink.tasks/10.0.10/tools/net/ILLink.Tasks.dll"),
-            Path.Combine(Frozen, "sdk/packs/Microsoft.NET.Runtime.MonoAOTCompiler.Task/10.0.9/tasks/net10.0/MonoAOTCompiler.dll"),
-            Path.Combine(Frozen, "sdk/packs/Microsoft.NET.Runtime.WebAssembly.Sdk/10.0.9/tasks/WasmBuildTasks.dll")
+            Path.Combine(Frozen, "sdk/packs/Microsoft.NET.Runtime.MonoAOTCompiler.Task/10.0.15/tasks/net10.0/MonoAOTCompiler.dll"),
+            Path.Combine(Frozen, "sdk/packs/Microsoft.NET.Runtime.WebAssembly.Sdk/10.0.15/tasks/WasmBuildTasks.dll")
         })
             if (File.Exists(path)) assemblies = [.. assemblies, path];
         var directories = assemblies.Select(Path.GetDirectoryName).OfType<string>().Prepend(sdk).ToArray();
@@ -654,7 +654,7 @@ public sealed class CaptureSession
     }
 
     internal int Execute(string executable, IEnumerable<string> arguments, string workingDirectory, string operation,
-        string? generatorId = null)
+        string? generatorId = null, string? pipeDirectory = null)
     {
         var start = new ProcessStartInfo(executable)
         {
@@ -695,6 +695,11 @@ public sealed class CaptureSession
         start.Environment["MSBUILDLOGTASKINPUTS"] = "1";
         start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
         start.Environment["DOTNET_PROCESSOR_COUNT"] = "2";
+        if (pipeDirectory is not null)
+        {
+            Require(operation == "check", "CAPTURE_PIPE_SCOPE_INVALID");
+            start.Environment["TESTINGPLATFORM_PIPE_DIRECTORY"] = pipeDirectory;
+        }
         if (operation is "build" or "generator-build" or "generator")
             start.Environment["CONFIGURATOR_CAPTURE_SESSION"] = _session;
         if (generatorId is not null)
@@ -1376,13 +1381,10 @@ public sealed class CaptureSession
                     if (package.Value.TryGetProperty("resolved", out var version))
                         selected.Add(package.Name.ToLowerInvariant() + "/" + version.GetString()!.ToLowerInvariant());
         }
-        // RID download packs are selected by the pinned net10 SDK rather than
-        // framework-only development locks. Admit its installed 10.0.10 packs.
+        // RID publish may consume runtime packages absent from framework-only locks.
+        // Admit the locally available 10.0.10 packages selected by this development baseline.
         if (_configuration.HasPackages)
         {
-            // Workload 10.0.301.1 selects this reference pack during the observed
-            // Browser graph, independently of the SDK's installed 10.0.10 pack.
-            selected.Add("microsoft.netcore.app.ref/10.0.9");
             foreach (string directory in Directory.EnumerateDirectories(source))
             {
                 string name = Path.GetFileName(directory);
@@ -1831,7 +1833,15 @@ public sealed class CaptureSession
         var arguments = new List<string> { Path.Combine(executionRoot, ExecutionPath(executable.Path)), "--minimum-expected-tests", "1",
             "--report-trx", "--report-trx-filename", "results.trx", "--results-directory", raw };
         arguments.AddRange(options.Length == 0 ? [] : new[] { "--treenode-filter", options[1] });
-        int exit = Execute(Dotnet, arguments, executionRoot, "check");
+        string? pipeDirectory = null;
+        if (!OperatingSystem.IsWindows())
+        {
+            pipeDirectory = Path.Combine("/tmp", "configurator-pipe-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(pipeDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+        int exit;
+        try { exit = Execute(Dotnet, arguments, executionRoot, "check", pipeDirectory: pipeDirectory); }
+        finally { if (pipeDirectory is not null) Directory.Delete(pipeDirectory, recursive: true); }
         string preparer = Path.Combine(executionRoot, "artifacts/capture-tools/evidence/bin/Release/net10.0/Configurator.TestEvidence.dll");
         Require(staged.ContainsKey("artifacts/capture-tools/evidence/bin/Release/net10.0/Configurator.TestEvidence.dll"),
             "CAPTURE_CHECK_PREPARER_MISSING");

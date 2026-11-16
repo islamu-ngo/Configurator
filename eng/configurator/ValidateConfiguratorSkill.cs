@@ -1,4 +1,5 @@
 #:property RestorePackagesWithLockFile=false
+#:property NuGetLockFilePath=$(MSBuildProjectExtensionsPath)ValidateConfiguratorSkill.packages.lock.json
 
 using System.Text;
 
