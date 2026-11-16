@@ -72,7 +72,7 @@ the current custody and lifetime safeguards. Higher-level alternative controls
 remain useful tradeoffs. A multi-pane workspace is an evaluation direction,
 not an approved layout or a promise of identical Browser interaction.
 
-### Future native secret-store workflows
+### Future secret-store workflows and Browser hosting boundaries
 
 The intended longer-term native direction includes explicit opt-in operations
 for Infisical and Azure Key Vault to configure, compare, update and verify
@@ -82,15 +82,23 @@ secrets. The [accepted transport decision](adr/ADR-secret-store-integration-and-
   only explicitly reuse an existing CLI sign-in as a credential source.
 - **Sign-in:** Azure uses the operator's own Entra client ID; Infisical starts
   with Universal Auth, with OIDC Auth as the documented expansion.
-- **Browser:** permanently excluded.
+- **ISLAMU public and current static Browser:** permanently excluded from
+  secret-manager/PaaS target access. Native handoff remains their route.
+- **Separate self-hosted connected Browser ([accepted future direction](adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md)):**
+  after native pilots, the same local WebAssembly editor may send an explicitly
+  reviewed delta to an operator-owned authenticated connector. SecretKit stays
+  server-side; static Host gains no integration switch. This separate package
+  is planned, not implemented, and requires its own custody, authentication,
+  SSRF, memory and partial-outcome qualification.
 
 This is not current provider support, dependency approval or write authority. The [existing provider backlog](../../dev/backlog/universal-configurator-followups.md#secret-store-inspection-and-completion)
 requires one concrete pilot before abstractions, and separate connector/privacy
 design for credentials, permissions, inventory versus content validation,
 conflict-safe deliberate writes, partial outcomes, cancellation, redaction and
-recovery. Core and Browser gain no HTTP or native provider authority from this
-direction. The offline/local baseline and the target's semantic/apply authority
-remain intact.
+recovery. Core and browser-safe Presentation gain no HTTP or native provider
+authority from this direction. The offline/local baseline and the target's
+semantic/apply authority remain intact; only a reviewed target-delta operation
+in the future connected package would cross the network.
 
 ## The Configuration Experience Problem
 
@@ -154,7 +162,7 @@ Configurator operates entirely without a backend server or mandatory cloud conne
 Unlike scaffolding platforms that dynamically load plugins to generate files, Configurator uses a built-in projection compiler capable of emitting `.env`, JSON, and YAML formats directly from declarative mappings.
 
 ### 5. Target Authority Separation
-The current offline product stops at the artifact boundary. It writes files to designated local paths (or provides them for download/copy in the browser) and steps aside. It does not restart containers, invoke `docker compose up`, issue HTTP management calls, or touch systemd units. Future native secret-store operations need the separate connector/privacy design described above; this direction does not authorize target administration or application apply.
+The current offline product stops at the artifact boundary. It writes files to designated local paths (or provides them for download/copy in the browser) and steps aside. It does not restart containers, invoke `docker compose up`, issue HTTP management calls, or touch systemd units. Future native secret-store operations and the separate self-hosted connected Browser direction both need the connector/privacy design described above; neither grants target administration, container restart or general application deployment authority. Even after an explicitly reviewed target delta is implemented, the provider/target retains semantic validation and apply authorization.
 
 ## Why This Approach? Competitive Landscape Analysis
 

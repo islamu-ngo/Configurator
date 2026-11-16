@@ -82,6 +82,12 @@ lifetime and diagnostic/persistence controls. TLS would protect transport while
 still exposing usable answers to the processing server. Secret-free server
 processing would also receive potentially confidential ordinary settings.
 
+The [self-hosted connected Browser decision](ADR-self-hosted-connected-browser-and-public-static-boundary.md)
+accepts only a future separately packaged, operator-owned, target-operation
+connector—not hosted workspaces or Server/Auto circuits. Its explicit reviewed
+delta requests require a new connected custody contract and qualification; this
+current static consent remains local-only and grants no such operation.
+
 For high-value secrets, operator guidance recommends reviewed native clients
 on a trusted machine and treats the hosted web app as the least safe interface
 choice due to origin/browser trust and weaker export protection. This is an

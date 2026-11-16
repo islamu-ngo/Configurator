@@ -53,13 +53,18 @@ do not apply.
 15. **Native host proof:** Linux x64 package checks do not prove Windows x64,
     macOS arm64 or Linux arm64 restricted save. Keep their matrix status Planned
     until actual-host tests pass; unsupported saves refuse without fallback.
-16. **Secret-store boundary:** future secret-manager operations run only in
-    native clients and only through ISLAMU SecretKit. Never pass secret values,
-    mutations or protected coordinates to a vendor CLI or parse CLI output for
-    secrets. A CLI may only be an explicit, operator-selected credential source
-    (Azure: `AzureCliCredential`). Azure sign-in uses the operator's own client
-    ID. Browser never gains secret-store access; this is permanent. See the
-    [secret-store ADR](adr/ADR-secret-store-integration-and-credential-sources.md).
+16. **Secret-store and Browser-hosting boundary:** future secret-manager
+    operations use only ISLAMU SecretKit, initially in native clients. Never
+    pass secret values, mutations or protected coordinates to a vendor CLI or
+    parse CLI output for secrets. A CLI may only be an explicit,
+    operator-selected credential source (Azure: `AzureCliCredential`). Azure
+    sign-in uses the operator's own client ID. The ISLAMU public and current
+    static Browser packages never gain target access; the public instance never
+    gains an ISLAMU proxy. A separately packaged, operator-owned connected host
+    is **planned after native pilots**, with SecretKit operations server-side
+    and its own custody/SSRF/authentication qualification, not a static-host
+    switch or current capability. See the [secret-store ADR](adr/ADR-secret-store-integration-and-credential-sources.md)
+    and [Browser hosting ADR](adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md).
 
 ## Build And Test Baseline
 

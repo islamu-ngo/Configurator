@@ -25,8 +25,9 @@ This document records the major design alternatives evaluated during system desi
 
 | Option | Status | Trade-offs & Rationale | Evidence / Decision Anchor |
 |---|---|---|---|
-| **Centralized Backend Processing** | **Rejected** | Transmitting operator answers to a hosted service exposes entered credentials, database topologies, and network layouts over the network to a central server. | [universal-configurator.md](universal-configurator.md)<br/>[ADR: Browser Session Trust](adr/ADR-browser-session-trust-and-export.md) |
-| **Client-Side WebAssembly** | **Adopted** | The browser experience runs static Blazor WebAssembly entirely inside the operator's browser sandbox. All answers, state mutations, and artifact compilations execute on the client device. | [ADR: Browser Session Trust](adr/ADR-browser-session-trust-and-export.md)<br/>[LAUNCH_CONTRACT.md](LAUNCH_CONTRACT.md) |
+| **Centralized Backend Processing / ISLAMU Public Target Proxy** | **Rejected** | Transmitting operator answers or provider credentials to a hosted workspace/proxy exposes credentials, database topologies and network layouts to a central service and creates multi-tenant SSRF risk. The ISLAMU public instance remains static-only. | [universal-configurator.md](universal-configurator.md)<br/>[ADR: Browser Session Trust](adr/ADR-browser-session-trust-and-export.md)<br/>[ADR: Connected Browser Boundary](adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md) |
+| **Client-Side WebAssembly** | **Adopted** | The browser experience runs standalone Blazor WebAssembly inside the operator's browser sandbox. Answers, state mutations, secret generation, encryption and artifact composition execute on the client device in every current or planned Browser package. | [ADR: Browser Session Trust](adr/ADR-browser-session-trust-and-export.md)<br/>[LAUNCH_CONTRACT.md](LAUNCH_CONTRACT.md) |
+| **Separate Operator-Owned Target Connector** | **Accepted Future Direction** | A separate self-hosted connected package may send only explicitly reviewed target deltas to an authenticated connector after native pilots. This does not introduce hosted workspaces, direct provider access inside WASM or a static-Host switch; SSRF, custody and partial-failure gates apply. | [ADR: Connected Browser Boundary](adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md) — planned and unimplemented |
 
 ---
 
@@ -63,8 +64,9 @@ This document records the major design alternatives evaluated during system desi
 
 | Option | Status | Trade-offs & Rationale | Evidence / Decision Anchor |
 |---|---|---|---|
-| **Direct Deployment & Apply Authority** | **Rejected** | Applying configuration requires elevated host permissions, SSH/daemon access, or API management credentials. Combining preparation with apply authority creates massive attack surfaces. | [universal-configurator.md](universal-configurator.md)<br/>[QUICK_REFERENCE.md](QUICK_REFERENCE.md) (Rule 6) |
-| **Preparation-Only Boundary** | **Adopted** | Configurator prepares and stages validated files locally. On Linux, it uses create-only, no-replace protected writes. Applying, restarting, and validating runtime acceptance remains with the target host. | [ADR: Definition Boundary](adr/ADR-definition-runtime-boundary.md)<br/>[ADR: CLI Command Runtime](adr/ADR-cli-command-runtime.md) |
+| **Implicit or General Deployment & Administrative Authority** | **Rejected** | Restarting hosts/containers, invoking Compose or acquiring general management authority combines preparation with an excessive attack surface. A target API token grants only its explicitly reviewed operation, not deployment authority. | [universal-configurator.md](universal-configurator.md)<br/>[QUICK_REFERENCE.md](QUICK_REFERENCE.md) (Rule 6) |
+| **Preparation-Only Boundary** | **Adopted for Current Product** | Configurator prepares and stages validated files locally. On Linux, it uses create-only, no-replace protected writes. Applying, restarting, and validating runtime acceptance remains with the target host. | [ADR: Definition Boundary](adr/ADR-definition-runtime-boundary.md)<br/>[ADR: CLI Command Runtime](adr/ADR-cli-command-runtime.md) |
+| **Explicit Reviewed Target-Delta Sink** | **Accepted Future Direction** | Native pilots, then possibly a separate operator-owned Browser connector, may submit operator-confirmed item deltas through provider APIs. Providers retain authentication, semantic validation and apply authority; per-item conflicts/partial outcomes remain visible and do not imply atomic deployment. | [ADR: Target Apply](adr/ADR-encrypted-local-profiles-and-target-apply.md)<br/>[ADR: Connected Browser Boundary](adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md) — unimplemented |
 
 ---
 
@@ -83,6 +85,6 @@ This document records the major design alternatives evaluated during system desi
 > [!IMPORTANT]
 > The common thread across all design choices is **containment of authority**:
 > - Definitions have **data authority**, not execution authority.
-> - Configurator has **preparation authority**, not apply authority.
-> - The browser client has **transient local custody**, not persistent secret authority.
+> - Current Configurator has **preparation authority**, not apply authority. Any future reviewed delta sink receives only the operator's explicit per-action authorization; the target retains semantic/apply and administrative authority.
+> - The browser client has **transient local custody**, not persistent secret authority. The future connected package adds a separately qualified explicit target-request boundary, not a hosted workspace.
 > - The catalog has **discovery value**, not gatekeeping authority.

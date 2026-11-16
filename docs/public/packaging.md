@@ -239,6 +239,8 @@ The browser output in `artifacts/configurator/browser/wwwroot/` consists entirel
 - No backend API, application server, or database is required.
 - Detailed hosting guidance, Content Security Policy (CSP) headers, and Docker container instructions are documented in the [Browser Guide](browser.md).
 
+These are the current **static package** guarantees, for both ISLAMU's public instance and an ordinary self-hosted static deployment. A separate **self-hosted connected package is planned, not implemented**: it would combine the same WebAssembly editor with an operator-owned authenticated target connector for reviewed secret-manager/PaaS deltas. It will have its own image, security contract and qualification; the current static Host and Dockerfile have no integration switch, connector endpoint or provider credentials. ISLAMU's public instance will remain static-only. See the [hosting-mode decision](../internal/adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md).
+
 Container builds use the Dockerfile-specific context filter. It includes the
 first-party capture project's source needed by ratchet verification, while
 excluding local capture sessions and build outputs. The final image contains

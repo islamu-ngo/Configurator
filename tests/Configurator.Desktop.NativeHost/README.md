@@ -41,11 +41,14 @@ contains no textbox values.
 
 ## Scoped profile checks
 
-The full 33-guard run currently fails `D27-responsive-scale-focus` in existing
-rail, compact settings and inspector controls. The retained logs are
+Earlier full runs failed `D27-responsive-scale-focus` in the rail, compact
+settings and inspector controls. The retained logs are
 `profiles-nativehost-{en,scale-diagnosis,scale-ancestry}.log` under the cached
 agent temporary directory. Type/ancestor/font-size diagnostics contain no UI
-values. Those controls are outside the profile view; the full failure remains.
+values. The view templates now inherit the window's text scale. Current English
+and Arabic Linux x64/X11 full cohorts both pass 33/33 guards; manual dialog,
+keyboard, RTL, scaling, assistive-technology and published-payload checks remain
+separate qualification work.
 
 An explicit cohort selector exercises exactly D31-D33 without claiming a full
 native qualification. It requires a minimum of three and reports

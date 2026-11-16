@@ -57,7 +57,7 @@ Whether you are launching your first Docker container or managing dozens of ente
   * **4 Unified Surfaces:** Seamlessly switch from the **Browser** to the keyboard-driven **Terminal TUI** (`Terminal.Gui`) over SSH, the native **Desktop GUI** (`Avalonia`), or the headless **Machine CLI** (`islamu-configurator`) for CI/CD pipelines.
   * **Eliminate Upgrade Paralysis (Day-2 Diffing):** Drop your existing `.env` into the Version Migration Engine to immediately see newly mandatory keys, auto-migrated renames, and retired variables before pulling new releases.
   * **Desktop Profile Vault:** Automatically manage configuration profiles across environments (`development`, `staging`, `production`) in `~/.config/islamu-configurator/profiles/<app-id>/`.
-  * **Direct Secret Vault Provisioning *(Planned)*:** Optionally apply reviewed changes to **Infisical** or **Azure Key Vault** from the native Desktop/TUI surfaces through `ISLAMU SecretKit`, with zero network requests by default. Secret values never pass through vendor CLIs; an existing `az` sign-in can optionally be reused for authentication only ([decision](docs/internal/adr/ADR-secret-store-integration-and-credential-sources.md)).
+  * **Direct Secret Vault Provisioning *(Planned)*:** Optionally apply reviewed changes to **Infisical** or **Azure Key Vault** from the native Desktop/TUI surfaces through `ISLAMU SecretKit`, with zero network requests by default. Secret values never pass through vendor CLIs; an existing `az` sign-in can optionally be reused for authentication only ([provider decision](docs/internal/adr/ADR-secret-store-integration-and-credential-sources.md)). After native pilots, a separate self-hosted connected Browser package may offer reviewed delta apply through an operator-owned connector; it is **not implemented**, and ISLAMU's public instance will never operate that proxy ([Browser hosting decision](docs/internal/adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md)).
 
 ---
 
@@ -98,10 +98,12 @@ One declarative definition powers four purpose-built interfaces sharing the same
 
 | Interface | Best For | Platform Support | Secret Custody & Sync | Network / Offline Boundary | Step-by-Step Documentation |
 |---|---|---|---|---|---|
-| **Static Browser** | Zero-install onboarding, GitHub README deep links, doc widgets | Modern WebAssembly browsers | In-memory only; deliberate file download; never connects to secret managers | 100% Client-side WASM; zero telemetry, zero network calls | 📖 **[Browser Hosting](docs/public/browser.md#self-hosting--deployment)** |
+| **Static Browser** | Zero-install onboarding, GitHub README deep links, doc widgets | Modern WebAssembly browsers | In-memory only; deliberate file download; no target connections or provider credentials | Client-side WASM; no telemetry or answer-bearing requests; public definition/assets may be fetched; ISLAMU public and default self-hosted static packages are target-disconnected | 📖 **[Browser Hosting](docs/public/browser.md#self-hosting--deployment)** |
 | **Desktop GUI** | Full workstation workflow, multi-environment profiles (`dev`/`staging`/`prod`) | Linux (x64), macOS, Windows (Avalonia) | Protected Linux write (`0600`); planned Infisical & Azure Key Vault apply through SecretKit | Fully offline; network only on explicit, confirmed secret vault action (planned) | 📖 **[Desktop Guide](docs/public/desktop.md)** |
 | **Terminal TUI** | SSH sessions, headless servers, keyboard-driven power users | Linux, macOS, Windows (Terminal.Gui v2) | In-memory transient workspace; planned vault apply through SecretKit | Fully offline; zero background daemons | 📖 **[Terminal Guide](docs/public/terminal.md)** |
 | **Machine CLI** | CI/CD automation, AI agent pipelines, headless verification | Linux (x64, arm64, musl), macOS, Windows | Stdin / files; masked diagnostics | Fully offline; native binary | 📖 **[CLI Guide](docs/public/cli.md)** |
+
+A **separate self-hosted connected Browser package is planned, not implemented**. It keeps editing and file composition in WebAssembly while an operator-owned authenticated connector performs explicitly reviewed secret-manager/PaaS deltas after native workflows are proven. It is not a mode of the current static image, and no ISLAMU-hosted connector is permitted. See the [hosting decision](docs/internal/adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md).
 
 See [packaging](docs/public/packaging.md) for build instructions and platform limits. Protected native saving is currently verified on Linux; unsupported hosts refuse it. Browser downloads use the browser's ordinary download behavior. Offline browser use requires the app assets and a retained definition; answers are not restored between workspaces.
 
@@ -135,6 +137,12 @@ Shape the configuration experience through your application's definition: its na
 - **Launch Experience:** Link to a selected configuration entry and locale using the [launch integration](docs/public/launch-integration.md).
 
 Available presentation features follow the supported definition format. A publisher label or application name is descriptive metadata, not proof of publisher identity.
+
+The current configuration experience includes continuous Browser Compact editing,
+Guided steps, native Desktop task entry, and keyboard-driven Terminal workflows.
+See the [qualification status](docs/internal/STATUS.md#configuration-experience-qualification-2026-11-15)
+for executed package and host checks and the remaining performance and
+assistive-technology evidence gates.
 
 ---
 
@@ -188,7 +196,7 @@ Secret-manager provisioning is **planned, not yet implemented**. The accepted de
 - **Runtime Secret Consumption:** Target applications (like ISLAMU Event) use the companion library `ISLAMU SecretKit` to borrow secrets at runtime inside scoped callbacks (`SecretMaterial.Use(...)`) whose buffers are cleared afterwards.
 - **Setup & Provisioning:** On native Desktop, Terminal and CLI surfaces, Configurator will compare value-free key inventories and apply operator-confirmed changes to Infisical or Azure Key Vault **through SecretKit only**. Vendor CLIs never receive or print secret values.
 - **Sign-in:** Infisical starts with a Universal Auth machine identity (OIDC sign-in through your identity provider is a planned expansion). Azure uses your organization's own Entra client ID, or, if you explicitly choose it, your existing `az login` as a credential source.
-- **Browser Boundary:** The WebAssembly browser client permanently has zero network calls and no secret-manager access. Vault work hands off to a native client.
+- **Browser Boundary:** The ISLAMU public instance and current static self-hosted package have no target network calls or secret-manager/PaaS access. Public web vault work hands off to a native client. A [separate self-hosted connected package](docs/internal/adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md) is planned after native pilots, with the same local WebAssembly editor and an operator-owned authenticated reviewed-delta connector; no such connector is implemented, and ISLAMU will not operate one on the public instance.
 
 ### Where can I learn more about the broader product vision and adoption strategy?
 
@@ -367,7 +375,7 @@ Ask questions, share definitions, describe configuration problems, or show how y
 
 If you discover a security vulnerability in ISLAMU Configurator, please report it responsibly instead of opening a public issue. We take all legitimate reports seriously and will investigate them promptly. See the [Security Policy][security-policy] for more info.
 
-To disclose any security issues, please email us at [contact@openislamu.org][contact-email].
+To disclose any security issues, please email us at [security@openislamu.org][security-email].
 
 ### Security fixes from forks
 
@@ -418,7 +426,7 @@ We appreciate these generally available public-repository tools. They are not pr
 ## ISLAMU Solutions
 
 - [ISLAMU Event][event-repo-link]: Event Platform & Management System.
-- [ISLAMU Configurator][github-repo-link]: Guided application configuration and local file preparation.
+- [ISLAMU Configurator][github-repo-link]: Universal, Offline-first Software Configuration Assistant.
 - [I-VSD][ivsd-github-repo-link]: Islamic Value Sensitive Design: A Framework for Provider-Mediated Software Solutions
 - [SecretKit][secretkit-repo-link]: Unified secret management SDK for .NET
 
@@ -508,6 +516,7 @@ Terminal.Gui uses the official pinned package, with dependency locks and retaine
 [privacy-policy]: https://openislamu.org/privacy
 [license-link]: LICENSE
 [contact-email]: mailto:contact@openislamu.org
+[security-email]: mailto:security@openislamu.org
 
 [github-repo-link]: https://github.com/islamu-ngo/Configurator
 [github-issues-link]: https://github.com/islamu-ngo/Configurator/issues/new

@@ -4,6 +4,9 @@ Status: Accepted product-owner decision. Documentation only: no secret-store
 client, credential flow, network operation or target apply is implemented.
 Remote target apply stays deferred by the
 [encrypted profiles and target apply ADR](ADR-encrypted-local-profiles-and-target-apply.md).
+The [self-hosted connected Browser ADR](ADR-self-hosted-connected-browser-and-public-static-boundary.md)
+(2026-11-16) supersedes only this record's universal Browser/server exclusion;
+it does not implement target apply or reopen public/direct-WASM provider access.
 Date: 2026-11-14
 Owners: Native client (Desktop, Terminal, CLI), Artifacts/Security and Presentation maintainers.
 Technical anchors: [Current decision](#current-decision), [Launch contract](../LAUNCH_CONTRACT.md), [Desktop client](../DESKTOP_CLIENT.md), [Terminal client](../TERMINAL_CLIENT.md), [Quick reference](../QUICK_REFERENCE.md).
@@ -18,6 +21,9 @@ and its "Configurator provisioning consumer" roadmap section in `docs/internal/C
    - value-free key inventory, used for comparison against a local profile;
    - reads through the identity the target application will use;
    - reviewed writes, one item at a time, each with a write receipt.
+   After the native pilots prove these semantics, the separate operator-owned
+   connected host described in item 6 must delegate to the same SecretKit
+   operation owner rather than inventing a second provider data path.
 2. **No vendor CLI carries secret operations.** Configurator never passes a
    secret value, a mutation or protected coordinates to `infisical`, `az` or any
    other vendor CLI. It never parses CLI output for secret data or runs a CLI to
@@ -53,17 +59,27 @@ and its "Configurator provisioning consumer" roadmap section in `docs/internal/C
    - SecretKit already exchanges such a token for an Infisical access token.
    - Infisical then validates issuer, subject, audience and claims for that
      identity.
-6. **Browser: permanent policy.** `Configurator.Browser` never gains
+6. **Public/static Browser exclusion; separate connected host planned.** The
+   ISLAMU public instance and the current self-hosted static package never gain
    secret-store access, provider credentials, vault APIs or CLI integration.
-   This is a permanent product boundary, not a deferral. Vault work hands off to
-   a native client, through the planned `configurator://` handshake once that
-   exists. Reasons:
+   The ISLAMU public exclusion is permanent: vault work hands off to a native
+   client through the planned `configurator://` handshake. Direct provider
+   access inside WebAssembly remains rejected because:
    - Azure Key Vault offers no CORS support for browser calls.
    - Self-hosted Infisical would need every operator to trust the web origin.
    - Tokens in WebAssembly memory are exposed to XSS and extensions. That is
      the same reason the encrypted profiles ADR rejected stored browser keys.
    - Browser publishes trimmed AOT WebAssembly, which SecretKit does not target.
-   - It breaks the zero-network promise.
+   - It breaks the static target-zero-network promise.
+
+   A **separate future self-hosted connected host** is accepted by the
+   [Browser hosting ADR](ADR-self-hosted-connected-browser-and-public-static-boundary.md).
+   It keeps the WebAssembly editor local and puts SecretKit/provider calls in an
+   operator-owned authenticated connector, preferably with server-side target
+   aliases and credentials. It must follow the native pilots, preserve reviewed
+   per-item semantics and satisfy the connector threat gates. This is not an
+   ISLAMU proxy, an integration flag in the static Host, current support or
+   permission to put provider credentials in Browser storage.
 7. **Pilot sequence.** Following the backlog rule that one provider pilot comes
    before any abstraction:
    - **Pilot:** Infisical through SecretKit on Desktop and Terminal, using
@@ -71,6 +87,8 @@ and its "Configurator provisioning consumer" roadmap section in `docs/internal/C
      profile, then makes reviewed per-item writes with operator confirmation.
    - **Then:** Azure Key Vault with bring-your-own client ID and the opt-in Azure
      CLI credential.
+   - **Then, separately:** the operator-owned connected Browser host, only
+     after native inventory/conflict/partial-outcome semantics are reusable.
    - **Later:** a Configurator-owned provisioning-sink abstraction, only after
      two providers show shared semantics.
 8. **Provider breadth tiers.** Configurator aims to support many secret
@@ -187,7 +205,8 @@ Only two things cannot be reproduced by a library:
 | Configurator launching `az` itself for tokens | Rejected: Azure.Identity already provides `AzureCliCredential` |
 | ISLAMU multi-tenant Entra application now | Deferred: needs tenant ownership and publisher verification; possible future expansion |
 | Infisical OIDC Auth now | Deferred: Universal Auth first; OIDC is the documented expansion |
-| Browser vault access through SecretKit or a server | Rejected permanently: CORS, token custody and the zero-network promise |
+| Direct Browser vault access or an ISLAMU public proxy | Rejected permanently for the public/static packages: CORS, token custody, centralized SSRF and target-network boundaries |
+| Separate operator-owned connected host after native pilots | Accepted future direction by the [Browser hosting ADR](ADR-self-hosted-connected-browser-and-public-static-boundary.md); no implementation or provider support yet |
 
 ## Values and honest communication
 

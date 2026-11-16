@@ -6,6 +6,8 @@ service, sibling Event checkout or remote credentials. Use
 [portable adoption](../docs/public/integrating.md) to allocate your own identity
 and the [cookbook](../docs/public/definition-cookbook.md) for partial patterns.
 Do not copy example family UUIDs into a new integration.
+Before sharing a derived source, run `definition lint --quality` and preview its
+questions and choice explanations in English and Arabic at a narrow viewport.
 
 ## Source and canonical runtime pairs
 

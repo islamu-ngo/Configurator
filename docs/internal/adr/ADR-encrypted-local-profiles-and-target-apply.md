@@ -74,9 +74,12 @@ The [secret-store integration ADR](ADR-secret-store-integration-and-credential-s
 - SecretKit only. The "official provider CLIs" option in historical section 6
   below is superseded.
 - Vendor CLIs are at most explicit, opt-in credential sources.
-- The Browser never gains secret-store access.
+- The ISLAMU public and current static Browser packages never gain secret-store
+  access. The [self-hosted connected Browser decision](ADR-self-hosted-connected-browser-and-public-static-boundary.md)
+  supersedes the previous universal Browser exclusion only for a future,
+  separately packaged operator-owned connector after native workflows are proven.
 
-Remote target apply remains deferred and unimplemented.
+Remote target apply remains deferred and unimplemented in every surface and package.
 
 ## Historical Proposal Context (2026-11-12)
 
