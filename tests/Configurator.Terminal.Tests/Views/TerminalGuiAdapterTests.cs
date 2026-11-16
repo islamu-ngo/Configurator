@@ -842,7 +842,9 @@ public sealed class TerminalGuiAdapterTests
                 "ProtectedDraftSaved", "ProtectedDraftFailed", "ValidateDraft", "ClearPrivate",
                 "PrivateCleared", "InputChanged", "NoFields", "NextAttempt", "PublicationAttempt",
                 "PublicationUnknown", "PublicationInProgress", "PublicationFailed", "PublicationCleanupFailed",
-                "StageConfigure", "StageReview", "StageFiles", "Sections", "ConfigureGuided", "ConfigureCompact",
+                "StageConfigure", "StageReview", "StageFiles", "ProfilesTask", "Sections",
+                "StatusBarSections", "StatusBarFind", "StatusBarDoc", "StatusBarKeys", "StatusBarClose",
+                "ShortcutsTitle", "ShortcutsReference", "MarkReviewedAction", "SectionReviewedStatus",
                 "NamingHumanized", "NamingTechnical", "FindFields", "DocumentEditor", "UndoAction", "ChoiceList",
                 "DialogApply", "DialogPreview", "DialogCancel", "DocumentTooLarge", "DocumentStale",
                 "SecretOptions", "SecretGeneratorTitle", "SecretLengthLabel", "SecretBytesLabel",
@@ -947,6 +949,8 @@ public sealed class TerminalGuiAdapterTests
             if (stage == TerminalWorkbenchStage.Configure)
                 await Assert.That(window.PublicInput.Visible).IsTrue();
             View[] controls = window.SubViews.Where(view => view.CanFocus && view.Visible && view.Enabled).ToArray();
+            await Assert.That(controls.OfType<Button>().Any(button =>
+                button.Text == TerminalStrings.Get("ProfilesTask", locale))).IsTrue();
             await Assert.That(controls.Length).IsGreaterThan(0);
             foreach (View control in controls)
             {
@@ -1159,7 +1163,7 @@ public sealed class TerminalGuiAdapterTests
             harness.Window.PublicInput.Text = text;
             AnswerSnapshot original = form.Snapshot();
             bool prepared = harness.Operation.AdoptPreparation(await harness.Operation.PrepareAsync()) == TerminalPreparationCode.Ready;
-            TextField path = harness.Window.SubViews.OfType<TextField>().Single(field => field.Y == 14);
+            TextField path = harness.Window.ImportPathInput;
             path.Text = input;
             Button compare = harness.Window.SubViews.OfType<Button>()
                 .Single(button => button.Text == TerminalStrings.Get("ImportSelected"));
@@ -1194,8 +1198,7 @@ public sealed class TerminalGuiAdapterTests
             string source = Path.Combine(directory, "existing.json");
             await File.WriteAllTextAsync(source, """{"name":"sample","token":"privateValue"}""");
             using var harness = new Harness(initialize: true, empty: true, directory: directory, manualDispatch: true);
-            TextField importPath = harness.Window.SubViews.OfType<TextField>()
-                .Single(field => field.Y == 14);
+            TextField importPath = harness.Window.ImportPathInput;
             importPath.Text = source;
             Button import = harness.Window.SubViews.OfType<Button>()
                 .Single(button => button.Text == TerminalStrings.Get("FillFields"));
@@ -1230,8 +1233,7 @@ public sealed class TerminalGuiAdapterTests
             string source = Path.Combine(directory, "existing.json");
             await File.WriteAllTextAsync(source, """{"name":"sample","token":"differentPrivateValue"}""");
             using var harness = new Harness(initialize: true, directory: directory, manualDispatch: true);
-            TextField importPath = harness.Window.SubViews.OfType<TextField>()
-                .Single(field => field.Y == 14);
+            TextField importPath = harness.Window.ImportPathInput;
             importPath.Text = source;
             Button import = harness.Window.SubViews.OfType<Button>()
                 .Single(button => button.Text == TerminalStrings.Get("FillFields"));
@@ -1621,6 +1623,169 @@ public sealed class TerminalGuiAdapterTests
         await Assert.That(naming.InvokeCommand(Command.Accept)).IsTrue();
         await Assert.That(harness.Form.WorkspaceNamingMode).IsEqualTo(WorkspaceNamingMode.Technical);
         await Assert.That(harness.Window.FieldText).Contains("smtp_host");
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task WorkbenchUsesMasterDetailAt88ColsFiveShortcutStatusBarAndScrollableTextViewHelp()
+    {
+        var source = EditingSource("""
+            "host":{"title":"Host name","description":"Primary API host address with multi-line guidance that should scroll cleanly without [Help 1/3] button pagination.",
+              "type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}},
+            "port":{"title":"Port","type":"integer","x-configurator":{"sensitivity":"public","detail":"basic"}}
+            """);
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+            System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var harness = new Harness(initialize: true, form: form);
+
+        await Assert.That(typeof(TerminalWindow).Assembly.GetTypes().Any(t => t.Name == "TerminalShortcutsDialog")).IsTrue();
+        await Assert.That(typeof(TerminalWindow).Assembly.GetTypes().Any(t => t.Name is "TerminalCompactTableView" or "TerminalConfigureMode")).IsFalse();
+
+        StatusBar? statusBar = harness.Window.SubViews.OfType<StatusBar>().SingleOrDefault();
+        await Assert.That(statusBar).IsNotNull();
+        Shortcut[] shortcuts = statusBar!.SubViews.OfType<Shortcut>().ToArray();
+        await Assert.That(shortcuts.Length).IsGreaterThanOrEqualTo(4);
+        await Assert.That(shortcuts.Length).IsLessThanOrEqualTo(5);
+        await Assert.That(shortcuts.All(shortcut => shortcut.BindKeyToApplication && !string.IsNullOrWhiteSpace(shortcut.Title))).IsTrue();
+
+        await Assert.That(harness.Window.SubViews.OfType<Button>()
+            .Any(button => button.Text.StartsWith(TerminalStrings.Get("Help"), StringComparison.Ordinal))).IsFalse();
+
+        View? helpPane = harness.Window.SubViews.FirstOrDefault(view =>
+            view.ViewportSettings.HasFlag(ViewportSettingsFlags.HasVerticalScrollBar)
+            && view.SubViews.OfType<Label>().Any(label => label.Text == harness.Window.HelpText));
+        await Assert.That(helpPane).IsNotNull();
+        await Assert.That(harness.Window.HelpText).Contains("multi-line guidance");
+
+        harness.Window.Frame = new Rectangle(0, 0, 88, 24);
+        harness.Window.ApplyViewportPolicy(new Size(88, 24));
+        await Assert.That(harness.Window.SectionNavigator.Visible).IsTrue();
+        await Assert.That(harness.Window.SectionNavigator.Frame.Width).IsEqualTo(32);
+
+        harness.Window.Frame = new Rectangle(0, 0, 80, 24);
+        harness.Window.ApplyViewportPolicy(new Size(80, 24));
+        await Assert.That(harness.Window.SectionNavigator.Visible).IsFalse();
+        await Assert.That(statusBar.Visible).IsTrue();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ReviewAndImportUsesRelativeStackingWithoutOverlapsAt80x24()
+    {
+        var source = EditingSource("""
+            "host":{"title":"Host","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}
+            """);
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+            System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var harness = new Harness(initialize: true, form: form);
+
+        harness.Window.Frame = new Rectangle(0, 0, 76, 24);
+        harness.Window.ApplyViewportPolicy(new Size(76, 24));
+        harness.Window.SetStage(TerminalWorkbenchStage.ReviewAndImport);
+        harness.Window.Layout();
+
+        View[] visible = harness.Window.SubViews.Where(view => view.Visible).ToArray();
+        for (int first = 0; first < visible.Length; first++)
+        {
+            for (int second = first + 1; second < visible.Length; second++)
+            {
+                Rectangle intersection = Rectangle.Intersect(visible[first].Frame, visible[second].Frame);
+                bool overlaps = intersection.Width > 0 && intersection.Height > 0;
+                await Assert.That(overlaps).IsFalse();
+            }
+        }
+
+        TextField importPath = harness.Window.SubViews.OfType<TextField>()
+            .Single(field => field.Visible && !field.ReadOnly && !ReferenceEquals(field, harness.Window.PublicInput));
+        Button importButton = harness.Window.SubViews.OfType<Button>()
+            .Single(button => button.Text == TerminalStrings.Get("ImportSelected"));
+        await Assert.That(importPath.Frame.Bottom).IsLessThanOrEqualTo(importButton.Frame.Top);
+        await Assert.That(importButton.Frame.Bottom).IsLessThanOrEqualTo(23);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task VimAndShortcutKeysNeverInterceptTypingInTextInputAndNavigateOutOfTextInput()
+    {
+        var source = EditingSource("""
+            "host":{"title":"Host","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}},
+            "secretToken":{"title":"Secret token","type":"string","x-configurator":{"sensitivity":"secret","detail":"basic"}}
+            """);
+        source["presentation"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"defaultJourney":"guided","navigation":"sections",
+             "sections":[
+              {"id":"one","title":"One","pointers":["/host"]},
+              {"id":"two","title":"Two","pointers":["/secretToken"]}
+             ],
+             "journeys":[{"id":"guided","title":"Guided","sections":["one","two"]}]}
+            """);
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+            System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+        using var harness = new Harness(initialize: true, form: form);
+
+        harness.Window.PublicInput.SetFocus();
+        await Assert.That(harness.Window.PublicInput.HasFocus).IsTrue();
+
+        foreach (Key typed in new[] { new Key('j'), new Key('k'), new Key('/'), new Key('?'), new Key('m') })
+            harness.Window.NewKeyDownEvent(typed);
+
+        await Assert.That(harness.Window.FieldText).Contains("Host");
+        await Assert.That(harness.Window.SectionNavigator.Sections.Single(s => s.SectionId == "one").Coverage)
+            .IsNotEqualTo(SectionReviewCoverage.Reviewed);
+
+        harness.Window.PublicInput.Text = "jk/?";
+        await Assert.That(harness.Window.PublicInput.Text).IsEqualTo("jk/?");
+
+        harness.Window.SectionNavigator.SetFocus();
+        await Assert.That(harness.Window.PublicInput.HasFocus).IsFalse();
+        harness.Window.NewKeyDownEvent(new Key('j'));
+        await Assert.That(harness.Window.FieldText).Contains("Secret token");
+
+        harness.Window.SectionNavigator.SetFocus();
+        harness.Window.NewKeyDownEvent(new Key('k'));
+        await Assert.That(harness.Window.FieldText).Contains("Host");
+
+        harness.Window.SectionNavigator.SetFocus();
+        harness.Window.NewKeyDownEvent(new Key('m'));
+        await Assert.That(harness.Window.SectionNavigator.Sections.Single(s => s.SectionId == "one").Coverage)
+            .IsEqualTo(SectionReviewCoverage.Reviewed);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task SelectingSectionRecordsOpenedStateAndF7F8F9RouteActionableTargets()
+    {
+        var source = EditingSource("""
+            "alpha":{"title":"Alpha","type":"string","minLength":4,"x-configurator":{"sensitivity":"public","detail":"basic"}},
+            "beta":{"title":"Beta","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}},
+            "gamma":{"title":"Gamma","type":"string","x-configurator":{"sensitivity":"public","detail":"basic"}}
+            """);
+        source["configuration"]!["required"] = System.Text.Json.Nodes.JsonNode.Parse("""["alpha","beta","gamma"]""");
+        source["presentation"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"defaultJourney":"guided","navigation":"sections",
+             "sections":[
+              {"id":"one","title":"One","pointers":["/alpha"]},
+              {"id":"two","title":"Two","pointers":["/beta"]},
+              {"id":"three","title":"Three","pointers":["/gamma"]}
+             ],
+             "journeys":[{"id":"guided","title":"Guided","sections":["one","two","three"]}]}
+            """);
+        using var form = new DefinitionFormModel(DefinitionSourceCodec.ParseJson(
+            System.Text.Encoding.UTF8.GetBytes(source.ToJsonString())));
+        form.EditValue(["alpha"], "bad");
+        using var harness = new Harness(initialize: true, form: form);
+
+        await Assert.That(harness.Window.SectionNavigator.ActivateIndex(1)).IsTrue();
+        await Assert.That(harness.Window.SectionNavigator.Sections.Single(s => s.SectionId == "two").Coverage)
+            .IsEqualTo(SectionReviewCoverage.Opened);
+        await Assert.That(harness.Window.SectionNavigator.ActivateIndex(0)).IsTrue();
+
+        harness.Window.NewKeyDownEvent(Key.F8);
+        await Assert.That(harness.Window.FieldText).Contains("Beta");
+        harness.Window.NewKeyDownEvent(Key.F7);
+        await Assert.That(harness.Window.FieldText).Contains("Alpha");
+        harness.Window.NewKeyDownEvent(Key.F9);
+        await Assert.That(harness.Window.FieldText).Contains("Gamma");
     }
 
     private sealed class Harness : IDisposable

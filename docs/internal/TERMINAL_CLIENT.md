@@ -2,9 +2,9 @@
 
 > **Audience:** Contributors | Integrators | AI agents
 > **Kind:** Living contract
-> **Status:** Typed 3-stage offline workbench with shared secret-generator modal, Compact table, Discovery, and bounded Document editing
+> **Status:** Typed 3-stage offline `80×24` Master-Detail workbench with 5-key `StatusBar`, shortcut reference modal, shared secret-generator modal, Discovery, and bounded Document editing
 > **Owner:** Terminal
-> **Last Verified:** 2026-11-13
+> **Last Verified:** 2026-11-16
 > **Source Anchors:** `src/Configurator.Terminal/`, `src/Configurator.Presentation/`
 > **Review basis:** Source and direction review at `97c5a1789545b73a9536a4b9d4fa934976afb16c`; deployment-scope Release tests and Linux PTY qualification on 2026-11-04, recorded below.
 
@@ -24,7 +24,7 @@ choice does not authorize an exact layout or imply delivered Browser parity.
 
 | Area | Current adapter | Planned direction or limit |
 |---|---|---|
-| Form workspace | Responsive `80×24` 3-stage workbench (`1:Configure`, `2:Review & Import`, `3:Files & Save`), `Width=32` `TerminalSectionNavigator` sidebar at `>= 100` cols (`Sections…` modal at `76–99` cols), `ITableSource` `TerminalCompactTableView`, `TerminalDiscoveryDialog` (`F3`), localized `TerminalChoiceDialog`, rich metadata (`Units`, `DefaultText`, `DeprecationGuidance`), `Ctrl+Z` undo, and public trimmed `MapKey` / `ItemTitlePointer` titles while masking private maps. | Screen reader, braille, and complete platform accessibility qualification remain separate evidence. |
+| Form workspace | Responsive `80×24` 3-stage Master-Detail workbench (`1:Configure`, `2:Review & Import` stacked dynamically without fixed-row overlaps, `3:Files & Save`), `Width=32` `TerminalSectionNavigator` Master outline (`[!]`/`[*]`/`[v]`/`[o]`/`[ ]`, calling `RecordSectionOpened` and `SetSectionReviewed`) docked at `>= 88` cols (`Sections…` modal at `76–87` cols), scrollable `HelpPane`, 5-shortcut `StatusBar` (`F2`/`F3`/`Ctrl+E`/`F1`/`F10` with `BindKeyToApplication = true`), `TerminalShortcutsDialog` (`?`/`F1`), focus-fenced Vim keys (`j`/`k`/`g`/`G`/`/`/`m` guarded by `!FocusedIsTextInput()`), shared `F7`/`F8`/`F9` jumps, `TerminalDiscoveryDialog` (`F3`), localized `TerminalChoiceDialog`, rich metadata (`Units`, `DefaultText`, `DeprecationGuidance`), `Ctrl+Z` undo, and public trimmed `MapKey` / `ItemTitlePointer` titles while masking private maps. | Screen reader, braille, and complete platform accessibility qualification remain separate evidence. |
 | Secret custody | Shared generation/derivation, quick generate, modal `TerminalSecretGeneratorDialog` (`Pos.Center()`, backed by `DefinitionSecretGeneratorSession`, `128`-bit entropy floor, masked preview in `TerminalSecretBuffer`, synchronous zeroing on `Esc`/Cancel/Apply/Dispose), masked buffers, guarded reveal/copy without OSC52 fallbacks, and explicit clearing. | Managed strings and external OS clipboard history cannot be universally erased. |
 | Local files | Bounded import, comparison, deliberate Fill fields, preparation and create-only protected publication. | File pickers only select paths; they do not provide protected save. |
 | Developer editing | Centered `TerminalDocumentDialog` (`Ctrl+E`) backed by `DefinitionDocumentSession` enforcing a `256 KiB` interactive limit, pre-apply `DefinitionDocumentChange` diff summary, `document-stale` revision fencing, and `CryptographicOperations.ZeroMemory` clearing (canonical public-scope envelope, secret branches excluded). | Schema authoring and unconstrained whole-definition editing remain out of scope; changes never mutate an active session's frozen identity. |
@@ -267,6 +267,12 @@ Container Supply/Clear actions call the shared form's `SupplyObject`,
 `SupplyList` and `SetValue` gates. Browsing a blank child leaves an absent
 object absent; deliberate empty containers retain `{}` or `[]` until cleared.
 Requiredness, answer budgets and secret consent remain shared responsibilities.
+The Review progress line formats `WorkspaceProgressSummary` with a localized
+Terminal resource, so Arabic review does not mix English status labels with
+localized counts.
+The responsive stage row includes a keyboard-focusable Profiles task in every
+stage at the `80×24` outer minimum; it invokes the existing modal profile owner
+and shares its `Ctrl+P` path.
 `DefinitionScalarEditing` handles scalar conversion. An untouched empty append
 draft is abandoned without adding a value, including boolean/numeric lists;
 an existing empty string item remains a value. Item navigation cannot enter an
@@ -303,8 +309,9 @@ The locale action calls `SelectLocale` for admitted public metadata only.
 labels with base fallback; shipped action resources remain culture-selected.
 `TerminalStrings.FormatHelp` assembles descriptions, instructions, units,
 choice explanations, credential acquisition guidance and static links.
-`HelpPages` bounds the visible two-line page, preserves multiline navigation,
-and replaces control characters without interpreting terminal escapes or markup.
+`TerminalStrings.WrapLines` computes safe wrapped line counts for the scrollable
+`_helpPane` without truncating lines behind button pages or interpreting terminal
+escapes or markup.
 No guidance fetch occurs. RTL alignment preserves logical glyph order rather
 than reversing Latin fallback or technical text. Full RTL shaping and platform accessibility require
 separate surface evidence.

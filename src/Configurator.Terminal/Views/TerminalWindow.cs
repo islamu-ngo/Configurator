@@ -20,17 +20,11 @@ internal enum TerminalWorkbenchStage
     FilesAndSave
 }
 
-internal enum TerminalConfigureMode
-{
-    Guided,
-    Compact
-}
-
 internal sealed partial class TerminalWindow : Window
 {
     internal const int MinimumTerminalWidth = 76;
     internal const int MinimumTerminalHeight = 20;
-    internal const int SidebarBreakpointWidth = 100;
+    internal const int SidebarBreakpointWidth = 88;
 
     private readonly IApplication _application;
     private readonly PresentationWorkspace _workspace;
@@ -46,9 +40,9 @@ internal sealed partial class TerminalWindow : Window
     private readonly Button _stageConfigure;
     private readonly Button _stageReview;
     private readonly Button _stageFiles;
+    private readonly Button _profilesButton;
     private readonly Button _closeButton;
     private readonly Button _sectionsButton;
-    private readonly Button _viewModeButton;
     private readonly Button _namingButton;
     private readonly Button _findButton;
     private readonly Button _documentButton;
@@ -58,13 +52,13 @@ internal sealed partial class TerminalWindow : Window
     private readonly Label _nextActions;
     private readonly TerminalSectionNavigator _sectionNavigator;
 
-    // Stage 1: Configure (Guided + Compact)
+    // Stage 1: Configure (Master-Detail)
     private readonly Button _experience;
     private readonly Button _optionalEditors;
     private readonly Button _locale;
     private readonly Button _correction;
-    private readonly Button _helpNext;
     private readonly Label _fieldLabel;
+    private readonly View _helpPane;
     private readonly Label _help;
     private readonly TextField _value;
     private readonly SecretTextField _masked;
@@ -85,9 +79,6 @@ internal sealed partial class TerminalWindow : Window
     private readonly Button _copySecret;
     private readonly Button[] _itemActions;
     private readonly Button[] _listButtons;
-    private readonly TerminalCompactTableView _compactTable;
-    private readonly Button _compactEditButton;
-    private readonly Button _compactOmitButton;
 
     // Stage 2: Review & Import
     private readonly Label _reviewSummaryLabel;
@@ -115,18 +106,22 @@ internal sealed partial class TerminalWindow : Window
 
     // Footer & small-viewport gate
     private readonly TextField _status;
-    private readonly Label _footerHints;
+    private readonly StatusBar _statusBar;
+    private readonly Shortcut _sectionsShortcut;
+    private readonly Shortcut _findShortcut;
+    private readonly Shortcut _documentShortcut;
+    private readonly Shortcut _keysShortcut;
+    private readonly Shortcut _closeShortcut;
+    private readonly (Shortcut Shortcut, string Key)[] _statusBarShortcuts;
     private readonly Label _smallNotice;
 
     private TerminalWorkbenchStage _stage = TerminalWorkbenchStage.Configure;
-    private TerminalConfigureMode _configureMode = TerminalConfigureMode.Guided;
     private bool _sidebarVisible;
     private Size _lastViewportSize = new(100, 30);
     private TerminalFieldEditor.Slot? _slot;
     private int _fieldIndex;
     private int _itemIndex;
     private int _outcomeIndex;
-    private int _helpPage;
     private int _correctionIndex = -1;
     private int _comparisonIndex = -1;
     private ProtectedArtifactPublicationReceipt? _receipt;
@@ -195,33 +190,49 @@ internal sealed partial class TerminalWindow : Window
         _stageConfigure = Button("StageConfigure", 0, 0, () => SetStage(TerminalWorkbenchStage.Configure));
         _stageReview = Button("StageReview", 16, 0, () => SetStage(TerminalWorkbenchStage.ReviewAndImport));
         _stageFiles = Button("StageFiles", 38, 0, () => SetStage(TerminalWorkbenchStage.FilesAndSave));
+        _profilesButton = Button("ProfilesTask", 66, 0, OpenProfiles);
         _closeButton = Button("Close", 57, 0, CloseOrCancel);
 
         _sectionsButton = Button("Sections", 0, 1, OpenSectionsModal);
-        _viewModeButton = Button("ConfigureCompact", 13, 1, ToggleConfigureMode);
-        _namingButton = Button("NamingTechnical", 25, 1, ToggleNamingMode);
-        _findButton = Button("FindFields", 35, 1, OpenDiscoveryDialog);
-        _documentButton = Button("DocumentEditor", 45, 1, OpenDocumentDialog);
-        _undoButton = Button("UndoAction", 55, 1, () => UndoLastEdit());
+        _namingButton = Button("NamingTechnical", 13, 1, ToggleNamingMode);
+        _findButton = Button("FindFields", 23, 1, OpenDiscoveryDialog);
+        _documentButton = Button("DocumentEditor", 33, 1, OpenDocumentDialog);
+        _undoButton = Button("UndoAction", 43, 1, () => UndoLastEdit());
         _undoButton.Enabled = _operation.Form.CanUndo;
         _outputTasks = Button("OutputTasks", 0, 1, OpenOutputTasks);
 
-        _localizedControls.Remove(_viewModeButton);
         _localizedControls.Remove(_namingButton);
 
-        _sectionNavigator = new TerminalSectionNavigator(operation.Form, JumpToSection);
+        _sectionNavigator = new TerminalSectionNavigator(operation.Form, JumpToSection, HandleWorkbenchKey);
 
-        // Stage 1: Configure
+        // Stage 1: Configure (Master-Detail)
         View[] configurationChoices = CreateConfigurationChoices();
         _experience = Button("Choose", 0, 2, CycleExperience);
         _experience.HotKeySpecifier = (Rune)0xffff;
         _optionalEditors = Button("Choose", 0, 2, ToggleOptionalEditors);
         _locale = Button("Locale", 0, 2, CycleLocale);
         _correction = Button("NextCorrection", 0, 2, FocusNextCorrection);
-        _helpNext = Button("Help", 0, 2, () => { _helpPage++; ShowHelp(); });
 
         _fieldLabel = new Label { X = 0, Y = 4, Width = Dim.Fill(), Height = 1, HotKeySpecifier = (Rune)0xffff };
-        _help = new Label { X = 0, Y = 5, Width = Dim.Fill(), Height = 3, HotKeySpecifier = (Rune)0xffff };
+        _helpPane = new View
+        {
+            X = 0,
+            Y = 5,
+            Width = Dim.Fill(),
+            Height = 3,
+            CanFocus = true
+        };
+        _helpPane.ViewportSettings |= ViewportSettingsFlags.HasVerticalScrollBar;
+        _help = new Label { X = 0, Y = 0, Width = Dim.Fill(), Height = Dim.Auto(DimAutoStyle.Text, 1), HotKeySpecifier = (Rune)0xffff };
+        _helpPane.Add(_help);
+        _helpPane.KeyDown += (_, key) =>
+        {
+            if (key == Key.CursorDown) { _helpPane.ScrollVertical(1); key.Handled = true; }
+            else if (key == Key.CursorUp) { _helpPane.ScrollVertical(-1); key.Handled = true; }
+            else if (key == Key.PageDown) { _helpPane.ScrollVertical(Math.Max(1, _helpPane.Viewport.Height - 1)); key.Handled = true; }
+            else if (key == Key.PageUp) { _helpPane.ScrollVertical(-Math.Max(1, _helpPane.Viewport.Height - 1)); key.Handled = true; }
+        };
+
         _value = new TextField { X = 0, Y = 8, Width = Dim.Fill(), Height = 1 };
         _masked = new SecretTextField(secret) { X = 0, Y = 8, Width = Dim.Fill(), Height = 1, Visible = false };
 
@@ -249,22 +260,6 @@ internal sealed partial class TerminalWindow : Window
         _revealSecret = Button("ShowSecret", 0, 11, ToggleSecretVisibility);
         _copySecret = Button("CopySecret", 0, 11, CopySecret);
 
-        _compactTable = new TerminalCompactTableView(operation.Form)
-        {
-            X = 0,
-            Y = 2,
-            Width = Dim.Fill(),
-            Height = 10,
-            Visible = false
-        };
-        _compactTable.Accepting += (_, args) =>
-        {
-            args.Handled = true;
-            FocusSlotFromCompactTable();
-        };
-        _compactEditButton = Button("CompactEditAction", 0, 13, FocusSlotFromCompactTable);
-        _compactOmitButton = Button("CompactOmitAction", 15, 13, () => { _compactTable.TryOmitSelected(); ShowField(); });
-
         // Stage 2: Review & Import
         _reviewSummaryLabel = new Label { X = 0, Y = 2, Width = Dim.Fill(), Height = 1, HotKeySpecifier = (Rune)0xffff };
         _reviewJumpButton = Button("NextCorrection", 0, 3, FocusNextCorrection);
@@ -273,11 +268,11 @@ internal sealed partial class TerminalWindow : Window
         _artifactButton = Button("Artifact", 0, 7, CycleArtifact);
         _selectOutputButton = Button("SelectOutput", 22, 7, ToggleOutput);
         _comparisonLabel = new Label { X = 0, Y = 9, Width = Dim.Fill(), Height = 3, HotKeySpecifier = (Rune)0xffff };
-        _importFileLabel = new Label { X = 0, Y = 13, Text = LocalizedText("ImportFile"), HotKeySpecifier = (Rune)0xffff };
-        _importPath = new TextField { X = 18, Y = 14, Width = Dim.Fill(), Height = 1 };
-        _import = Button("ImportSelected", 0, 15, ImportSelected);
-        _fillImport = Button("FillFields", 20, 15, FillFields);
-        _nextFinding = Button("NextFinding", 40, 15, NextComparisonFinding);
+        _importFileLabel = new Label { X = 0, Y = 12, Text = LocalizedText("ImportFile"), HotKeySpecifier = (Rune)0xffff };
+        _importPath = new TextField { X = 18, Y = 12, Width = Dim.Fill(), Height = 1 };
+        _import = Button("ImportSelected", 0, 13, ImportSelected);
+        _fillImport = Button("FillFields", 20, 13, FillFields);
+        _nextFinding = Button("NextFinding", 40, 13, NextComparisonFinding);
         _localizedControls.Add(_importFileLabel, "ImportFile");
 
         // Stage 3: Files & Save
@@ -294,7 +289,7 @@ internal sealed partial class TerminalWindow : Window
         _receiptLabel = new Label { X = 0, Y = 11, Width = Dim.Fill(), Height = 4, HotKeySpecifier = (Rune)0xffff };
         _nextActions = new Label { Width = Dim.Fill(), Height = 2, HotKeySpecifier = (Rune)0xffff };
 
-        // Persistent Footer
+        // Persistent Footer & 5-Shortcut StatusBar
         _status = new TextField
         {
             X = 0,
@@ -304,16 +299,26 @@ internal sealed partial class TerminalWindow : Window
             ReadOnly = true,
             Text = LocalizedText("Ready")
         };
-        _footerHints = new Label
+        _sectionsShortcut = BarShortcut(Key.F2, "StatusBarSections", ActivateSectionsShortcut);
+        _findShortcut = BarShortcut(Key.F3, "StatusBarFind", OpenDiscoveryDialog);
+        _documentShortcut = BarShortcut(Key.E.WithCtrl, "StatusBarDoc", OpenDocumentDialog);
+        _keysShortcut = BarShortcut(Key.F1, "StatusBarKeys", OpenShortcutsDialog);
+        _closeShortcut = BarShortcut(Key.F10, "StatusBarClose", CloseOrCancel);
+        _statusBarShortcuts =
+        [
+            (_sectionsShortcut, "StatusBarSections"),
+            (_findShortcut, "StatusBarFind"),
+            (_documentShortcut, "StatusBarDoc"),
+            (_keysShortcut, "StatusBarKeys"),
+            (_closeShortcut, "StatusBarClose")
+        ];
+        _statusBar = new StatusBar([_sectionsShortcut, _findShortcut, _documentShortcut, _keysShortcut, _closeShortcut])
         {
             X = 0,
             Y = 21,
             Width = Dim.Fill(),
-            Height = 1,
-            Text = LocalizedText("FooterHints"),
-            HotKeySpecifier = (Rune)0xffff
+            Height = 1
         };
-        _localizedControls.Add(_footerHints, "FooterHints");
 
         _smallNotice = new Label
         {
@@ -325,23 +330,22 @@ internal sealed partial class TerminalWindow : Window
             Visible = false
         };
 
-        Add(_stageConfigure, _stageReview, _stageFiles, _closeButton,
-            _sectionsButton, _viewModeButton, _namingButton, _findButton, _documentButton, _undoButton, _outputTasks,
+        Add(_stageConfigure, _stageReview, _stageFiles, _profilesButton, _closeButton,
+            _sectionsButton, _namingButton, _findButton, _documentButton, _undoButton, _outputTasks,
             _sectionNavigator);
         Add(configurationChoices);
-        Add(_experience, _optionalEditors, _locale, _correction, _helpNext,
-            _fieldLabel, _help, _value, _masked,
+        Add(_experience, _optionalEditors, _locale, _correction,
+            _fieldLabel, _helpPane, _value, _masked,
             _previousField, _nextField, _applyField, _choice, _choiceList,
             _supplyContainer, _clearContainer, _addItem,
             previousItem, nextItem, removeItem, _null, _reset, _suggest, _reuseValue,
             itemNull, itemSuggestion, _generateSecret, _secretOptions, _revealSecret, _copySecret,
-            _compactTable, _compactEditButton, _compactOmitButton,
             _reviewSummaryLabel, _reviewJumpButton, _reviewFindButton,
             _artifactLabel, _artifactButton, _selectOutputButton, _comparisonLabel,
             _importFileLabel, _importPath, _import, _fillImport, _nextFinding,
             _filesSummaryLabel, _validateButton, _prepare, _save, _clearPrivateButton,
             _nextOutcome, _nextAttempt, _receiptLabel, _nextActions,
-            _status, _footerHints, _smallNotice);
+            _status, _statusBar, _smallNotice);
 
         _value.ValueChanged += (_, _) => EditorChanged();
         _value.KeyDown += (_, key) =>
@@ -376,10 +380,10 @@ internal sealed partial class TerminalWindow : Window
     internal string FieldText => _fieldLabel.Text;
     internal SecretTextField MaskedInput => _masked;
     internal TextField PublicInput => _value;
+    internal TextField ImportPathInput => _importPath;
+    internal View HelpPane => _helpPane;
     internal TerminalSectionNavigator SectionNavigator => _sectionNavigator;
-    internal TerminalCompactTableView CompactTableView => _compactTable;
     internal TerminalWorkbenchStage ActiveStage => _stage;
-    internal TerminalConfigureMode ConfigureMode => _configureMode;
     internal Task ImportCompletion => _importOperation.Completion;
     internal bool IsImportBusy => _importOperation.IsBusy;
     internal Task ShutdownCompletion => _shutdown;
@@ -402,23 +406,6 @@ internal sealed partial class TerminalWindow : Window
         if (_stage == TerminalWorkbenchStage.Configure) FocusInput();
     }
 
-    internal void SetConfigureMode(TerminalConfigureMode mode)
-    {
-        if (_configureMode == mode) return;
-        CommitField();
-        _configureMode = mode;
-        RefreshModeAndNamingLabels();
-        _compactTable.RefreshRows();
-        SetEditorVisibility();
-        RefreshCommands();
-        if (_stage == TerminalWorkbenchStage.Configure) FocusInput();
-    }
-
-    private void ToggleConfigureMode() =>
-        SetConfigureMode(_configureMode == TerminalConfigureMode.Guided
-            ? TerminalConfigureMode.Compact
-            : TerminalConfigureMode.Guided);
-
     private void ToggleNamingMode()
     {
         WorkspaceNamingMode next = _operation.Form.WorkspaceNamingMode == WorkspaceNamingMode.Humanized
@@ -426,7 +413,6 @@ internal sealed partial class TerminalWindow : Window
             : WorkspaceNamingMode.Humanized;
         _operation.Form.SetWorkspaceNamingMode(next);
         RefreshModeAndNamingLabels();
-        _compactTable.RefreshRows();
         ShowField(preserveLocation: true);
     }
 
@@ -450,6 +436,9 @@ internal sealed partial class TerminalWindow : Window
         var section = _operation.Form.Projection.Sections
             .FirstOrDefault(item => string.Equals(item.Id, sectionId, StringComparison.Ordinal));
         if (section is null) return;
+
+        _operation.Form.RecordSectionOpened(sectionId, acknowledgeNewlyRelevant: true);
+        _sectionNavigator.Refresh();
 
         if (section.Pointers.Count > 0)
         {
@@ -478,7 +467,6 @@ internal sealed partial class TerminalWindow : Window
     internal void FocusSlotPath(DefinitionPath path)
     {
         SetStage(TerminalWorkbenchStage.Configure);
-        SetConfigureMode(TerminalConfigureMode.Guided);
         var slots = VisibleSlots;
         int index = slots.ToList().FindIndex(slot => slot.Location.Equals(path));
         if (index < 0 && path.Segments.Count > 0)
@@ -488,22 +476,29 @@ internal sealed partial class TerminalWindow : Window
             if (index >= 0 && int.TryParse(path.Segments[^1], out int row)) _itemIndex = row;
         }
         if (index >= 0) _fieldIndex = index;
-        _helpPage = 0;
         ShowField(preserveLocation: false);
         FocusInput();
     }
 
-    private void FocusSlotFromCompactTable()
+    private void ActivateSectionsShortcut()
     {
-        if (_compactTable.SelectedRowItem is not { } row) return;
-        _operation.Form.FocusEditor(row.DataPath, preserveDiscovery: true);
-        FocusSlotPath(row.DataPath);
+        if (_tooSmall) return;
+        if (_sidebarVisible) _sectionNavigator.SetFocus();
+        else OpenSectionsModal();
     }
 
     private void OpenSectionsModal()
     {
         if (_tooSmall) return;
         TerminalSectionNavigator.ShowModal(_application, _operation.Form, JumpToSection);
+    }
+
+    private void OpenShortcutsDialog()
+    {
+        if (_tooSmall) return;
+        CommitField();
+        using var dialog = new TerminalShortcutsDialog(_operation.Form.Locale, _application);
+        _application.Run(dialog);
     }
 
     private void OpenChoiceDialog()
@@ -544,22 +539,46 @@ internal sealed partial class TerminalWindow : Window
         ShowField(preserveLocation: true);
     }
 
-    protected override bool OnKeyDown(Key key)
+    private bool FocusedIsTextInput()
     {
-        if (!_tooSmall)
+        View? focused = Focused ?? MostFocused;
+        if (focused is null) return false;
+        if (ReferenceEquals(focused, _value) || ReferenceEquals(focused, _masked) || ReferenceEquals(focused, _importPath))
+            return true;
+        return focused is TextField field && !field.ReadOnly;
+    }
+
+    protected override bool OnKeyDown(Key key) =>
+        HandleWorkbenchKey(key) || base.OnKeyDown(key);
+
+    private bool HandleWorkbenchKey(Key key)
+    {
+        if (_tooSmall) return false;
+        if (key == Key.Z.WithCtrl && UndoLastEdit()) return true;
+        if (key == Key.F1) { OpenShortcutsDialog(); return true; }
+        if (key == Key.F2) { ActivateSectionsShortcut(); return true; }
+        if (key == Key.F3) { OpenDiscoveryDialog(); return true; }
+        if (key == Key.F7) { JumpToNextActionable(errorsOnly: true); return true; }
+        if (key == Key.F8) { JumpToNextRequired(); return true; }
+        if (key == Key.F9) { JumpToNextUnvisited(); return true; }
+        if (key == Key.F10) { CloseOrCancel(); return true; }
+        if (key == Key.E.WithCtrl) { OpenDocumentDialog(); return true; }
+        if (key == Key.P.WithCtrl) { OpenProfiles(); return true; }
+
+        if (!FocusedIsTextInput())
         {
-            if (key == Key.Z.WithCtrl && UndoLastEdit()) return true;
-            if (key == Key.F2)
+            if (key == new Key('?')) { OpenShortcutsDialog(); return true; }
+            if (key == new Key('/')) { OpenDiscoveryDialog(); return true; }
+            if (key == new Key('m') && ToggleCurrentSectionReviewed()) return true;
+            if (_stage == TerminalWorkbenchStage.Configure)
             {
-                if (_sidebarVisible) _sectionNavigator.SetFocus();
-                else OpenSectionsModal();
-                return true;
+                if (key == new Key('j')) { MoveField(1, focusInput: false); return true; }
+                if (key == new Key('k')) { MoveField(-1, focusInput: false); return true; }
+                if (key == new Key('g')) { MoveToSlotBoundary(last: false); return true; }
+                if (key == new Key('G') || key == Key.G.WithShift) { MoveToSlotBoundary(last: true); return true; }
             }
-            if (key == Key.F3) { OpenDiscoveryDialog(); return true; }
-            if (key == Key.E.WithCtrl) { OpenDocumentDialog(); return true; }
-            if (key == Key.P.WithCtrl) { OpenProfiles(); return true; }
         }
-        return base.OnKeyDown(key);
+        return false;
     }
 
     private void RefreshLocale()
@@ -569,9 +588,9 @@ internal sealed partial class TerminalWindow : Window
         _renderedLocale = _operation.Form.Locale;
         Title = LocalizedText("WindowTitle");
         foreach ((View control, string key) in _localizedControls) control.Text = LocalizedText(key);
+        foreach ((Shortcut shortcut, string key) in _statusBarShortcuts) shortcut.Title = LocalizedText(key);
         RefreshModeAndNamingLabels();
         _sectionNavigator.Refresh();
-        _compactTable.RefreshRows();
         _smallNotice.Text = LocalizedText("TerminalTooSmall");
         if (_receipt is not null) UpdatePublication();
         else if (refreshStatus) Status(_statusKey, _statusDiagnostics);
@@ -581,13 +600,18 @@ internal sealed partial class TerminalWindow : Window
 
     private void RefreshModeAndNamingLabels()
     {
-        _viewModeButton.Text = LocalizedText(_configureMode == TerminalConfigureMode.Guided
-            ? "ConfigureCompact"
-            : "ConfigureGuided");
         _namingButton.Text = LocalizedText(_operation.Form.WorkspaceNamingMode == WorkspaceNamingMode.Humanized
             ? "NamingTechnical"
             : "NamingHumanized");
     }
+
+    private Shortcut BarShortcut(Key key, string localizationKey, Action action) => new()
+    {
+        Key = key,
+        Title = LocalizedText(localizationKey),
+        Action = action,
+        BindKeyToApplication = true
+    };
 
     private Button Button(string key, int x, int y, Action action)
     {
@@ -678,17 +702,17 @@ internal sealed partial class TerminalWindow : Window
         }
 
         // Row 0: stage switcher + Close (always visible)
-        _stageConfigure.Visible = _stageReview.Visible = _stageFiles.Visible = _closeButton.Visible = true;
-        int utilityY = PlaceButtonRows(0, 0, totalWidth, _stageConfigure, _stageReview, _stageFiles, _closeButton);
+        _stageConfigure.Visible = _stageReview.Visible = _stageFiles.Visible = _profilesButton.Visible = _closeButton.Visible = true;
+        int utilityY = PlaceButtonRows(0, 0, totalWidth, _stageConfigure, _stageReview, _stageFiles, _profilesButton, _closeButton);
 
         // Row 1: utility bar
-        _viewModeButton.Visible = _namingButton.Visible = _findButton.Visible = _undoButton.Visible = true;
+        _namingButton.Visible = _findButton.Visible = _undoButton.Visible = true;
         _documentButton.Visible = _operation.Form.SessionPrivacy != DefinitionSessionPrivacy.BrowserNoSecrets;
         _outputTasks.Visible = _operation.Form.Definition.Presentation?.OutputSelector is { Options.Count: > 1 };
         int bodyTopY = PlaceButtonRows(0, utilityY, totalWidth,
-            _sectionsButton, _viewModeButton, _namingButton, _findButton, _documentButton, _undoButton, _outputTasks);
+            _sectionsButton, _namingButton, _findButton, _documentButton, _undoButton, _outputTasks);
 
-        // Docked left sidebar when width >= 100
+        // Docked left Master navigator when width >= 88
         int mainX = 0;
         int mainWidth = totalWidth;
         if (_sidebarVisible && totalWidth > 40)
@@ -701,109 +725,119 @@ internal sealed partial class TerminalWindow : Window
             mainWidth = Math.Max(20, totalWidth - mainX);
         }
 
-        // Persistent Footer
+        // Persistent Footer & 5-Shortcut StatusBar
         _status.Visible = true;
         _status.X = 0;
         _status.Y = footerY;
         _status.Width = totalWidth;
         _status.Height = 1;
 
-        _footerHints.Visible = true;
-        _footerHints.X = 0;
-        _footerHints.Y = footerY + 1;
-        _footerHints.Width = totalWidth;
-        _footerHints.Height = 1;
+        _statusBar.Visible = true;
+        _statusBar.X = 0;
+        _statusBar.Y = footerY + 1;
+        _statusBar.Width = totalWidth;
+        _statusBar.Height = 1;
 
         if (_stage == TerminalWorkbenchStage.Configure)
         {
             int y = bodyTopY;
-            if (_configureMode == TerminalConfigureMode.Compact)
+            if (_configurationChoices.Count > 0 && _operation.Form.ConfigurationContext is not null)
             {
-                int compactButtonRow = PlaceButtonRows(mainX, footerY - 1, mainWidth, _compactEditButton, _compactOmitButton);
-                _ = compactButtonRow;
-                _compactTable.X = mainX;
-                _compactTable.Y = y;
-                _compactTable.Width = mainWidth;
-                _compactTable.Height = Math.Max(3, footerY - 1 - y);
-            }
-            else
-            {
-                if (_configurationChoices.Count > 0 && _operation.Form.ConfigurationContext is not null)
+                foreach (var choice in _configurationChoices)
                 {
-                    foreach (var choice in _configurationChoices)
-                    {
-                        if (!choice.Button.Visible) continue;
-                        choice.Button.X = mainX;
-                        choice.Button.Y = y++;
-                        choice.Button.Width = mainWidth;
-                        choice.Button.Height = 1;
-                    }
+                    if (!choice.Button.Visible) continue;
+                    choice.Button.X = mainX;
+                    choice.Button.Y = y++;
+                    choice.Button.Width = mainWidth;
+                    choice.Button.Height = 1;
                 }
-                y = PlaceButtonRows(mainX, y, mainWidth, _experience, _optionalEditors, _locale, _correction, _helpNext);
-                _fieldLabel.X = mainX;
-                _fieldLabel.Y = y++;
-                _fieldLabel.Width = mainWidth;
-                _fieldLabel.Height = 1;
-
-                int helpHeight = totalHeight < 21 ? 2 : 3;
-                _help.X = mainX;
-                _help.Y = y;
-                _help.Width = mainWidth;
-                _help.Height = helpHeight;
-                y += helpHeight;
-
-                _value.X = mainX;
-                _value.Y = y;
-                _value.Width = mainWidth;
-                _value.Height = 1;
-                _masked.X = mainX;
-                _masked.Y = y;
-                _masked.Width = mainWidth;
-                _masked.Height = 1;
-                y++;
-
-                y = PlaceButtonRows(mainX, y, mainWidth,
-                    _previousField, _nextField, _applyField, _choice, _choiceList,
-                    _addItem, _listButtons[0], _listButtons[1], _listButtons[2],
-                    _supplyContainer, _clearContainer,
-                    _null, _reset, _suggest, _reuseValue, _itemActions[0], _itemActions[1],
-                    _generateSecret, _secretOptions, _revealSecret, _copySecret);
-                _ = y;
             }
+            y = PlaceButtonRows(mainX, y, mainWidth, _experience, _optionalEditors, _locale, _correction);
+            _fieldLabel.X = mainX;
+            _fieldLabel.Y = y++;
+            _fieldLabel.Width = mainWidth;
+            _fieldLabel.Height = 1;
+
+            int helpHeight = totalHeight < 22 ? 3 : 4;
+            _helpPane.X = mainX;
+            _helpPane.Y = y;
+            _helpPane.Width = mainWidth;
+            _helpPane.Height = helpHeight;
+            _help.X = 0;
+            _help.Y = 0;
+            _help.Width = Dim.Fill();
+            y += helpHeight;
+
+            _value.X = mainX;
+            _value.Y = y;
+            _value.Width = mainWidth;
+            _value.Height = 1;
+            _masked.X = mainX;
+            _masked.Y = y;
+            _masked.Width = mainWidth;
+            _masked.Height = 1;
+            y++;
+
+            y = PlaceButtonRows(mainX, y, mainWidth,
+                _previousField, _nextField, _applyField, _choice, _choiceList,
+                _addItem, _listButtons[0], _listButtons[1], _listButtons[2],
+                _supplyContainer, _clearContainer,
+                _null, _reset, _suggest, _reuseValue, _itemActions[0], _itemActions[1],
+                _generateSecret, _secretOptions, _revealSecret, _copySecret);
+            _ = y;
         }
         else if (_stage == TerminalWorkbenchStage.ReviewAndImport)
         {
             WorkspaceProgressSummary summary = _operation.Form.Projection.ProgressSummary;
-            _reviewSummaryLabel.Text = Safe(FormattableString.Invariant(
-                $"{summary.ReadyRequired}/{summary.TotalRequired} | Missing {summary.MissingRequired} | Invalid {summary.InvalidCount} | Deferred {summary.DeferredSecretCount}"));
+            _reviewSummaryLabel.Text = Safe(string.Format(TerminalStrings.Culture(_operation.Form.Locale),
+                LocalizedText("ReviewProgressFormat"), summary.ReadyRequired, summary.TotalRequired,
+                summary.MissingRequired, summary.InvalidCount, summary.DeferredSecretCount));
+            int y = bodyTopY;
             _reviewSummaryLabel.X = mainX;
-            _reviewSummaryLabel.Y = bodyTopY;
+            _reviewSummaryLabel.Y = y++;
             _reviewSummaryLabel.Width = mainWidth;
             _reviewSummaryLabel.Height = 1;
 
-            int rowAfterJump = PlaceButtonRows(mainX, bodyTopY + 1, mainWidth, _reviewJumpButton, _reviewFindButton);
+            y = PlaceButtonRows(mainX, y, mainWidth, _reviewJumpButton, _reviewFindButton);
             _artifactLabel.X = mainX;
-            _artifactLabel.Y = rowAfterJump + 1;
+            _artifactLabel.Y = y;
             _artifactLabel.Width = mainWidth;
             _artifactLabel.Height = 2;
+            y += 2;
 
-            int afterArtifact = PlaceButtonRows(mainX, rowAfterJump + 3, mainWidth, _artifactButton, _selectOutputButton);
+            y = PlaceButtonRows(mainX, y, mainWidth, _artifactButton, _selectOutputButton);
+            int remainingBeforeFooter = Math.Max(4, footerY - y);
+            int comparisonHeight = Math.Clamp(remainingBeforeFooter - 3, 1, 3);
             _comparisonLabel.X = mainX;
-            _comparisonLabel.Y = afterArtifact;
+            _comparisonLabel.Y = y;
             _comparisonLabel.Width = mainWidth;
-            _comparisonLabel.Height = Math.Max(1, Math.Min(3, 13 - afterArtifact));
+            _comparisonLabel.Height = comparisonHeight;
+            y += comparisonHeight;
 
-            // Keep _importPath anchored at Y == 14 cleanly when viewport height accommodates it.
             int fileLabelWidth = Math.Min(18, Math.Max(8, _importFileLabel.Text.Length + 1));
             _importFileLabel.X = mainX;
-            _importFileLabel.Y = 13;
-            _importFileLabel.Width = mainWidth;
-            _importFileLabel.Height = 1;
-            _importPath.X = mainX + fileLabelWidth;
-            _importPath.Y = 14;
-            _importPath.Width = Math.Max(12, mainWidth - fileLabelWidth);
-            _importPath.Height = 1;
-            PlaceButtonRows(mainX, 15, mainWidth, _import, _fillImport, _nextFinding);
+            _importFileLabel.Y = y;
+            if (mainWidth - fileLabelWidth >= 18)
+            {
+                _importFileLabel.Width = fileLabelWidth;
+                _importFileLabel.Height = 1;
+                _importPath.X = mainX + fileLabelWidth;
+                _importPath.Y = y;
+                _importPath.Width = Math.Max(12, mainWidth - fileLabelWidth);
+                _importPath.Height = 1;
+                y++;
+            }
+            else
+            {
+                _importFileLabel.Width = mainWidth;
+                _importFileLabel.Height = 1;
+                y++;
+                _importPath.X = mainX;
+                _importPath.Y = y++;
+                _importPath.Width = mainWidth;
+                _importPath.Height = 1;
+            }
+            PlaceButtonRows(mainX, y, mainWidth, _import, _fillImport, _nextFinding);
         }
         else
         {

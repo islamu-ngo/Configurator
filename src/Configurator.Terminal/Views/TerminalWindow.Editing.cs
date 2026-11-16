@@ -1,5 +1,6 @@
 namespace Configurator.Terminal;
 
+using System.Drawing;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -60,7 +61,9 @@ internal sealed partial class TerminalWindow
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
 
-    internal void MoveField(int delta)
+    internal void MoveField(int delta) => MoveField(delta, focusInput: true);
+
+    private void MoveField(int delta, bool focusInput)
     {
         CommitField();
         var slots = VisibleSlots;
@@ -76,9 +79,18 @@ internal sealed partial class TerminalWindow
             if (firstRowField >= 0) _fieldIndex = firstRowField;
         }
         _itemIndex = 0;
-        _helpPage = 0;
         ShowField(preserveLocation: false);
-        FocusInput();
+        if (focusInput) FocusInput();
+    }
+
+    private void MoveToSlotBoundary(bool last)
+    {
+        CommitField();
+        var slots = VisibleSlots;
+        if (slots.Length == 0) { ShowField(); return; }
+        _fieldIndex = last ? slots.Length - 1 : 0;
+        _itemIndex = 0;
+        ShowField(preserveLocation: false);
     }
 
     private void MoveItem(int delta)
@@ -87,7 +99,6 @@ internal sealed partial class TerminalWindow
         CommitField();
         int requested = _itemIndex + delta;
         _itemIndex = Math.Clamp(requested, 0, TerminalFieldEditor.LastItemPosition(_slot));
-        _helpPage = 0;
         ShowField();
         if (requested > _itemIndex) Status("ListBound");
         FocusInput();
@@ -257,8 +268,7 @@ internal sealed partial class TerminalWindow
 
     private void SetEditorVisibility()
     {
-        bool guided = !_tooSmall && _stage == TerminalWorkbenchStage.Configure && _configureMode == TerminalConfigureMode.Guided;
-        bool compact = !_tooSmall && _stage == TerminalWorkbenchStage.Configure && _configureMode == TerminalConfigureMode.Compact;
+        bool guided = !_tooSmall && _stage == TerminalWorkbenchStage.Configure;
         bool review = !_tooSmall && _stage == TerminalWorkbenchStage.ReviewAndImport;
         bool files = !_tooSmall && _stage == TerminalWorkbenchStage.FilesAndSave;
 
@@ -271,8 +281,8 @@ internal sealed partial class TerminalWindow
         _optionalEditors.Visible = guided;
         _locale.Visible = guided;
         _correction.Visible = guided;
-        _helpNext.Visible = guided;
         _fieldLabel.Visible = guided;
+        _helpPane.Visible = guided;
         _help.Visible = guided;
         _value.Visible = scalar && _slot is { RequiresMasking: false };
         _masked.Visible = (scalar && _slot is { RequiresMasking: true }) || (guided && _slot is { IsMap: true });
@@ -314,10 +324,6 @@ internal sealed partial class TerminalWindow
         _copySecret.Visible = secret;
         _revealSecret.Text = LocalizedText(_masked.IsRevealed ? "HideSecret" : "ShowSecret");
 
-        _compactTable.Visible = compact;
-        _compactEditButton.Visible = compact;
-        _compactOmitButton.Visible = compact;
-
         _reviewSummaryLabel.Visible = review;
         _reviewJumpButton.Visible = review;
         _reviewFindButton.Visible = review;
@@ -347,11 +353,6 @@ internal sealed partial class TerminalWindow
     private void FocusInput()
     {
         if (_stage != TerminalWorkbenchStage.Configure) return;
-        if (_configureMode == TerminalConfigureMode.Compact)
-        {
-            _compactTable.SetFocus();
-            return;
-        }
         if (_slot is not null && _slot.Schema.Variants.Count > 0) _choice.SetFocus();
         else if (_slot?.IsMap == true) _masked.SetFocus();
         else if (_slot?.IsObject == true) _supplyContainer.SetFocus();
@@ -378,7 +379,6 @@ internal sealed partial class TerminalWindow
             if (Volatile.Read(ref window._closeRequested) == 0)
             {
                 window._sectionNavigator.Refresh();
-                window._compactTable.RefreshRows();
                 window.ShowField();
             }
         });
@@ -445,7 +445,6 @@ internal sealed partial class TerminalWindow
         var form = _operation.Form;
         var locales = form.Definition.Locales;
         int current = locales.ToList().IndexOf(form.Locale);
-        _helpPage = 0;
         form.SelectLocale(locales[(current + 1) % locales.Count]);
     }
 
@@ -481,16 +480,19 @@ internal sealed partial class TerminalWindow
                 .Concat(rules.Failures.Select(rule => LocalizedText("SecretRuleFailed") + " " + rule.Message)));
             if (secretText.Length > 0) text += (text.Length > 0 ? "\n" : "") + secretText;
         }
-        int contentWidth = Math.Max(24, Viewport.Width - (_sidebarVisible ? 35 : 2));
-        IReadOnlyList<string> pages = TerminalStrings.HelpPages(text, contentWidth, linesPerPage: 3);
-        _helpPage %= Math.Max(1, pages.Count);
-        _help.Text = pages.Count > 0 ? pages[_helpPage] : "";
-        _helpNext.Text = LocalizedText("Help") + $" {LocalizedNumber(_helpPage + 1)}/{LocalizedNumber(Math.Max(1, pages.Count))}";
-        _helpNext.Enabled = pages.Count > 1;
+
+        string safeText = string.Join('\n', text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n').Select(Safe));
+        int totalWidth = Viewport.Width > 0 ? Viewport.Width : _lastViewportSize.Width;
+        int contentWidth = Math.Max(20, totalWidth - (_sidebarVisible ? 35 : 2));
+        IReadOnlyList<string> wrapped = TerminalStrings.WrapLines(safeText, contentWidth);
+        _help.Text = safeText;
+        _helpPane.SetContentSize(new Size(contentWidth, Math.Max(1, wrapped.Count)));
+        if (_helpPane.Viewport.Y > 0) _helpPane.ScrollVertical(-_helpPane.Viewport.Y);
     }
 
     internal void FocusNextCorrection()
     {
+        if (JumpToNextActionable(errorsOnly: false)) return;
         CommitField();
         var form = _operation.Form;
         var diagnostics = form.InputDiagnostics.Concat(form.Validate().Diagnostics).ToArray();
@@ -510,27 +512,72 @@ internal sealed partial class TerminalWindow
                     form.Fields.Single(input => input.Definition.Id == diagnostic.FieldId).Definition.Name, .. diagnostic.RelativePath]);
             }
             if (!form.FocusEditor(literal)) continue;
-            SetStage(TerminalWorkbenchStage.Configure);
-            SetConfigureMode(TerminalConfigureMode.Guided);
-            var slots = VisibleSlots;
-            int index = slots.ToList().FindIndex(slot => slot.Location.Equals(literal));
-            if (index < 0 && literal.Segments.Count > 0)
-            {
-                index = slots.ToList().FindIndex(slot => slot.IsList &&
-                    slot.Location.Segments.SequenceEqual(literal.Segments.SkipLast(1)));
-                if (index >= 0 && int.TryParse(literal.Segments[^1], out int row)) _itemIndex = row;
-            }
-            if (index < 0) continue;
-            _fieldIndex = index;
-            _helpPage = 0;
-            ShowField(preserveLocation: false);
-            StatusCode = diagnostic.Code;
-            string guidance = PresentationStrings.FieldCorrection(form.GetFieldValidation(literal), form.Locale);
-            _status.Text = guidance.Length > 0 ? guidance : PresentationStrings.Diagnostic(diagnostic.Code, form.Locale);
-            FocusInput();
-            return;
+            if (FocusDiagnosticTarget(literal, diagnostic)) return;
         }
         Status("DraftInvalid");
+    }
+
+    private bool JumpToNextActionable(bool errorsOnly)
+    {
+        CommitField();
+        var form = _operation.Form;
+        string? preferredSection = errorsOnly
+            ? form.Projection.Navigation.NextErrorSectionId
+            : form.Projection.Navigation.NextRequiredSectionId;
+        WorkspaceActionableTarget? target = form.ResolveNextActionableTarget(preferredSection, errorsOnly);
+        if (target is null)
+        {
+            Status(errorsOnly ? "PreviewReady" : "DraftInvalid");
+            return false;
+        }
+        if (!form.FocusEditor(target.DefinitionPath)) return false;
+        return FocusDiagnosticTarget(target.DefinitionPath, target.Diagnostic);
+    }
+
+    private void JumpToNextRequired()
+    {
+        if (!JumpToNextActionable(errorsOnly: false) &&
+            _operation.Form.Projection.Navigation.NextRequiredSectionId is { } sectionId)
+        {
+            JumpToSection(sectionId);
+        }
+    }
+
+    private void JumpToNextUnvisited()
+    {
+        string? nextUnvisited = _operation.Form.Projection.Navigation.NextUnvisitedSectionId
+            ?? _sectionNavigator.Sections.FirstOrDefault(s => s.Coverage == SectionReviewCoverage.NotVisited)?.SectionId;
+        if (nextUnvisited is not null) JumpToSection(nextUnvisited);
+    }
+
+    private bool FocusDiagnosticTarget(DefinitionPath literal, DefinitionDiagnostic diagnostic)
+    {
+        var form = _operation.Form;
+        SetStage(TerminalWorkbenchStage.Configure);
+        var slots = VisibleSlots;
+        int index = slots.ToList().FindIndex(slot => slot.Location.Equals(literal));
+        if (index < 0 && literal.Segments.Count > 0)
+        {
+            index = slots.ToList().FindIndex(slot => slot.IsList &&
+                slot.Location.Segments.SequenceEqual(literal.Segments.SkipLast(1)));
+            if (index >= 0 && int.TryParse(literal.Segments[^1], out int row)) _itemIndex = row;
+        }
+        if (index < 0) return false;
+        _fieldIndex = index;
+        ShowField(preserveLocation: false);
+        StatusCode = diagnostic.Code;
+        string guidance = PresentationStrings.FieldCorrection(form.GetFieldValidation(literal), form.Locale);
+        _status.Text = guidance.Length > 0 ? guidance : PresentationStrings.Diagnostic(diagnostic.Code, form.Locale);
+        FocusInput();
+        return true;
+    }
+
+    private bool ToggleCurrentSectionReviewed()
+    {
+        if (_stage != TerminalWorkbenchStage.Configure) return false;
+        bool toggled = _sectionNavigator.ToggleSelectedReviewed();
+        if (toggled) Status("SectionReviewedStatus");
+        return toggled;
     }
 
     private void OpenOutputTasks()

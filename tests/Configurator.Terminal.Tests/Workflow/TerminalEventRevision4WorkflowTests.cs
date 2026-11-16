@@ -62,14 +62,16 @@ public sealed class TerminalEventRevision4WorkflowTests
             await Assert.That(window.UndoLastEdit()).IsTrue();
             await Assert.That(form.Snapshot().Values["apiEndpoint"].GetString()).IsEqualTo("https://terminal-one.example.org");
 
-            // Compact table toggle + search + cell edit + return to Guided.
-            window.SetConfigureMode(TerminalConfigureMode.Compact);
-            await Assert.That(window.ConfigureMode).IsEqualTo(TerminalConfigureMode.Compact);
-            window.CompactTableView.RefreshRows(query: "API");
-            await Assert.That(window.CompactTableView.SelectRowByPath(DefinitionPath.FromSegments(["apiEndpoint"]))).IsTrue();
-            await Assert.That(window.CompactTableView.TryEditSelected("https://terminal-compact.example.org")).IsTrue();
-            window.SetConfigureMode(TerminalConfigureMode.Guided);
-            await Assert.That(form.Snapshot().Values["apiEndpoint"].GetString()).IsEqualTo("https://terminal-compact.example.org");
+            // Master-Detail section opening + review toggle + FocusSlotPath edit.
+            await Assert.That(window.SectionNavigator.Sections.Single(s => s.SectionId == "basics").Coverage)
+                .IsEqualTo(SectionReviewCoverage.Opened);
+            await Assert.That(window.SectionNavigator.ToggleSelectedReviewed()).IsTrue();
+            await Assert.That(window.SectionNavigator.Sections.Single(s => s.SectionId == "basics").Coverage)
+                .IsEqualTo(SectionReviewCoverage.Reviewed);
+            window.FocusSlotPath(DefinitionPath.FromSegments(["apiEndpoint"]));
+            window.PublicInput.Text = "https://terminal-master.example.org";
+            await Assert.That(window.CommitField()).IsTrue();
+            await Assert.That(form.Snapshot().Values["apiEndpoint"].GetString()).IsEqualTo("https://terminal-master.example.org");
 
             // Document (JSON) preview & apply.
             byte[] initialDocBytes;
@@ -153,10 +155,9 @@ public sealed class TerminalEventRevision4WorkflowTests
             await Assert.That(grafanaForm.Snapshot().Values["server"].GetProperty("domain").GetString())
                 .IsEqualTo("grafana-one.example.org");
 
-            window.SetConfigureMode(TerminalConfigureMode.Compact);
-            await Assert.That(window.CompactTableView.SelectRowByPath(DefinitionPath.FromSegments(["server", "domain"]))).IsTrue();
-            await Assert.That(window.CompactTableView.TryEditSelected("grafana-compact.example.org")).IsTrue();
-            window.SetConfigureMode(TerminalConfigureMode.Guided);
+            window.FocusSlotPath(DefinitionPath.FromSegments(["server", "domain"]));
+            window.PublicInput.Text = "grafana-master.example.org";
+            await Assert.That(window.CommitField()).IsTrue();
 
             grafanaForm.EditValue(["datasource", "name"], "Graphite");
             grafanaForm.EditValue(["datasource", "url"], "https://graphite.example.org");

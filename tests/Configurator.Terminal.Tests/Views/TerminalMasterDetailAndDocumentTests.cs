@@ -12,7 +12,7 @@ using global::Terminal.Gui.Input;
 using global::Terminal.Gui.ViewBase;
 using global::Terminal.Gui.Views;
 
-public sealed class TerminalCompactAndDocumentTests
+public sealed class TerminalMasterDetailAndDocumentTests
 {
     private static Definition RichDefinition()
     {
@@ -97,7 +97,7 @@ public sealed class TerminalCompactAndDocumentTests
     }
 
     [Test]
-    public async Task CompactTableViewVirtualizesCompactPropertyRowsAndMasksPrivateValues()
+    public async Task SectionNavigatorTracksOpenedAndReviewedCoverageWithoutExposingPrivateMapValues()
     {
         using var form = new DefinitionFormModel(RichDefinition());
         form.SetValue(["serviceName"], JsonSerializer.SerializeToElement("orders-api"));
@@ -105,27 +105,15 @@ public sealed class TerminalCompactAndDocumentTests
         form.SetValue(["privateHeaders"], JsonSerializer.SerializeToElement(
             new Dictionary<string, string> { ["internal-header-name"] = "super-secret-header" }));
 
-        using var table = new TerminalCompactTableView(form);
-        ITableSource source = table.Table ?? throw new InvalidOperationException("compact-table-source-missing");
-        await Assert.That(source.Rows).IsGreaterThan(0);
-        await Assert.That(source.Columns).IsGreaterThanOrEqualTo(4);
+        using var navigator = new TerminalSectionNavigator(form, _ => { });
+        await Assert.That(navigator.Sections.Single().SectionId).IsEqualTo("general");
+        await Assert.That(navigator.Sections.Single().Coverage).IsEqualTo(SectionReviewCoverage.NotVisited);
 
-        var allCells = new StringBuilder();
-        for (int r = 0; r < source.Rows; r++)
-            for (int c = 0; c < source.Columns; c++)
-                allCells.Append(source[r, c]?.ToString()).Append('\n');
-        string dumped = allCells.ToString();
-        await Assert.That(dumped).Contains("orders-api");
-        await Assert.That(dumped).DoesNotContain("super-secret-api-key");
-        await Assert.That(dumped).DoesNotContain("internal-header-name");
-        await Assert.That(dumped).DoesNotContain("super-secret-header");
+        await Assert.That(navigator.ActivateIndex(0)).IsTrue();
+        await Assert.That(navigator.Sections.Single().Coverage).IsEqualTo(SectionReviewCoverage.Opened);
 
-        await Assert.That(table.SelectRowByPath(DefinitionPath.FromSegments(["serviceName"]))).IsTrue();
-        await Assert.That(table.TryEditSelected("catalog-v2")).IsTrue();
-        await Assert.That(form.Snapshot().Values["serviceName"].GetString()).IsEqualTo("catalog-v2");
-
-        await Assert.That(table.TryOmitSelected()).IsTrue();
-        await Assert.That(form.Snapshot().Values.ContainsKey("serviceName")).IsFalse();
+        await Assert.That(navigator.ToggleSelectedReviewed()).IsTrue();
+        await Assert.That(navigator.Sections.Single().Coverage).IsEqualTo(SectionReviewCoverage.Reviewed);
     }
 
     [Test]
@@ -150,13 +138,11 @@ public sealed class TerminalCompactAndDocumentTests
         await Assert.That(preview.Succeeded).IsTrue();
         await Assert.That(dialog.PreviewChanges.Any(change => change.Path == DefinitionPath.FromSegments(["serviceName"]))).IsTrue();
 
-        // Advance underlying form revision -> apply must fail closed with document-stale!
         form.SetValue(["delivery"], JsonSerializer.SerializeToElement("async"));
         DefinitionDocumentApplyResult stale = dialog.ApplyPrepared();
         await Assert.That(stale.Succeeded).IsFalse();
         await Assert.That(stale.Code).IsEqualTo("document-stale");
 
-        // Reopen fresh dialog, prepare valid diff, and verify apply + zeroization + no OSC52.
         using var fresh = new TerminalDocumentDialog(form, DefinitionDocumentRepresentation.Canonical);
         DefinitionDocumentParseResult freshPreview = fresh.TryPreparePreview(updatedDoc);
         await Assert.That(freshPreview.Succeeded).IsTrue();

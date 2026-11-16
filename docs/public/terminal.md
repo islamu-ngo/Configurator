@@ -72,13 +72,15 @@ Local definition files can contain either a compact maintainer source (`$schema:
 
 The workbench organizes setup into three responsive keyboard stages tailored for an `80×24` minimum terminal frame and wider consoles:
 
-1. **`1:Configure`** — Author answers in either **Guided** mode (single-field editor with rich metadata: descriptions, `Units`, `If omitted` guidance, deprecation guidance, inline validation, and `Ctrl+Z` undo) or **Compact** mode (a virtualized **Overview** table displaying statuses, origins, and masked private entries).
-2. **`2:Review & Import`** — Inspect readiness counts, jump to remaining issues or search via **Find…**, review selected output files, and compare or adopt local `.json`, `.yaml`, or `.env` exports.
+1. **`1:Configure`** — Unified Master-Detail split workbench pairing a left section outline (`[!]` error, `[*]` missing required, `[v]` reviewed, `[o]` opened, `[ ]` unvisited) with a right detail editor containing rich metadata (`Units`, `If omitted` guidance, deprecation notices, inline validation, full vertically scrollable help without paging buttons, and `Ctrl+Z` undo).
+2. **`2:Review & Import`** — Inspect readiness counts, jump to remaining issues or search via **Find…**, review selected output files, and compare or adopt local `.json`, `.yaml`, or `.env` exports using vertically stacked controls that adapt without fixed-row overlaps.
 3. **`3:Files & Save`** — Validate, prepare output bundles, save create-only protected files, and inspect per-artifact save receipts and history.
 
-When the viewport width is `100` columns or wider, a `32`-column **Sections** navigator stays docked on the left (focusable with `F2`); at `76–99` columns, **Sections…** (`F2`) opens the navigator as a centered modal dialog. Viewports narrower than `76×20` hide interactive controls and display a resize prompt.
+The top row also exposes **Profiles** (`Ctrl+P`) alongside utility actions (**Human**/**Wire** naming, **Find…**, **Doc…**, **Undo**, **Output tasks**) and a bottom 5-key `StatusBar` (`F2` Sections, `F3` Find, `Ctrl+E` Doc, `F1`/`?` Keys, `F10` Close).
 
-Top utility controls switch between **Guided** / **Compact** views, toggle **Human** (humanized) and **Wire** (technical) naming, search settings and actions with **Find…** (`F3`), open the bounded public-scope **Doc…** editor (`Ctrl+E`, capped at `256 KiB` with pre-apply diff preview and stale-revision protection), and trigger **Undo** (`Ctrl+Z`). Nested objects, lists, maps, and variants share these same stages.
+When the viewport width is `88` columns or wider, the `32`-column **Sections** navigator stays docked on the left (focusable with `F2`); at `76–87` columns, **Sections…** (`F2`) opens the navigator as a centered modal dialog. Viewports narrower than `76×20` hide interactive controls and display a resize prompt.
+
+Top utility controls toggle **Human** (humanized) and **Wire** (technical) naming, search settings and actions with **Find…** (`F3` or `/`), open the bounded public-scope **Doc…** editor (`Ctrl+E`, capped at `256 KiB` with pre-apply diff preview and stale-revision protection), and trigger **Undo** (`Ctrl+Z`). Nested objects, lists, maps, and variants share these same stages.
 
 ### Direction and remaining scope
 
@@ -169,17 +171,21 @@ The TUI is designed for swift, keyboard-driven navigation:
 
 | Key / Combination | Scope | Action |
 | --- | --- | --- |
-| `Tab` | Navigation | Move focus forward to the next field, control, or button |
-| `Shift + Tab` | Navigation | Move focus backward to the previous field, control, or button |
-| `Enter` | Actions | Activate the currently focused button or action |
-| `Space` | Inputs | Toggle choices or activate focused selector buttons |
-| `Ctrl + Z` | Editing | Undo the last committed public/workspace mutation |
-| `F2` | Sections | Focus the docked section navigator or open the modal section picker |
+| `Tab` / `Shift + Tab` | Navigation | Move focus forward or backward between panes, fields, and buttons |
+| `Enter` / `Space` | Actions & Inputs | Activate the focused button or select an outline section (records `[o]` opened) |
+| `j` / `k` | Navigation (outside text input) | Move to the next / previous setting without stealing cursor typing in inputs |
+| `g` / `G` | Navigation (outside text input) | Jump to the first / last setting in the active workspace |
+| `/` | Discovery (outside text input) | Open **Find…** quick settings & actions dialog |
+| `m` | Review (outside text input) | Toggle section reviewed coverage (`[v]`) on the current outline section |
+| `?` / `F1` | Global | Open the modal keyboard shortcut reference (`?` requires non-text focus) |
+| `F2` | Sections | Focus the docked section outline (`>= 88` cols) or open **Sections…** modal (`< 88` cols) |
 | `F3` | Discovery | Open **Find…** to filter and jump to settings, errors, or actions |
+| `F7` / `F8` / `F9` | Actionable jumps | Jump to next validation error (`F7`), next required setting (`F8`), or next unvisited section (`F9`) |
 | `Ctrl + E` | Document | Open the public-scope document editor (`256 KiB` cap, diff preview) |
-| `Alt + <Letter>` | Global | Jump directly to buttons with underlined access keys |
-| `Left` / `Right` | Status & History | Pan through long status messages or history details |
-| `Home` / `End` | Status & History | Jump to the beginning or end of status text |
+| `Ctrl + Z` | Editing | Undo the last committed public/workspace mutation |
+| `Ctrl + P` | Profiles | Open encrypted local profile commands |
+| `F10` | Global | Close workbench safely |
+| `Left` / `Right`, `Home` / `End` | Status & Help | Pan status text; `Up`/`Down`/`PageUp`/`PageDown` scroll the full help pane |
 | `Remove item` (twice) | List Management | Confirm removal of the selected list item |
 
 ---
@@ -199,6 +205,8 @@ dashboard-only or API-only workspace can be complete without another
 component's credentials. Selecting fewer output files inside an all-component
 workspace still requires completing that workspace's scope. Inactive answers
 remain in transient memory for switching back; they do not become output.
+Review shows ready, total, missing, invalid and deferred counts in the selected
+interface language; those counts come from the current shared workspace state.
 
 Changing the pair retires preparation and import results. Review the current
 destination, prepare again, and use the existing protected-save action.
@@ -285,10 +293,9 @@ limits and public choices in English or Arabic without repeating the entered
 answer. Readonly or inactive fields do not offer null or suggestions; protected
 fields and their containers withhold suggestions and choice disclosure.
 
-Use **Help** to page through admitted descriptions, instructions, units, choice
-explanations and static guidance links. These are inert public text: no links
-are fetched or executed. Paging keeps longer guidance reachable in the supported
-minimum viewport.
+Scroll inside the field help pane (`Up`, `Down`, `Page Up`, `Page Down`) to inspect
+admitted descriptions, instructions, units, choice explanations, and static guidance links.
+These are inert public text: no links are fetched or executed, and all guidance lines remain reachable in the supported minimum viewport without button pagination.
 
 **Locale** cycles declared definition languages with base-text fallback. Language
 changes public metadata, not answer values, schema identity, input revision or

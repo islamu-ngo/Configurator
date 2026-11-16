@@ -122,6 +122,8 @@
   <data name="Help" xml:space="preserve"><value>المساعدة</value></data>
   <data name="ChooseVariant" xml:space="preserve"><value>تبديل النوع</value></data>
   <data name="Required" xml:space="preserve"><value>مطلوب</value></data>
+  <data name="ReviewProgressFormat" xml:space="preserve"><value>جاهز {0}/{1} | مفقود {2} | غير صالح {3} | مؤجل {4}</value></data>
+  <data name="ProfilesTask" xml:space="preserve"><value>الملفات</value></data>
   <data name="Omitted" xml:space="preserve"><value>مغفل</value></data>
   <data name="NullValue" xml:space="preserve"><value>null</value></data>
   <data name="OptionalEditors" xml:space="preserve"><value>إظهار الحقول الاختيارية</value></data>
@@ -168,8 +170,6 @@
   <data name="StageReview" xml:space="preserve"><value>2:مراجعة واستيراد</value></data>
   <data name="StageFiles" xml:space="preserve"><value>3:ملفات وحفظ</value></data>
   <data name="Sections" xml:space="preserve"><value>الأقسام…</value></data>
-  <data name="ConfigureGuided" xml:space="preserve"><value>موجه</value></data>
-  <data name="ConfigureCompact" xml:space="preserve"><value>مضغوط</value></data>
   <data name="NamingHumanized" xml:space="preserve"><value>وصف</value></data>
   <data name="NamingTechnical" xml:space="preserve"><value>مفاتيح</value></data>
   <data name="FindFields" xml:space="preserve"><value>بحث…</value></data>
@@ -177,9 +177,33 @@
   <data name="UndoAction" xml:space="preserve"><value>تراجع</value></data>
   <data name="ChoiceList" xml:space="preserve"><value>خيارات…</value></data>
   <data name="SectionNavigatorTitle" xml:space="preserve"><value>الأقسام</value></data>
-  <data name="CompactColumns" xml:space="preserve"><value>الحقل|الحالة|المصدر|القيمة</value></data>
-  <data name="CompactEditAction" xml:space="preserve"><value>تعديل الصف</value></data>
-  <data name="CompactOmitAction" xml:space="preserve"><value>إهمال الصف</value></data>
+  <data name="StatusBarSections" xml:space="preserve"><value>أقسام</value></data>
+  <data name="StatusBarFind" xml:space="preserve"><value>بحث</value></data>
+  <data name="StatusBarDoc" xml:space="preserve"><value>مستند</value></data>
+  <data name="StatusBarKeys" xml:space="preserve"><value>مفاتيح</value></data>
+  <data name="StatusBarClose" xml:space="preserve"><value>إغلاق</value></data>
+  <data name="ShortcutsTitle" xml:space="preserve"><value>اختصارات لوحة المفاتيح</value></data>
+  <data name="ShortcutsReference" xml:space="preserve"><value>الشريط العام:
+  F2       التركيز على الأقسام أو فتح النافذة (&lt; 88 عموداً)
+  F3       البحث في الإعدادات والإجراءات
+  Ctrl+E   محرر مستند النطاق العام (حد 256 كيلوبايت)
+  F1 / ?   عرض مرجع اختصارات لوحة المفاتيح
+  F10      إغلاق مساحة العمل
+
+التنقل والمراجعة (خارج حقول النص للمفاتيح الفردية):
+  j / k    الإعداد التالي / السابق
+  g / G    أول / آخر إعداد
+  /        فتح البحث السريع
+  m        تمييز القسم الحالي كمراجَع ([v])
+  F7       خطأ التحقق التالي
+  F8       الحقل المطلوب التالي
+  F9       القسم غير المزار التالي
+
+التحرير والملفات:
+  Ctrl+Z   تراجع عن آخر تعديل
+  Ctrl+P   ملفات التعريف المشفرة المحلية</value></data>
+  <data name="MarkReviewedAction" xml:space="preserve"><value>تمت المراجعة</value></data>
+  <data name="SectionReviewedStatus" xml:space="preserve"><value>تم تحديث مراجعة القسم.</value></data>
   <data name="DialogApply" xml:space="preserve"><value>تطبيق</value></data>
   <data name="DialogPreview" xml:space="preserve"><value>معاينة الفرق</value></data>
   <data name="DialogCancel" xml:space="preserve"><value>إلغاء</value></data>
@@ -194,7 +218,6 @@
   <data name="ChoiceDialogTitle" xml:space="preserve"><value>اختر قيمة</value></data>
   <data name="DeprecatedBadge" xml:space="preserve"><value>مهمل</value></data>
   <data name="UnitsLabel" xml:space="preserve"><value>الوحدات</value></data>
-  <data name="FooterHints" xml:space="preserve"><value>Tab تنقل  Ctrl+Z تراجع  F2 الأقسام  F3 بحث  Ctrl+E مستند</value></data>
   <data name="FilesStageSummary" xml:space="preserve"><value>جهّز المخرجات ثم احفظ الملفات المحمية (إنشاء فقط، لا استبدال).</value></data>
   <data name="SecretOptions" xml:space="preserve"><value>خيارات…</value></data>
   <data name="SecretGeneratorTitle" xml:space="preserve"><value>مولد الأسرار</value></data>

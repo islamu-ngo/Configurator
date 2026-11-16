@@ -556,7 +556,7 @@ public sealed class TerminalImportOperationTests
         internal TerminalArtifactOperation Operation { get; }
         internal PresentationWorkspace Workspace { get; }
         internal TerminalWindow Window { get; }
-        internal TextField ImportPath => Window.SubViews.OfType<TextField>().Single(input => input.Y == 14);
+        internal TextField ImportPath => Window.ImportPathInput;
 
         internal void Import()
         {

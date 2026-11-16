@@ -3,6 +3,7 @@ namespace Configurator.Terminal;
 using System.Collections.ObjectModel;
 using Configurator.Presentation;
 using global::Terminal.Gui.App;
+using global::Terminal.Gui.Input;
 using global::Terminal.Gui.ViewBase;
 using global::Terminal.Gui.Views;
 
@@ -10,20 +11,25 @@ using global::Terminal.Gui.Views;
 internal sealed class TerminalSectionNavigator : FrameView
 {
     private readonly DefinitionFormModel _form;
-    private readonly ListView _list;
+    private readonly NavigatorListView _list;
     private readonly List<SectionStatusProjection> _sections = [];
+    private readonly Func<Key, bool>? _onShortcutKey;
     private Action<string>? _onSectionSelected;
 
-    internal TerminalSectionNavigator(DefinitionFormModel form, Action<string>? onSectionSelected = null)
+    internal TerminalSectionNavigator(
+        DefinitionFormModel form,
+        Action<string>? onSectionSelected = null,
+        Func<Key, bool>? onShortcutKey = null)
     {
         _form = form;
         _onSectionSelected = onSectionSelected;
+        _onShortcutKey = onShortcutKey;
         Width = 32;
         Height = Dim.Fill(3);
         Title = TerminalStrings.Get("SectionNavigatorTitle", form.Locale);
         CanFocus = true;
 
-        _list = new ListView
+        _list = new NavigatorListView(onShortcutKey)
         {
             X = 0,
             Y = 0,
@@ -70,7 +76,23 @@ internal sealed class TerminalSectionNavigator : FrameView
     {
         if (index < 0 || index >= _sections.Count) return false;
         string sectionId = _sections[index].SectionId;
+        _form.RecordSectionOpened(sectionId, acknowledgeNewlyRelevant: true);
+        Refresh();
         _onSectionSelected?.Invoke(sectionId);
+        return true;
+    }
+
+    internal bool ToggleSelectedReviewed()
+    {
+        int index = _list.SelectedItem ?? -1;
+        string? sectionId = index >= 0 && index < _sections.Count
+            ? _sections[index].SectionId
+            : _form.CurrentSectionId;
+        if (string.IsNullOrEmpty(sectionId)) return false;
+        SectionStatusProjection? section = _sections.FirstOrDefault(item => string.Equals(item.SectionId, sectionId, StringComparison.Ordinal));
+        bool reviewed = section?.Coverage != SectionReviewCoverage.Reviewed;
+        if (!_form.SetSectionReviewed(sectionId, reviewed)) return false;
+        Refresh();
         return true;
     }
 
@@ -131,5 +153,14 @@ internal sealed class TerminalSectionNavigator : FrameView
         dialog.AddButton(cancel);
         application.Run(dialog);
         return chosen;
+    }
+
+    protected override bool OnKeyDown(Key key) =>
+        (_onShortcutKey?.Invoke(key) ?? false) || base.OnKeyDown(key);
+
+    private sealed class NavigatorListView(Func<Key, bool>? onShortcutKey) : ListView
+    {
+        protected override bool OnKeyDown(Key key) =>
+            (onShortcutKey?.Invoke(key) ?? false) || base.OnKeyDown(key);
     }
 }

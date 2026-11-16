@@ -122,6 +122,8 @@
   <data name="Help" xml:space="preserve"><value>Help</value></data>
   <data name="ChooseVariant" xml:space="preserve"><value>Cycle variant</value></data>
   <data name="Required" xml:space="preserve"><value>required</value></data>
+  <data name="ReviewProgressFormat" xml:space="preserve"><value>Ready {0}/{1} | Missing {2} | Invalid {3} | Deferred {4}</value></data>
+  <data name="ProfilesTask" xml:space="preserve"><value>Profiles</value></data>
   <data name="Omitted" xml:space="preserve"><value>omitted</value></data>
   <data name="NullValue" xml:space="preserve"><value>null</value></data>
   <data name="OptionalEditors" xml:space="preserve"><value>Show optional editors</value></data>
@@ -168,8 +170,6 @@
   <data name="StageReview" xml:space="preserve"><value>2:Review &amp; Import</value></data>
   <data name="StageFiles" xml:space="preserve"><value>3:Files &amp; Save</value></data>
   <data name="Sections" xml:space="preserve"><value>Sections…</value></data>
-  <data name="ConfigureGuided" xml:space="preserve"><value>Guided</value></data>
-  <data name="ConfigureCompact" xml:space="preserve"><value>Compact</value></data>
   <data name="NamingHumanized" xml:space="preserve"><value>Human</value></data>
   <data name="NamingTechnical" xml:space="preserve"><value>Wire</value></data>
   <data name="FindFields" xml:space="preserve"><value>Find…</value></data>
@@ -177,9 +177,33 @@
   <data name="UndoAction" xml:space="preserve"><value>Undo</value></data>
   <data name="ChoiceList" xml:space="preserve"><value>Choices…</value></data>
   <data name="SectionNavigatorTitle" xml:space="preserve"><value>Sections</value></data>
-  <data name="CompactColumns" xml:space="preserve"><value>Field|Status|Origin|Value</value></data>
-  <data name="CompactEditAction" xml:space="preserve"><value>Edit row</value></data>
-  <data name="CompactOmitAction" xml:space="preserve"><value>Omit row</value></data>
+  <data name="StatusBarSections" xml:space="preserve"><value>Sections</value></data>
+  <data name="StatusBarFind" xml:space="preserve"><value>Find</value></data>
+  <data name="StatusBarDoc" xml:space="preserve"><value>Doc</value></data>
+  <data name="StatusBarKeys" xml:space="preserve"><value>Keys</value></data>
+  <data name="StatusBarClose" xml:space="preserve"><value>Close</value></data>
+  <data name="ShortcutsTitle" xml:space="preserve"><value>Keyboard shortcuts</value></data>
+  <data name="ShortcutsReference" xml:space="preserve"><value>Global bar:
+  F2       Toggle or focus section outline (&lt; 88 cols opens dialog)
+  F3       Open Find &amp; actions search dialog
+  Ctrl+E   Open public-scope Document editor (256 KiB cap)
+  F1 / ?   Show this keyboard shortcut reference
+  F10      Close workbench (cancels active work if busy)
+
+Navigation &amp; jumps (outside text inputs for single keys):
+  j / k    Next / previous setting
+  g / G    Jump to first / last setting
+  /        Open Find &amp; actions search dialog
+  m        Mark current section reviewed ([v])
+  F7       Next validation error
+  F8       Next required setting
+  F9       Next unvisited section
+
+Editing &amp; profiles:
+  Ctrl+Z   Undo last committed mutation
+  Ctrl+P   Open encrypted local profiles dialog</value></data>
+  <data name="MarkReviewedAction" xml:space="preserve"><value>Mark reviewed</value></data>
+  <data name="SectionReviewedStatus" xml:space="preserve"><value>Section review updated.</value></data>
   <data name="DialogApply" xml:space="preserve"><value>Apply</value></data>
   <data name="DialogPreview" xml:space="preserve"><value>Preview diff</value></data>
   <data name="DialogCancel" xml:space="preserve"><value>Cancel</value></data>
@@ -194,7 +218,6 @@
   <data name="ChoiceDialogTitle" xml:space="preserve"><value>Select option</value></data>
   <data name="DeprecatedBadge" xml:space="preserve"><value>Deprecated</value></data>
   <data name="UnitsLabel" xml:space="preserve"><value>Units</value></data>
-  <data name="FooterHints" xml:space="preserve"><value>Tab Move  Ctrl+Z Undo  F2 Sections  F3 Find  Ctrl+E Doc</value></data>
   <data name="FilesStageSummary" xml:space="preserve"><value>Prepare outputs, then save protected files (create-only, never overwrites).</value></data>
   <data name="SecretOptions" xml:space="preserve"><value>Options…</value></data>
   <data name="SecretGeneratorTitle" xml:space="preserve"><value>Secret generator</value></data>

@@ -40,8 +40,7 @@ internal sealed partial class TerminalWindow
         DefinitionConfigurationContext? context = form.ConfigurationContext;
         _configurationRows = context is null ? 0 : _configurationChoices.Count;
         bool visible = !_tooSmall && context is not null &&
-            _stage == TerminalWorkbenchStage.Configure &&
-            _configureMode == TerminalConfigureMode.Guided;
+            _stage == TerminalWorkbenchStage.Configure;
         foreach (var choice in _configurationChoices)
         {
             bool selected = context?.RecipeId == choice.Recipe.Id && context.ScopeId == choice.Scope.Id;

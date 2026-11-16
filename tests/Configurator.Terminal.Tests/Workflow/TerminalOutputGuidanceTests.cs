@@ -264,6 +264,10 @@ public sealed class TerminalOutputGuidanceTests
         window.Frame = new System.Drawing.Rectangle(0, 0, 110, 36);
         window.ApplyViewportPolicy(window.Frame.Size);
         window.Layout(window.Frame.Size);
+        window.SetStage(TerminalWorkbenchStage.ReviewAndImport);
+        window.Layout(window.Frame.Size);
+        await Assert.That(window.SubViews.OfType<Label>().Any(label => label.Visible &&
+            label.Text.Contains(locale == "ar" ? "مفقود" : "Missing", StringComparison.Ordinal))).IsTrue();
         Button files = window.SubViews.OfType<Button>()
             .Single(button => button.Text == TerminalStrings.Get("StageFiles", locale));
         await Assert.That(files.Visible && files.Enabled).IsTrue();

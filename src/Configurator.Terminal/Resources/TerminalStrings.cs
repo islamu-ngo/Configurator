@@ -53,11 +53,10 @@ internal static class TerminalStrings
         return string.Join("\n", parts);
     }
 
-    /// <summary>Pages inert public guidance without interpreting markup, links or terminal escape sequences.</summary>
-    internal static IReadOnlyList<string> HelpPages(string text, int width, int linesPerPage = 3)
+    /// <summary>Wraps inert public guidance lines without interpreting markup, links or terminal escape sequences.</summary>
+    internal static IReadOnlyList<string> WrapLines(string text, int width)
     {
         width = Math.Max(1, width);
-        linesPerPage = Math.Max(1, linesPerPage);
         var lines = new List<string>();
         foreach (string paragraph in text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'))
         {
@@ -81,9 +80,7 @@ internal static class TerminalStrings
                 while (start < safe.Length && safe[start] == ' ') start++;
             }
         }
-        int pageCount = (lines.Count + linesPerPage - 1) / linesPerPage;
-        return Enumerable.Range(0, pageCount)
-            .Select(index => string.Join("\n", lines.Skip(index * linesPerPage).Take(linesPerPage))).ToArray();
+        return lines;
     }
     internal static string FormatReceipt(ProtectedArtifactPublicationReceipt receipt, int index, string locale = "en")
     {
