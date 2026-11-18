@@ -1,3 +1,4 @@
+@using System.Globalization
 @using Configurator.Browser.Resources
 @using Configurator.Browser.Services
 @using Configurator.Core.Definitions
@@ -6,59 +7,69 @@
 <header class="workspace-header" role="region" aria-label="@T("WorkspaceTitle")">
     <div class="workspace-header__identity">
         <span class="workspace-header__title" data-workspace-title><bdi>@Form.Definition.Title</bdi></span>
-        @if (!string.IsNullOrEmpty(ScopeSummary))
+        @if (StatusContent is not null)
         {
-            <button type="button" class="workspace-header__chip workspace-header__chip--scope"
-                    data-workspace-scope data-action="change-scope"
-                    aria-controls="configuration-context"
-                    aria-expanded="@ContextOpen.ToString().ToLowerInvariant()"
-                    @onclick="() => OnScopeRequested.InvokeAsync()">
-                <MudIcon Icon="@Icons.Material.Outlined.Tune" Size="Size.Small" aria-hidden="true" />
-                <span><bdi>@ScopeSummary</bdi> · @T("ScopeChangeAction")</span>
-            </button>
+            @StatusContent
         }
-        <button type="button" class="workspace-header__chip @(SecretsEnabled ? "workspace-header__chip--active" : "")"
-                data-workspace-consent-chip
-                data-consent-active="@SecretsEnabled.ToString().ToLowerInvariant()"
-                @onclick="() => OnSecretConsentRequested.InvokeAsync()">
-            <MudIcon Icon="@(SecretsEnabled ? Icons.Material.Outlined.LockOpen : Icons.Material.Outlined.Lock)" Size="Size.Small" aria-hidden="true" />
-            <span>@T(SecretsEnabled ? "SecretsEnabledChip" : "SecretsLockedChip")</span>
+    </div>
+    <div class="workspace-header__controls">
+        <nav class="workspace-header__modes" aria-label="@T("WorkspaceModes")">
+            <button type="button" class="workspace-header__mode" data-workflow-step="configure"
+                    aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Configure ? "step" : null)"
+                    @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Configure)">
+                @T("Configure")
+            </button>
+            <button type="button" class="workspace-header__mode" data-workflow-step="review"
+                    aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Review ? "step" : null)"
+                    @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Review)">
+                @T("WorkflowReview")
+            </button>
+            <button type="button" class="workspace-header__mode" data-workflow-step="prepare"
+                    aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Files ? "step" : null)"
+                    @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Files)">
+                @T("WorkflowFiles")
+            </button>
+        </nav>
+        <button @ref="_advancedToggle"
+                type="button"
+                class="workspace-header__advanced @(AdvancedOpen ? "workspace-header__advanced--open" : null)"
+                data-action="toggle-advanced-options"
+                aria-expanded="@AdvancedOpen.ToString().ToLowerInvariant()"
+                aria-controls="workspace-advanced-options"
+                aria-label="@T("AdvancedWorkspaceOptions")"
+                @onclick="() => OnToggleAdvanced.InvokeAsync()">
+            <MudIcon Icon="@Icons.Material.Outlined.Tune" Size="Size.Small" aria-hidden="true" />
+            <span>@T("Advanced")</span>
+            @if (ActiveAdvancedCount > 0)
+            {
+                <span class="workspace-header__advanced-badge"
+                      aria-label="@string.Format(CultureInfo.CurrentCulture, T("AdvancedOptionsActive"), ActiveAdvancedCount)">
+                    <span aria-hidden="true">@ActiveAdvancedCount</span>
+                </span>
+            }
+            <MudIcon Icon="@(AdvancedOpen ? Icons.Material.Outlined.ExpandLess : Icons.Material.Outlined.ExpandMore)" Size="Size.Small" aria-hidden="true" />
         </button>
     </div>
-    <nav class="workspace-header__modes" aria-label="@T("WorkspaceModes")">
-        <button type="button" class="workspace-header__mode" data-workflow-step="configure"
-                aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Configure ? "step" : null)"
-                @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Configure)">
-            @T("Configure")
-        </button>
-        <button type="button" class="workspace-header__mode" data-workflow-step="review"
-                aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Review ? "step" : null)"
-                @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Review)">
-            @T("WorkflowReview")
-        </button>
-        <button type="button" class="workspace-header__mode" data-workflow-step="prepare"
-                aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Files ? "step" : null)"
-                @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Files)">
-            @T("WorkflowFiles")
-        </button>
-    </nav>
 </header>
 
 @code {
+    private ElementReference _advancedToggle;
+
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter, EditorRequired] public string Locale { get; set; } = "en";
     [Parameter, EditorRequired] public WorkspaceStage ActiveStage { get; set; } = WorkspaceStage.Configure;
-    [Parameter] public WorkspaceDensity Density { get; set; } = WorkspaceDensity.Comfortable;
-    [Parameter] public WorkspaceNamingMode NamingMode { get; set; } = WorkspaceNamingMode.Humanized;
     [Parameter] public bool DeveloperMode { get; set; }
-    [Parameter] public bool ContextOpen { get; set; }
-    [Parameter] public string? ScopeSummary { get; set; }
-    [Parameter] public EventCallback OnScopeRequested { get; set; }
-    [Parameter] public EventCallback OnSecretConsentRequested { get; set; }
-    [Parameter] public EventCallback<WorkspaceNamingMode> NamingModeChanged { get; set; }
-    [Parameter] public EventCallback<WorkspaceDensity> DensityChanged { get; set; }
+    [Parameter] public bool AdvancedOpen { get; set; }
+    [Parameter] public int ActiveAdvancedCount { get; set; }
+    [Parameter] public RenderFragment? StatusContent { get; set; }
+    [Parameter] public EventCallback OnToggleAdvanced { get; set; }
     [Parameter] public EventCallback<WorkspaceStage> StageSelected { get; set; }
 
-    private bool SecretsEnabled => Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
+    public async ValueTask FocusAdvancedToggleAsync()
+    {
+        if (!string.IsNullOrEmpty(_advancedToggle.Id))
+            await _advancedToggle.FocusAsync(preventScroll: true);
+    }
+
     private string T(string key) => BrowserStrings.Get(key, Locale);
 }

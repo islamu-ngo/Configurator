@@ -6,20 +6,10 @@
 <PageTitle>@T("WorkspaceTitle") · Configurator</PageTitle>
 @if (_selection is { } selected)
 {
-    <section class="launch-header" lang="@Culture.Locale" aria-labelledby="launch-heading">
-        <h1 id="launch-heading"><bdi>@selected.Definition.Title</bdi></h1>
-        <details>
-            <summary>@T("SourceDetails")</summary>
-            <p>@T("Revision") <strong data-revision="@selected.Definition.Revision"><bdi dir="ltr">@selected.Definition.Revision</bdi></strong></p>
-            <p>@T("Family"): <bdi dir="ltr">@selected.Definition.FamilyId.ToString("D")</bdi></p>
-            <p>@T("Digest") <code dir="ltr" data-digest="@selected.Definition.Digest.Value">@selected.Definition.Digest.Value</code></p>
-            <p>@T("Entry"): <bdi dir="ltr">@selected.Entry</bdi> · @T("Language"): <bdi dir="ltr">@selected.Locale</bdi></p>
-            <p>@T("Publisher"): <bdi>@selected.Definition.Publisher</bdi></p>
-            <p>@T("TrustBoundary")</p>
-        </details>
-    </section>
+    <h1 id="launch-heading" class="sr-only" tabindex="-1"><bdi>@selected.Definition.Title</bdi></h1>
     <ConfigurationEditor @key="selected" @ref="_editor" Definition="@selected.Definition" InitialLocale="@selected.Locale"
-                         InitialEntry="@(selected.EntryExplicit ? selected.Entry : null)" InitialMode="@selected.Mode" />
+                         InitialEntry="@(selected.EntryExplicit ? selected.Entry : null)" InitialMode="@selected.Mode"
+                         SourceDetails="@(RenderSourceDetails(selected))" />
 }
 else
 {
@@ -39,6 +29,19 @@ else
     private string? _request;
     private string _error = "launch-invalid";
     private bool _disposed;
+
+    private RenderFragment RenderSourceDetails(BrowserLaunchSelection selected) => __builder =>
+    {
+        <details class="launch-source-details" data-digest-disclosure lang="@Culture.Locale">
+            <summary>@T("SourceDetails")</summary>
+            <p>@T("Revision") <strong data-revision="@selected.Definition.Revision"><bdi dir="ltr">@selected.Definition.Revision</bdi></strong></p>
+            <p>@T("Family"): <bdi dir="ltr">@selected.Definition.FamilyId.ToString("D")</bdi></p>
+            <p>@T("Digest") <code dir="ltr" data-digest="@selected.Definition.Digest.Value">@selected.Definition.Digest.Value</code></p>
+            <p>@T("Entry"): <bdi dir="ltr">@selected.Entry</bdi> · @T("Language"): <bdi dir="ltr">@selected.Locale</bdi></p>
+            <p>@T("Publisher"): <bdi>@selected.Definition.Publisher</bdi></p>
+            <p>@T("TrustBoundary")</p>
+        </details>
+    };
 
     protected override void OnInitialized() => Navigation.LocationChanged += LocationChanged;
 

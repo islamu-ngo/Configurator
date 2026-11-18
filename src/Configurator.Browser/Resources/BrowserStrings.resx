@@ -775,4 +775,84 @@
   <data name="VaultCryptoDetails" xml:space="preserve"><value>Technical encryption details</value></data>
   <data name="StartupThreeTasksNote" xml:space="preserve"><value>Once ready, choose whether to start fresh, import an existing file, or unlock an encrypted profile.</value></data>
   <data name="FilesStepSequence" xml:space="preserve"><value>1. Review values -> 2. Prepare files -> 3. Download or copy</value></data>
+  <data name="Theme" xml:space="preserve"><value>Theme</value></data>
+  <data name="Mode" xml:space="preserve"><value>Mode</value></data>
+  <data name="LightHcShort" xml:space="preserve"><value>Light HC</value></data>
+  <data name="DarkHcShort" xml:space="preserve"><value>Dark HC</value></data>
+  <data name="CustomTheme" xml:space="preserve"><value>Custom Theme</value></data>
+  <data name="FullSettings" xml:space="preserve"><value>Full settings</value></data>
+  <data name="ThemeQuickSwitcherLabel" xml:space="preserve"><value>Theme quick switcher</value></data>
+  <data name="ChangeLanguageLabel" xml:space="preserve"><value>Change language. Current: {0}</value></data>
+  <data name="PresetEnterpriseBlue" xml:space="preserve"><value>Enterprise Blue</value></data>
+  <data name="PresetEmeraldGreen" xml:space="preserve"><value>Emerald Green</value></data>
+  <data name="PresetAbyssalDark" xml:space="preserve"><value>Abyssal Dark</value></data>
+  <data name="PresetPureWhite" xml:space="preserve"><value>Pure White</value></data>
+  <data name="PresetClassicWhite" xml:space="preserve"><value>White</value></data>
+  <data name="PresetClassicDark" xml:space="preserve"><value>Dark</value></data>
+  <data name="PresetLightHc" xml:space="preserve"><value>Light High Contrast</value></data>
+  <data name="PresetDarkHc" xml:space="preserve"><value>Dark High Contrast</value></data>
+  <data name="PresetCustom" xml:space="preserve"><value>Custom Theme</value></data>
+  <data name="ReturnToConfiguration" xml:space="preserve"><value>← Return to configuration</value></data>
+  <data name="SettingsSubtitle" xml:space="preserve"><value>Manage appearance, language, privacy posture, and workspace shortcuts</value></data>
+  <data name="SettingsSectionsNav" xml:space="preserve"><value>Settings sections</value></data>
+  <data name="ViewAll" xml:space="preserve"><value>View all</value></data>
+  <data name="SearchSettingsLabel" xml:space="preserve"><value>Search settings</value></data>
+  <data name="SearchSettingsPlaceholder" xml:space="preserve"><value>Search appearance, language, privacy, or shortcuts…</value></data>
+  <data name="NoSettingsMatch" xml:space="preserve"><value>No settings sections match your search.</value></data>
+  <data name="SettingsSectionsCountFound" xml:space="preserve"><value>{0} settings sections found.</value></data>
+  <data name="SettingsAppearance" xml:space="preserve"><value>Appearance</value></data>
+  <data name="SettingsAppearanceDesc" xml:space="preserve"><value>Choose how the configurator looks and adapts across modes, presets, custom colors, density, and naming</value></data>
+  <data name="SettingsLanguage" xml:space="preserve"><value>Language</value></data>
+  <data name="SettingsLanguageDesc" xml:space="preserve"><value>Choose the interface language and automatic text direction</value></data>
+  <data name="SettingsPrivacy" xml:space="preserve"><value>Privacy &amp; custody</value></data>
+  <data name="SettingsPrivacyDesc" xml:space="preserve"><value>Verify how answers, secrets, and bounded visual preferences stay isolated</value></data>
+  <data name="SettingsShortcuts" xml:space="preserve"><value>Keyboard shortcuts</value></data>
+  <data name="SettingsShortcutsDesc" xml:space="preserve"><value>Keyboard navigation and quick commands across panes and search</value></data>
+  <data name="ThemeModeDesc" xml:space="preserve"><value>Match your system, stay bright, go dark, or boost contrast.</value></data>
+  <data name="TextDirectionLabel" xml:space="preserve"><value>Text direction</value></data>
+  <data name="TextDirectionDesc" xml:space="preserve"><value>Override layout direction. "Auto" follows the selected language.</value></data>
+  <data name="ThemePresetsDesc" xml:space="preserve"><value>Pick an ISLAMU Event palette. The active preset is highlighted.</value></data>
+  <data name="SystemPresetBadge" xml:space="preserve"><value>Preset theme</value></data>
+  <data name="CustomThemeBuilderDesc" xml:space="preserve"><value>Build your own contrast-checked palette from Natural (surface) and Brand (accent) colors.</value></data>
+  <data name="NaturalColorLabel" xml:space="preserve"><value>Natural color</value></data>
+  <data name="NaturalColorDesc" xml:space="preserve"><value>Drives surface, background, and text contrast tones.</value></data>
+  <data name="BrandColorLabel" xml:space="preserve"><value>Brand color</value></data>
+  <data name="BrandColorDesc" xml:space="preserve"><value>Drives primary actions, focus indicators, and active states.</value></data>
+  <data name="HexLabel" xml:space="preserve"><value>Hex</value></data>
+  <data name="HueLabel" xml:space="preserve"><value>Hue</value></data>
+  <data name="SaturationLabel" xml:space="preserve"><value>Saturation</value></data>
+  <data name="LightnessLabel" xml:space="preserve"><value>Lightness</value></data>
+  <data name="LivePreviewLabel" xml:space="preserve"><value>Live preview</value></data>
+  <data name="PreviewAppBar" xml:space="preserve"><value>App bar</value></data>
+  <data name="PreviewCardTitle" xml:space="preserve"><value>Configuration card</value></data>
+  <data name="PreviewButton" xml:space="preserve"><value>Action</value></data>
+  <data name="ApplyCustomTheme" xml:space="preserve"><value>Apply custom theme</value></data>
+  <data name="WorkspaceDensityDesc" xml:space="preserve"><value>Choose spacing across navigation items and configuration fields.</value></data>
+  <data name="DensitySpacious" xml:space="preserve"><value>Spacious</value></data>
+  <data name="DensityDense" xml:space="preserve"><value>Dense</value></data>
+  <data name="FieldNamingDesc" xml:space="preserve"><value>Display friendly field labels or raw wire keys alongside each control.</value></data>
+  <data name="NamingHumanized" xml:space="preserve"><value>Humanized labels</value></data>
+  <data name="NamingTechnical" xml:space="preserve"><value>Technical wire keys</value></data>
+  <data name="LocalMemoryCustodyTitle" xml:space="preserve"><value>Answers never leave this browser</value></data>
+  <data name="LocalMemoryCustodyBody" xml:space="preserve"><value>Configuration answers, unparsed drafts, secrets, and prepared artifacts stay strictly in browser RAM and are discarded on route exit, tab close, or explicit workspace reset.</value></data>
+  <data name="BrowserStorageLimitTitle" xml:space="preserve"><value>Bounded visual storage only</value></data>
+  <data name="BrowserStorageLimitBody" xml:space="preserve"><value>Only non-sensitive appearance preferences (mode, preset or custom hex pair, direction, density, and naming mode) within a 512-byte budget may be stored locally.</value></data>
+  <data name="WorkspaceSecretStatusTitle" xml:space="preserve"><value>Current workspace session</value></data>
+  <data name="WorkspaceSessionActiveNote" xml:space="preserve"><value>A configuration workspace is preserved in memory while you adjust settings. Return to configuration at any time without losing edits.</value></data>
+  <data name="NoActiveWorkspaceSession" xml:space="preserve"><value>No configuration workspace is currently open.</value></data>
+  <data name="ShortcutSearch" xml:space="preserve"><value>Focus workspace search</value></data>
+  <data name="ShortcutInspector" xml:space="preserve"><value>Jump to the Inspector dock or panel</value></data>
+  <data name="ShortcutEscape" xml:space="preserve"><value>Close the active menu, dialog, or drawer</value></data>
+  <data name="ShortcutDockTabs" xml:space="preserve"><value>Switch between Inspector and Document JSON tabs</value></data>
+  <data name="DockTabInspector" xml:space="preserve"><value>Inspector (F2)</value></data>
+  <data name="DockTabDocumentJson" xml:space="preserve"><value>Document (JSON)</value></data>
+  <data name="DocumentJsonDockLabel" xml:space="preserve"><value>Document JSON editor</value></data>
+  <data name="CloseDocumentJsonDock" xml:space="preserve"><value>Close Document JSON editor</value></data>
+  <data name="ProjectDetailsLabel" xml:space="preserve"><value>Project details</value></data>
+  <data name="MoreActions" xml:space="preserve"><value>More actions</value></data>
+  <data name="FileCountSingle" xml:space="preserve"><value>1 file</value></data>
+  <data name="FileCountPlural" xml:space="preserve"><value>{0} files</value></data>
+  <data name="IconAttributionLabel" xml:space="preserve"><value>Logo license &amp; attribution</value></data>
+  <data name="AdvancedWorkspaceOptions" xml:space="preserve"><value>Advanced workspace options</value></data>
+  <data name="AdvancedOptionsActive" xml:space="preserve"><value>{0} active</value></data>
 </root>

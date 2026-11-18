@@ -775,4 +775,84 @@
   <data name="VaultCryptoDetails" xml:space="preserve"><value>تفاصيل التشفير التقنية</value></data>
   <data name="StartupThreeTasksNote" xml:space="preserve"><value>عند الجاهزية، اختر البدء من جديد أو استيراد ملف موجود أو فتح ملف تعريف مشفّر.</value></data>
   <data name="FilesStepSequence" xml:space="preserve"><value>1. مراجعة القيم ← 2. تحضير الملفات ← 3. التنزيل أو النسخ</value></data>
+  <data name="Theme" xml:space="preserve"><value>السمة</value></data>
+  <data name="Mode" xml:space="preserve"><value>الوضع</value></data>
+  <data name="LightHcShort" xml:space="preserve"><value>تباين عالٍ فاتح</value></data>
+  <data name="DarkHcShort" xml:space="preserve"><value>تباين عالٍ داكن</value></data>
+  <data name="CustomTheme" xml:space="preserve"><value>سمة مخصصة</value></data>
+  <data name="FullSettings" xml:space="preserve"><value>الإعدادات الكاملة</value></data>
+  <data name="ThemeQuickSwitcherLabel" xml:space="preserve"><value>مبدّل السمة السريع</value></data>
+  <data name="ChangeLanguageLabel" xml:space="preserve"><value>تغيير اللغة. الحالية: {0}</value></data>
+  <data name="PresetEnterpriseBlue" xml:space="preserve"><value>أزرق مؤسسي</value></data>
+  <data name="PresetEmeraldGreen" xml:space="preserve"><value>أخضر زمردي</value></data>
+  <data name="PresetAbyssalDark" xml:space="preserve"><value>داكن عميق</value></data>
+  <data name="PresetPureWhite" xml:space="preserve"><value>أبيض نقي</value></data>
+  <data name="PresetClassicWhite" xml:space="preserve"><value>أبيض</value></data>
+  <data name="PresetClassicDark" xml:space="preserve"><value>داكن</value></data>
+  <data name="PresetLightHc" xml:space="preserve"><value>تباين عالٍ فاتح</value></data>
+  <data name="PresetDarkHc" xml:space="preserve"><value>تباين عالٍ داكن</value></data>
+  <data name="PresetCustom" xml:space="preserve"><value>سمة مخصصة</value></data>
+  <data name="ReturnToConfiguration" xml:space="preserve"><value>← العودة إلى الإعدادات</value></data>
+  <data name="SettingsSubtitle" xml:space="preserve"><value>إدارة المظهر واللغة ووضع الخصوصية واختصارات لوحة المفاتيح</value></data>
+  <data name="SettingsSectionsNav" xml:space="preserve"><value>أقسام الإعدادات</value></data>
+  <data name="ViewAll" xml:space="preserve"><value>عرض الكل</value></data>
+  <data name="SearchSettingsLabel" xml:space="preserve"><value>ابحث في الإعدادات</value></data>
+  <data name="SearchSettingsPlaceholder" xml:space="preserve"><value>ابحث في المظهر أو اللغة أو الخصوصية أو الاختصارات…</value></data>
+  <data name="NoSettingsMatch" xml:space="preserve"><value>لا توجد أقسام إعدادات تطابق بحثك.</value></data>
+  <data name="SettingsSectionsCountFound" xml:space="preserve"><value>تم العثور على {0} أقسام إعدادات.</value></data>
+  <data name="SettingsAppearance" xml:space="preserve"><value>المظهر</value></data>
+  <data name="SettingsAppearanceDesc" xml:space="preserve"><value>اختر شكل الأداة عبر الأوضاع والسمات والألوان المخصصة وكثافة العرض</value></data>
+  <data name="SettingsLanguage" xml:space="preserve"><value>اللغة</value></data>
+  <data name="SettingsLanguageDesc" xml:space="preserve"><value>اختر لغة الواجهة واتجاه النص التلقائي</value></data>
+  <data name="SettingsPrivacy" xml:space="preserve"><value>الخصوصية والحفظ</value></data>
+  <data name="SettingsPrivacyDesc" xml:space="preserve"><value>تحقق من عزل الإجابات والأسرار وتفضيلات العرض المحدودة</value></data>
+  <data name="SettingsShortcuts" xml:space="preserve"><value>اختصارات لوحة المفاتيح</value></data>
+  <data name="SettingsShortcutsDesc" xml:space="preserve"><value>التنقل بلوحة المفاتيح والأوامر السريعة عبر الألواح والبحث</value></data>
+  <data name="ThemeModeDesc" xml:space="preserve"><value>اتبع نظامك، أو ابقَ في الوضع الفاتح أو الداكن أو عالي التباين.</value></data>
+  <data name="TextDirectionLabel" xml:space="preserve"><value>اتجاه النص</value></data>
+  <data name="TextDirectionDesc" xml:space="preserve"><value>تجاوز اتجاه التخطيط. الخيار «تلقائي» يتبع اللغة المختارة.</value></data>
+  <data name="ThemePresetsDesc" xml:space="preserve"><value>اختر سمة ISLAMU Event. السمة النشطة مميزة.</value></data>
+  <data name="SystemPresetBadge" xml:space="preserve"><value>سمة جاهزة</value></data>
+  <data name="CustomThemeBuilderDesc" xml:space="preserve"><value>أنشئ لوحة ألوان مخصصة ومتوافقة مع التباين من لون طبيعي ولون علامة.</value></data>
+  <data name="NaturalColorLabel" xml:space="preserve"><value>اللون الطبيعي</value></data>
+  <data name="NaturalColorDesc" xml:space="preserve"><value>يحدد درجات الأسطح والخلفية والنصوص.</value></data>
+  <data name="BrandColorLabel" xml:space="preserve"><value>لون العلامة</value></data>
+  <data name="BrandColorDesc" xml:space="preserve"><value>يحدد الأزرار الرئيسية ومؤشرات التركيز والحالات النشطة.</value></data>
+  <data name="HexLabel" xml:space="preserve"><value>كود Hex</value></data>
+  <data name="HueLabel" xml:space="preserve"><value>درجة اللون</value></data>
+  <data name="SaturationLabel" xml:space="preserve"><value>التشبّع</value></data>
+  <data name="LightnessLabel" xml:space="preserve"><value>السطوع</value></data>
+  <data name="LivePreviewLabel" xml:space="preserve"><value>معاينة فورية</value></data>
+  <data name="PreviewAppBar" xml:space="preserve"><value>شريط التطبيق</value></data>
+  <data name="PreviewCardTitle" xml:space="preserve"><value>بطاقة إعداد</value></data>
+  <data name="PreviewButton" xml:space="preserve"><value>إجراء</value></data>
+  <data name="ApplyCustomTheme" xml:space="preserve"><value>تطبيق السمة المخصصة</value></data>
+  <data name="WorkspaceDensityDesc" xml:space="preserve"><value>اختر التباعد بين عناصر التنقل وحقول الإعدادات.</value></data>
+  <data name="DensitySpacious" xml:space="preserve"><value>واسع</value></data>
+  <data name="DensityDense" xml:space="preserve"><value>متقارب جدًا</value></data>
+  <data name="FieldNamingDesc" xml:space="preserve"><value>اعرض تسميات سهلة القراءة أو المفاتيح البرمجية بجانب كل حقل.</value></data>
+  <data name="NamingHumanized" xml:space="preserve"><value>تسميات مقروءة</value></data>
+  <data name="NamingTechnical" xml:space="preserve"><value>المفاتيح التقنية</value></data>
+  <data name="LocalMemoryCustodyTitle" xml:space="preserve"><value>الإجابات لا تغادر هذا المتصفح</value></data>
+  <data name="LocalMemoryCustodyBody" xml:space="preserve"><value>تبقى إجابات التكوين والمسودات والأسرار والملفات المحضّرة في ذاكرة المتصفح المؤقتة فقط، وتُمسح عند مغادرة المسار أو إغلاق علامة التبويب أو إعادة الضبط.</value></data>
+  <data name="BrowserStorageLimitTitle" xml:space="preserve"><value>تخزين محدود لتفضيلات العرض فقط</value></data>
+  <data name="BrowserStorageLimitBody" xml:space="preserve"><value>لا يُحفظ محليًا سوى تفضيلات المظهر غير الحساسة (الوضع والسمة والاتجاه والكثافة ونمط التسمية) ضمن حد 512 بايت.</value></data>
+  <data name="WorkspaceSecretStatusTitle" xml:space="preserve"><value>جلسة مساحة العمل الحالية</value></data>
+  <data name="WorkspaceSessionActiveNote" xml:space="preserve"><value>مساحة العمل الحالية محفوظة في الذاكرة أثناء ضبط الإعدادات. يمكنك العودة إلى التكوين في أي وقت دون فقدان التعديلات.</value></data>
+  <data name="NoActiveWorkspaceSession" xml:space="preserve"><value>لا توجد مساحة عمل تكوين مفتوحة حاليًا.</value></data>
+  <data name="ShortcutSearch" xml:space="preserve"><value>التركيز على بحث مساحة العمل</value></data>
+  <data name="ShortcutInspector" xml:space="preserve"><value>الانتقال إلى لوحة الفاحص</value></data>
+  <data name="ShortcutEscape" xml:space="preserve"><value>إغلاق القائمة أو النافذة المنبثقة النشطة</value></data>
+  <data name="ShortcutDockTabs" xml:space="preserve"><value>التبديل بين تبويب الفاحص ومستند JSON</value></data>
+  <data name="DockTabInspector" xml:space="preserve"><value>الفاحص (F2)</value></data>
+  <data name="DockTabDocumentJson" xml:space="preserve"><value>مستند JSON</value></data>
+  <data name="DocumentJsonDockLabel" xml:space="preserve"><value>محرر مستند JSON</value></data>
+  <data name="CloseDocumentJsonDock" xml:space="preserve"><value>إغلاق محرر مستند JSON</value></data>
+  <data name="ProjectDetailsLabel" xml:space="preserve"><value>تفاصيل المشروع</value></data>
+  <data name="MoreActions" xml:space="preserve"><value>إجراءات إضافية</value></data>
+  <data name="FileCountSingle" xml:space="preserve"><value>ملف واحد</value></data>
+  <data name="FileCountPlural" xml:space="preserve"><value>{0} ملفات</value></data>
+  <data name="IconAttributionLabel" xml:space="preserve"><value>ترخيص الشعار ونسبته</value></data>
+  <data name="AdvancedWorkspaceOptions" xml:space="preserve"><value>خيارات مساحة العمل المتقدمة</value></data>
+  <data name="AdvancedOptionsActive" xml:space="preserve"><value>{0} نشط</value></data>
 </root>

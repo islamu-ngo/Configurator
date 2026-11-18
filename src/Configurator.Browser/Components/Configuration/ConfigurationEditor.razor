@@ -1,4 +1,6 @@
 @implements IAsyncDisposable
+@using Configurator.Browser.Components.Docking
+@using Configurator.Browser.Services.Docking
 @using Configurator.Core.Definitions
 @using Configurator.Presentation
 
@@ -15,6 +17,10 @@
                                   Title="@Definition.Title" StatusCode="workspace-starting"
                                   IsOffline="Offline.IsOffline" OfflineReady="Offline.OfflineReady"
                                   CancelRequested="() => IsCurrentStartup(actionStartup) ? CancelStartupAsync() : Task.CompletedTask" />
+            @if (SourceDetails is not null)
+            {
+                <div class="configuration-editor__startup-source" hidden aria-hidden="true">@SourceDetails</div>
+            }
         </section>
     </MudRTLProvider>
 }
@@ -44,6 +50,10 @@ else
                               IsOffline="Offline.IsOffline" OfflineReady="Offline.OfflineReady"
                               StartRequested="() => IsCurrentView(actionForm, actionView) ? BeginAsync() : Task.CompletedTask"
                               CancelRequested="() => IsCurrentView(actionForm, actionView) ? CancelStartupAsync() : Task.CompletedTask" />
+        @if (SourceDetails is not null)
+        {
+            <div class="configuration-editor__startup-source" hidden aria-hidden="true">@SourceDetails</div>
+        }
     }
     else
     {
@@ -51,175 +61,273 @@ else
     <fieldset class="configuration-editor__controls">
         <legend class="sr-only">@UiText("ConfigurationAnswers")</legend>
         @{ var projection = _form.Projection; var progress = projection.Progress; var viewSections = EditorSections();
-            string? currentSectionId = SelectedSection(viewSections); }
-        <WorkspaceHeader Form="_form" Locale="@_form.Locale"
-                         ActiveStage="@ActiveHeaderStage"
-                         Density="@Density"
-                         NamingMode="@NamingMode"
-                         DeveloperMode="@_developerMode"
-                         ContextOpen="@_contextOpen"
-                         ScopeSummary="@ScopeSummary"
-                         OnScopeRequested="() => { if (IsCurrentView(actionForm, actionView)) OpenScopeSelector(); }"
-                         OnSecretConsentRequested="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }"
-                         NamingModeChanged="mode => IsCurrentView(actionForm, actionView) ? ChangeNamingModeAsync(mode) : Task.CompletedTask"
-                         DensityChanged="density => IsCurrentView(actionForm, actionView) ? ChangeDensityValueAsync(density) : Task.CompletedTask"
-                         StageSelected="stage => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(stage) : Task.CompletedTask" />
-        @if (_form.ConfigurationContext is { } configurationContext)
-        {
-            <section id="configuration-context" class="configuration-editor__context" hidden="@(!_contextOpen)" inert="@(!_contextOpen)">
-            <fieldset class="configuration-editor__context-fields" @key="(_form, _contextChoiceKey)">
-                <legend class="sr-only">@UiText("ConfigurationContext")</legend>
-                <p id="configuration-context-help">@UiText("ConfigurationContextHelp")</p>
-                @if (projection.ContextSummary is { } contextSummary)
-                {
-                    <p class="form-help" data-context-summary>
-                        <bdi>@contextSummary.Summary</bdi>
-                        @if (contextSummary.ComponentTitles.Count > 0)
-                        {
-                            <span> · <bdi>@string.Join(", ", contextSummary.ComponentTitles)</bdi></span>
-                        }
-                        @if (contextSummary.ArtifactFileNames.Count > 0)
-                        {
-                            <span> · <bdi dir="ltr">@string.Join(", ", contextSummary.ArtifactFileNames)</bdi></span>
-                        }
-                    </p>
-                }
-                <div class="configuration-editor__mode">
-                    <label for="configuration-recipe">@UiText("ConfigurationRecipe")</label>
-                    <select id="configuration-recipe" @ref="_contextControl" value="@configurationContext.RecipeId"
-                            aria-describedby="configuration-context-help"
-                            @onchange="args => IsCurrentView(actionForm, actionView) ? ChangeRecipeAsync(args) : Task.CompletedTask">
-                        <option value="" disabled>@UiText("ConfigurationRecipe")</option>
-                        @foreach (var recipe in _form.ConfigurationRecipes)
-                        {
-                            <option value="@recipe.Id">@RecipeTitle(recipe)</option>
-                        }
-                    </select>
-                </div>
-                <div class="configuration-editor__mode">
-                    <label for="configuration-scope">@UiText("ConfigurationScope")</label>
-                    <select id="configuration-scope" value="@configurationContext.ScopeId" aria-describedby="configuration-context-help"
-                            @onchange="args => IsCurrentView(actionForm, actionView) ? ChangeScopeAsync(args) : Task.CompletedTask">
-                        <option value="" disabled>@UiText("ConfigurationScope")</option>
-                        @foreach (var scope in _form.ConfigurationScopes)
-                        {
-                            var recipe = _form.ConfigurationRecipes.Single(item => item.Id == configurationContext.RecipeId);
-                            <option value="@scope.Id">@ScopeTitle(recipe, scope)</option>
-                        }
-                    </select>
-                </div>
-                <details>
-                    <summary>@UiText("CompatibleContextChoices")</summary>
-                    <div class="actions">
-                        @foreach (var recipe in _form.ConfigurationRecipes)
-                        {
-                            @foreach (var scope in recipe.Scopes)
-                            {
-                                <AppButton Variant="Variant.Outlined" data-context-pair="@(recipe.Id + ":" + scope.Id)"
-                                           OnClick="() => IsCurrentView(actionForm, actionView) ? SelectContextAsync(recipe.Id, scope.Id) : Task.CompletedTask">@RecipeTitle(recipe) / @ScopeTitle(recipe, scope)</AppButton>
-                            }
-                        }
-                    </div>
-                </details>
-            </fieldset>
-            </section>
-        }
-        @{
+            string? currentSectionId = SelectedSection(viewSections);
             var summary = projection.ProgressSummary;
             string readyState = !summary.IsReadyForExport
                 ? (summary.MissingRequired == 0 && summary.DeferredSecretCount == 0 && summary.OptionalInvalidCount > 0 ? "issues"
                     : summary.MissingRequired == 0 && summary.DeferredSecretCount > 0 ? "deferred" : "incomplete")
                 : progress.Required == 0 ? "none" : "complete";
             int totalAttention = summary.MissingRequired + summary.TotalInvalidCount;
-        }
-        <div class="configuration-editor__progress configuration-editor__progress--@readyState" aria-live="polite" aria-atomic="true"
-             data-required-count="@progress.Required" data-ready-count="@progress.Ready" data-ready-state="@readyState">
-            @if (summary.MissingRequired == 0 && summary.DeferredSecretCount == 0 && summary.OptionalInvalidCount > 0)
-            {
-                <strong>@UiFormat(summary.OptionalInvalidCount == 1 ? "RequiredReadyOptionalIssue" : "RequiredReadyOptionalIssues", summary.OptionalInvalidCount)</strong>
-                @if (progress.Required > 0)
-                {
-                    <progress value="@Math.Max(0, progress.Required - summary.OptionalInvalidCount)" max="@progress.Required" aria-label="@UiText("RequiredAnswersProgress")"></progress>
-                }
-            }
-            else if (progress.Required == 0)
-            {
-                <strong>@UiText("NoRequiredAnswers")</strong>
-            }
-            else
-            {
-                <strong>@UiFormat(progress.Required == 1 ? "RequiredAnswerReady" : "RequiredAnswersReady", progress.Ready, progress.Required)</strong>
-                <progress value="@progress.Ready" max="@progress.Required" aria-label="@UiText("RequiredAnswersProgress")"></progress>
-            }
-            @if (totalAttention > 0)
-            {
-                <button type="button" class="button button--secondary" data-action="review-required-work"
-                        @onclick="() => IsCurrentView(actionForm, actionView) ? FocusNextRequiredWorkAsync() : Task.CompletedTask">@UiText("NeedsAttention"): @totalAttention</button>
-            }
-        </div>
-        <div class="configuration-editor__status" data-workspace-phase="private-workspace"
-             data-status-code="@_statusCode" data-status-slot="reserved">
-            <p role="status" class="configuration-editor__status-text @(_statusCode == "workspace-ready" ? "configuration-editor__status-text--quiet" : "notice")"
-               data-code="@_statusCode">@UiFormat(_statusKey, _statusArguments)</p>
-            @if (StatusRecovery is { } recovery)
-            {
-                <button type="button" class="button button--secondary" data-action="recover-status"
-                        data-recovery-target="@recovery.TargetToken"
-                        @onclick="() => IsCurrentView(actionForm, actionView) ? ExecuteStatusRecoveryAsync() : Task.CompletedTask">
-                    @UiText(recovery.LabelKey)
-                </button>
-            }
-        </div>
-        @if (OutputSelector is { Options.Count: > 1 } outputTaskSelector)
-        {
-            <div class="configuration-editor__toolbar configuration-editor__output-task">
-                <label for="configuration-output">@UiText("OutputTask")</label>
-                <select @key="_outputChoiceKey" @ref="_outputControl" id="configuration-output" value="@OutputSelection"
-                        data-output-field="@DefinitionProfile.FieldId(outputTaskSelector.Location.Segments[0])"
-                        @onchange="args => IsCurrentView(actionForm, actionView) ? RequestOutputChangeAsync(args) : Task.CompletedTask">
-                    <option value="-1" disabled>@UiText("NotSupplied")</option>
-                    @for (int index = 0; index < outputTaskSelector.Options.Count; ++index)
+            bool secretsUnlocked = actionForm.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled; }
+        <WorkspaceHeader @ref="_workspaceHeader"
+                         Form="_form"
+                         Locale="@_form.Locale"
+                         ActiveStage="@ActiveHeaderStage"
+                         DeveloperMode="@_developerMode"
+                         AdvancedOpen="@_advancedOptionsOpen"
+                         ActiveAdvancedCount="@ActiveAdvancedOptionsCount"
+                         OnToggleAdvanced="() => { if (IsCurrentView(actionForm, actionView)) ToggleAdvancedOptions(); }"
+                         StageSelected="stage => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(stage) : Task.CompletedTask">
+            <StatusContent>
+                <div class="configuration-editor__progress configuration-editor__progress--@readyState" aria-live="polite" aria-atomic="true"
+                     data-required-count="@progress.Required" data-ready-count="@progress.Ready" data-ready-state="@readyState">
+                    @if (summary.MissingRequired == 0 && summary.DeferredSecretCount == 0 && summary.OptionalInvalidCount > 0)
                     {
-                        <option value="@index.ToString(System.Globalization.CultureInfo.InvariantCulture)"
-                                data-output-value="@outputTaskSelector.Options[index].Value">@OutputTitle(index)</option>
+                        <strong>@progress.Ready / @progress.Required · @UiFormat(summary.OptionalInvalidCount == 1 ? "RequiredReadyOptionalIssue" : "RequiredReadyOptionalIssues", summary.OptionalInvalidCount)</strong>
+                        @if (progress.Required > 0)
+                        {
+                            <progress value="@Math.Max(0, progress.Required - summary.OptionalInvalidCount)" max="@progress.Required" aria-label="@UiText("RequiredAnswersProgress")"></progress>
+                        }
                     }
-                </select>
+                    else if (progress.Required == 0)
+                    {
+                        <strong>@UiText("NoRequiredAnswers")</strong>
+                    }
+                    else
+                    {
+                        <strong aria-hidden="true" dir="ltr">@progress.Ready / @progress.Required</strong>
+                        <span class="sr-only">@UiFormat(progress.Required == 1 ? "RequiredAnswerReady" : "RequiredAnswersReady", progress.Ready, progress.Required)</span>
+                        <progress value="@progress.Ready" max="@progress.Required" aria-label="@UiText("RequiredAnswersProgress")"></progress>
+                    }
+                    @if (totalAttention > 0)
+                    {
+                        <button type="button" class="button button--secondary" data-action="review-required-work"
+                                @onclick="() => IsCurrentView(actionForm, actionView) ? FocusNextRequiredWorkAsync() : Task.CompletedTask">@UiText("NeedsAttention"): @totalAttention</button>
+                    }
+                </div>
+                @if (secretsUnlocked)
+                {
+                    <span class="configuration-editor__secrets-pill" data-workspace-secrets-unlocked>
+                        <MudIcon Icon="@Icons.Material.Outlined.LockOpen" Size="Size.Small" aria-hidden="true" />
+                        <span>@UiText("SecretsEnabledChip")</span>
+                    </span>
+                }
+                <div class="configuration-editor__status @(_statusCode == "workspace-ready" && StatusRecovery is null ? "configuration-editor__status--quiet" : "configuration-editor__status--alert")"
+                     data-workspace-phase="private-workspace"
+                     data-status-code="@_statusCode" data-status-slot="reserved">
+                    <p role="status" class="configuration-editor__status-text @(_statusCode == "workspace-ready" ? "configuration-editor__status-text--quiet" : "notice")"
+                       data-code="@_statusCode" title="@UiFormat(_statusKey, _statusArguments)">@UiFormat(_statusKey, _statusArguments)</p>
+                    @if (StatusRecovery is { } recovery)
+                    {
+                        <button type="button" class="button button--secondary" data-action="recover-status"
+                                data-recovery-target="@recovery.TargetToken"
+                                @onclick="() => IsCurrentView(actionForm, actionView) ? ExecuteStatusRecoveryAsync() : Task.CompletedTask">
+                            @UiText(recovery.LabelKey)
+                        </button>
+                    }
+                </div>
+            </StatusContent>
+        </WorkspaceHeader>
+        <section id="workspace-advanced-options"
+                 class="configuration-editor__advanced-panel"
+                 hidden="@(!_advancedOptionsOpen)"
+                 inert="@(!_advancedOptionsOpen)"
+                 aria-label="@UiText("AdvancedWorkspaceOptions")">
+            <div class="configuration-editor__advanced-toolbar">
+                @if (!string.IsNullOrEmpty(ScopeSummary))
+                {
+                    <button type="button" class="configuration-editor__advanced-chip configuration-editor__advanced-chip--scope"
+                            data-workspace-scope data-action="change-scope"
+                            aria-controls="configuration-context"
+                            aria-expanded="@_contextOpen.ToString().ToLowerInvariant()"
+                            @onclick="() => { if (IsCurrentView(actionForm, actionView)) OpenScopeSelector(); }">
+                        <MudIcon Icon="@Icons.Material.Outlined.Tune" Size="Size.Small" aria-hidden="true" />
+                        <span><bdi>@ScopeSummary</bdi> · @UiText("ScopeChangeAction")</span>
+                    </button>
+                }
+                <button type="button"
+                        class="configuration-editor__advanced-chip @(secretsUnlocked ? "configuration-editor__advanced-chip--active" : "")"
+                        data-workspace-consent-chip
+                        data-consent-active="@secretsUnlocked.ToString().ToLowerInvariant()"
+                        @onclick="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }">
+                    <MudIcon Icon="@(secretsUnlocked ? Icons.Material.Outlined.LockOpen : Icons.Material.Outlined.Lock)" Size="Size.Small" aria-hidden="true" />
+                    <span>@UiText(secretsUnlocked ? "SecretsEnabledChip" : "SecretsLockedChip")</span>
+                </button>
+                @if (OutputSelector is { Options.Count: > 1 } outputTaskSelector)
+                {
+                    <div class="configuration-editor__ribbon-field configuration-editor__output-task">
+                        <label for="configuration-output">@UiText("OutputTask")</label>
+                        <select @key="_outputChoiceKey" @ref="_outputControl" id="configuration-output" value="@OutputSelection"
+                                data-output-field="@DefinitionProfile.FieldId(outputTaskSelector.Location.Segments[0])"
+                                @onchange="args => IsCurrentView(actionForm, actionView) ? RequestOutputChangeAsync(args) : Task.CompletedTask">
+                            <option value="-1" disabled>@UiText("NotSupplied")</option>
+                            @for (int index = 0; index < outputTaskSelector.Options.Count; ++index)
+                            {
+                                <option value="@index.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                        data-output-value="@outputTaskSelector.Options[index].Value">@OutputTitle(index)</option>
+                            }
+                        </select>
+                    </div>
+                }
             </div>
-        }
+            @if (_form.ConfigurationContext is { } configurationContext)
+            {
+                <section id="configuration-context" class="configuration-editor__context" hidden="@(!_contextOpen)" inert="@(!_contextOpen)">
+                <fieldset class="configuration-editor__context-fields" @key="(_form, _contextChoiceKey)">
+                    <legend class="sr-only">@UiText("ConfigurationContext")</legend>
+                    <p id="configuration-context-help">@UiText("ConfigurationContextHelp")</p>
+                    @if (projection.ContextSummary is { } contextSummary)
+                    {
+                        <p class="form-help" data-context-summary>
+                            <bdi>@contextSummary.Summary</bdi>
+                            @if (contextSummary.ComponentTitles.Count > 0)
+                            {
+                                <span> · <bdi>@string.Join(", ", contextSummary.ComponentTitles)</bdi></span>
+                            }
+                            @if (contextSummary.ArtifactFileNames.Count > 0)
+                            {
+                                <span> · <bdi dir="ltr">@string.Join(", ", contextSummary.ArtifactFileNames)</bdi></span>
+                            }
+                        </p>
+                    }
+                    <div class="configuration-editor__mode">
+                        <label for="configuration-recipe">@UiText("ConfigurationRecipe")</label>
+                        <select id="configuration-recipe" @ref="_contextControl" value="@configurationContext.RecipeId"
+                                aria-describedby="configuration-context-help"
+                                @onchange="args => IsCurrentView(actionForm, actionView) ? ChangeRecipeAsync(args) : Task.CompletedTask">
+                            <option value="" disabled>@UiText("ConfigurationRecipe")</option>
+                            @foreach (var recipe in _form.ConfigurationRecipes)
+                            {
+                                <option value="@recipe.Id">@RecipeTitle(recipe)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="configuration-editor__mode">
+                        <label for="configuration-scope">@UiText("ConfigurationScope")</label>
+                        <select id="configuration-scope" value="@configurationContext.ScopeId" aria-describedby="configuration-context-help"
+                                @onchange="args => IsCurrentView(actionForm, actionView) ? ChangeScopeAsync(args) : Task.CompletedTask">
+                            <option value="" disabled>@UiText("ConfigurationScope")</option>
+                            @foreach (var scope in _form.ConfigurationScopes)
+                            {
+                                var recipe = _form.ConfigurationRecipes.Single(item => item.Id == configurationContext.RecipeId);
+                                <option value="@scope.Id">@ScopeTitle(recipe, scope)</option>
+                            }
+                        </select>
+                    </div>
+                    <details>
+                        <summary>@UiText("CompatibleContextChoices")</summary>
+                        <div class="actions">
+                            @foreach (var recipe in _form.ConfigurationRecipes)
+                            {
+                                @foreach (var scope in recipe.Scopes)
+                                {
+                                    <AppButton Variant="Variant.Outlined" data-context-pair="@(recipe.Id + ":" + scope.Id)"
+                                               OnClick="() => IsCurrentView(actionForm, actionView) ? SelectContextAsync(recipe.Id, scope.Id) : Task.CompletedTask">@RecipeTitle(recipe) / @ScopeTitle(recipe, scope)</AppButton>
+                                }
+                            }
+                        </div>
+                    </details>
+                </fieldset>
+                </section>
+            }
+            @if (_activeWorkflowStage == WorkspaceStage.Configure)
+            {
+            <div class="configuration-editor__configure-ribbon"
+                 data-configure-ribbon
+                 role="toolbar"
+                 aria-label="@UiText("WorkspaceEditorTools")">
+                <div class="configuration-editor__ribbon-group" role="group" aria-label="@UiText("ConfigurationAnswers")">
+                    <AppButton Variant="@(!_developerMode ? Variant.Filled : Variant.Outlined)"
+                               data-editing-mode="form"
+                               aria-pressed="@((!_developerMode).ToString().ToLowerInvariant())"
+                               OnClick="() => IsCurrentView(actionForm, actionView) ? RequestEditorModeAsync(false) : Task.CompletedTask">@ConfigurationDeveloper.ModeLabel(false, actionForm.Locale)</AppButton>
+                    <AppButton Variant="@(_developerMode ? Variant.Filled : Variant.Outlined)"
+                               data-editing-mode="developer"
+                               aria-pressed="@_developerMode.ToString().ToLowerInvariant()"
+                               OnClick="() => IsCurrentView(actionForm, actionView) ? RequestEditorModeAsync(true) : Task.CompletedTask">@ConfigurationDeveloper.ModeLabel(true, actionForm.Locale)</AppButton>
+                    <button @ref="_inspectorToggleControl"
+                            type="button"
+                            class="button button--secondary"
+                            data-action="toggle-inspector"
+                            aria-pressed="@((IsAnyEndDockOpen || _inspectorOpen) ? "true" : "false")"
+                            @onclick="() => IsCurrentView(actionForm, actionView) ? ToggleInspectorAsync() : Task.CompletedTask">@UiText("ToggleInspector")</button>
+                </div>
+                <div class="configuration-editor__ribbon-group">
+                    @if (_form.Experiences.Count > 1)
+                    {
+                        <div class="configuration-editor__ribbon-field">
+                            <label for="configuration-experience">@UiText("ConfigurationExperience")</label>
+                            <select id="configuration-experience" value="@_form.SelectedExperienceId" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeExperience(args); }">
+                                @foreach (var experience in _form.DisplayExperiences)
+                                {
+                                    <option value="@experience.Id">@experience.Title</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                    <div class="configuration-editor__ribbon-field">
+                        <label for="configuration-detail">@UiText("ProfileDetail")</label>
+                        <select id="configuration-detail" value="@(_form.DisclosureOverride?.ToString().ToLowerInvariant() ?? "authored")" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeDetail(args); }">
+                            <option value="authored">@UiText("DefaultDetail")</option>
+                            <option value="essential">@UiText("Basic")</option>
+                            <option value="guided">@UiText("Standard")</option>
+                            <option value="advanced">@UiText("AllActive")</option>
+                        </select>
+                    </div>
+                    <div class="configuration-editor__ribbon-field">
+                        <label for="configuration-density">@UiText("Density")</label>
+                        <select id="configuration-density" aria-label="@UiText("Density")"
+                                value="@AppearanceState.FromWorkspaceDensity(Density)"
+                                @onchange="args => IsCurrentView(actionForm, actionView) ? ChangeDensitySelectAsync(args) : Task.CompletedTask">
+                            <option value="spacious">@UiText("Spacious")</option>
+                            <option value="comfortable">@UiText("Comfortable")</option>
+                            <option value="compact">@UiText("Compact")</option>
+                            <option value="dense">@UiText("Dense")</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="configuration-editor__ribbon-group">
+                    <button type="button"
+                            class="button button--secondary configuration-editor__naming-button"
+                            data-action="toggle-naming-mode"
+                            aria-pressed="@(NamingMode == WorkspaceNamingMode.Technical ? "true" : "false")"
+                            title="@($"{UiText("NamingMode")} (Ctrl+Shift+K)")"
+                            @onclick="() => IsCurrentView(actionForm, actionView) ? ChangeNamingModeAsync(NamingMode == WorkspaceNamingMode.Technical ? WorkspaceNamingMode.Humanized : WorkspaceNamingMode.Technical) : Task.CompletedTask">
+                        <span>@UiText(NamingMode == WorkspaceNamingMode.Technical ? "Technical" : "Humanized")</span>
+                        <kbd class="configuration-editor__shortcut" dir="ltr">Ctrl+Shift+K</kbd>
+                    </button>
+                    <button type="button" class="button button--secondary" data-action="undo"
+                            disabled="@(!_form.CanUndo)" aria-label="@UiText("UndoAction")"
+                            @onclick="() => { if (IsCurrentView(actionForm, actionView)) PerformUndo(); }">@UiText("UndoAction")</button>
+                    <button type="button" class="button button--secondary" data-action="redo"
+                            disabled="@(!_form.CanRedo)" aria-label="@UiText("RedoAction")"
+                            @onclick="() => { if (IsCurrentView(actionForm, actionView)) PerformRedo(); }">@UiText("RedoAction")</button>
+                    <button type="button" class="button button--secondary" data-action="open-shortcuts"
+                            aria-label="@UiText("SettingsShortcuts")"
+                            @onclick="() => IsCurrentView(actionForm, actionView) ? OpenShortcutsHelpAsync() : Task.CompletedTask">?</button>
+                </div>
+            </div>
+            }
+            @if (SourceDetails is not null)
+            {
+                <div class="configuration-editor__source-details">@SourceDetails</div>
+            }
+        </section>
         @if (_activeWorkflowStage == WorkspaceStage.Configure)
         {
-        @if (_developerMode)
-        {
-            @if (DeveloperArtifacts.Length > 1)
-            {
-                <div class="configuration-editor__mode">
-                    <label for="developer-destination">@UiText("EnvironmentDestination")</label>
-                    <select id="developer-destination" @key="_developerDestinationKey" @ref="_developerDestinationControl" value="@DeveloperArtifactId"
-                            @onchange="args => IsCurrentView(actionForm, actionView) ? ChangeDeveloperDestinationAsync(args) : Task.CompletedTask">
-                        <option value="" disabled>@UiText("ImportChooseFormat")</option>
-                        @foreach (var artifact in DeveloperArtifacts)
-                        {
-                            <option value="@artifact.Id">@artifact.Title / @artifact.FileName</option>
-                        }
-                    </select>
-                </div>
-            }
-            <ConfigurationDeveloper @key="(_form, _developerEpoch)" @ref="_developerPanel" Form="_form"
-                                    ConsentControl="() => _consentControl" WorkspaceLifetime="@_workspaceLifetime"
-                                    EnvironmentArtifactId="@DeveloperArtifactId"
-                                    DirtyChanged="_ => { if (IsCurrentView(actionForm, actionView)) _navigation?.RefreshWork(this, _navigationLease); }"
-                                    RequestConsent="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }" />
-        }
-        else
-        {
-        <CascadingValue @key="_workspaceLifetime" Name="WorkspaceConsentAction" Value="_consentAction" IsFixed="true">
-        <CascadingValue Name="OnFieldFocused" Value="_fieldFocusCallback" IsFixed="true">
-        <CascadingValue Name="OnWorkspaceKeyDown" Value="_keyDownCallback" IsFixed="true">
-        <ConfigurationErrorSummary Form="_form"
-                                   Validation="_validation"
-                                   ShowRequiredSummary="_errorSummaryRequested"
-                                   TargetSelected="target => IsCurrentView(actionForm, actionView) ? JumpToActionableTargetAsync(target) : Task.CompletedTask" />
-        <div class="@(_inspectorOpen ? "configuration-editor__workbench" : string.Empty)">
+        <DockLayoutHost Scope="DockScope.Workspace"
+                        MinimumContentWidth="@WorkspaceMinimumContentWidth"
+                        DataTestId="workspace-dock-host"
+                        ContentDataTestId="workspace-dock-content"
+                        TabSelectRequested="HandleDockTabRequestedAsync"
+                        OverlayCloseRequested="_ => CloseEndDockAsync()">
+            <CascadingValue @key="_workspaceLifetime" Name="WorkspaceConsentAction" Value="_consentAction" IsFixed="true">
+            <CascadingValue Name="OnFieldFocused" Value="_fieldFocusCallback" IsFixed="true">
+            <CascadingValue Name="OnWorkspaceKeyDown" Value="_keyDownCallback" IsFixed="true">
+            <ConfigurationErrorSummary Form="_form"
+                                       Validation="_validation"
+                                       ShowRequiredSummary="_errorSummaryRequested"
+                                       TargetSelected="target => IsCurrentView(actionForm, actionView) ? JumpToActionableTargetAsync(target) : Task.CompletedTask" />
             <ConfigurationConfigurePanel @ref="_configurePanel" Form="_form" Sections="viewSections" SelectedSection="@_selectedSection"
                                          SelectedChanged="HandleConfigureSectionSelectedAsync"
                                          LayoutModeChanged="layout => IsCurrentView(actionForm, actionView) ? SelectLayoutModeAsync(layout) : Task.CompletedTask"
@@ -229,25 +337,14 @@ else
                                          CompactShowMatchesOnly="_compactShowMatchesOnly"
                                          CompactShowMatchesOnlyChanged="HandleCompactShowMatchesOnlyChanged"
                                          ReviewRequested="HandleConfigureReviewRequested" />
-            @if (_inspectorOpen)
+            @if (_returnToReview)
             {
-                <ConfigurationInspectorPane Form="_form" InspectedPath="@_inspectedPath" ProjectionRevision="_form.InputRevision"
-                                            Locale="@_form.Locale" IsMobileSheet="_inspectorMobileSheet"
-                                            CloseRequested="() => ToggleInspectorAsync()" />
+                <AppButton Variant="Variant.Outlined" data-action="return-to-review" OnClick="() => { if (IsCurrentView(actionForm, actionView)) ReturnToReview(); }">@UiText("ReturnToReview")</AppButton>
             }
-        </div>
-        </CascadingValue>
-        </CascadingValue>
-        </CascadingValue>
-        @if (_returnToReview)
-        {
-            <AppButton Variant="Variant.Outlined" data-action="return-to-review" OnClick="() => { if (IsCurrentView(actionForm, actionView)) ReturnToReview(); }">@UiText("ReturnToReview")</AppButton>
-        }
-        }
-        <div class="configuration-editor__toolbar">
-            <details class="configuration-editor__view-options">
-            <summary>@UiText("WorkspaceEditorTools")</summary>
-            <div class="configuration-editor__entry-choices" data-returning-entry role="group" aria-label="@UiText("ReturningUserEntry")">
+            </CascadingValue>
+            </CascadingValue>
+            </CascadingValue>
+            <div class="configuration-editor__entry-strip" data-returning-entry role="group" aria-label="@UiText("ReturningUserEntry")">
                 <button type="button" class="button button--secondary" data-entry-choice="fresh"
                         aria-pressed="@((!_importOpen && !_profileOpen).ToString().ToLowerInvariant())"
                         @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectReturningEntry("fresh"); }'>@UiText("StartFreshEntry")</button>
@@ -261,74 +358,15 @@ else
                         aria-pressed="@(_profileOpen.ToString().ToLowerInvariant())"
                         @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectReturningEntry("profile"); }'>@UiText("OpenSavedProfileEntry")</button>
             </div>
-            <div class="configuration-editor__quick-actions">
-                <button type="button" class="button button--secondary" data-action="undo"
-                        disabled="@(!_form.CanUndo)" aria-label="@UiText("UndoAction")"
-                        @onclick="() => { if (IsCurrentView(actionForm, actionView)) PerformUndo(); }">@UiText("UndoAction")</button>
-                <button type="button" class="button button--secondary" data-action="redo"
-                        disabled="@(!_form.CanRedo)" aria-label="@UiText("RedoAction")"
-                        @onclick="() => { if (IsCurrentView(actionForm, actionView)) PerformRedo(); }">@UiText("RedoAction")</button>
-                <button @ref="_inspectorToggleControl" type="button" class="button button--secondary" data-action="toggle-inspector"
-                        aria-pressed="@(_inspectorOpen ? "true" : "false")"
-                        @onclick="() => IsCurrentView(actionForm, actionView) ? ToggleInspectorAsync() : Task.CompletedTask">@UiText("ToggleInspector")</button>
-                <button type="button" class="button button--secondary" data-action="open-shortcuts"
-                        @onclick="() => IsCurrentView(actionForm, actionView) ? OpenShortcutsHelpAsync() : Task.CompletedTask">?</button>
-                <button type="button" class="button button--secondary"
-                        data-action="toggle-naming-mode"
-                        aria-pressed="@(NamingMode == WorkspaceNamingMode.Technical ? "true" : "false")"
-                        title="@($"{UiText("NamingMode")} (Ctrl+Shift+K)")"
-                        @onclick="() => IsCurrentView(actionForm, actionView) ? ChangeNamingModeAsync(NamingMode == WorkspaceNamingMode.Technical ? WorkspaceNamingMode.Humanized : WorkspaceNamingMode.Technical) : Task.CompletedTask">
-                    <span>@UiText(NamingMode == WorkspaceNamingMode.Technical ? "Technical" : "Humanized")</span>
-                    <kbd class="workspace-header__shortcut" dir="ltr">Ctrl+Shift+K</kbd>
-                </button>
-            </div>
-            <div class="configuration-editor__mode">
-                <label for="configuration-density">@UiText("Density")</label>
-                <select id="configuration-density" aria-label="@UiText("Density")"
-                        value="@AppearanceState.FromWorkspaceDensity(Density)"
-                        @onchange="args => IsCurrentView(actionForm, actionView) ? ChangeDensitySelectAsync(args) : Task.CompletedTask">
-                    <option value="spacious">@UiText("Spacious")</option>
-                    <option value="comfortable">@UiText("Comfortable")</option>
-                    <option value="compact">@UiText("Compact")</option>
-                    <option value="dense">@UiText("Dense")</option>
-                </select>
-            </div>
-            <div class="actions" role="group" aria-label="@UiText("ConfigurationAnswers")">
-                <AppButton Variant="@(_developerMode ? Variant.Outlined : Variant.Filled)" data-editing-mode="form"
-                           aria-pressed="@((!_developerMode).ToString().ToLowerInvariant())"
-                           OnClick="() => IsCurrentView(actionForm, actionView) ? RequestEditorModeAsync(false) : Task.CompletedTask">@ConfigurationDeveloper.ModeLabel(false, actionForm.Locale)</AppButton>
-                <AppButton Variant="@(_developerMode ? Variant.Filled : Variant.Outlined)" data-editing-mode="developer"
-                           aria-pressed="@_developerMode.ToString().ToLowerInvariant()"
-                           OnClick="() => IsCurrentView(actionForm, actionView) ? RequestEditorModeAsync(true) : Task.CompletedTask">@ConfigurationDeveloper.ModeLabel(true, actionForm.Locale)</AppButton>
-            </div>
-            @if (_form.Experiences.Count > 1)
-            {
-                <div class="configuration-editor__mode">
-                    <label for="configuration-experience">@UiText("ConfigurationExperience")</label>
-                    <select id="configuration-experience" value="@_form.SelectedExperienceId" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeExperience(args); }">
-                        @foreach (var experience in _form.DisplayExperiences)
-                        {
-                            <option value="@experience.Id">@experience.Title</option>
-                        }
-                    </select>
-                </div>
-            }
-            <div class="configuration-editor__mode">
-                <label for="configuration-detail">@UiText("ProfileDetail")</label>
-                <select id="configuration-detail" value="@(_form.DisclosureOverride?.ToString().ToLowerInvariant() ?? "authored")" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeDetail(args); }">
-                    <option value="authored">@UiText("DefaultDetail")</option>
-                    <option value="essential">@UiText("Basic")</option>
-                    <option value="guided">@UiText("Standard")</option>
-                    <option value="advanced">@UiText("AllActive")</option>
-                </select>
-            </div>
-            <ConfigurationFieldHelp @key="(_form, _form.SelectedExperienceId, currentSectionId)" Schema="default" Title="@UiText("ThisWorkspace")" FieldPath="workspace"
-                                    Locale="@_form.Locale"
-                                    SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
-                                    ContextTitle="@($"{Definition.Title} / {SelectedExperience.Title}")" Description="@SelectedExperience.Description"
-                                    SectionDescription="@(currentSectionId is null ? null : _editorSections[currentSectionId].Description)" />
+            <details class="configuration-editor__view-options">
+                <summary>@UiText("ThisWorkspace")</summary>
+                <ConfigurationFieldHelp @key="(_form, _form.SelectedExperienceId, currentSectionId)" Schema="default" Title="@UiText("ThisWorkspace")" FieldPath="workspace"
+                                        Locale="@_form.Locale"
+                                        SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
+                                        ContextTitle="@($"{Definition.Title} / {SelectedExperience.Title}")" Description="@SelectedExperience.Description"
+                                        SectionDescription="@(currentSectionId is null ? null : _editorSections[currentSectionId].Description)" />
             </details>
-        </div>
+        </DockLayoutHost>
         @if (!_developerMode && ImportArtifacts.Length > 0)
         {
             <details class="configuration-editor__import" data-import-panel open="@_importOpen">
@@ -476,4 +514,45 @@ else
     }
 </section>
 </MudRTLProvider>
+}
+
+@code {
+    private RenderFragment RenderInspectorDockPanel() => @<ConfigurationInspectorPane Form="_form"
+                                                                                      InspectedPath="@_inspectedPath"
+                                                                                      ProjectionRevision="@(_form?.InputRevision ?? 0)"
+                                                                                      Locale="@(_form?.Locale ?? "en")"
+                                                                                      IsMobileSheet="_inspectorMobileSheet"
+                                                                                      CloseRequested="CloseEndDockAsync" />;
+
+    private RenderFragment RenderDocumentJsonDockPanel() => @<div class="configuration-editor__document-dock">
+        @if (_form is { } actionForm)
+        {
+            long actionView = _viewGeneration;
+            <div class="configuration-editor__document-dock-header">
+                <AppButton Variant="Variant.Text"
+                           OnClick="CloseEndDockAsync"
+                           data-action="close-document-json-dock"
+                           aria-label="@UiText("CloseDocumentJsonDock")">@UiText("Close")</AppButton>
+            </div>
+            @if (DeveloperArtifacts.Length > 1)
+            {
+                <div class="configuration-editor__mode">
+                    <label for="developer-destination">@UiText("EnvironmentDestination")</label>
+                    <select id="developer-destination" @key="_developerDestinationKey" @ref="_developerDestinationControl" value="@DeveloperArtifactId"
+                            @onchange="args => IsCurrentView(actionForm, actionView) ? ChangeDeveloperDestinationAsync(args) : Task.CompletedTask">
+                        <option value="" disabled>@UiText("ImportChooseFormat")</option>
+                        @foreach (var artifact in DeveloperArtifacts)
+                        {
+                            <option value="@artifact.Id">@artifact.Title / @artifact.FileName</option>
+                        }
+                    </select>
+                </div>
+            }
+            <ConfigurationDeveloper @key="(_form, _developerEpoch)" @ref="_developerPanel" Form="actionForm"
+                                    ConsentControl="() => _consentControl" WorkspaceLifetime="@_workspaceLifetime"
+                                    EnvironmentArtifactId="@DeveloperArtifactId"
+                                    DirtyChanged="_ => { if (IsCurrentView(actionForm, actionView)) _navigation?.RefreshWork(this, _navigationLease); }"
+                                    RequestConsent="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }" />
+        }
+    </div>;
 }

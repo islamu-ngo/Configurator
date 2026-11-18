@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using Configurator.Browser.Components.Common;
 using Configurator.Browser.Resources;
 using Configurator.Browser.Services;
+using Configurator.Browser.Services.Docking;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
@@ -24,10 +25,12 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     [Inject] private BrowserOfflinePolicy Offline { get; set; } = null!;
     [Inject] private IServiceProvider Services { get; set; } = null!;
     [Inject] private AppearanceThemeService Appearance { get; set; } = null!;
+    [Inject] private DockLayoutState DockLayoutState { get; set; } = null!;
     [Parameter, EditorRequired] public Definition Definition { get; set; } = null!;
     [Parameter] public string? InitialLocale { get; set; }
     [Parameter] public string? InitialEntry { get; set; }
     [Parameter] public string? InitialMode { get; set; }
+    [Parameter] public RenderFragment? SourceDetails { get; set; }
     private Definition? _pinned;
     private DefinitionFormModel? _form;
     private StartupRequest? _startup;
@@ -54,8 +57,10 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private bool _hadPreparedOutput;
     private ConfigureLayoutMode _observedLayoutMode = ConfigureLayoutMode.SectionBySection;
     private bool _contextOpen;
+    private bool _advancedOptionsOpen;
     private bool _consentOpen;
     private bool _taskToolsOpen;
+    private WorkspaceHeader? _workspaceHeader;
     private EventCallback _consentAction;
     private EventCallback<DefinitionPath> _suggestionReviewCallback;
     private long _developerEpoch;
@@ -83,13 +88,114 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private WorkspaceStage ActiveHeaderStage => _activeWorkflowStage;
     private string? ScopeSummary => _form?.Projection.ContextSummary?.Summary
         ?? (_form?.ConfigurationContext is not { } context ? null : $"{context.RecipeId} · {context.ScopeId}");
+    private bool HasSideFormNav
+    {
+        get
+        {
+            if (_disposed || !_ready || _form is null || _activeWorkflowStage != WorkspaceStage.Configure)
+                return false;
+
+            if (_navigation?.IsSettingsOpen == true)
+                return false;
+
+            if (DockLayoutState.ViewportWidth is > 0 and <= 960)
+                return false;
+
+            if (!DefinitionEditingSupport.HasPropertyRoot(_form.Definition))
+                return false;
+
+            return ConfigurationConfigurePanel.ResolveVisibleSections(_form, EditorSections()).Length > 1;
+        }
+    }
+
+    private int WorkspaceMinimumContentWidth => !HasSideFormNav
+        ? DockLayoutState.DefaultMinimumContentWidth
+        : Density switch
+        {
+            WorkspaceDensity.Spacious => 806,
+            WorkspaceDensity.Compact => 774,
+            WorkspaceDensity.Dense => 766,
+            _ => 790
+        };
+
+    private int ActiveAdvancedOptionsCount => _form is null
+        ? 0
+        : (_developerMode ? 1 : 0)
+            + (IsAnyEndDockOpen || _inspectorOpen ? 1 : 0)
+            + (_form.DisclosureOverride != (_form.Definition.Presentation is not null ? FieldDisclosure.Essential : (FieldDisclosure?)null) ? 1 : 0)
+            + (_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled ? 1 : 0);
+
+    private void ToggleAdvancedOptions()
+    {
+        _advancedOptionsOpen = !_advancedOptionsOpen;
+        if (!_advancedOptionsOpen)
+            _contextOpen = false;
+    }
+
     protected override void OnInitialized()
     {
         Appearance.Changed += AppearanceChanged;
+        DockLayoutState.Changed += OnDockChanged;
+        _navigation = Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
+        if (_navigation is not null)
+            _navigation.Changed += OnNavigationStateChanged;
         _suggestionReviewCallback = EventCallback.Factory.Create<DefinitionPath>(this, HandleSuggestionReviewRequestedAsync);
         _fieldFocusCallback = OnFieldFocused;
         _keyDownCallback = HandleWorkspaceKeyAsync;
         RefreshConsentAction();
+    }
+
+    private void OnNavigationStateChanged(object? sender, EventArgs args)
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            StateHasChanged();
+        });
+    }
+
+    private void OnDockChanged()
+    {
+        if (_disposed) return;
+        SyncDockFlags();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void SyncDockFlags()
+    {
+        DockPanelEntry? inspector = DockLayoutState.GetPanel(BrowserDockPanels.InspectorId);
+        DockPanelEntry? docJson = DockLayoutState.GetPanel(BrowserDockPanels.DocumentJsonId);
+        bool anyOpen = inspector is { State.IsOpen: true } || docJson is { State.IsOpen: true };
+        if (!anyOpen && _inspectorOpen)
+        {
+            _inspectorOpen = false;
+            _inspectorMobileSheet = false;
+        }
+    }
+
+    private bool IsEndDockPanelOpen(DockPanelId id) =>
+        DockLayoutState.GetPanel(id) is { State.IsOpen: true };
+
+    private bool IsAnyEndDockOpen => IsEndDockPanelOpen(BrowserDockPanels.InspectorId)
+        || IsEndDockPanelOpen(BrowserDockPanels.DocumentJsonId);
+
+    private void EnsureWorkspaceDockPanelsRegistered()
+    {
+        if (_form is null) return;
+        string locale = _form.Locale;
+        DockLayoutState.RegisterOrUpdate(
+            BrowserDockPanels.CreateInspector(BrowserStrings.Get("DockTabInspector", locale), BrowserStrings.Get("InspectorPaneLabel", locale)),
+            RenderInspectorDockPanel());
+        DockLayoutState.RegisterOrUpdate(
+            BrowserDockPanels.CreateDocumentJson(BrowserStrings.Get("DockTabDocumentJson", locale), BrowserStrings.Get("DocumentJsonDockLabel", locale)),
+            RenderDocumentJsonDockPanel());
+    }
+
+    private void UnregisterWorkspaceDockPanels()
+    {
+        DockLayoutState.Unregister(BrowserDockPanels.InspectorId);
+        DockLayoutState.Unregister(BrowserDockPanels.DocumentJsonId);
     }
     private void AppearanceChanged(object? sender, EventArgs args)
     {
@@ -165,6 +271,10 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (_disposed || ReferenceEquals(_pinned, Definition)) return;
         RetireDeveloper();
         _developerMode = false;
+        _inspectorOpen = false;
+        _inspectorMobileSheet = false;
+        UnregisterWorkspaceDockPanels();
+        DockLayoutState.ClearMinimumContentWidth(DockScope.Workspace);
         _developerArtifactId = null;
         RetireView();
         _configurePanel = null;
@@ -184,6 +294,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _focusField = null;
         _pinned = Definition;
         _contextOpen = false;
+        _advancedOptionsOpen = false;
         _consentOpen = false;
         _taskToolsOpen = false;
         _importOpen = false;
@@ -197,7 +308,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _navigation ??= Services.GetService(typeof(BrowserNavigationState)) as BrowserNavigationState;
         StartupRequest startup = _startup!;
         _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync,
-            () => (startup.Locale, startup.Direction), () => false) ?? 0;
+            () => (startup.Locale, startup.Direction), () => false,
+            locale => _form?.SelectLocale(locale), () => Definition.Locales) ?? 0;
     }
 
     private void QueueStartup(string? initialLocale, string? initialEntry, bool begin)
@@ -425,11 +537,70 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
 
     private async Task RequestEditorModeAsync(bool developer)
     {
-        if (_developerMode == developer || !await ResolvePendingAsync()) return;
+        if (developer)
+        {
+            EnsureWorkspaceDockPanelsRegistered();
+            DockLayoutState.Open(BrowserDockPanels.InspectorId, DockLayoutChangeReason.UserAction);
+            DockLayoutState.Open(BrowserDockPanels.DocumentJsonId, DockLayoutChangeReason.UserAction);
+            if (_developerMode) return;
+            if (!await ResolvePendingAsync()) return;
+            RetireDeveloper();
+            _developerMode = true;
+            _inspectorOpen = true;
+            SelectWorkflowStage(WorkspaceStage.Configure);
+            return;
+        }
+
+        if (!_developerMode && !IsEndDockPanelOpen(BrowserDockPanels.DocumentJsonId))
+            return;
+
+        if (!await ResolvePendingAsync()) return;
         RetireDeveloper();
-        _developerMode = developer;
-        _configurePanel = null;
+        _developerMode = false;
+        if (DockLayoutState.GetPanel(BrowserDockPanels.DocumentJsonId) is not null)
+            DockLayoutState.Close(BrowserDockPanels.DocumentJsonId);
         SelectWorkflowStage(WorkspaceStage.Configure);
+    }
+
+    private async Task HandleDockTabRequestedAsync(DockPanelId panelId)
+    {
+        if (_disposed || _form is null) return;
+        if (panelId == BrowserDockPanels.DocumentJsonId)
+        {
+            await RequestEditorModeAsync(true);
+            return;
+        }
+
+        if (panelId == BrowserDockPanels.InspectorId)
+        {
+            if (_developerMode)
+            {
+                if (!await ResolvePendingAsync()) return;
+                RetireDeveloper();
+                _developerMode = false;
+            }
+
+            DockLayoutState.Activate(BrowserDockPanels.InspectorId);
+        }
+    }
+
+    private async Task CloseEndDockAsync()
+    {
+        if (_disposed) return;
+        if (_developerMode && !await ResolvePendingAsync()) return;
+        if (_developerMode)
+        {
+            RetireDeveloper();
+            _developerMode = false;
+        }
+
+        if (DockLayoutState.GetPanel(BrowserDockPanels.InspectorId) is not null)
+            DockLayoutState.Close(BrowserDockPanels.InspectorId);
+        if (DockLayoutState.GetPanel(BrowserDockPanels.DocumentJsonId) is not null)
+            DockLayoutState.Close(BrowserDockPanels.DocumentJsonId);
+        _inspectorOpen = false;
+        _inspectorMobileSheet = false;
+        _focusInspectorToggleOnClose = true;
     }
 
     private async Task RequestWorkflowStageAsync(WorkspaceStage stage)
@@ -439,6 +610,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         {
             RetireDeveloper();
             _developerMode = false;
+            if (DockLayoutState.GetPanel(BrowserDockPanels.DocumentJsonId) is not null)
+                DockLayoutState.Close(BrowserDockPanels.DocumentJsonId);
             _configurePanel = null;
         }
         if (_activeWorkflowStage == stage) return;
@@ -498,7 +671,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _selectedSection = section;
         _focusField = null;
         _form?.RecordSectionOpened(section);
-        if (_activeWorkflowStage == WorkspaceStage.Configure && LayoutMode == ConfigureLayoutMode.AllSections && !_developerMode)
+        if (_activeWorkflowStage == WorkspaceStage.Configure && LayoutMode == ConfigureLayoutMode.AllSections)
             return _configurePanel?.JumpToCompactSectionAsync(section) ?? Task.CompletedTask;
         SelectWorkflowStage(WorkspaceStage.Configure);
         return Task.CompletedTask;
@@ -526,7 +699,12 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private void SelectWorkflowStage(WorkspaceStage stage)
     {
         if (_activeWorkflowStage == WorkspaceStage.Configure && _developerMode && stage != WorkspaceStage.Configure)
+        {
             RetireDeveloper();
+            _developerMode = false;
+            if (DockLayoutState.GetPanel(BrowserDockPanels.DocumentJsonId) is not null)
+                DockLayoutState.Close(BrowserDockPanels.DocumentJsonId);
+        }
         bool leavingFiles = _activeWorkflowStage == WorkspaceStage.Files && stage != WorkspaceStage.Files;
         RetireView();
         InvalidateMounts();
@@ -539,7 +717,12 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         }
         else ++_generation;
         _activeWorkflowStage = stage;
-        if (stage != WorkspaceStage.Configure) _configurePanel = null;
+        if (stage != WorkspaceStage.Configure)
+        {
+            _configurePanel = null;
+            if (DockLayoutState.ViewportWidth > 0)
+                DockLayoutState.ClearMinimumContentWidth(DockScope.Workspace);
+        }
         if (stage != WorkspaceStage.Review) _reviewPanel = null;
         if (stage != WorkspaceStage.Files) _filesPanel = null;
         if (stage == WorkspaceStage.Review) _validation = _form!.Validate();
@@ -662,7 +845,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         }
         // Publishing private comparison state renews custody, never answer-editor state.
         DefinitionFormModel form = _form;
-        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form)) ?? 0;
+        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form),
+            locale => form.SelectLocale(locale), () => form.Definition.Locales) ?? 0;
     }
     private async Task EnableSecretsAsync()
     {
@@ -768,6 +952,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     }
     private void RequestFocus(FocusTarget target)
     {
+        if (target is FocusTarget.Context or FocusTarget.Output)
+            _advancedOptionsOpen = true;
         if (target == FocusTarget.Context) _contextOpen = true;
         if (target == FocusTarget.Consent) _consentOpen = true;
         _pendingFocus = (_form!, _viewGeneration, target);
@@ -831,9 +1017,20 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
             _configurePanel = null;
         }
         if (layout == ConfigureLayoutMode.AllSections)
+        {
             _form?.SetConfigureLayoutMode(ConfigureLayoutMode.AllSections, DefinitionEditorVisibilityPolicy.Continuous);
+        }
         else
         {
+            string? activeSection = LayoutMode == ConfigureLayoutMode.AllSections
+                ? _configurePanel?.ActiveScrollspySectionId
+                : null;
+            if (!string.IsNullOrWhiteSpace(activeSection))
+            {
+                _selectedSection = activeSection;
+                _form?.RecordSectionOpened(activeSection);
+            }
+
             _compactShowMatchesOnly = false;
             _form?.SetConfigureLayoutMode(ConfigureLayoutMode.SectionBySection);
         }
@@ -947,25 +1144,30 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     private async Task ToggleInspectorAsync()
     {
         if (_disposed) return;
-        if (_inspectorOpen)
+        if (IsAnyEndDockOpen || _inspectorOpen)
         {
-            _inspectorOpen = false;
-            _inspectorMobileSheet = false;
-            _focusInspectorToggleOnClose = true;
+            await CloseEndDockAsync();
             return;
         }
+        bool isNarrow = false;
         try
         {
             _comparisonRendering ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
             IJSObjectReference module = await _comparisonRendering;
             if (_disposed) return;
-            _inspectorMobileSheet = await module.InvokeAsync<bool>("isNarrowViewport");
+            isNarrow = await module.InvokeAsync<bool>("isNarrowViewport");
         }
         catch (JSException)
         {
-            _inspectorMobileSheet = false;
+            isNarrow = false;
         }
         if (_disposed) return;
+        _inspectorMobileSheet = isNarrow;
+        if (isNarrow && DockLayoutState.ViewportWidth == 0)
+            DockLayoutState.UpdateViewport(600, isMobile: true, DockScope.Workspace, DockLayoutState.DefaultMinimumContentWidth);
+        EnsureWorkspaceDockPanelsRegistered();
+        DockLayoutState.Open(BrowserDockPanels.DocumentJsonId, DockLayoutChangeReason.UserAction);
+        DockLayoutState.Open(BrowserDockPanels.InspectorId, DockLayoutChangeReason.UserAction);
         _inspectorOpen = true;
     }
 
@@ -1161,8 +1363,10 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (_focusInspectorToggleOnClose && _ready && !_inspectorOpen)
         {
             _focusInspectorToggleOnClose = false;
-            if (!string.IsNullOrEmpty(_inspectorToggleControl.Id))
+            if (_advancedOptionsOpen && !string.IsNullOrEmpty(_inspectorToggleControl.Id))
                 await _inspectorToggleControl.FocusAsync(preventScroll: true);
+            else if (_workspaceHeader is not null)
+                await _workspaceHeader.FocusAdvancedToggleAsync();
         }
         if (!IsCurrentView(form, generation) || _pendingFocus is not { } request) return;
         _pendingFocus = null;
@@ -1170,7 +1374,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         ElementReference? target = request.Target switch
         {
             FocusTarget.Configure when _ready && _activeWorkflowStage == WorkspaceStage.Configure => _developerMode
-                ? _developerPanel?.Heading : _configurePanel?.SectionHeading,
+                ? (_developerPanel?.Heading ?? _configurePanel?.SectionHeading)
+                : _configurePanel?.SectionHeading,
             FocusTarget.Review when _ready && _activeWorkflowStage == WorkspaceStage.Review => _reviewPanel?.Heading,
             FocusTarget.Files when _ready && IsFilesSurfaceActive => _filesPanel?.Heading,
             FocusTarget.TransferReview when _ready && _transferReview is not null => _nextActionsPanel?.ReviewHeading,
@@ -1195,12 +1400,14 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _preparationFailed = false;
         Invalidate();
         DefinitionFormModel form = _form;
-        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form)) ?? 0;
+        _navigationLease = _navigation?.Register(this, Invalidate, DiscardAsync, () => (form.Locale, form.Direction), () => HasWork(form),
+            locale => form.SelectLocale(locale), () => form.Definition.Locales) ?? 0;
         long generation = _generation;
         long view = _viewGeneration;
         CancellationToken cancellation = _mountCancellation.Token;
         await Offline.InitializeAsync();
         if (!IsCurrentView(form, view) || generation != _generation || cancellation.IsCancellationRequested) return;
+        EnsureWorkspaceDockPanelsRegistered();
         ValueTask<bool> beginning = Offline.BeginWorkspaceAsync();
         long lease = Offline.WorkspaceGeneration;
         bool ready = await beginning;
@@ -1335,6 +1542,8 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         if (_disposed) return;
         RetireDeveloper();
         _developerMode = false;
+        UnregisterWorkspaceDockPanels();
+        DockLayoutState.ClearMinimumContentWidth(DockScope.Workspace);
         RetireView();
         InvalidateMounts();
         DefinitionFormModel? form = _form;
@@ -1350,6 +1559,7 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
         _form = null;
         Task outputs = InvalidateOutputAsync();
         _contextOpen = false;
+        _advancedOptionsOpen = false;
         _consentOpen = false;
         _taskToolsOpen = false;
         _importOpen = false;
@@ -1372,6 +1582,11 @@ public partial class ConfigurationEditor : IBrowserPendingChanges
     public async ValueTask DisposeAsync()
     {
         Appearance.Changed -= AppearanceChanged;
+        DockLayoutState.Changed -= OnDockChanged;
+        if (_navigation is not null)
+            _navigation.Changed -= OnNavigationStateChanged;
+        UnregisterWorkspaceDockPanels();
+        DockLayoutState.ClearMinimumContentWidth(DockScope.Workspace);
         if (_disposed) return;
         RetireDeveloper();
         long navigationLease = _navigationLease;

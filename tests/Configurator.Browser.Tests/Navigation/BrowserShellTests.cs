@@ -8,6 +8,7 @@ using Configurator.Browser.Components.Configuration;
 using Configurator.Browser.Layout;
 using Configurator.Browser.Pages;
 using Configurator.Browser.Services;
+using Configurator.Browser.Services.Docking;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
 using Microsoft.AspNetCore.Components;
@@ -236,84 +237,92 @@ public sealed class BrowserShellTests
     }
 
     [Test]
-    public async Task SettingsEscapeClosesOnlySettingsBeforeClosingNavigation()
+    public async Task TopBarProvidesQuickThemeLanguageAndSettingsWithoutSidebarSettingsDisclosure()
     {
-        await using var context = BrowserFixture.Context();
-        var component = context.Render<NavMenu>();
-        const string menu = "button[aria-controls='application-navigation']";
-        const string settings = "nav button[aria-controls='navigation-settings']";
-        await Assert.That(component.Find(settings).TextContent).IsEqualTo("Settings");
-        await Assert.That(component.Find(settings).GetAttribute("aria-expanded")).IsEqualTo("false");
-        await Assert.That(component.Find("#navigation-settings").HasAttribute("hidden")).IsTrue();
-        await Assert.That(component.FindComponents<ThemeQuickSwitcher>()).IsEmpty();
-        await component.Find(menu).ClickAsync(new MouseEventArgs());
-        await component.Find(settings).ClickAsync(new MouseEventArgs());
-        await Assert.That(component.Find(settings).GetAttribute("aria-expanded")).IsEqualTo("true");
-        await Assert.That(component.Find("#navigation-settings").HasAttribute("hidden")).IsFalse();
-        await Assert.That(component.FindComponents<ThemeQuickSwitcher>()).Count().IsEqualTo(1);
-        await Assert.That(component.FindAll("header #appearance-mode")).IsEmpty();
+        await using BunitContext context = BrowserFixture.Context();
+        IRenderedComponent<NavMenu> component = context.Render<NavMenu>();
+        IRenderedComponent<Microsoft.AspNetCore.Components.IComponent> surface = BrowserFixture.PopoverSurface(context, component);
 
-        await component.Find("#appearance-mode").KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
-        await Assert.That(component.Find(settings).GetAttribute("aria-expanded")).IsEqualTo("false");
-        await Assert.That(component.Find(menu).GetAttribute("aria-expanded")).IsEqualTo("true");
-        await Assert.That(component.FindComponents<ThemeQuickSwitcher>()).IsEmpty();
-        object settingsFocusTarget = context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0]!;
-        await component.Find(settings).KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
-        await Assert.That(component.Find(menu).GetAttribute("aria-expanded")).IsEqualTo("false");
-        await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0]).IsNotEqualTo(settingsFocusTarget);
+        await Assert.That(component.FindAll("nav #navigation-settings")).IsEmpty();
+        await Assert.That(component.FindAll("header [data-action='toggle-language-picker']")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("header [data-action='toggle-theme-switcher']")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("header [data-action='open-settings']")).Count().IsEqualTo(1);
+
+        await component.Find("[data-action='toggle-theme-switcher']").ClickAsync(new MouseEventArgs());
+        await Assert.That(surface.FindAll("[data-theme-preset]")).Count().IsEqualTo(8);
+        await Assert.That(surface.FindAll("[data-theme-mode]")).Count().IsEqualTo(5);
+        await Assert.That(component.Find("button[aria-controls='application-navigation']").GetAttribute("aria-expanded")).IsEqualTo("false");
+
+        await component.Find("[data-action='toggle-language-picker']").ClickAsync(new MouseEventArgs());
+        await Assert.That(surface.FindAll("[data-locale='en']")).Count().IsEqualTo(1);
+        await Assert.That(surface.FindAll("[data-locale='ar']")).Count().IsEqualTo(1);
     }
 
     [Test]
     public async Task NamedAppearanceControlsPreserveCurrentRouteAndMainContent()
     {
-        await using var context = BrowserFixture.Context();
-        var component = context.Render<App>();
+        await using BunitContext context = BrowserFixture.Context();
+        IRenderedComponent<App> component = context.Render<App>();
         string heading = component.Find("h1").TextContent;
         string route = context.Services.GetRequiredService<NavigationManager>().Uri;
-        await component.Find("nav button[aria-controls='navigation-settings']").ClickAsync(new MouseEventArgs());
-        await Assert.That(component.Find("label[for='appearance-mode']").TextContent).IsEqualTo("Appearance");
-        await Assert.That(component.Find("label[for='appearance-direction']").TextContent).IsEqualTo("Direction");
-        component.Find("#appearance-mode").Change("darkhighcontrast");
-        component.Find("#appearance-direction").Change("rtl");
+
+        await component.Find("[data-action='toggle-theme-switcher']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-theme-preset='emerald-green']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-action='toggle-theme-switcher']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-theme-mode='darkhighcontrast']").ClickAsync(new MouseEventArgs());
+
         await Assert.That(component.Find("h1").TextContent).IsEqualTo(heading);
-        await Assert.That(component.Find(".main-layout").GetAttribute("dir")).IsEqualTo("rtl");
-        await Assert.That(component.Find("#appearance-mode").GetAttribute("value")).IsEqualTo("darkhighcontrast");
         await Assert.That(context.Services.GetRequiredService<NavigationManager>().Uri).IsEqualTo(route);
-        await component.Find("nav button[aria-controls='navigation-settings']").ClickAsync(new MouseEventArgs());
-        await component.Find("nav button[aria-controls='navigation-settings']").ClickAsync(new MouseEventArgs());
-        await Assert.That(component.Find("#appearance-mode").GetAttribute("value")).IsEqualTo("darkhighcontrast");
-        await Assert.That(component.Find("#appearance-direction").GetAttribute("value")).IsEqualTo("rtl");
+
+        await component.Find("[data-action='toggle-language-picker']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-locale='ar']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find(".main-layout").GetAttribute("dir")).IsEqualTo("rtl");
+        await Assert.That(context.Services.GetRequiredService<NavigationManager>().Uri).IsEqualTo(route);
     }
 
     [Test]
     public async Task PreferenceChangesRefreshTheSwitcherWithoutRecreatingItsParent()
     {
-        await using var context = BrowserFixture.Context();
-        var component = context.Render<ThemeQuickSwitcher>();
-        await component.InvokeAsync(async () => await context.Services.GetRequiredService<AppearanceThemeService>().SetAsync("dark", "rtl"));
-        await Assert.That(component.Find("#appearance-mode").GetAttribute("value")).IsEqualTo("dark");
-        await Assert.That(component.Find("#appearance-direction").GetAttribute("value")).IsEqualTo("rtl");
+        await using BunitContext context = BrowserFixture.Context();
+        IRenderedComponent<ThemeQuickSwitcher> component = context.Render<ThemeQuickSwitcher>();
+        IRenderedComponent<Microsoft.AspNetCore.Components.IComponent> surface = BrowserFixture.PopoverSurface(context, component);
+        AppearanceThemeService service = context.Services.GetRequiredService<AppearanceThemeService>();
+
+        await component.InvokeAsync(async () =>
+        {
+            await service.SetThemePresetAsync("abyssal-dark");
+            await service.SetModeAsync("dark");
+            await service.SetDirectionAsync("rtl");
+        });
+
+        await component.Find("[data-action='toggle-theme-switcher']").ClickAsync(new MouseEventArgs());
+        await Assert.That(surface.Find("[data-theme-preset='abyssal-dark']").GetAttribute("aria-pressed")).IsEqualTo("true");
+        await Assert.That(surface.Find("[data-theme-mode='dark']").GetAttribute("aria-pressed")).IsEqualTo("true");
     }
 
     [Test]
     public async Task AppearanceChangesPreserveCurrentAnswersAndPreparedOutput()
     {
-        await using var context = BrowserFixture.Context();
+        await using BunitContext context = BrowserFixture.Context();
         var exports = context.JSInterop.SetupModule("./js/browser-artifacts.js");
         exports.SetupVoid("open", _ => true).SetVoidResult();
         exports.Setup<bool>("copy", _ => true).SetResult(true);
         exports.SetupVoid("invalidate", _ => true).SetVoidResult();
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"launch/{BrowserFixture.Family}?digest={BrowserFixture.Definition.Digest.Value}");
-        var component = context.Render<App>();
-        await component.Find("nav button[aria-controls='navigation-settings']").ClickAsync(new MouseEventArgs());
+        IRenderedComponent<App> component = context.Render<App>();
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("synthetic.example.test");
         await BrowserFixture.PrepareAsync(component, draft: true);
         component.Find(".configuration-editor__artifact button").Click();
         byte[] before = (byte[])exports.Invocations.Single(call => call.Identifier == "open").Arguments[2]!;
-        component.Find("#appearance-mode").Change("dark");
-        component.Find("#appearance-direction").Change("rtl");
+
+        await component.Find("[data-action='toggle-theme-switcher']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-theme-preset='emerald-green']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-action='toggle-theme-switcher']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-theme-mode='dark']").ClickAsync(new MouseEventArgs());
+        await component.InvokeAsync(() => context.Services.GetRequiredService<AppearanceThemeService>().SetDirectionAsync("rtl").AsTask());
         component.Find("a[href='#main-content']").Click();
+
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         component.Find(".configuration-editor__artifact button").Click();
         byte[] after = (byte[])exports.Invocations.Last(call => call.Identifier == "open").Arguments[2]!;
@@ -464,5 +473,174 @@ public sealed class BrowserShellTests
         await BrowserFixture.SelectPanelAsync(editor, "configure");
         await Assert.That(form.ConfigureLayoutMode).IsEqualTo(ConfigureLayoutMode.AllSections);
         await Assert.That(editor.Find("[data-field='dashboard'] input").GetAttribute("value")).IsEqualTo("draft-before-review");
+    }
+
+    [Test]
+    public async Task SettingsRouteOffersAppearancePresetsCustomBuilderLanguagePrivacyAndShortcuts()
+    {
+        await using BunitContext context = BrowserFixture.Context();
+        context.Services.GetRequiredService<NavigationManager>().NavigateTo("settings");
+        IRenderedComponent<App> component = context.Render<App>();
+        AppearanceThemeService appearance = context.Services.GetRequiredService<AppearanceThemeService>();
+
+        await Assert.That(component.FindAll("[data-action='return-to-configuration']")).IsEmpty();
+        await Assert.That(component.FindAll("[data-settings-section]")).Count().IsEqualTo(4);
+        await Assert.That(component.FindAll("[data-settings-preset]")).Count().IsEqualTo(8);
+        await Assert.That(component.FindAll("[data-settings-theme-mode]")).Count().IsEqualTo(5);
+        await Assert.That(component.FindAll("[data-settings-density]")).Count().IsEqualTo(4);
+        await Assert.That(component.FindAll("[data-settings-naming]")).Count().IsEqualTo(2);
+        await Assert.That(component.FindAll("#settings-custom-theme")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-settings-custom-preview]")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-settings-locale]")).Count().IsEqualTo(2);
+
+        await component.Find("[data-settings-preset='abyssal-dark']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-settings-theme-mode='dark']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-settings-density='compact']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-settings-naming='technical']").ClickAsync(new MouseEventArgs());
+        await Assert.That(appearance.Current.ThemeKey).IsEqualTo("abyssal-dark");
+        await Assert.That(appearance.Current.ThemeMode).IsEqualTo("dark");
+        await Assert.That(appearance.Current.Density).IsEqualTo("compact");
+        await Assert.That(appearance.Current.NamingMode).IsEqualTo("technical");
+
+        await component.Find("[data-custom-natural-hex] input").ChangeAsync(new ChangeEventArgs { Value = "#5C6BC0" });
+        await component.Find("[data-custom-brand-hex] input").ChangeAsync(new ChangeEventArgs { Value = "#0D9488" });
+        await component.Find("[data-action='apply-custom-theme']").ClickAsync(new MouseEventArgs());
+        await Assert.That(appearance.Current.ThemeKey).IsEqualTo("custom");
+        await Assert.That(appearance.Current.CustomNaturalHex).IsEqualTo("#5C6BC0");
+        await Assert.That(appearance.Current.CustomBrandHex).IsEqualTo("#0D9488");
+    }
+
+    [Test]
+    public async Task SettingsOpenedDuringActiveWorkspacePreservesSessionAndReturnsViaTopLeftAction()
+    {
+        System.Text.Json.Nodes.JsonNode doc = System.Text.Json.Nodes.JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        BrowserFixture.WithField(doc, "retries", """
+            {"type":"integer","title":"Retry count","x-configurator":{"sensitivity":"public","detail":"standard"}}
+            """, "schema.integer");
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(doc.ToJsonString()));
+        await using BunitContext context = BrowserFixture.Context(new BrowserDefinitionRegistry([definition]));
+        NavigationManager navigation = context.Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo($"launch/{BrowserFixture.Family}?digest={definition.Digest.Value}");
+        string launchUri = navigation.Uri;
+        IRenderedComponent<App> component = context.Render<App>();
+        AppearanceThemeService appearance = context.Services.GetRequiredService<AppearanceThemeService>();
+
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
+        await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "preserved-settings.example.test" });
+        await BrowserFixture.PrepareAsync(component, draft: true);
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsNotEmpty();
+
+        await component.Find("header [data-action='open-settings']").ClickAsync(new MouseEventArgs());
+
+        await Assert.That(navigation.Uri).IsEqualTo(launchUri);
+        await Assert.That(component.FindAll("[data-action='return-to-configuration']")).Count().IsEqualTo(1);
+        await Assert.That(component.Find("main#main-content").HasAttribute("hidden")).IsTrue();
+
+        await component.Find("[data-settings-preset='emerald-green']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-action='return-to-configuration']").ClickAsync(new MouseEventArgs());
+
+        await Assert.That(component.FindAll("[data-action='return-to-configuration']")).IsEmpty();
+        await Assert.That(component.Find("main#main-content").HasAttribute("hidden")).IsFalse();
+        await Assert.That(appearance.Current.ThemeKey).IsEqualTo("emerald-green");
+        await Assert.That(component.FindAll(".configuration-editor__artifact")).IsNotEmpty();
+
+        await BrowserFixture.SelectPanelAsync(component, "configure");
+        await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("preserved-settings.example.test");
+
+        await component.Find("[data-field='retries'] input").InputAsync(new ChangeEventArgs { Value = "not-a-number-draft" });
+        await component.Find("header [data-action='open-settings']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-settings-density='dense']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-action='return-to-configuration']").ClickAsync(new MouseEventArgs());
+
+        await Assert.That(appearance.Current.Density).IsEqualTo("dense");
+        await Assert.That(navigation.Uri).IsEqualTo(launchUri);
+        await Assert.That(component.Find("[data-field='retries'] input").GetAttribute("value")).IsEqualTo("not-a-number-draft");
+    }
+
+    [Test]
+    public async Task GlobalNavigationDrawerSeparatesWorkspaceLinksFromFooterAndShowsCloseInOverlay()
+    {
+        await using BunitContext context = BrowserFixture.Context();
+        IRenderedComponent<App> app = context.Render<App>();
+        DockLayoutState dockLayout = context.Services.GetRequiredService<DockLayoutState>();
+
+        await app.InvokeAsync(() => dockLayout.UpdateViewport(1440, isMobile: false, DockScope.Shell, 420));
+
+        // Docked StartNav places global workspace links ahead of bottom custody footer with zero form sections or close button.
+        await Assert.That(app.FindAll("#application-navigation .nav-menu__sections")).IsEmpty();
+        await Assert.That(app.FindAll("#application-navigation .nav-menu__workspace a[href='']")).Count().IsEqualTo(1);
+        await Assert.That(app.FindAll("#application-navigation .nav-menu__workspace a[href='open']")).Count().IsEqualTo(1);
+        await Assert.That(app.FindAll("#application-navigation .nav-menu__workspace a[href='help']")).Count().IsEqualTo(1);
+        await Assert.That(app.FindAll("#application-navigation .nav-menu__footer .nav-menu__local")).Count().IsEqualTo(1);
+        await Assert.That(app.FindAll("#application-navigation .nav-menu__footer a")).IsEmpty();
+        await Assert.That(app.FindAll("#application-navigation .nav-menu__close")).IsEmpty();
+
+        // Degrade StartNav into DockOverlayHost (mobile / tight desktop) and re-open Menu -> visible interactive Close restores toggle focus.
+        await app.InvokeAsync(() => dockLayout.UpdateViewport(760, isMobile: true, DockScope.Shell, 420));
+        await app.Find("#nav-menu-toggle").ClickAsync(new MouseEventArgs());
+
+        IReadOnlyList<AngleSharp.Dom.IElement> overlayCloseButtons = app.FindAll("[data-testid='dock-overlay-host'][data-dock-scope='shell'] nav#application-navigation.nav-menu--overlay .nav-menu__close");
+        await Assert.That(overlayCloseButtons).Count().IsEqualTo(1);
+
+        await overlayCloseButtons[0].ClickAsync(new MouseEventArgs());
+        await Assert.That(app.Find("#nav-menu-toggle").GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(app.FindAll("[data-testid='dock-overlay-host'][data-dock-scope='shell'] #application-navigation")).IsEmpty();
+        await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "setFocusById").Arguments[0]).IsEqualTo("nav-menu-toggle");
+
+        // Backdrop close inside DockOverlayHost also routes through CloseStartDockAsync and restores toggle focus.
+        await app.Find("#nav-menu-toggle").ClickAsync(new MouseEventArgs());
+        await app.Find("[data-testid='dock-overlay-host'][data-dock-scope='shell'] [data-testid='dock-overlay-backdrop']").ClickAsync(new MouseEventArgs());
+        await Assert.That(app.Find("#nav-menu-toggle").GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "setFocusById").Arguments[0]).IsEqualTo("nav-menu-toggle");
+    }
+
+    [Test]
+    public async Task LaunchWorkspaceUsesSinglePrimaryHeaderWithCollapsedAdvancedOptionsDisclosure()
+    {
+        BrowserDefinitionRegistry registry = BrowserDefinitionRegistry.LoadBundled();
+        Definition definition = registry.Current.Resolve(Guid.Parse("f79259e8-af23-49b0-8d8d-6e371cc96080"));
+        await using BunitContext context = BrowserFixture.Context(registry);
+        context.Services.GetRequiredService<NavigationManager>()
+            .NavigateTo($"/launch/{definition.FamilyId:D}?digest={definition.Digest.Value}&entry=environment");
+        IRenderedComponent<App> app = context.Render<App>();
+
+        // Route keeps a screen-reader h1 without stacking a redundant visual hero box above WorkspaceHeader.
+        await Assert.That(app.Find("#launch-heading").ClassList.Contains("sr-only")).IsTrue();
+        await Assert.That(app.FindAll(".launch-header")).IsEmpty();
+
+        AngleSharp.Dom.IElement header = app.Find("header.workspace-header");
+        AngleSharp.Dom.IElement advancedToggle = header.QuerySelector("[data-action='toggle-advanced-options']")!;
+        await Assert.That(advancedToggle.GetAttribute("aria-expanded")).IsEqualTo("false");
+        await Assert.That(advancedToggle.GetAttribute("aria-controls")).IsEqualTo("workspace-advanced-options");
+        await Assert.That(header.QuerySelectorAll(".workspace-header__advanced-badge").Length).IsEqualTo(0);
+
+        AngleSharp.Dom.IElement advancedPanel = app.Find("#workspace-advanced-options");
+        await Assert.That(advancedPanel.HasAttribute("hidden")).IsTrue();
+        await Assert.That(advancedPanel.HasAttribute("inert")).IsTrue();
+
+        // Opening Advanced reveals secondary controls and source digest disclosure cleanly.
+        await app.Find("[data-action='toggle-advanced-options']").ClickAsync(new MouseEventArgs());
+        await Assert.That(app.Find("[data-action='toggle-advanced-options']").GetAttribute("aria-expanded")).IsEqualTo("true");
+        advancedPanel = app.Find("#workspace-advanced-options");
+        await Assert.That(advancedPanel.HasAttribute("hidden")).IsFalse();
+        await Assert.That(advancedPanel.HasAttribute("inert")).IsFalse();
+        await Assert.That(advancedPanel.QuerySelectorAll("#configuration-output").Length).IsEqualTo(1);
+        await Assert.That(advancedPanel.QuerySelectorAll("#configuration-detail").Length).IsEqualTo(1);
+        await Assert.That(advancedPanel.QuerySelectorAll("#configuration-density").Length).IsEqualTo(1);
+        await Assert.That(advancedPanel.QuerySelectorAll("[data-workspace-scope]").Length).IsEqualTo(1);
+        await Assert.That(advancedPanel.QuerySelectorAll("[data-digest-disclosure] [data-digest]").Length).IsEqualTo(1);
+
+        // Activating Inspector and overriding detail updates the active-options count badge when collapsed again.
+        await app.Find("[data-action='toggle-inspector']").ClickAsync(new MouseEventArgs());
+        await app.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
+        await app.Find("[data-action='toggle-advanced-options']").ClickAsync(new MouseEventArgs());
+        await Assert.That(app.Find("#workspace-advanced-options").HasAttribute("hidden")).IsTrue();
+        await Assert.That(app.Find(".workspace-header__advanced-badge").TextContent.Trim()).IsEqualTo("2");
+
+        // Closing End dock while Advanced is collapsed restores focus safely without throwing or focusing an inert element.
+        int focusBefore = context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus");
+        await app.Find("[data-action='close-inspector-pane']").ClickAsync(new MouseEventArgs());
+        await Assert.That(context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus"))
+            .IsGreaterThan(focusBefore);
     }
 }
