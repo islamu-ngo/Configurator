@@ -127,10 +127,12 @@ public sealed class BrowserStoreIndependenceTests
                 ("demo", differentFamily.Revision, differentFamily),
                 ("other", sameTitleDifferentApp.Revision, sameTitleDifferentApp)));
 
+        IRenderedComponent<MudBlazor.MudDialogProvider> dialog = BrowserFixture.DialogSurface(context);
         var component = context.Render<Pages.Catalogue>();
         await Assert.That(component.FindAll("article")).Count().IsEqualTo(2);
         await Assert.That(component.FindAll("article a[href^='launch/']")).Count().IsEqualTo(1);
-        await Assert.That(component.FindAll("article details a[href='store/demo?revision=1']")).Count().IsEqualTo(1);
+        await component.Find("article [data-action='open-project-details']").ClickAsync(new MouseEventArgs());
+        await Assert.That(dialog.FindAll("a[href='store/demo?revision=1']")).Count().IsEqualTo(1);
     }
 
     [Test]
@@ -164,10 +166,12 @@ public sealed class BrowserStoreIndependenceTests
             TestDefinitionStoreProvider.FromIndex([demo], ("demo", modified.Revision, modified)));
 
         var navigation = context.Services.GetRequiredService<NavigationManager>();
+        IRenderedComponent<MudBlazor.MudDialogProvider> dialog = BrowserFixture.DialogSurface(context);
         var component = context.Render<Pages.Catalogue>();
         await Assert.That(component.FindAll("article")).Count().IsEqualTo(1);
-        await Assert.That(component.FindAll("article details section")).Count().IsEqualTo(2);
-        await Assert.That(component.FindAll("article details a[href='store/demo?revision=1']")).Count().IsEqualTo(1);
+        await component.Find("article [data-action='open-project-details']").ClickAsync(new MouseEventArgs());
+        await Assert.That(dialog.FindAll("[data-details-revision]")).Count().IsEqualTo(2);
+        await Assert.That(dialog.FindAll("a[href='store/demo?revision=1']")).Count().IsEqualTo(1);
 
         navigation.NavigateTo("store/demo?revision=1");
         var projectPage = context.Render<Pages.StoreProject>(parameters => parameters.Add(page => page.ProjectId, "demo"));
@@ -197,10 +201,12 @@ public sealed class BrowserStoreIndependenceTests
                 ("claim-one", first.Revision, first),
                 ("claim-two", second.Revision, second)));
 
+        IRenderedComponent<MudBlazor.MudDialogProvider> dialog = BrowserFixture.DialogSurface(context);
         var component = context.Render<Pages.Catalogue>();
         await Assert.That(component.FindAll("article")).Count().IsEqualTo(1);
-        await Assert.That(component.FindAll("article details section")).Count().IsEqualTo(2);
         await Assert.That(component.FindAll("[data-action='open-directory']")).IsEmpty();
+        await component.Find("article [data-action='open-project-details']").ClickAsync(new MouseEventArgs());
+        await Assert.That(dialog.FindAll("[data-details-revision]")).Count().IsEqualTo(2);
     }
 
     [Test]
@@ -254,6 +260,15 @@ public sealed class BrowserStoreIndependenceTests
 
         var catalogue = context.Render<Pages.Catalogue>();
         await Assert.That(catalogue.FindAll("article").Any(card => card.TextContent.Contains("Minimal self-hosted service", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(catalogue.FindAll("[data-project='islamu-event'] [data-project-logo]")).Count().IsEqualTo(1);
+        await Assert.That(catalogue.Find("[data-project='islamu-event'] [data-project-logo]").GetAttribute("src")).StartsWith("data:image/png;base64,");
+        await Assert.That(catalogue.FindAll("[data-project-monogram]")).IsNotEmpty();
+
+        IRenderedComponent<MudBlazor.MudDialogProvider> dialog = BrowserFixture.DialogSurface(context);
+        await catalogue.Find("[data-project='islamu-event'] [data-action='open-project-details']").ClickAsync(new MouseEventArgs());
+        await Assert.That(dialog.FindAll("[data-project-details-dialog]")).Count().IsEqualTo(1);
+        await Assert.That(dialog.Find("[data-icon-attribution]").TextContent).Contains("CC-BY-4.0");
+        await Assert.That(dialog.FindAll("[data-details-outputs] li")).IsNotEmpty();
 
         navigation.NavigateTo("store/minimal-self-hosted");
         var projectPage = context.Render<Pages.StoreProject>(parameters => parameters.Add(page => page.ProjectId, "minimal-self-hosted"));

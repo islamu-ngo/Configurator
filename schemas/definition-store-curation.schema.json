@@ -12,6 +12,18 @@
     ],
     "slugReason": [
       "slug"
+    ],
+    "iconDataUri": [
+      "iconLicense",
+      "iconAttribution"
+    ],
+    "iconLicense": [
+      "iconDataUri",
+      "iconAttribution"
+    ],
+    "iconAttribution": [
+      "iconDataUri",
+      "iconLicense"
     ]
   },
   "properties": {
@@ -42,6 +54,24 @@
         "maxLength": 32,
         "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
       }
+    },
+    "iconDataUri": {
+      "type": "string",
+      "minLength": 66,
+      "maxLength": 16406,
+      "pattern": "^data:image/png;base64,[A-Za-z0-9\u002B/]\u002B={0,2}$"
+    },
+    "iconLicense": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^\\S(?:[^\\x00-\\x1f\\x7f]*\\S)?$"
+    },
+    "iconAttribution": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^\\S(?:[^\\x00-\\x1f\\x7f]*\\S)?$"
     }
   }
 }

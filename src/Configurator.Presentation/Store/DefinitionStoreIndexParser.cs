@@ -87,9 +87,10 @@ public static class DefinitionStoreIndexParser
         Dictionary<(Guid, long), string> revisions,
         ref int totalRevisions)
     {
-        RequireExactMembers(project,
-            "projectId", "name", "description", "sourceRepository", "license",
-            "tags", "applicationId", "familyId", "revisions");
+        RequireMembers(project,
+            requiredNames: ["projectId", "name", "description", "sourceRepository", "license",
+                "tags", "applicationId", "familyId", "revisions"],
+            optionalNames: ["iconDataUri", "iconLicense", "iconAttribution"]);
 
         string projectId = ReadStringProperty(project, "projectId", 64);
         if (!IsSlug(projectId) || !projectIds.Add(projectId))
@@ -103,6 +104,24 @@ public static class DefinitionStoreIndexParser
         if (tags.Any(tag => !IsSlug(tag)))
             throw InvalidIndex();
 
+        bool hasIconUri = project.TryGetProperty("iconDataUri", out JsonElement iconUriElement);
+        bool hasIconLicense = project.TryGetProperty("iconLicense", out JsonElement iconLicenseElement);
+        bool hasIconAttribution = project.TryGetProperty("iconAttribution", out JsonElement iconAttributionElement);
+        if (hasIconUri != hasIconLicense || hasIconLicense != hasIconAttribution)
+            throw InvalidIndex();
+
+        string? iconDataUri = null;
+        string? iconLicense = null;
+        string? iconAttribution = null;
+        if (hasIconUri)
+        {
+            iconDataUri = ReadString(iconUriElement, StoreIconValidator.MaximumDataUriLength, trimmed: true);
+            iconLicense = ReadString(iconLicenseElement, 128, trimmed: true);
+            iconAttribution = ReadString(iconAttributionElement, 512, trimmed: true);
+            if (!StoreIconValidator.TryDecodePngDataUri(iconDataUri, out _))
+                throw InvalidIndex();
+        }
+
         return new DefinitionStoreProject
         {
             ProjectId = projectId,
@@ -113,7 +132,10 @@ public static class DefinitionStoreIndexParser
             Tags = tags,
             ApplicationId = ReadStringProperty(project, "applicationId", 256, trimmed: false),
             FamilyId = family,
-            Revisions = Array.AsReadOnly(projectRevisions.OrderByDescending(item => item.Revision).ToArray())
+            Revisions = Array.AsReadOnly(projectRevisions.OrderByDescending(item => item.Revision).ToArray()),
+            IconDataUri = iconDataUri,
+            IconLicense = iconLicense,
+            IconAttribution = iconAttribution
         };
     }
 
@@ -198,18 +220,25 @@ public static class DefinitionStoreIndexParser
         return repository;
     }
 
-    private static void RequireExactMembers(JsonElement element, params string[] names)
+    private static void RequireExactMembers(JsonElement element, params string[] names) =>
+        RequireMembers(element, names, []);
+
+    private static void RequireMembers(JsonElement element, string[] requiredNames, string[] optionalNames)
     {
         if (element.ValueKind != JsonValueKind.Object)
             throw InvalidIndex();
 
-        var remaining = new HashSet<string>(names, StringComparer.Ordinal);
+        var remainingRequired = new HashSet<string>(requiredNames, StringComparer.Ordinal);
+        var allowedOptional = new HashSet<string>(optionalNames, StringComparer.Ordinal);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (JsonProperty property in element.EnumerateObject())
         {
-            if (!remaining.Remove(property.Name))
+            if (!seen.Add(property.Name))
+                throw InvalidIndex();
+            if (!remainingRequired.Remove(property.Name) && !allowedOptional.Contains(property.Name))
                 throw InvalidIndex();
         }
-        if (remaining.Count != 0)
+        if (remainingRequired.Count != 0)
             throw InvalidIndex();
     }
 

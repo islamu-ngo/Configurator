@@ -27,7 +27,11 @@ internal static class DefinitionStoreBuilder
     private const int MaximumProjects = 1024;
     private const int MaximumEntries = 4096;
     private const int MaximumProjectRevisions = 64;
-    private static readonly string[] CurationMembers = ["schemaVersion", "tags", "slug", "slugReason"];
+    private const int MaximumIconDecodedBytes = 12 * 1024;
+    private const int MaximumIconDataUriLength = 22 + ((MaximumIconDecodedBytes + 2) / 3 * 4);
+    private const string PngDataUriPrefix = "data:image/png;base64,";
+    private static ReadOnlySpan<byte> PngSignature => [0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A];
+    private static readonly string[] CurationMembers = ["schemaVersion", "tags", "slug", "slugReason", "iconDataUri", "iconLicense", "iconAttribution"];
 
     internal static int Run(string[] arguments)
     {
@@ -141,13 +145,22 @@ internal static class DefinitionStoreBuilder
                     ["outputNames"] = Strings(definition.Artifacts.Select(artifact => artifact.FileName)), ["snapshotPath"] = path
                 });
             }
-            projects.Add((JsonNode)new JsonObject
+            var projectJson = new JsonObject
             {
                 ["projectId"] = metadata["projectId"]!.DeepClone(), ["name"] = metadata["name"]!.DeepClone(),
                 ["description"] = metadata["description"]!.DeepClone(), ["sourceRepository"] = metadata["sourceRepository"]!.DeepClone(),
                 ["license"] = metadata["license"]!.DeepClone(), ["tags"] = metadata["tags"]!.DeepClone(),
                 ["applicationId"] = definitions[0].ApplicationId, ["familyId"] = definitions[0].FamilyId.ToString("D"), ["revisions"] = revisions
-            });
+            };
+            if (metadata["iconDataUri"] is JsonNode iconUri
+                && metadata["iconLicense"] is JsonNode iconLicense
+                && metadata["iconAttribution"] is JsonNode iconAttribution)
+            {
+                projectJson["iconDataUri"] = iconUri.DeepClone();
+                projectJson["iconLicense"] = iconLicense.DeepClone();
+                projectJson["iconAttribution"] = iconAttribution.DeepClone();
+            }
+            projects.Add((JsonNode)projectJson);
         }
         byte[] index = Encoding.UTF8.GetBytes(new JsonObject { ["schemaVersion"] = ConfiguratorVersion.Current, ["projects"] = projects }.ToJsonString(JsonOptions) + "\n");
         if (index.Length > MaximumIndexBytes) throw new StoreException("store-index-limit");
@@ -193,6 +206,14 @@ internal static class DefinitionStoreBuilder
             ["license"] = ProjectText("definitionLicense", 128),
             ["tags"] = curation["tags"]?.DeepClone() ?? new JsonArray()
         };
+        if (curation["iconDataUri"] is JsonNode iconUri
+            && curation["iconLicense"] is JsonNode iconLicense
+            && curation["iconAttribution"] is JsonNode iconAttribution)
+        {
+            metadata["iconDataUri"] = iconUri.DeepClone();
+            metadata["iconLicense"] = iconLicense.DeepClone();
+            metadata["iconAttribution"] = iconAttribution.DeepClone();
+        }
         Definition definition = DefinitionAuthoringCompiler.Compile(source);
         CheckPublicNode(definition.Configuration, FieldSensitivity.Public);
         return (metadata, definition);
@@ -228,6 +249,17 @@ internal static class DefinitionStoreBuilder
                     string value = ReadText(tag, 32);
                     if (!IsSlug(value, 32) || !uniqueTags.Add(value)) throw new StoreException("store-metadata-invalid");
                 }
+            }
+            bool hasIconUri = names.Contains("iconDataUri");
+            bool hasIconLicense = names.Contains("iconLicense");
+            bool hasIconAttribution = names.Contains("iconAttribution");
+            if (hasIconUri != hasIconLicense || hasIconLicense != hasIconAttribution) throw new StoreException("store-metadata-invalid");
+            if (hasIconUri)
+            {
+                string iconDataUri = ReadText(root.GetProperty("iconDataUri"), MaximumIconDataUriLength);
+                _ = ReadText(root.GetProperty("iconLicense"), 128);
+                _ = ReadText(root.GetProperty("iconAttribution"), 512);
+                if (!IsValidPngDataUri(iconDataUri)) throw new StoreException("store-metadata-invalid");
             }
             return JsonNode.Parse(bytes)!.AsObject();
         }
@@ -291,7 +323,19 @@ internal static class DefinitionStoreBuilder
         var expected = new HashSet<string>(StringComparer.Ordinal) { "index.json" };
         foreach (JsonElement project in projects.EnumerateArray())
         {
-            RequireMembers(project, ["projectId", "name", "description", "sourceRepository", "license", "tags", "applicationId", "familyId", "revisions"]);
+            RequireMembers(project, ["projectId", "name", "description", "sourceRepository", "license", "tags", "applicationId", "familyId", "revisions"],
+                ["iconDataUri", "iconLicense", "iconAttribution"]);
+            bool hasIconUri = project.TryGetProperty("iconDataUri", out JsonElement baselineIconUri);
+            bool hasIconLicense = project.TryGetProperty("iconLicense", out JsonElement baselineIconLicense);
+            bool hasIconAttribution = project.TryGetProperty("iconAttribution", out JsonElement baselineIconAttribution);
+            if (hasIconUri != hasIconLicense || hasIconLicense != hasIconAttribution) throw new StoreException("store-baseline-invalid");
+            if (hasIconUri)
+            {
+                if (baselineIconUri.ValueKind != JsonValueKind.String || baselineIconLicense.ValueKind != JsonValueKind.String
+                    || baselineIconAttribution.ValueKind != JsonValueKind.String
+                    || !IsValidPngDataUri(baselineIconUri.GetString()!))
+                    throw new StoreException("store-baseline-invalid");
+            }
             string slug = ReadText(project.GetProperty("projectId"), 64);
             if (!IsSlug(slug, 64) || !slugs.Add(slug)) throw new StoreException("store-baseline-invalid");
             Guid family = project.GetProperty("familyId").GetGuid();
@@ -333,14 +377,56 @@ internal static class DefinitionStoreBuilder
         _ = new DefinitionRegistry(definitions);
     }
 
-    private static void RequireMembers(JsonElement value, string[] members)
+    private static void RequireMembers(JsonElement value, string[] members, string[]? optional = null)
     {
         if (value.ValueKind != JsonValueKind.Object) throw new StoreException("store-baseline-invalid");
         var names = new HashSet<string>(StringComparer.Ordinal);
+        var optionalSet = optional is null ? [] : new HashSet<string>(optional, StringComparer.Ordinal);
+        int requiredMatched = 0;
         foreach (JsonProperty property in value.EnumerateObject())
-            if (!names.Add(property.Name) || !members.Contains(property.Name, StringComparer.Ordinal))
-                throw new StoreException("store-baseline-invalid");
-        if (names.Count != members.Length) throw new StoreException("store-baseline-invalid");
+        {
+            if (!names.Add(property.Name)) throw new StoreException("store-baseline-invalid");
+            if (members.Contains(property.Name, StringComparer.Ordinal)) requiredMatched++;
+            else if (!optionalSet.Contains(property.Name)) throw new StoreException("store-baseline-invalid");
+        }
+        if (requiredMatched != members.Length) throw new StoreException("store-baseline-invalid");
+    }
+
+    private static bool IsValidPngDataUri(string dataUri)
+    {
+        if (string.IsNullOrEmpty(dataUri) || dataUri.Length > MaximumIconDataUriLength
+            || !dataUri.StartsWith(PngDataUriPrefix, StringComparison.Ordinal))
+            return false;
+        ReadOnlySpan<char> base64 = dataUri.AsSpan(PngDataUriPrefix.Length);
+        if (base64.Length < 44 || base64.Length % 4 != 0) return false;
+        int padding = 0;
+        for (int index = 0; index < base64.Length; index++)
+        {
+            char c = base64[index];
+            if (c == '=')
+            {
+                if (index < base64.Length - 2) return false;
+                padding++;
+                continue;
+            }
+            if (padding > 0 || !(c is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' or '+' or '/'))
+                return false;
+        }
+        int maximumOutputLength = (base64.Length / 4) * 3;
+        if (maximumOutputLength - padding > MaximumIconDecodedBytes) return false;
+        byte[] buffer = new byte[maximumOutputLength];
+        if (!Convert.TryFromBase64Chars(base64, buffer, out int bytesWritten) || bytesWritten != maximumOutputLength - padding)
+            return false;
+        ReadOnlySpan<byte> bytes = buffer.AsSpan(0, bytesWritten);
+        if (bytes.Length < 33 || bytes.Length > MaximumIconDecodedBytes || !bytes[..8].SequenceEqual(PngSignature))
+            return false;
+        if (System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(bytes.Slice(8, 4)) != 13) return false;
+        if (bytes[12] != (byte)'I' || bytes[13] != (byte)'H' || bytes[14] != (byte)'D' || bytes[15] != (byte)'R') return false;
+        int width = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(bytes.Slice(16, 4));
+        int height = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(bytes.Slice(20, 4));
+        if (width is < 16 or > 256 || height != width) return false;
+        return bytes[24] is 1 or 2 or 4 or 8 or 16 && bytes[25] is 0 or 2 or 3 or 4 or 6
+            && bytes[26] == 0 && bytes[27] == 0 && bytes[28] is 0 or 1;
     }
 
     private static void ValidateInventory(string root, HashSet<string> expected, string code)
@@ -444,11 +530,27 @@ internal static class DefinitionStoreBuilder
         {
             ["$schema"] = "https://json-schema.org/draft/2020-12/schema", ["title"] = "Definition store optional curation",
             ["type"] = "object", ["additionalProperties"] = false, ["required"] = Strings(["schemaVersion"]),
-            ["dependentRequired"] = new JsonObject { ["slug"] = Strings(["slugReason"]), ["slugReason"] = Strings(["slug"]) },
+            ["dependentRequired"] = new JsonObject
+            {
+                ["slug"] = Strings(["slugReason"]),
+                ["slugReason"] = Strings(["slug"]),
+                ["iconDataUri"] = Strings(["iconLicense", "iconAttribution"]),
+                ["iconLicense"] = Strings(["iconDataUri", "iconAttribution"]),
+                ["iconAttribution"] = Strings(["iconDataUri", "iconLicense"])
+            },
             ["properties"] = new JsonObject
             {
                 ["schemaVersion"] = new JsonObject { ["type"] = "string", ["const"] = ConfiguratorVersion.Current },
-                ["slug"] = Slug(64), ["slugReason"] = reason, ["tags"] = Array(Slug(32), 0, 16)
+                ["slug"] = Slug(64), ["slugReason"] = reason, ["tags"] = Array(Slug(32), 0, 16),
+                ["iconDataUri"] = new JsonObject
+                {
+                    ["type"] = "string",
+                    ["minLength"] = 66,
+                    ["maxLength"] = MaximumIconDataUriLength,
+                    ["pattern"] = "^data:image/png;base64,[A-Za-z0-9+/]+={0,2}$"
+                },
+                ["iconLicense"] = Text(128),
+                ["iconAttribution"] = Text(512)
             }
         };
     }
@@ -749,6 +851,78 @@ internal static class DefinitionStoreBuilder
                 if (Run(["--source", source, "--output", source + "-output", "--require-baseline", "--write"]) != 1)
                     throw new InvalidOperationException("Required baseline omitted.");
             });
+            Check("valid-curated-png-icon-emits-into-index-and-survives-baseline", source =>
+            {
+                string validUri = "data:image/png;base64," + Convert.ToBase64String(SyntheticPng(64, 64));
+                Metadata(source, data =>
+                {
+                    data["iconDataUri"] = validUri;
+                    data["iconLicense"] = "CC-BY-4.0";
+                    data["iconAttribution"] = "Synthetic logo attribution.";
+                });
+                SortedDictionary<string, byte[]> built = Build(source);
+                using JsonDocument index = JsonDocument.Parse(built["index.json"]);
+                JsonElement project = index.RootElement.GetProperty("projects")[0];
+                if (project.GetProperty("iconDataUri").GetString() != validUri
+                    || project.GetProperty("iconLicense").GetString() != "CC-BY-4.0"
+                    || project.GetProperty("iconAttribution").GetString() != "Synthetic logo attribution.")
+                    throw new InvalidOperationException("Icon metadata missing from built index.");
+                string baseline = source + "-baseline";
+                WriteInventory(baseline, built);
+                _ = Build(source, baseline);
+            });
+            Reject("icon-external-url", "store-metadata-invalid", source => Metadata(source, data =>
+            {
+                data["iconDataUri"] = "https://example.invalid/icon.png";
+                data["iconLicense"] = "CC-BY-4.0";
+                data["iconAttribution"] = "Attribution.";
+            }));
+            Reject("icon-svg-data-uri", "store-metadata-invalid", source => Metadata(source, data =>
+            {
+                data["iconDataUri"] = "data:image/svg+xml;base64," + Convert.ToBase64String("<svg/>"u8);
+                data["iconLicense"] = "CC-BY-4.0";
+                data["iconAttribution"] = "Attribution.";
+            }));
+            Reject("icon-oversized-png", "store-metadata-limit", source => Metadata(source, data =>
+            {
+                data["iconDataUri"] = "data:image/png;base64," + Convert.ToBase64String(new byte[12 * 1024 + 1]);
+                data["iconLicense"] = "CC-BY-4.0";
+                data["iconAttribution"] = "Attribution.";
+            }));
+            Reject("icon-whitespace-base64", "store-metadata-invalid", source => Metadata(source, data =>
+            {
+                data["iconDataUri"] = ("data:image/png;base64," + Convert.ToBase64String(SyntheticPng(32, 32))).Insert(26, " ");
+                data["iconLicense"] = "CC-BY-4.0";
+                data["iconAttribution"] = "Attribution.";
+            }));
+            Reject("icon-truncated-png", "store-metadata-invalid", source => Metadata(source, data =>
+            {
+                data["iconDataUri"] = "data:image/png;base64," + Convert.ToBase64String([0x89, (byte)'P', (byte)'N', (byte)'G']);
+                data["iconLicense"] = "CC-BY-4.0";
+                data["iconAttribution"] = "Attribution.";
+            }));
+            Reject("icon-non-png-magic", "store-metadata-invalid", source => Metadata(source, data =>
+            {
+                data["iconDataUri"] = "data:image/png;base64," + Convert.ToBase64String("GIF89a\x20\x00\x20\x00"u8);
+                data["iconLicense"] = "CC-BY-4.0";
+                data["iconAttribution"] = "Attribution.";
+            }));
+            Reject("icon-ihdr-exceeds-256", "store-metadata-invalid", source => Metadata(source, data =>
+            {
+                data["iconDataUri"] = "data:image/png;base64," + Convert.ToBase64String(SyntheticPng(257, 257));
+                data["iconLicense"] = "CC-BY-4.0";
+                data["iconAttribution"] = "Attribution.";
+            }));
+            Reject("icon-non-square-ihdr", "store-metadata-invalid", source => Metadata(source, data =>
+            {
+                data["iconDataUri"] = "data:image/png;base64," + Convert.ToBase64String(SyntheticPng(32, 64));
+                data["iconLicense"] = "CC-BY-4.0";
+                data["iconAttribution"] = "Attribution.";
+            }));
+            Reject("icon-missing-license-pair", "store-metadata-invalid", source => Metadata(source, data =>
+            {
+                data["iconDataUri"] = "data:image/png;base64," + Convert.ToBase64String(SyntheticPng(32, 32));
+            }));
             Console.WriteLine($"Definition store self-test: {passed} passed, {failed} failed.");
             return failed == 0 ? 0 : 1;
         }
@@ -808,6 +982,28 @@ internal static class DefinitionStoreBuilder
         string second = Path.Combine(source, "alpha/releases/3.json");
         File.Copy(first, second);
         Change(second, data => { data["revision"] = 3; change(data); });
+    }
+
+    private static byte[] SyntheticPng(int width, int height)
+    {
+        byte[] png = new byte[8 + 4 + 4 + 13 + 4 + 12];
+        byte[] signature = [0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A];
+        signature.CopyTo(png, 0);
+        png[11] = 13;
+        png[12] = (byte)'I';
+        png[13] = (byte)'H';
+        png[14] = (byte)'D';
+        png[15] = (byte)'R';
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(png.AsSpan(16, 4), width);
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(png.AsSpan(20, 4), height);
+        png[24] = 8;
+        png[25] = 6;
+        int iend = png.Length - 12;
+        png[iend + 4] = (byte)'I';
+        png[iend + 5] = (byte)'E';
+        png[iend + 6] = (byte)'N';
+        png[iend + 7] = (byte)'D';
+        return png;
     }
 
     private static void WriteInventory(string directory, SortedDictionary<string, byte[]> files)

@@ -37,10 +37,10 @@ flowchart LR
 
 When you open the Configurator WebAssembly application:
 
-1. **Choose a project:** Open the home catalogue. Definitions are grouped by their exact application identifier; matching titles alone never combine projects.
+1. **Choose a project:** Open the home catalogue. On wide viewports (`>= 960 px` in Browser, `>= 700` units in Desktop), projects appear as compact 2-per-row landscape cards displaying a `76×76` offline PNG logo (or deterministic monogram), revision badge, concise summary, and `[Explore]` / `[Configure]` actions. Definitions are grouped by their exact application identifier; matching titles alone never combine projects.
 2. **Search and Filter:** When four or more catalog projects are present, filter applications by name, keywords, or curated category tags (e.g. `monitoring`, `database`, `proxy`); smaller catalogues omit the redundant search bar.
 3. **Start Configuration:** Use **Configure** for the explicitly identified available source, or jump directly to **Use an existing configuration**, **Open a saved profile**, or the read-only **Explore** view (`/explore/{FamilyId}`). A directory choice is checked against its exact indexed identity before the workspace opens in the same action.
-4. **Choose alternatives when needed:** **Source details** keeps family GUIDs, alternate revisions, publisher metadata, and SHA-256 digests in a collapsed progressive disclosure until opened. Multiple ambiguous candidates require an explicit choice; no revision is silently selected as latest.
+4. **Inspect Details & Choose Alternatives:** Select the card's `ⓘ` **Project details** modal (or **Source details** disclosure) to inspect curated icon copyright attribution (`iconLicense` / `iconAttribution`), family GUIDs, declared outputs, alternate revisions, publisher metadata, and SHA-256 digests without cluttering the catalog card. Multiple ambiguous candidates require an explicit choice; no revision is silently selected as latest.
 5. **Inspect a directory revision:** Optional project details let you choose an exact revision and configure it directly. An unavailable requested revision reports an error instead of substituting another.
 
 Application identifiers and publisher labels organize navigation, not trust.
@@ -117,6 +117,7 @@ To add search tags or specify a custom slug, include an optional `curation.json`
 - **`schemaVersion`**: Must be `"0.0.1"`.
 - **`tags`**: Up to 16 unique lowercase alphanumeric tags (max 32 characters each).
 - **`slug` & `slugReason`**: If the directory name differs from the project ID in `configurator.yaml`, explain the reason in `slugReason` (16–512 characters).
+- **`iconDataUri`, `iconLicense`, & `iconAttribution`**: Optional strictly offline 3-tuple (`data:image/png;base64,...`, `<= 12 KiB` decoded PNG, square `IHDR` `16..256`) paired with non-empty SPDX/copyright license and attribution strings. External image URLs and SVG payloads are rejected fail-closed.
 
 ---
 

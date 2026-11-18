@@ -12,5 +12,8 @@ public sealed record DefinitionStoreProject
     public string ApplicationId { get; init; } = string.Empty;
     public Guid FamilyId { get; init; }
     public IReadOnlyList<DefinitionStoreRevision> Revisions { get; init; } = [];
+    public string? IconDataUri { get; init; }
+    public string? IconLicense { get; init; }
+    public string? IconAttribution { get; init; }
     public override string ToString() => $"{nameof(DefinitionStoreProject)}:{ProjectId}";
 }
