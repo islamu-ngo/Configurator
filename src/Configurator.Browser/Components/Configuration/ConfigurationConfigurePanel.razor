@@ -3,7 +3,6 @@
 @using Configurator.Core.Definitions
 @using Configurator.Presentation
 @using Configurator.Browser.Resources
-@using Microsoft.AspNetCore.Components.Sections
 @using Microsoft.JSInterop
 @inject IJSRuntime Javascript
 
@@ -18,16 +17,9 @@
     var actionForm = Form;
     long inputRevision = Form.InputRevision;
     var actionMount = MountCancellation;
-    var states = Form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal);
+    var (states, sections) = ResolveVisibleSectionsWithStates(Form, Sections);
     string? outputField = Form.Definition.Presentation?.OutputSelector is { } selector
         ? DefinitionProfile.FieldId(selector.Location.Segments[0]) : null;
-    var sections = Sections.Where(section =>
-        allSections
-            ? section.IsApplicable &&
-              projection.SectionStatuses.GetValueOrDefault(section.Id)?.ConfigurationStatus != SectionConfigurationStatus.OutsideSelectedScope &&
-              section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && projection.IsFieldVisible(fieldId))
-            : (experience.Sections.Contains(section.Id)
-              || section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && projection.IsFieldVisible(fieldId)))).ToArray();
     string? selected = sections.Any(section => section.Id == SelectedSection)
         ? SelectedSection
         : sections.FirstOrDefault(section => section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive
@@ -37,47 +29,50 @@
         ? (sections.Any(section => section.Id == _scrollspySectionId) ? _scrollspySectionId : selected)
         : null;
     string? railActiveSection = allSections ? activeScrollspySection : selected;
-
-    <SectionContent SectionName="configuration-sections">
-        @if (sections.Length > 1)
-        {
-            <ConfigurationNavigation Sections="@(sections.Select(section => new ConfigurationSection(section.Id, section.Title, projection.SectionProgress[section.Id], projection.SectionStatuses.GetValueOrDefault(section.Id))).ToArray())"
-                                     Selected="@railActiveSection" ActiveSectionId="@railActiveSection"
-                                     LayoutMode="@Form.ConfigureLayoutMode"
-                                     SelectedChanged="HandleSectionSelectedAsync" Locale="@Form.Locale"
-                                     NavigationMode="@experience.Navigation" Navigation="@projection.Navigation" />
-        }
-    </SectionContent>
+    bool showFormNav = !literalRoot && sections.Length > 1;
+    _lastRenderedRailSection = showFormNav ? railActiveSection : null;
 
     <div @ref="_panelElement" class="configuration-configure-panel @(allSections || sections.Length <= 1 ? "configuration-configure-panel--single" : "")"
          data-navigation="@experience.Navigation" data-layout-active="@(allSections ? "all-sections" : "section-by-section")">
-        <div class="configuration-configure-panel__toolbar" data-layout-switcher role="group"
-             aria-label="@BrowserStrings.Get("ConfigureLayoutLabel", Form.Locale)">
-            <div class="configuration-configure-panel__layout-modes">
-                <button type="button"
-                        class="button button--secondary configuration-configure-panel__layout-btn @(!allSections ? "configuration-configure-panel__layout-btn--active" : "")"
-                        data-layout-mode="section-by-section"
-                        aria-pressed="@((!allSections).ToString().ToLowerInvariant())"
-                        @onclick="() => LayoutModeChanged.InvokeAsync(ConfigureLayoutMode.SectionBySection)">
-                    @BrowserStrings.Get("LayoutSectionBySection", Form.Locale)
-                </button>
-                <button type="button"
-                        class="button button--secondary configuration-configure-panel__layout-btn @(allSections ? "configuration-configure-panel__layout-btn--active" : "")"
-                        data-layout-mode="all-sections"
-                        aria-pressed="@(allSections.ToString().ToLowerInvariant())"
-                        @onclick="() => LayoutModeChanged.InvokeAsync(ConfigureLayoutMode.AllSections)">
-                    @BrowserStrings.Get("LayoutAllSections", Form.Locale)
-                </button>
-            </div>
-            @if (allSections && !literalRoot)
+        <div class="configuration-configure-panel__body @(showFormNav ? "configuration-configure-panel__body--with-nav" : "")">
+            @if (showFormNav)
             {
-                <label class="configuration-configure-panel__matches-filter">
-                    <input type="checkbox" data-compact-matches-only checked="@CompactShowMatchesOnly"
-                           @onchange="args => CompactShowMatchesOnlyChanged.InvokeAsync(args.Value is true)" />
-                    <span>@BrowserStrings.Get("CompactShowMatchesOnly", Form.Locale)</span>
-                </label>
+                <div @ref="_navContainer" class="configuration-configure-panel__nav">
+                    <ConfigurationNavigation Sections="@(sections.Select(section => new ConfigurationSection(section.Id, section.Title, projection.SectionProgress[section.Id], projection.SectionStatuses.GetValueOrDefault(section.Id))).ToArray())"
+                                             Selected="@railActiveSection" ActiveSectionId="@railActiveSection"
+                                             LayoutMode="@Form.ConfigureLayoutMode"
+                                             SelectedChanged="HandleSectionSelectedAsync" Locale="@Form.Locale"
+                                             NavigationMode="@experience.Navigation" Navigation="@projection.Navigation" />
+                </div>
             }
-        </div>
+            <div class="configuration-configure-panel__main">
+                <div class="configuration-configure-panel__toolbar" data-layout-switcher role="group"
+                     aria-label="@BrowserStrings.Get("ConfigureLayoutLabel", Form.Locale)">
+                    <div class="configuration-configure-panel__layout-modes">
+                        <button type="button"
+                                class="button button--secondary configuration-configure-panel__layout-btn @(!allSections ? "configuration-configure-panel__layout-btn--active" : "")"
+                                data-layout-mode="section-by-section"
+                                aria-pressed="@((!allSections).ToString().ToLowerInvariant())"
+                                @onclick="() => LayoutModeChanged.InvokeAsync(ConfigureLayoutMode.SectionBySection)">
+                            @BrowserStrings.Get("LayoutSectionBySection", Form.Locale)
+                        </button>
+                        <button type="button"
+                                class="button button--secondary configuration-configure-panel__layout-btn @(allSections ? "configuration-configure-panel__layout-btn--active" : "")"
+                                data-layout-mode="all-sections"
+                                aria-pressed="@(allSections.ToString().ToLowerInvariant())"
+                                @onclick="() => LayoutModeChanged.InvokeAsync(ConfigureLayoutMode.AllSections)">
+                            @BrowserStrings.Get("LayoutAllSections", Form.Locale)
+                        </button>
+                    </div>
+                    @if (allSections && !literalRoot)
+                    {
+                        <label class="configuration-configure-panel__matches-filter">
+                            <input type="checkbox" data-compact-matches-only checked="@CompactShowMatchesOnly"
+                                   @onchange="args => CompactShowMatchesOnlyChanged.InvokeAsync(args.Value is true)" />
+                            <span>@BrowserStrings.Get("CompactShowMatchesOnly", Form.Locale)</span>
+                        </label>
+                    }
+                </div>
 
         @if (allSections)
         {
@@ -305,8 +300,10 @@
                         }
                     </div>
                 }
-            </div>
+                </div>
         }
+            </div>
+        </div>
     </div>
 }
 
@@ -327,11 +324,15 @@
     [Parameter] public EventCallback<bool> CompactShowMatchesOnlyChanged { get; set; }
     private ElementReference _heading;
     private ElementReference _panelElement;
+    private ElementReference _navContainer;
     private ConfigurationRoot? _root;
     private Task<IJSObjectReference>? _scrollspyModule;
     private DotNetObjectReference<ConfigurationConfigurePanel>? _scrollspyRef;
     private string? _scrollspySectionId;
     private string? _windowCenterSectionId;
+    private string? _lastRenderedRailSection;
+    private string? _lastSyncedNavSectionId;
+    private bool _headerObserved;
     private long _scrollspyGeneration;
     private bool _scrollspyActive;
     private DefinitionFormProjection? _cachedMatchProjection;
@@ -339,6 +340,40 @@
     private bool _disposed;
     private bool _hasRendered;
     private RenderStamp _renderedStamp;
+
+    internal string? ActiveScrollspySectionId => _scrollspySectionId;
+
+    internal static DefinitionFormSection[] ResolveVisibleSections(
+        DefinitionFormModel form,
+        IReadOnlyList<DefinitionFormSection> sections) =>
+        ResolveVisibleSectionsWithStates(form, sections).Sections;
+
+    private static (Dictionary<string, FieldState> States, DefinitionFormSection[] Sections) ResolveVisibleSectionsWithStates(
+        DefinitionFormModel form,
+        IReadOnlyList<DefinitionFormSection> sections)
+    {
+        ArgumentNullException.ThrowIfNull(form);
+        ArgumentNullException.ThrowIfNull(sections);
+
+        bool allSections = form.ConfigureLayoutMode == ConfigureLayoutMode.AllSections;
+        DefinitionFormExperience experience = form.DisplayExperiences.Single(item => item.Id == form.SelectedExperienceId);
+        DefinitionFormProjection projection = form.Projection;
+        Dictionary<string, FieldState> states = form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal);
+        string? outputField = form.Definition.Presentation?.OutputSelector is { } selector
+            ? DefinitionProfile.FieldId(selector.Location.Segments[0])
+            : null;
+
+        DefinitionFormSection[] visible = sections.Where(section =>
+            allSections
+                ? section.IsApplicable &&
+                  projection.SectionStatuses.GetValueOrDefault(section.Id)?.ConfigurationStatus != SectionConfigurationStatus.OutsideSelectedScope &&
+                  section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && projection.IsFieldVisible(fieldId))
+                : (experience.Sections.Contains(section.Id)
+                  || section.Fields.Any(fieldId => fieldId != outputField && states[fieldId].IsActive && projection.IsFieldVisible(fieldId))))
+            .ToArray();
+
+        return (states, visible);
+    }
 
     private readonly record struct RenderStamp(
         bool Disposed,
@@ -435,15 +470,62 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_disposed || MountCancellation.IsCancellationRequested) return;
+
+        if (!_headerObserved && !string.IsNullOrEmpty(_panelElement.Id))
+            await EnsureHeaderObservedAsync();
+
         bool wantScrollspy = Form.ConfigureLayoutMode == ConfigureLayoutMode.AllSections;
         if (!wantScrollspy && _scrollspyActive)
         {
             await DetachScrollspyAsync();
-            return;
         }
-        if (wantScrollspy && !_scrollspyActive)
+        else if (wantScrollspy && !_scrollspyActive)
         {
             await AttachScrollspyAsync();
+        }
+
+        if (!string.IsNullOrEmpty(_navContainer.Id)
+            && !string.Equals(_lastSyncedNavSectionId, _lastRenderedRailSection, StringComparison.Ordinal))
+        {
+            _lastSyncedNavSectionId = _lastRenderedRailSection;
+            await SyncActiveNavScrollAsync();
+        }
+    }
+
+    private async Task EnsureHeaderObservedAsync()
+    {
+        if (_disposed || MountCancellation.IsCancellationRequested || string.IsNullOrEmpty(_panelElement.Id))
+            return;
+
+        _headerObserved = true;
+        try
+        {
+            _scrollspyModule ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
+            IJSObjectReference module = await _scrollspyModule.WaitAsync(MountCancellation);
+            if (_disposed || MountCancellation.IsCancellationRequested) return;
+            await module.InvokeVoidAsync("observeHeaderHeight", _panelElement).AsTask().WaitAsync(MountCancellation);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or JSException or InvalidOperationException)
+        {
+            // Ignore disconnected interop or non-layout test module boundaries.
+        }
+    }
+
+    private async Task SyncActiveNavScrollAsync()
+    {
+        if (_disposed || MountCancellation.IsCancellationRequested || string.IsNullOrEmpty(_navContainer.Id))
+            return;
+
+        try
+        {
+            _scrollspyModule ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
+            IJSObjectReference module = await _scrollspyModule.WaitAsync(MountCancellation);
+            if (_disposed || MountCancellation.IsCancellationRequested || string.IsNullOrEmpty(_navContainer.Id)) return;
+            await module.InvokeVoidAsync("syncActiveNavScroll", _navContainer).AsTask().WaitAsync(MountCancellation);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or JSException or InvalidOperationException)
+        {
+            // Ignore disconnected interop or non-layout test module boundaries.
         }
     }
 
@@ -461,7 +543,7 @@
                 Form.ConfigureLayoutMode != ConfigureLayoutMode.AllSections) return;
             await module.InvokeVoidAsync("observeScrollspy", _panelElement, _scrollspyRef, generation);
         }
-        catch (Exception ex) when (ex is OperationCanceledException or JSException)
+        catch (Exception ex) when (ex is OperationCanceledException or JSException or InvalidOperationException)
         {
         }
     }
@@ -477,7 +559,7 @@
                 IJSObjectReference module = await _scrollspyModule;
                 await module.InvokeVoidAsync("unobserveScrollspy", _panelElement);
             }
-            catch (JSException)
+            catch (Exception ex) when (ex is JSException or InvalidOperationException)
             {
             }
         }
@@ -538,6 +620,18 @@
         if (_disposed) return;
         _disposed = true;
         await DetachScrollspyAsync();
+        if (_headerObserved && _scrollspyModule is { IsCompletedSuccessfully: true } && !string.IsNullOrEmpty(_panelElement.Id))
+        {
+            try
+            {
+                IJSObjectReference module = await _scrollspyModule;
+                await module.InvokeVoidAsync("unobserveHeaderHeight", _panelElement);
+            }
+            catch (Exception ex) when (ex is JSException or InvalidOperationException)
+            {
+            }
+        }
+        _headerObserved = false;
         _scrollspyRef?.Dispose();
         _scrollspyRef = null;
         if (_scrollspyModule is { IsCompletedSuccessfully: true })
@@ -554,5 +648,6 @@
         _scrollspyModule = null;
         _heading = default;
         _panelElement = default;
+        _navContainer = default;
     }
 }

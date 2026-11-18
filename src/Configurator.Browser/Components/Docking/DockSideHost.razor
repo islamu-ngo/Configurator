@@ -1,0 +1,102 @@
+@using Configurator.Browser.Services.Docking
+@implements IDisposable
+@inject DockLayoutState DockLayoutState
+
+@if (RenderedEntries.Count > 0)
+{
+    <div class="@RootClass"
+         data-testid="@DataTestId"
+         data-dock-scope="@ScopeName"
+         data-dock-side="@SideName"
+         role="region"
+         aria-label="@ResolvedAriaLabel">
+        @if (ShouldRenderSplitStack)
+        {
+            <div class="dock-side-host__split-stack"
+                 role="group"
+                 aria-label="@($"{Scope} {Side} dock panel stack")">
+                @foreach (DockPanelEntry entry in RenderedEntries)
+                {
+                    <DockPanelHost Entry="@entry" Class="@GetPanelClass(entry)" />
+                }
+            </div>
+        }
+        else if (ShouldRenderTabbedStack)
+        {
+            <DockTabStrip Entries="@DockedEntries"
+                          ActivePanelId="@ActiveEntry.Descriptor.Id"
+                          AriaLabel="@($"{Scope} {Side} dock panel tabs")"
+                          OnTabRequested="@TabSelectRequested" />
+            <DockPanelHost Entry="@ActiveEntry"
+                           Class="@GetPanelClass(ActiveEntry)"
+                           BodyRole="tabpanel"
+                           BodyLabelledById="@DockElementIds.TabId(ActiveEntry.Descriptor.Id)" />
+        }
+        else
+        {
+            <DockPanelHost Entry="@ActiveEntry" Class="@GetPanelClass(ActiveEntry)" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public DockScope Scope { get; set; }
+    [Parameter] public DockSide Side { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string DataTestId { get; set; } = "dock-side-host";
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public bool IsMobile { get; set; }
+    [Parameter] public Func<DockPanelId, Task>? TabSelectRequested { get; set; }
+
+    private IReadOnlyList<DockPanelEntry> _renderedEntries = [];
+
+    private IReadOnlyList<DockPanelEntry> DockedEntries => DockLayoutState.GetPanels(Scope, Side)
+        .Where(entry => !IsMobile
+            && entry.State is { IsOpen: true, Mode: DockMode.Docked }
+            && !DockLayoutState.ShouldRenderDockedPanelAsOverlay(entry))
+        .ToArray();
+
+    private IReadOnlyList<DockPanelEntry> RenderedEntries => _renderedEntries;
+
+    private string ScopeName => Scope.ToString().ToLowerInvariant();
+    private string SideName => Side.ToString().ToLowerInvariant();
+    private string ResolvedAriaLabel => AriaLabel ?? $"{Scope} {Side} dock panels";
+    private bool ShouldRenderSplitStack => DockedEntries.Count > 1
+        && DockedEntries.All(entry => entry.Descriptor.StackStrategy == DockPanelStackStrategy.Split);
+    private bool ShouldRenderTabbedStack => DockedEntries.Count > 1 && !ShouldRenderSplitStack;
+
+    private DockPanelEntry ActiveEntry => DockedEntries.FirstOrDefault(entry => entry.State.IsActive)
+        ?? DockedEntries.FirstOrDefault()
+        ?? RenderedEntries[0];
+
+    private string RootClass => string.Join(' ', new[]
+    {
+        "dock-side-host",
+        $"dock-side-host--{ScopeName}",
+        $"dock-side-host--{SideName}",
+        ShouldRenderSplitStack ? "dock-side-host--split-stack" : null,
+        ShouldRenderTabbedStack ? "dock-side-host--tab-stack" : null,
+        Class
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    protected override void OnInitialized()
+    {
+        DockLayoutState.Changed += OnDockLayoutChanged;
+        SyncRenderedEntries();
+    }
+
+    protected override void OnParametersSet() => SyncRenderedEntries();
+
+    public void Dispose() => DockLayoutState.Changed -= OnDockLayoutChanged;
+
+    private void OnDockLayoutChanged()
+    {
+        SyncRenderedEntries();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private string? GetPanelClass(DockPanelEntry entry) =>
+        ShouldRenderSplitStack ? "dock-panel-host--stacked" : null;
+
+    private void SyncRenderedEntries() => _renderedEntries = DockedEntries;
+}

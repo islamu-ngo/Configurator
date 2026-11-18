@@ -38,7 +38,7 @@
             <li class="@(isCurrent ? "configuration-navigation__item configuration-navigation__item--current" : "configuration-navigation__item") @(outsideScope ? "configuration-navigation__item--muted" : "")"><button type="button" class="configuration-navigation__button" data-section="@section.Id"
                            aria-current="@ariaCurrent" @onclick="() => SelectedChanged.InvokeAsync(section.Id)">
                 <span class="configuration-navigation__entry">
-                    <span>@section.Title</span>
+                    <span class="configuration-navigation__title">@section.Title</span>
                     <span class="configuration-navigation__count">
                         @if (outsideScope)
                         {
@@ -46,7 +46,7 @@
                         }
                         else if (section.Progress.Required > 0)
                         {
-                            <span>@T("Ready"): @section.Progress.Ready / @section.Progress.Required @T("Required")</span>
+                            <span>@section.Progress.Ready / @section.Progress.Required @T("Required")</span>
                         }
                         else
                         {
@@ -54,14 +54,21 @@
                         }
                         @if (!outsideScope && section.Progress.Missing + section.Progress.Invalid > 0)
                         {
-                            <span>@T("NeedsAttention"): @(section.Progress.Missing + section.Progress.Invalid)</span>
+                            <span class="configuration-navigation__attention">@T("NeedsAttention"): @(section.Progress.Missing + section.Progress.Invalid)</span>
+                        }
+                        @if (status is not null && status.HasHiddenOptional)
+                        {
+                            <span class="configuration-navigation__badge" data-wizard-optional-available="@section.Id">@T("OptionalFieldsAvailable")</span>
                         }
                         @if (status is not null)
                         {
-                            <span class="configuration-navigation__status" data-review-state="@ReviewStateToken(status.Coverage)">@T(ReviewStateKey(status.Coverage))</span>
-                            @if (status.HasHiddenOptional)
+                            if (status.Coverage == SectionReviewCoverage.Reviewed)
                             {
-                                <span class="configuration-navigation__badge" data-wizard-optional-available="@section.Id">@T("OptionalFieldsAvailable")</span>
+                                <span class="configuration-navigation__reviewed" data-review-state="reviewed">@T("StatusReviewed")</span>
+                            }
+                            else
+                            {
+                                <span class="sr-only" data-review-state="@ReviewStateToken(status.Coverage)">@T(ReviewStateKey(status.Coverage))</span>
                             }
                         }
                     </span>

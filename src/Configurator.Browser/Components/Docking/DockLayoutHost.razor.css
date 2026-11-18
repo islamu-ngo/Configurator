@@ -1,0 +1,23 @@
+.dock-layout-host {
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--dock-layout-start-width, 0px) minmax(0, 1fr) var(--dock-layout-end-width, 0px);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+        "start content end"
+        "bottom bottom bottom";
+    min-inline-size: 0;
+    block-size: 100%;
+}
+
+.dock-layout-host__content {
+    grid-area: content;
+    min-inline-size: 0;
+    min-block-size: 0;
+}
+
+@media (max-width: 47.5rem) {
+    .dock-layout-host {
+        grid-template-columns: 0 minmax(0, 1fr) 0;
+    }
+}

@@ -43,37 +43,69 @@ export function revealFocusedControl(owner, generation) {
     }
 }
 
-const observedToolbars = new WeakMap();
+const headerObservers = new WeakMap();
 
-export function syncCompactToolbarClearance(owner) {
-    if (!owner?.isConnected) return;
-    const workspace = owner.closest('.configuration-compact-workspace') ?? owner;
-    const toolbar = workspace.querySelector('.configuration-compact-workspace__toolbar');
-    if (!toolbar) {
-        workspace.style.removeProperty('--isl-compact-toolbar-block-size');
-        return;
+function measureHeaderOffset(doc) {
+    if (!doc?.documentElement) return 0;
+    const header = doc.querySelector('.nav-menu__header.navbar');
+    if (!header) {
+        doc.documentElement.style.removeProperty('--isl-shell-header-actual-height');
+        return 0;
     }
 
-    const view = workspace.ownerDocument.defaultView;
-    const sticky = view?.getComputedStyle(toolbar).position === 'sticky';
-    const height = sticky ? Math.ceil(toolbar.getBoundingClientRect().height) : 0;
-    workspace.style.setProperty('--isl-compact-toolbar-block-size', `${height}px`);
+    const height = Math.ceil(header.getBoundingClientRect().height);
+    if (height > 0) {
+        doc.documentElement.style.setProperty('--isl-shell-header-actual-height', `${height}px`);
+    }
+    return height;
+}
 
-    if (!observedToolbars.has(toolbar) && typeof ResizeObserver === 'function') {
-        const observer = new ResizeObserver(() => {
-            if (!workspace.isConnected || !toolbar.isConnected) {
-                observer.disconnect();
-                observedToolbars.delete(toolbar);
-                return;
-            }
+export function observeHeaderHeight(owner) {
+    unobserveHeaderHeight(owner);
+    if (!owner?.isConnected) return;
 
-            const currentView = workspace.ownerDocument.defaultView;
-            const currentSticky = currentView?.getComputedStyle(toolbar).position === 'sticky';
-            const currentHeight = currentSticky ? Math.ceil(toolbar.getBoundingClientRect().height) : 0;
-            workspace.style.setProperty('--isl-compact-toolbar-block-size', `${currentHeight}px`);
-        });
-        observer.observe(toolbar);
-        observedToolbars.set(toolbar, observer);
+    const doc = owner.ownerDocument;
+    const win = doc.defaultView;
+    const header = doc.querySelector('.nav-menu__header.navbar');
+    measureHeaderOffset(doc);
+
+    const Observer = win?.ResizeObserver ?? (typeof ResizeObserver === 'function' ? ResizeObserver : null);
+    if (!header || !Observer) return;
+
+    const observer = new Observer(() => {
+        if (!owner.isConnected || !header.isConnected) {
+            unobserveHeaderHeight(owner);
+            return;
+        }
+        measureHeaderOffset(doc);
+    });
+    observer.observe(header);
+    headerObservers.set(owner, { header, observer });
+}
+
+export function unobserveHeaderHeight(owner) {
+    if (!owner) return;
+    const entry = headerObservers.get(owner);
+    if (!entry) return;
+    entry.observer.disconnect();
+    headerObservers.delete(owner);
+}
+
+export function syncActiveNavScroll(navElement) {
+    if (!navElement?.isConnected) return;
+    if (navElement.scrollHeight <= navElement.clientHeight) return;
+
+    const active = navElement.querySelector('[aria-current="step"], [aria-current="location"]');
+    if (!active || !navElement.contains(active)) return;
+
+    const navRect = navElement.getBoundingClientRect();
+    const itemRect = active.getBoundingClientRect();
+    const cushion = 8;
+
+    if (itemRect.top < navRect.top + cushion) {
+        navElement.scrollTop -= (navRect.top + cushion) - itemRect.top;
+    } else if (itemRect.bottom > navRect.bottom - cushion) {
+        navElement.scrollTop += itemRect.bottom - (navRect.bottom - cushion);
     }
 }
 
@@ -86,13 +118,15 @@ export function revealHeading(owner, headingId) {
     const heading = doc.getElementById(headingId);
     if (!heading || !owner.contains(heading)) return;
 
-    syncCompactToolbarClearance(owner);
+    const now = () => (win?.performance?.now ? win.performance.now() : Date.now());
+    owner._scrollspyCooldownUntil = now() + 650;
+
+    measureHeaderOffset(doc);
     heading.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'instant' });
     heading.focus({ preventScroll: true });
 
     if (!win?.requestAnimationFrame) return;
 
-    const now = () => (win.performance?.now ? win.performance.now() : Date.now());
     const deadline = now() + 600;
     let rafId = 0;
     let timeoutId = 0;
@@ -114,17 +148,22 @@ export function revealHeading(owner, headingId) {
         }
         resizeObserver?.disconnect();
         resizeObserver = null;
-        doc.removeEventListener('wheel', cleanup, true);
-        doc.removeEventListener('touchstart', cleanup, true);
-        doc.removeEventListener('pointerdown', cleanup, true);
-        doc.removeEventListener('keydown', cleanup, true);
+        doc.removeEventListener('wheel', onUserScroll, true);
+        doc.removeEventListener('touchstart', onUserScroll, true);
+        doc.removeEventListener('pointerdown', onUserScroll, true);
+        doc.removeEventListener('keydown', onUserScroll, true);
         if (owner._cancelRevealHeading === cleanup) {
             delete owner._cancelRevealHeading;
         }
     };
 
+    const onUserScroll = () => {
+        owner._scrollspyCooldownUntil = 0;
+        cleanup();
+    };
+
     const isSettled = () => {
-        syncCompactToolbarClearance(owner);
+        measureHeaderOffset(doc);
         const marginTop = Number.parseFloat(win.getComputedStyle(heading).scrollMarginTop) || 0;
         const rect = heading.getBoundingClientRect();
         const atBottom = Math.ceil(win.scrollY + win.innerHeight) >= doc.documentElement.scrollHeight - 1;
@@ -156,20 +195,23 @@ export function revealHeading(owner, headingId) {
         }
 
         if (now() >= deadline) {
+            owner._scrollspyCooldownUntil = 0;
             cleanup();
             return;
         }
 
         if (quietFrames < 4) {
             scheduleFrame();
+        } else {
+            owner._scrollspyCooldownUntil = 0;
         }
     };
 
     owner._cancelRevealHeading = cleanup;
-    doc.addEventListener('wheel', cleanup, { capture: true, passive: true });
-    doc.addEventListener('touchstart', cleanup, { capture: true, passive: true });
-    doc.addEventListener('pointerdown', cleanup, { capture: true, passive: true });
-    doc.addEventListener('keydown', cleanup, { capture: true, passive: true });
+    doc.addEventListener('wheel', onUserScroll, { capture: true, passive: true });
+    doc.addEventListener('touchstart', onUserScroll, { capture: true, passive: true });
+    doc.addEventListener('pointerdown', onUserScroll, { capture: true, passive: true });
+    doc.addEventListener('keydown', onUserScroll, { capture: true, passive: true });
 
     if (typeof win.ResizeObserver === 'function') {
         resizeObserver = new win.ResizeObserver(() => {
@@ -185,7 +227,10 @@ export function revealHeading(owner, headingId) {
         resizeObserver.observe(owner);
     }
 
-    timeoutId = win.setTimeout(cleanup, 600);
+    timeoutId = win.setTimeout(() => {
+        owner._scrollspyCooldownUntil = 0;
+        cleanup();
+    }, 600);
     scheduleFrame();
 }
 
@@ -195,49 +240,114 @@ export function unobserveScrollspy(owner) {
     if (!owner) return;
     const entry = scrollspyObservers.get(owner);
     if (!entry) return;
-    entry.observer.disconnect();
+    entry.observer?.disconnect();
+    if (entry.onScroll && entry.win) {
+        entry.win.removeEventListener('scroll', entry.onScroll);
+    }
+    if (entry.scrollRaf && entry.win) {
+        entry.win.cancelAnimationFrame(entry.scrollRaf);
+    }
     scrollspyObservers.delete(owner);
 }
 
 export function observeScrollspy(owner, dotNetRef, generation) {
     unobserveScrollspy(owner);
-    if (!owner?.isConnected || !dotNetRef || typeof IntersectionObserver !== 'function') return;
+    if (!owner?.isConnected || !dotNetRef) return;
 
     const doc = owner.ownerDocument;
     const win = doc.defaultView;
     const targets = Array.from(owner.querySelectorAll('[data-compact-section], [data-section-panel]'));
     if (targets.length === 0) return;
 
-    const state = { observer: null, generation, visible: new Set(), lastId: null };
+    const now = () => (win?.performance?.now ? win.performance.now() : Date.now());
+    const state = { observer: null, win, onScroll: null, scrollRaf: 0, generation, visible: new Set(), lastId: null };
     const sectionIdOf = element => element.getAttribute('data-compact-section')
         ?? element.getAttribute('data-section-panel');
+
+    const emit = element => {
+        const id = element ? sectionIdOf(element) : null;
+        if (!id || id === state.lastId) return;
+        state.lastId = id;
+        dotNetRef.invokeMethodAsync('OnScrollspySectionChangedAsync', id).catch(() => {});
+    };
 
     const pickActive = () => {
         if (!owner.isConnected || scrollspyObservers.get(owner)?.generation !== state.generation) {
             unobserveScrollspy(owner);
             return;
         }
-        const candidates = targets.filter(el => el.isConnected && !el.hidden && state.visible.has(el));
-        if (candidates.length === 0) return;
-        const active = candidates.reduce((best, item) =>
-            item.getBoundingClientRect().top < best.getBoundingClientRect().top ? item : best);
-        const id = sectionIdOf(active);
-        if (!id || id === state.lastId) return;
-        state.lastId = id;
-        dotNetRef.invokeMethodAsync('OnScrollspySectionChangedAsync', id).catch(() => {});
+        if (owner._scrollspyCooldownUntil && now() < owner._scrollspyCooldownUntil) return;
+
+        const visibleTargets = targets.filter(el => el.isConnected && !el.hidden);
+        if (visibleTargets.length === 0) return;
+
+        const docEl = doc.documentElement;
+        const viewportHeight = win?.innerHeight ?? docEl.clientHeight;
+        const scrollY = win?.scrollY ?? docEl.scrollTop ?? 0;
+        const atBottom = docEl.scrollHeight > viewportHeight + 4
+            && Math.ceil(scrollY + viewportHeight) >= docEl.scrollHeight - 4;
+        if (atBottom) {
+            emit(visibleTargets[visibleTargets.length - 1]);
+            return;
+        }
+
+        const headerHeight = measureHeaderOffset(doc) || 64;
+        const headerClearance = headerHeight + 24;
+        let active = null;
+        for (const el of visibleTargets) {
+            const rect = el.getBoundingClientRect();
+            if (rect.top <= headerClearance && rect.bottom > headerClearance) {
+                active = el;
+            }
+        }
+
+        if (!active) {
+            const candidates = visibleTargets.filter(el => state.visible.has(el));
+            if (candidates.length > 0) {
+                active = candidates.reduce((best, item) =>
+                    item.getBoundingClientRect().top < best.getBoundingClientRect().top ? item : best);
+            } else {
+                for (const el of visibleTargets) {
+                    if (el.getBoundingClientRect().top <= headerClearance) {
+                        active = el;
+                    }
+                }
+                active ??= visibleTargets[0];
+            }
+        }
+
+        emit(active);
     };
 
-    const observer = new (win?.IntersectionObserver ?? IntersectionObserver)(entries => {
-        for (const entry of entries) {
-            if (entry.isIntersecting) state.visible.add(entry.target);
-            else state.visible.delete(entry.target);
-        }
-        pickActive();
-    }, { root: null, rootMargin: '-18% 0px -65% 0px', threshold: 0 });
+    const Observer = win?.IntersectionObserver ?? (typeof IntersectionObserver === 'function' ? IntersectionObserver : null);
+    if (Observer) {
+        const initialHeader = measureHeaderOffset(doc) || 64;
+        const viewportHeight = win?.innerHeight ?? doc.documentElement.clientHeight ?? 900;
+        const topMargin = Math.min(Math.floor(viewportHeight * 0.4), Math.ceil(initialHeader + 16));
+        const observer = new Observer(entries => {
+            for (const entry of entries) {
+                if (entry.isIntersecting) state.visible.add(entry.target);
+                else state.visible.delete(entry.target);
+            }
+            pickActive();
+        }, { root: null, rootMargin: `-${topMargin}px 0px -50% 0px`, threshold: 0 });
 
-    state.observer = observer;
+        state.observer = observer;
+        for (const target of targets) observer.observe(target);
+    }
+
+    if (win) {
+        state.onScroll = () => {
+            if (state.scrollRaf) return;
+            state.scrollRaf = win.requestAnimationFrame(() => {
+                state.scrollRaf = 0;
+                pickActive();
+            });
+        };
+        win.addEventListener('scroll', state.onScroll, { passive: true });
+    }
+
     scrollspyObservers.set(owner, state);
-    for (const target of targets) observer.observe(target);
 }
 
 export function isNarrowViewport() {

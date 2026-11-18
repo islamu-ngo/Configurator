@@ -1,0 +1,96 @@
+@using Configurator.Browser.Services.Accessibility
+@using Configurator.Browser.Services.Docking
+@inject DockLayoutState DockLayoutState
+@inject AccessibilityFocusService AccessibilityFocusService
+
+@if (Entries.Count > 1)
+{
+    <div class="@RootClass"
+         role="tablist"
+         aria-label="@ResolvedAriaLabel"
+         data-testid="@DataTestId">
+        @foreach (DockPanelEntry entry in Entries)
+        {
+            DockPanelId panelId = entry.Descriptor.Id;
+            bool isActive = panelId == ActivePanelId;
+            <button class="@GetTabClass(entry, isActive)"
+                    type="button"
+                    role="tab"
+                    id="@DockElementIds.TabId(panelId)"
+                    aria-selected="@(isActive ? "true" : "false")"
+                    aria-controls="@(isActive ? DockElementIds.PanelBodyId(panelId) : null)"
+                    tabindex="@(isActive ? "0" : "-1")"
+                    data-testid="dock-tab-strip-tab"
+                    data-dock-tab-panel-id="@panelId.Value"
+                    @onclick="() => ActivatePanelAsync(panelId)"
+                    @onkeydown="args => HandleTabKeyDownAsync(args, panelId)">
+                @entry.Descriptor.Title
+            </button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<DockPanelEntry> Entries { get; set; } = [];
+    [Parameter, EditorRequired] public DockPanelId ActivePanelId { get; set; } = default!;
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string DataTestId { get; set; } = "dock-tab-strip";
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public Func<DockPanelId, Task>? OnTabRequested { get; set; }
+
+    private string ResolvedAriaLabel => AriaLabel ?? "Dock panel stack";
+
+    private string RootClass => string.Join(' ', new[]
+    {
+        "dock-tab-strip",
+        Class
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private static string GetTabClass(DockPanelEntry entry, bool isActive) => string.Join(' ', new[]
+    {
+        "dock-tab-strip__tab",
+        isActive ? "dock-tab-strip__tab--active" : null,
+        entry.Descriptor.CanClose ? "dock-tab-strip__tab--closable" : null
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private Task ActivatePanelAsync(DockPanelId panelId)
+    {
+        if (OnTabRequested is not null)
+            return OnTabRequested(panelId);
+
+        DockLayoutState.Activate(panelId);
+        return Task.CompletedTask;
+    }
+
+    private async Task HandleTabKeyDownAsync(KeyboardEventArgs args, DockPanelId currentPanelId)
+    {
+        int currentIndex = -1;
+        for (int index = 0; index < Entries.Count; index++)
+        {
+            if (Entries[index].Descriptor.Id == currentPanelId)
+            {
+                currentIndex = index;
+                break;
+            }
+        }
+
+        if (currentIndex < 0)
+            return;
+
+        int targetIndex = args.Key switch
+        {
+            "ArrowLeft" or "ArrowUp" => currentIndex == 0 ? Entries.Count - 1 : currentIndex - 1,
+            "ArrowRight" or "ArrowDown" => currentIndex == Entries.Count - 1 ? 0 : currentIndex + 1,
+            "Home" => 0,
+            "End" => Entries.Count - 1,
+            _ => currentIndex
+        };
+
+        if (targetIndex != currentIndex)
+        {
+            DockPanelId targetPanelId = Entries[targetIndex].Descriptor.Id;
+            await ActivatePanelAsync(targetPanelId);
+            await AccessibilityFocusService.FocusByIdAsync(DockElementIds.TabId(targetPanelId));
+        }
+    }
+}

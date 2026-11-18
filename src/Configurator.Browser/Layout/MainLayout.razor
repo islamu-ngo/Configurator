@@ -1,7 +1,13 @@
 @inherits LayoutComponentBase
 @implements IDisposable
+@using Configurator.Browser.Components.Docking
+@using Configurator.Browser.Components.Settings
+@using Configurator.Browser.Services.Accessibility
+@using Configurator.Browser.Services.Docking
 @inject AppearanceThemeService Appearance
 @inject BrowserNavigationState NavigationState
+@inject DockLayoutState DockLayoutState
+@inject AccessibilityFocusService AccessibilityFocus
 
 <CascadingValue Value="@NavigationState.Culture">
 <MudRTLProvider RightToLeft="@IsRtl">
@@ -11,10 +17,36 @@
     <MudSnackbarProvider />
     <WorkspaceNavigationGuard />
     <div class="main-layout @(NavigationState.IsActive ? "main-layout--workspace" : "")" lang="@NavigationState.Culture.Locale" dir="@(IsRtl ? "rtl" : "ltr")">
+        <div id="aria-live-polite" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+        <div id="aria-live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
         <a class="main-layout__skip-link" href="#main-content" @onclick="SkipToContentAsync" @onclick:preventDefault>@BrowserStrings.Get("SkipToContent", NavigationState.Culture.Locale)</a>
-        <NavMenu />
-        <main @ref="_mainContent" id="main-content" class="main-layout__main" tabindex="-1">@Body</main>
-        @if (!NavigationState.IsActive)
+        <NavMenu HeaderOnly="true"
+                 ExternalExpanded="@IsStartDockOpen"
+                 StartToggleRequested="ToggleStartDockAsync" />
+        <div class="main-layout__shell-dock">
+            <DockLayoutHost Scope="DockScope.Shell"
+                            MinimumContentWidth="420"
+                            DataTestId="shell-dock-host"
+                            ContentDataTestId="shell-dock-content"
+                            FallbackFocusSelector="#nav-menu-toggle"
+                            OverlayCloseRequested="_ => CloseStartDockAsync()">
+                <main @ref="_mainContent"
+                      id="main-content"
+                      class="main-layout__main"
+                      hidden="@NavigationState.IsSettingsOpen"
+                      inert="@NavigationState.IsSettingsOpen"
+                      tabindex="-1">@Body</main>
+                @if (NavigationState.IsSettingsOpen)
+                {
+                    <section class="main-layout__settings" aria-label="@BrowserStrings.Get("Settings", NavigationState.Culture.Locale)">
+                        <SettingsWorkspace InPlace="true"
+                                           Section="@NavigationState.SettingsSection"
+                                           FocusCustomTheme="@NavigationState.SettingsFocusCustomTheme" />
+                    </section>
+                }
+            </DockLayoutHost>
+        </div>
+        @if (!NavigationState.IsActive && !NavigationState.IsSettingsOpen)
         {
             <div class="main-layout__footer">
                 <Footer />
@@ -27,8 +59,30 @@
 @code {
     private MudTheme _theme = new();
     private ElementReference _mainContent;
+    private bool _registeredStartDock;
+
     private bool IsRtl => (Appearance.Current.Direction == "auto"
         ? NavigationState.Culture.Direction : Appearance.Current.Direction) == "rtl";
+
+    private bool IsStartDockOpen
+    {
+        get
+        {
+            DockPanelEntry? entry = DockLayoutState.GetPanel(BrowserDockPanels.StartNavId);
+            if (entry is null || !entry.State.IsOpen)
+                return false;
+
+            return !DockLayoutState.ShouldRenderDockedPanelAsOverlay(entry) || entry.State.IsActive;
+        }
+    }
+
+    private RenderFragment StartNavigationContent => builder =>
+    {
+        builder.OpenComponent<NavMenu>(0);
+        builder.AddAttribute(1, nameof(NavMenu.NavPanelOnly), true);
+        builder.AddAttribute(2, nameof(NavMenu.StartCloseRequested), EventCallback.Factory.Create(this, CloseStartDockAsync));
+        builder.CloseComponent();
+    };
 
     private async Task SkipToContentAsync() => await _mainContent.FocusAsync();
 
@@ -37,11 +91,34 @@
         _theme = Appearance.CreateTheme();
         Appearance.Changed += AppearanceChanged;
         NavigationState.Changed += CultureChanged;
+        DockLayoutState.Changed += DockChanged;
+
+        DockLayoutState.RegisterOrUpdate(BrowserDockPanels.StartNav, StartNavigationContent);
+        _registeredStartDock = true;
+        DockLayoutState.Open(BrowserDockPanels.StartNavId, DockLayoutChangeReason.SnapshotRestore);
     }
+
+    private bool _focusStartToggleAfterRender;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender) await Appearance.InitializeAsync();
+        if (_focusStartToggleAfterRender)
+        {
+            _focusStartToggleAfterRender = false;
+            await AccessibilityFocus.FocusByIdAsync("nav-menu-toggle", preventScroll: true);
+        }
+        if (NavigationState.ConsumeRestoreConfigurationFocus())
+            await AccessibilityFocus.FocusByIdAsync("main-content");
+    }
+
+    private void ToggleStartDockAsync() => DockLayoutState.Toggle(BrowserDockPanels.StartNavId);
+
+    private Task CloseStartDockAsync()
+    {
+        DockLayoutState.Close(BrowserDockPanels.StartNavId);
+        _focusStartToggleAfterRender = true;
+        return InvokeAsync(StateHasChanged);
     }
 
     private void AppearanceChanged(object? sender, EventArgs args)
@@ -52,9 +129,17 @@
 
     private void CultureChanged(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);
 
+    private void DockChanged() => _ = InvokeAsync(StateHasChanged);
+
     public void Dispose()
     {
         Appearance.Changed -= AppearanceChanged;
         NavigationState.Changed -= CultureChanged;
+        DockLayoutState.Changed -= DockChanged;
+        if (_registeredStartDock)
+        {
+            _registeredStartDock = false;
+            DockLayoutState.Unregister(BrowserDockPanels.StartNavId);
+        }
     }
 }

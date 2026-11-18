@@ -1,0 +1,74 @@
+@using Configurator.Browser.Services.Docking
+@inject DockLayoutState DockLayoutState
+@inject AppearanceThemeService Appearance
+
+@if (Entry.State is { IsOpen: true, Mode: not DockMode.Collapsed })
+{
+    <aside class="@RootClass"
+           style="@PanelStyle"
+           data-testid="@DataTestId"
+           data-dock-panel-id="@Entry.Descriptor.Id.Value"
+           data-dock-mode="@ModeName"
+           data-dock-side="@SideName"
+           aria-label="@Entry.Descriptor.AriaLabel"
+           aria-modal="@PanelAriaModal"
+           role="@PanelRole">
+        @if (ShouldRenderResizeHandle)
+        {
+            <DockResizeHandle PanelId="@Entry.Descriptor.Id"
+                              Side="@Entry.Descriptor.Side"
+                              Width="@Entry.State.Width"
+                              MinWidth="@Entry.Descriptor.MinWidth"
+                              MaxWidth="@Entry.Descriptor.MaxWidth"
+                              IsRtl="@IsRtl"
+                              ControlledElementId="@PanelBodyId"
+                              AriaLabel="@($"Resize {Entry.Descriptor.Title}")"
+                              OnResizeRequested="ResizePanel" />
+        }
+
+        <div id="@PanelBodyId"
+             class="dock-panel-host__body"
+             role="@BodyRole"
+             aria-labelledby="@BodyLabelledById">
+            <CascadingValue Value="Entry" IsFixed="true">
+                @Entry.Content
+            </CascadingValue>
+        </div>
+    </aside>
+}
+
+@code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+    [Parameter, EditorRequired] public DockPanelEntry Entry { get; set; } = default!;
+    [Parameter] public string DataTestId { get; set; } = "dock-panel-host";
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public bool IsModal { get; set; }
+    [Parameter] public string? BodyRole { get; set; }
+    [Parameter] public string? BodyLabelledById { get; set; }
+
+    private bool IsRtl => Appearance.IsRtl || string.Equals(Culture.Direction, "rtl", StringComparison.OrdinalIgnoreCase);
+
+    private string ModeName => Entry.State.Mode.ToString().ToLowerInvariant();
+    private string SideName => Entry.Descriptor.Side.ToString().ToLowerInvariant();
+    private string PanelStyle => $"--dock-panel-width: {Entry.State.Width}px;";
+    private string PanelRole => IsModal ? "dialog" : "complementary";
+    private string? PanelAriaModal => IsModal ? "true" : null;
+    private string PanelBodyId => DockElementIds.PanelBodyId(Entry.Descriptor.Id);
+
+    private bool ShouldRenderResizeHandle => Entry.Descriptor.IsResizable
+        && Entry.State.Mode == DockMode.Docked
+        && Entry.Descriptor.Side is DockSide.Start or DockSide.End;
+
+    private string RootClass => string.Join(' ', new[]
+    {
+        "dock-panel-host",
+        $"dock-panel-host--{SideName}",
+        $"dock-panel-host--mode-{ModeName}",
+        Entry.State.IsActive ? "dock-panel-host--active" : null,
+        Entry.Descriptor.IsResizable ? "dock-panel-host--resizable" : null,
+        Entry.Descriptor.CanClose ? "dock-panel-host--closable" : null,
+        Class
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private void ResizePanel(int width) => DockLayoutState.Resize(Entry.Descriptor.Id, width);
+}

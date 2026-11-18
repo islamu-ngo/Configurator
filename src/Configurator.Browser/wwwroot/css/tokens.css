@@ -1,3 +1,6 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   TIER 1: PRIMITIVES — Raw scale tokens
+   ═══════════════════════════════════════════════════════════════════════════ */
 :root {
     --isl-space-1: .25rem;
     --isl-space-2: .5rem;
@@ -15,63 +18,155 @@
     --isl-space-14: 3.5rem;
     --isl-space-15: 3.75rem;
     --isl-space-16: 4rem;
+
     --isl-radius-2xs: 3px;
     --isl-radius-xs: 4px;
     --isl-radius-sm: .5rem;
     --isl-radius-md: .75rem;
     --isl-radius-lg: 1rem;
     --isl-radius-full: 999px;
+
+    --isl-shadow-xs: 0 .125rem .5rem oklch(0 0 0 / .05);
     --isl-shadow-sm: 0 .25rem 1.25rem oklch(0 0 0 / .08);
+    --isl-shadow-md: 0 .625rem 2.5rem -.625rem oklch(0 0 0 / .2);
+    --isl-shadow-lg: 0 1rem 2.25rem oklch(0 0 0 / .16);
     --isl-highlight-inset: rgb(255 255 255 / .15);
-    --isl-font-family-primary: system-ui, -apple-system, "Segoe UI", sans-serif;
-    --isl-color-primary: var(--mud-palette-primary, #0f766e);
+
+    --isl-font-family-primary: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --isl-font-family-secondary: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --isl-font-family-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       TIER 2: SEMANTIC — Bound dynamically to MudBlazor palette tokens
+       ═══════════════════════════════════════════════════════════════════════════ */
+    --isl-color-primary: var(--mud-palette-primary, #18181b);
+    --isl-color-secondary: var(--mud-palette-secondary, #52525b);
     --isl-color-accent: var(--isl-color-primary);
     --isl-color-on-primary: var(--mud-palette-primary-text, #ffffff);
     --isl-color-surface: var(--mud-palette-surface, #ffffff);
     --isl-color-background: var(--mud-palette-background, #f5f5f7);
-    --isl-surface-container-lowest: #ffffff;
-    --isl-surface-container-low: #f7f8fa;
-    --isl-surface-container: #f0f2f5;
-    --isl-surface-container-high: #e7eaef;
-    --isl-surface-container-highest: #dde1e7;
     --isl-color-text: var(--mud-palette-text-primary, #18181b);
     --isl-color-text-secondary: var(--mud-palette-text-secondary, #404040);
+    --isl-color-text-muted: var(--mud-palette-text-disabled, #71717a);
     --isl-color-border: var(--mud-palette-divider, #e4e4e7);
-    --isl-color-outline-variant: #d4d4d8;
+    --isl-color-divider: var(--mud-palette-divider, #e4e4e7);
+    --isl-color-outline-variant: color-mix(in oklch, var(--mud-palette-lines-default, #a1a1aa) 65%, transparent);
     --isl-color-control-border: var(--mud-palette-lines-inputs, #71717a);
+
+    /* Dynamic elevated surface containers derived from the active MudBlazor palette */
+    --isl-surface-container-lowest: var(--mud-palette-surface, #ffffff);
+    --isl-surface-container-low: color-mix(in oklch, var(--mud-palette-surface, #ffffff) 90%, var(--mud-palette-background, #f5f5f7));
+    --isl-surface-container: color-mix(in oklch, var(--mud-palette-surface, #ffffff) 75%, var(--mud-palette-background, #f5f5f7));
+    --isl-surface-container-high: color-mix(in oklch, var(--mud-palette-surface, #ffffff) 60%, var(--mud-palette-background, #f5f5f7));
+    --isl-surface-container-highest: color-mix(in oklch, var(--mud-palette-surface, #ffffff) 45%, var(--mud-palette-background, #f5f5f7));
     --isl-color-surface-muted: var(--isl-surface-container-low);
-    --isl-color-error: var(--mud-palette-error, #b91c1c);
-    --isl-color-error-container: #fef2f2;
-    --isl-color-on-error-container: #991b1b;
-    --isl-color-warning: var(--mud-palette-warning, #b45309);
-    --isl-color-warning-container: #fffbeb;
-    --isl-color-warning-border: rgb(245 158 11 / .35);
-    --isl-color-warning-tint: rgb(245 158 11 / .08);
-    --isl-color-success: var(--mud-palette-success, #047857);
-    --isl-color-success-container: #ecfdf5;
+
+    --isl-color-error: var(--mud-palette-error, #dc2626);
+    --isl-color-error-container: color-mix(in oklch, var(--isl-color-error) 10%, var(--isl-color-surface));
+    --isl-color-on-error-container: color-mix(in oklch, var(--isl-color-error) 75%, var(--isl-color-text));
+    --isl-color-warning: var(--mud-palette-warning, #d97706);
+    --isl-color-warning-strong: color-mix(in srgb, var(--isl-color-warning) 55%, var(--isl-color-text));
+    --isl-color-warning-container: color-mix(in oklch, var(--isl-color-warning) 10%, var(--isl-color-surface));
+    --isl-color-warning-border: color-mix(in oklch, var(--isl-color-warning) 35%, transparent);
+    --isl-color-warning-tint: color-mix(in oklch, var(--isl-color-warning) 8%, transparent);
+    --isl-color-success: var(--mud-palette-success, #16a34a);
+    --isl-color-success-strong: color-mix(in srgb, var(--isl-color-success) 55%, var(--isl-color-text));
+    --isl-color-success-container: color-mix(in oklch, var(--isl-color-success) 10%, var(--isl-color-surface));
+    --isl-color-info: var(--mud-palette-info, #52525b);
+
+    --isl-space-inline: var(--isl-space-2);
+    --isl-space-block: var(--isl-space-4);
     --isl-space-page: var(--isl-space-6);
     --isl-space-section: var(--isl-space-8);
-    --isl-radius-card: var(--isl-radius-md);
+
+    --isl-radius-card: var(--isl-radius-lg);
+    --isl-radius-input: var(--isl-radius-sm);
+    --isl-radius-button: var(--isl-radius-sm);
+
+    /* Interaction states in oklch */
+    --isl-state-hover: color-mix(in oklch, var(--isl-color-primary) 8%, transparent);
+    --isl-state-active: color-mix(in oklch, var(--isl-color-primary) 16%, transparent);
+    --isl-state-disabled-opacity: .38;
+    --isl-state-focus-ring: color-mix(in oklch, var(--isl-color-primary) 40%, transparent);
+
     --isl-focus-ring: var(--isl-color-primary);
     --isl-focus-ring-width: 2px;
     --isl-focus-ring-offset: 2px;
     --isl-target-min: var(--density-control-min-height);
-    --isl-font-family-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
-    --isl-color-text-muted: var(--mud-palette-text-disabled, #71717a);
     --isl-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
     --isl-duration-fast: 150ms;
     --isl-duration-normal: 220ms;
-    --isl-typography-h1-size: clamp(1.75rem, 1.35rem + 1vw, 2.25rem);
-    --isl-typography-h2-size: clamp(1.5rem, 1.25rem + .5vw, 1.875rem);
-    --isl-typography-h3-size: clamp(1.25rem, 1.15rem + .3vw, 1.5rem);
-    --isl-typography-h4-size: clamp(1.125rem, 1.05rem + .2vw, 1.25rem);
-    --isl-typography-h5-size: 1.0625rem;
-    --isl-typography-h6-size: 1rem;
+
+    --isl-typography-h1-size: clamp(1.875rem, 1.5rem + 1.04vw, 2.5rem);
+    --isl-typography-h1-weight: 700;
+    --isl-typography-h1-line-height: 1.2;
+    --isl-typography-h2-size: clamp(1.625rem, 1.375rem + .625vw, 2rem);
+    --isl-typography-h2-weight: 600;
+    --isl-typography-h2-line-height: 1.3;
+    --isl-typography-h3-size: clamp(1.5rem, 1.333rem + .42vw, 1.75rem);
+    --isl-typography-h3-weight: 600;
+    --isl-typography-h3-line-height: 1.3;
+    --isl-typography-h4-size: clamp(1.25rem, 1.083rem + .42vw, 1.5rem);
+    --isl-typography-h4-weight: 600;
+    --isl-typography-h4-line-height: 1.4;
+    --isl-typography-h5-size: clamp(1.125rem, 1.042rem + .21vw, 1.25rem);
+    --isl-typography-h5-weight: 600;
+    --isl-typography-h5-line-height: 1.5;
+    --isl-typography-h6-size: 1.125rem;
+    --isl-typography-h6-weight: 600;
+    --isl-typography-h6-line-height: 1.6;
+    --isl-typography-body1-size: .9375rem;
+    --isl-typography-body2-size: .875rem;
+    --isl-typography-button-size: .875rem;
+    --isl-typography-caption-size: .8125rem;
+
+    /* Overlay & scrim */
+    --isl-overlay-text: #ffffff;
+    --isl-overlay-text-muted: oklch(1 0 0 / .7);
+    --isl-overlay-scrim: oklch(0 0 0 / .6);
+
+    /* Dock Layout Semantics */
+    --isl-dock-z-shell: 1200;
+    --isl-dock-z-workspace-backdrop: 1100;
+    --isl-dock-z-workspace: 1300;
+    --isl-dock-z-backdrop: 1299;
+    --isl-dock-z-inspector: 1400;
+    --isl-dock-scrim: oklch(0 0 0 / .5);
+    --isl-dock-motion-duration: 300ms;
+    --isl-dock-motion-easing: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       TIER 3: COMPONENT — Shared card, button, shell & dock defaults
+       ═══════════════════════════════════════════════════════════════════════════ */
+    --isl-card-border-radius: var(--isl-radius-card);
     --isl-card-border: 1px solid var(--isl-color-border);
+    --isl-card-transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    --isl-card-hover-shadow: var(--isl-shadow-lg);
+    --isl-card-hover-border-color: color-mix(in oklch, var(--isl-color-primary) 40%, var(--isl-color-border));
+
+    --isl-button-border-radius: var(--isl-radius-button);
+    --isl-button-padding-x: var(--isl-space-4);
+    --isl-button-padding-y: var(--isl-space-2);
     --isl-button-padding: var(--isl-space-2) var(--isl-space-4);
-    --isl-shell-header-height: 3.75rem;
-    --isl-shell-sidebar-width: 15rem;
-    --isl-content-width: 76rem;
+    --isl-button-font-size: var(--isl-typography-button-size);
+    --isl-button-transition: background-color 150ms ease, box-shadow 150ms ease, border-color 150ms ease, opacity 150ms ease;
+    --isl-button-ring: color-mix(in oklch, var(--isl-color-primary) 30%, transparent);
+
+    --isl-shell-header-height: 4rem;
+    --isl-sticky-top-offset: calc(var(--isl-shell-header-actual-height, var(--isl-shell-header-height, 4rem)) + var(--isl-space-3));
+    --isl-shell-sidebar-width: 16rem; /* 256px default start dock */
+    --isl-dock-shell-start-width: 256px;
+    --isl-dock-shell-start-collapsed-width: 72px;
+    --isl-dock-workspace-end-width: 360px;
+    --isl-dock-workspace-inspector-width: 360px;
+    --isl-dock-mobile-panel-max-width: 400px;
+    --isl-dock-panel-transition: transform var(--isl-dock-motion-duration) var(--isl-dock-motion-easing),
+        visibility var(--isl-dock-motion-duration) ease,
+        width var(--isl-dock-motion-duration) ease,
+        min-width var(--isl-dock-motion-duration) ease,
+        border-color var(--isl-dock-motion-duration) ease;
+    --isl-content-width: 78rem;
+
     --density-row-height: 44px;
     --density-control-min-height: 44px;
     --density-field-gap: var(--isl-space-4);
@@ -85,17 +180,53 @@
 }
 
 .appearance--dark {
-    --isl-surface-container-lowest: #0e0f12;
-    --isl-surface-container-low: #141519;
-    --isl-surface-container: #1b1c21;
-    --isl-surface-container-high: #23242a;
-    --isl-surface-container-highest: #2c2d35;
-    --isl-color-outline-variant: #32343d;
+    --isl-surface-container-lowest: color-mix(in oklch, var(--mud-palette-background, #1a1a1a) 78%, #000000);
+    --isl-surface-container-low: var(--mud-palette-background, #1a1a1a);
+    --isl-surface-container: var(--mud-palette-surface, #242424);
+    --isl-surface-container-high: color-mix(in oklch, var(--mud-palette-surface, #242424) 88%, #ffffff);
+    --isl-surface-container-highest: color-mix(in oklch, var(--mud-palette-surface, #242424) 78%, #ffffff);
+    --isl-color-outline-variant: color-mix(in oklch, var(--mud-palette-lines-default, #3f3f46) 80%, transparent);
     --isl-color-surface-muted: var(--isl-surface-container);
-    --isl-color-error-container: #3b1214;
-    --isl-color-on-error-container: #fecaca;
-    --isl-color-warning-container: #332209;
-    --isl-color-success-container: #0b2e22;
+    --isl-color-error-container: color-mix(in oklch, var(--isl-color-error) 18%, var(--isl-color-surface));
+    --isl-color-on-error-container: color-mix(in oklch, var(--isl-color-error) 35%, #ffffff);
+    --isl-color-warning-container: color-mix(in oklch, var(--isl-color-warning) 18%, var(--isl-color-surface));
+    --isl-color-success-container: color-mix(in oklch, var(--isl-color-success) 18%, var(--isl-color-surface));
+}
+
+.appearance--light-hc {
+    color-scheme: light;
+    --isl-surface-container-lowest: #ffffff;
+    --isl-surface-container-low: #ffffff;
+    --isl-surface-container: #f8fafc;
+    --isl-surface-container-high: #f1f5f9;
+    --isl-surface-container-highest: #e2e8f0;
+    --isl-color-border: #000000;
+    --isl-color-divider: #000000;
+    --isl-color-outline-variant: #000000;
+    --isl-color-control-border: #000000;
+    --isl-color-surface-muted: #f8fafc;
+    --isl-color-error-container: #ffffff;
+    --isl-color-on-error-container: #b91c1c;
+    --isl-color-warning-container: #ffffff;
+    --isl-color-success-container: #ffffff;
+}
+
+.appearance--dark-hc {
+    color-scheme: dark;
+    --isl-surface-container-lowest: #000000;
+    --isl-surface-container-low: #000000;
+    --isl-surface-container: #0a0a0a;
+    --isl-surface-container-high: #141414;
+    --isl-surface-container-highest: #1f1f1f;
+    --isl-color-border: #ffffff;
+    --isl-color-divider: #ffffff;
+    --isl-color-outline-variant: #ffffff;
+    --isl-color-control-border: #ffffff;
+    --isl-color-surface-muted: #0a0a0a;
+    --isl-color-error-container: #0a0a0a;
+    --isl-color-on-error-container: #fca5a5;
+    --isl-color-warning-container: #0a0a0a;
+    --isl-color-success-container: #0a0a0a;
 }
 
 [data-density="spacious"] {
@@ -134,8 +265,21 @@
     --isl-label-gap: var(--isl-space-1);
 }
 
+@media (max-width: 60rem) {
+    :root {
+        --isl-sticky-top-offset: calc(var(--isl-shell-header-actual-height, 7.25rem) + var(--isl-space-3));
+    }
+}
+
 @media (pointer: coarse) {
     :root, [data-density="compact"], [data-density="dense"] {
         --isl-target-min: 44px;
+    }
+}
+
+@media (prefers-contrast: more) {
+    :root {
+        --isl-shadow-sm: 0 1px 3px oklch(0 0 0 / .3);
+        --isl-shadow-md: 0 4px 12px oklch(0 0 0 / .3);
     }
 }

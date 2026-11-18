@@ -1,0 +1,221 @@
+@using Configurator.Browser.Services.Accessibility
+@using Configurator.Browser.Services.Docking
+@implements IDisposable
+@implements IAsyncDisposable
+@inject DockLayoutState DockLayoutState
+@inject AccessibilityFocusService AccessibilityFocusService
+@inject IScrollManager ScrollManager
+
+@if (RenderedEntries.Count > 0)
+{
+    <div class="@RootClass"
+         data-testid="@DataTestId"
+         data-dock-scope="@ScopeName"
+         aria-live="polite"
+         tabindex="-1"
+         @onkeydown="HandleKeyDownAsync">
+        <button type="button"
+                class="@BackdropClass"
+                data-testid="dock-overlay-backdrop"
+                aria-label="Close dock overlay"
+                @onclick="CloseActiveOverlayAsync"></button>
+        <MudFocusTrap Disabled="@(ActiveOverlayEntries.Count == 0)" DefaultFocus="DefaultFocus.FirstChild">
+            @foreach (DockPanelEntry entry in RenderedEntries)
+            {
+                <div @key="entry.Descriptor.Id" class="@GetSlotClass(entry)" data-dock-overlay-side="@entry.Descriptor.Side.ToString().ToLowerInvariant()">
+                    <DockPanelHost Entry="@entry" IsModal="true" />
+                </div>
+            }
+        </MudFocusTrap>
+    </div>
+}
+
+@code {
+    [Parameter] public DockScope Scope { get; set; }
+    [Parameter] public string DataTestId { get; set; } = "dock-overlay-host";
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public bool IsMobile { get; set; }
+    [Parameter] public Func<DockPanelEntry, Task>? CloseRequested { get; set; }
+    [Parameter] public string FallbackFocusSelector { get; set; } = "#main-content";
+
+    private const string BodyElementId = "body";
+    private const string ScrollLockClass = "scroll-locked";
+    private IReadOnlyList<DockPanelEntry> _renderedEntries = [];
+    private bool _overlayLifecycleActive;
+    private bool _scrollLocked;
+    private bool _focusSaved;
+
+    private IReadOnlyList<DockPanelEntry> ActiveOverlayEntries
+    {
+        get
+        {
+            DockPanelEntry[] entries = Enum.GetValues<DockSide>()
+                .SelectMany(side => DockLayoutState.GetPanels(Scope, side))
+                .Where(IsOverlayEntry)
+                .Select(GetEffectiveOverlayEntry)
+                .OrderBy(entry => entry.State.Order)
+                .ThenBy(entry => entry.Descriptor.Title, StringComparer.Ordinal)
+                .ToArray();
+
+            if (!IsMobile || entries.Length <= 1)
+                return entries;
+
+            DockPanelEntry activeEntry = entries.LastOrDefault(entry => entry.State.IsActive) ?? entries.Last();
+            return [activeEntry];
+        }
+    }
+
+    private IReadOnlyList<DockPanelEntry> RenderedEntries => _renderedEntries;
+    private bool ShouldLockScroll => ActiveOverlayEntries.Count > 0;
+    private string ScopeName => Scope.ToString().ToLowerInvariant();
+
+    private string RootClass => string.Join(' ', new[]
+    {
+        "dock-overlay-host",
+        $"dock-overlay-host--{ScopeName}",
+        Class
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private string BackdropClass => "dock-overlay-host__backdrop";
+
+    protected override void OnInitialized()
+    {
+        DockLayoutState.Changed += OnDockLayoutChanged;
+        SyncRenderedEntries();
+    }
+
+    protected override void OnParametersSet() => SyncRenderedEntries();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        bool activeOverlayOpen = ActiveOverlayEntries.Count > 0;
+        bool renderedOverlayOpen = RenderedEntries.Count > 0;
+
+        if (ShouldLockScroll && !_scrollLocked)
+        {
+            await TryScrollLockAsync(true);
+            _scrollLocked = true;
+        }
+        else if (!ShouldLockScroll && _scrollLocked)
+        {
+            await TryScrollLockAsync(false);
+            _scrollLocked = false;
+        }
+
+        if (activeOverlayOpen && !_overlayLifecycleActive)
+        {
+            await ActivateOverlayAsync();
+            _overlayLifecycleActive = true;
+        }
+        else if (!renderedOverlayOpen && _overlayLifecycleActive)
+        {
+            await DeactivateOverlayAsync();
+            _overlayLifecycleActive = false;
+        }
+    }
+
+    public void Dispose() => DockLayoutState.Changed -= OnDockLayoutChanged;
+
+    public async ValueTask DisposeAsync()
+    {
+        DockLayoutState.Changed -= OnDockLayoutChanged;
+        await DeactivateOverlayAsync();
+    }
+
+    private string GetSlotClass(DockPanelEntry entry)
+    {
+        string sideName = entry.Descriptor.Side.ToString().ToLowerInvariant();
+        string modeName = entry.State.Mode.ToString().ToLowerInvariant();
+        return $"dock-overlay-host__slot dock-overlay-host__slot--{sideName} dock-overlay-host__slot--mode-{modeName}";
+    }
+
+    private bool IsOverlayEntry(DockPanelEntry entry)
+    {
+        if (!entry.State.IsOpen)
+            return false;
+
+        if (entry.State.Mode is DockMode.Overlay or DockMode.Temporary or DockMode.Inspector)
+            return true;
+
+        return DockLayoutState.ShouldRenderDockedPanelAsOverlay(entry) && entry.State.IsActive;
+    }
+
+    private DockPanelEntry GetEffectiveOverlayEntry(DockPanelEntry entry) =>
+        DockLayoutState.ShouldRenderDockedPanelAsOverlay(entry)
+            ? entry with { State = entry.State with { Mode = DockMode.Temporary } }
+            : entry;
+
+    private void OnDockLayoutChanged()
+    {
+        SyncRenderedEntries();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void SyncRenderedEntries() => _renderedEntries = ActiveOverlayEntries;
+
+    private async Task ActivateOverlayAsync()
+    {
+        if (!_focusSaved)
+        {
+            await AccessibilityFocusService.SaveFocusAsync();
+            _focusSaved = true;
+        }
+
+        await AccessibilityFocusService.FocusAsync($"[data-testid='{DataTestId}'][data-dock-scope='{ScopeName}'] [data-testid='dock-panel-host']");
+    }
+
+    private async Task DeactivateOverlayAsync()
+    {
+        if (_scrollLocked)
+        {
+            await TryScrollLockAsync(false);
+            _scrollLocked = false;
+        }
+
+        if (_focusSaved)
+        {
+            await AccessibilityFocusService.RestoreFocusAsync(FallbackFocusSelector);
+            _focusSaved = false;
+        }
+    }
+
+    private async Task TryScrollLockAsync(bool lockScroll)
+    {
+        try
+        {
+            if (lockScroll)
+                await ScrollManager.LockScrollAsync(BodyElementId, ScrollLockClass);
+            else
+                await ScrollManager.UnlockScrollAsync(BodyElementId, ScrollLockClass);
+        }
+        catch (Exception ex) when (ex is Microsoft.JSInterop.JSException or InvalidOperationException)
+        {
+            // Ignore scroll lock failures during disconnected test contexts.
+        }
+    }
+
+    private async Task HandleKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key is "Escape" or "Esc")
+            await CloseActiveOverlayAsync();
+    }
+
+    private async Task CloseActiveOverlayAsync()
+    {
+        IReadOnlyList<DockPanelEntry> activeEntries = ActiveOverlayEntries;
+        DockPanelEntry? entry = activeEntries.LastOrDefault(item => item.State.IsActive && item.Descriptor.CanClose)
+            ?? activeEntries.LastOrDefault(item => item.Descriptor.CanClose);
+
+        if (entry is null)
+            return;
+
+        if (CloseRequested is not null)
+        {
+            await CloseRequested(entry);
+            return;
+        }
+
+        DockLayoutState.Close(entry.Descriptor.Id);
+        await InvokeAsync(StateHasChanged);
+    }
+}

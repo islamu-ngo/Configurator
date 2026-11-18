@@ -1,0 +1,114 @@
+.dock-overlay-host {
+    position: fixed;
+    inset: 0;
+    z-index: var(--isl-dock-z-inspector, 1400);
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.dock-overlay-host__backdrop {
+    position: fixed;
+    inset: 0;
+    display: block;
+    inline-size: 100%;
+    block-size: 100%;
+    padding: 0;
+    border: 0;
+    background: var(--isl-dock-backdrop-color, rgb(0 0 0 / 42%));
+    cursor: pointer;
+    pointer-events: auto;
+    z-index: var(--isl-dock-z-backdrop, 1299);
+    animation: dock-backdrop-fade-in var(--isl-dock-motion-duration, 300ms) var(--isl-ease-standard, cubic-bezier(0.4, 0, 0.2, 1)) both;
+}
+
+.dock-overlay-host--workspace .dock-overlay-host__backdrop {
+    z-index: var(--isl-dock-z-workspace-backdrop, 1100);
+}
+
+.dock-overlay-host__backdrop--closing {
+    animation-name: dock-backdrop-fade-out;
+}
+
+.dock-overlay-host__slot {
+    position: fixed;
+    pointer-events: auto;
+    max-inline-size: 100vw;
+    will-change: transform;
+}
+
+.dock-overlay-host__slot--start,
+.dock-overlay-host__slot--end {
+    inset-block-start: 0;
+    inset-block-end: 0;
+}
+
+.dock-overlay-host__slot--start {
+    inset-inline-start: 0;
+}
+
+.dock-overlay-host__slot--end {
+    inset-inline-end: 0;
+}
+
+.dock-overlay-host__slot--bottom {
+    inset-inline: 0;
+    inset-block-end: 0;
+}
+
+.dock-overlay-host__slot ::deep .dock-panel-host {
+    block-size: 100vh;
+    max-block-size: 100vh;
+    box-shadow: var(--isl-shadow-lg);
+}
+
+.dock-overlay-host__slot--mode-temporary {
+    z-index: var(--isl-dock-z-workspace, 1300);
+}
+
+.dock-overlay-host__slot--mode-inspector {
+    z-index: var(--isl-dock-z-inspector, 1400);
+}
+
+@media (max-width: 600px) {
+    .dock-overlay-host__slot--start {
+        inline-size: min(88vw, var(--dock-panel-width, 360px));
+    }
+
+    .dock-overlay-host__slot--start ::deep .dock-panel-host {
+        inline-size: 100%;
+        max-inline-size: 100%;
+    }
+
+    .dock-overlay-host__slot--end {
+        inline-size: min(100vw, var(--dock-panel-width, 440px));
+    }
+
+    .dock-overlay-host__slot--end ::deep .dock-panel-host {
+        inline-size: 100%;
+        max-inline-size: 100%;
+    }
+
+    .dock-overlay-host__slot--bottom {
+        max-block-size: min(70vh, 100%);
+    }
+}
+
+@keyframes dock-backdrop-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes dock-backdrop-fade-out {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}

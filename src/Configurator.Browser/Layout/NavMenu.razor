@@ -1,56 +1,141 @@
-@using Microsoft.AspNetCore.Components.Sections
+@implements IDisposable
+@using Configurator.Browser.Services.Docking
+@inject BrowserNavigationState NavigationState
+@inject DockLayoutState DockLayoutState
+@inject NavigationManager Navigation
 
-<header class="nav-menu__header">
-    <a class="nav-menu__brand" href="" aria-label="@T("HomeLabel")"><span class="nav-menu__mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></span> <bdi dir="ltr">ISLAMU Configurator</bdi></a>
-    <button @ref="_toggle" class="nav-menu__toggle" type="button"
-            aria-controls="application-navigation" aria-expanded="@(_open ? "true" : "false")" @onclick="ToggleAsync" @onkeydown="HandleMenuKeyAsync">@T("Menu")</button>
-    <WorkspaceSearch />
-</header>
-<nav id="application-navigation" class="nav-menu @(_open ? "nav-menu--open" : "")"
-     aria-label="@T("ApplicationNavigation")" @onkeydown="HandleNavigationKeyAsync">
-    <button class="nav-menu__close" type="button" @onclick="CloseAsync">@T("CloseMenu")</button>
-    <div class="nav-menu__sections" @onclick="CloseSectionNavigation">
-        <SectionOutlet SectionName="configuration-sections" />
-    </div>
-    <p class="nav-menu__section">@T("Workspace")</p>
-    <ul class="nav-menu__links">
-        <li class="nav-menu__item">
-            <NavLink href="" Match="NavLinkMatch.All" Class="d-block text-decoration-none" @onclick="CloseAsync"><span class="nav-menu__link"><MudIcon Icon="@Icons.Material.Outlined.Home" Size="Size.Small" aria-hidden="true" />@T("CatalogueTitle")</span></NavLink>
-        </li>
-        <li class="nav-menu__item">
-            <NavLink href="open" Class="d-block text-decoration-none" @onclick="CloseAsync"><span class="nav-menu__link"><MudIcon Icon="@Icons.Material.Outlined.FolderOpen" Size="Size.Small" aria-hidden="true" />@T("OpenFileOrLink")</span></NavLink>
-        </li>
-        <li class="nav-menu__item">
-            <NavLink href="help" Class="d-block text-decoration-none" @onclick="CloseAsync"><span class="nav-menu__link"><MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" aria-hidden="true" />@T("Help")</span></NavLink>
-        </li>
-    </ul>
-    <div class="nav-menu__settings">
-        <button @ref="_settingsToggle" class="nav-menu__settings-toggle" type="button"
-                aria-controls="navigation-settings" aria-expanded="@(_settingsOpen ? "true" : "false")"
-                @onclick="ToggleSettingsAsync">@T("Settings")</button>
-        <div id="navigation-settings" class="nav-menu__settings-content" hidden="@(!_settingsOpen)">
-            @if (_settingsOpen)
-            {
-                <ThemeQuickSwitcher />
-            }
+@if (!NavPanelOnly)
+{
+    <header class="nav-menu__header navbar">
+        <div class="navbar__content">
+            <div class="navbar__start">
+                <button @ref="_toggle"
+                        id="nav-menu-toggle"
+                        class="nav-menu__toggle"
+                        type="button"
+                        aria-controls="application-navigation"
+                        aria-expanded="@(IsMenuExpanded ? "true" : "false")"
+                        @onclick="ToggleAsync"
+                        @onkeydown="HandleMenuKeyAsync">@T("Menu")</button>
+                <a class="nav-menu__brand navbar__brand" href="" aria-label="@T("HomeLabel")">
+                    <span class="nav-menu__mark" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    </span>
+                    <bdi dir="ltr" class="navbar__brand-text navbar__brand-text--stackable">
+                        <span class="navbar__brand-part-top">ISLAMU</span>
+                        <span class="navbar__brand-part-bottom">Configurator</span>
+                    </bdi>
+                </a>
+            </div>
+
+            <div class="navbar__search">
+                <WorkspaceSearch />
+            </div>
+
+            <div class="navbar__actions">
+                <LanguagePicker />
+                <ThemeQuickSwitcher OpenSettingsRequested="OnOpenSettingsFromQuickSwitcherAsync" />
+                <button type="button"
+                        class="button button--secondary nav-menu__topbar-settings"
+                        data-action="open-settings"
+                        aria-label="@T("Settings")"
+                        @onclick="@(() => OnOpenSettingsClickedAsync(customTheme: false))">
+                    <MudIcon Icon="@Icons.Material.Outlined.Settings" Size="Size.Small" aria-hidden="true" />
+                    <span class="nav-menu__topbar-settings-label">@T("Settings")</span>
+                </button>
+            </div>
         </div>
-    </div>
-    <div class="nav-menu__local">
-        <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" aria-hidden="true" />
-        <p class="nav-menu__local-copy"><strong class="nav-menu__local-title">@T("LocalWorkspace")</strong><br />@T("AnswersStayLocal")</p>
-    </div>
-</nav>
+    </header>
+}
+
+@if (!HeaderOnly)
+{
+    <nav id="application-navigation"
+         class="nav-menu @(NavPanelOnly ? "nav-menu--docked" : "") @(IsOverlayDrawer ? "nav-menu--overlay" : "") @(_open ? "nav-menu--open" : "")"
+         aria-label="@T("ApplicationNavigation")"
+         @onkeydown="HandleNavigationKeyAsync">
+        @if (!NavPanelOnly || IsOverlayDrawer)
+        {
+            <div class="nav-menu__drawer-header">
+                <button class="nav-menu__close"
+                        type="button"
+                        data-action="close-navigation"
+                        @onclick="CloseFromNavigationAsync">@T("CloseMenu")</button>
+            </div>
+        }
+        <div class="nav-menu__workspace">
+            <p class="nav-menu__section">@T("Workspace")</p>
+            <ul class="nav-menu__links">
+                <li class="nav-menu__item">
+                    <NavLink href="" Match="NavLinkMatch.All" Class="d-block text-decoration-none" @onclick="OnNavLinkClickedAsync"><span class="nav-menu__link"><MudIcon Icon="@Icons.Material.Outlined.Home" Size="Size.Small" aria-hidden="true" />@T("CatalogueTitle")</span></NavLink>
+                </li>
+                <li class="nav-menu__item">
+                    <NavLink href="open" Class="d-block text-decoration-none" @onclick="OnNavLinkClickedAsync"><span class="nav-menu__link"><MudIcon Icon="@Icons.Material.Outlined.FolderOpen" Size="Size.Small" aria-hidden="true" />@T("OpenFileOrLink")</span></NavLink>
+                </li>
+                <li class="nav-menu__item">
+                    <NavLink href="help" Class="d-block text-decoration-none" @onclick="OnNavLinkClickedAsync"><span class="nav-menu__link"><MudIcon Icon="@Icons.Material.Outlined.HelpOutline" Size="Size.Small" aria-hidden="true" />@T("Help")</span></NavLink>
+                </li>
+            </ul>
+        </div>
+        <div class="nav-menu__footer">
+            <div class="nav-menu__local">
+                <MudIcon Icon="@Icons.Material.Outlined.Lock" Size="Size.Small" aria-hidden="true" />
+                <p class="nav-menu__local-copy"><strong class="nav-menu__local-title">@T("LocalWorkspace")</strong><br />@T("AnswersStayLocal")</p>
+            </div>
+        </div>
+    </nav>
+}
 
 @code {
     [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+    [CascadingParameter] private DockPanelEntry? DockEntry { get; set; }
+    [Parameter] public EventCallback<bool> OpenSettingsRequested { get; set; }
+    [Parameter] public bool HeaderOnly { get; set; }
+    [Parameter] public bool NavPanelOnly { get; set; }
+    [Parameter] public EventCallback StartToggleRequested { get; set; }
+    [Parameter] public EventCallback StartCloseRequested { get; set; }
+    [Parameter] public bool? ExternalExpanded { get; set; }
+
     private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
     private bool _open;
-    private bool _settingsOpen;
+    private bool _subscribedDockLayout;
     private ElementReference _toggle;
-    private ElementReference _settingsToggle;
+
+    private bool IsMenuExpanded => ExternalExpanded ?? _open;
+
+    private bool IsOverlayDrawer => NavPanelOnly
+        && (DockEntry?.State.Mode is DockMode.Overlay or DockMode.Temporary or DockMode.Inspector
+            || (DockLayoutState.GetPanel(BrowserDockPanels.StartNavId) is { } entry
+                && DockLayoutState.ShouldRenderDockedPanelAsOverlay(entry)));
+
+    protected override void OnParametersSet()
+    {
+        if (NavPanelOnly && !_subscribedDockLayout)
+        {
+            DockLayoutState.Changed += OnDockLayoutChanged;
+            _subscribedDockLayout = true;
+        }
+    }
+
+    private void OnDockLayoutChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_subscribedDockLayout)
+        {
+            _subscribedDockLayout = false;
+            DockLayoutState.Changed -= OnDockLayoutChanged;
+        }
+    }
 
     private async Task ToggleAsync()
     {
+        if (HeaderOnly && StartToggleRequested.HasDelegate)
+        {
+            await StartToggleRequested.InvokeAsync();
+            return;
+        }
+
         if (_open) await CloseAsync();
         else _open = true;
     }
@@ -59,38 +144,69 @@
     {
         if (!_open) return;
         _open = false;
-        _settingsOpen = false;
-        await _toggle.FocusAsync();
+        if (!string.IsNullOrEmpty(_toggle.Id))
+            await _toggle.FocusAsync();
     }
 
-    private void CloseSectionNavigation()
+    private async Task CloseFromNavigationAsync()
     {
-        // Section selection owns heading focus; closing this disclosure must not restore the toggle.
-        _open = false;
-        _settingsOpen = false;
+        if (NavPanelOnly && StartCloseRequested.HasDelegate)
+        {
+            await StartCloseRequested.InvokeAsync();
+            return;
+        }
+
+        await CloseAsync();
     }
 
-    private async Task ToggleSettingsAsync()
+    private async Task OnNavLinkClickedAsync()
     {
-        if (_settingsOpen) await CloseSettingsAsync();
-        else _settingsOpen = true;
+        if (NavPanelOnly)
+        {
+            DockPanelEntry? start = DockLayoutState.GetPanel(BrowserDockPanels.StartNavId);
+            if (start is not null && DockLayoutState.ShouldRenderDockedPanelAsOverlay(start))
+                DockLayoutState.Close(BrowserDockPanels.StartNavId);
+            return;
+        }
+
+        await CloseAsync();
     }
 
-    private async Task CloseSettingsAsync()
+    private Task OnOpenSettingsFromQuickSwitcherAsync(bool customTheme) => OnOpenSettingsClickedAsync(customTheme);
+
+    private async Task OnOpenSettingsClickedAsync(bool customTheme)
     {
-        _settingsOpen = false;
-        await _settingsToggle.FocusAsync();
+        await CloseAsync();
+        if (OpenSettingsRequested.HasDelegate)
+        {
+            await OpenSettingsRequested.InvokeAsync(customTheme);
+            return;
+        }
+
+        if (NavigationState.IsActive)
+        {
+            NavigationState.OpenSettings(customTheme ? "appearance" : null, customTheme);
+            return;
+        }
+
+        NavigationState.SetPendingFocusCustomTheme(customTheme);
+        Navigation.NavigateTo(customTheme ? "settings/appearance" : "settings");
     }
 
     private async Task HandleMenuKeyAsync(KeyboardEventArgs args)
     {
-        if (args.Key == "Escape") await CloseAsync();
+        if (args.Key == "Escape")
+        {
+            if (HeaderOnly && IsMenuExpanded && StartToggleRequested.HasDelegate)
+                await StartToggleRequested.InvokeAsync();
+            else
+                await CloseAsync();
+        }
     }
 
     private async Task HandleNavigationKeyAsync(KeyboardEventArgs args)
     {
-        if (args.Key != "Escape") return;
-        if (_settingsOpen) await CloseSettingsAsync();
-        else await CloseAsync();
+        if (args.Key == "Escape")
+            await CloseFromNavigationAsync();
     }
 }

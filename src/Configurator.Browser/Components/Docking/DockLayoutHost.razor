@@ -1,0 +1,141 @@
+@using Configurator.Browser.Services.Docking
+@using MudBlazor.Services
+@implements IDisposable
+@implements IAsyncDisposable
+@implements IBrowserViewportObserver
+@inject DockLayoutState DockLayoutState
+@inject IBrowserViewportService BrowserViewportService
+
+<div class="@RootClass"
+     style="@GridStyle"
+     data-testid="@DataTestId"
+     data-dock-scope="@ScopeName"
+     @attributes="AdditionalAttributes">
+    <DockSideHost Scope="@Scope" Side="DockSide.Start" IsMobile="@_isMobile" TabSelectRequested="@TabSelectRequested" />
+
+    <section class="dock-layout-host__content" data-testid="@ContentDataTestId">
+        @ChildContent
+    </section>
+
+    <DockSideHost Scope="@Scope" Side="DockSide.End" IsMobile="@_isMobile" TabSelectRequested="@TabSelectRequested" />
+    <DockSideHost Scope="@Scope" Side="DockSide.Bottom" IsMobile="@_isMobile" TabSelectRequested="@TabSelectRequested" />
+    <DockOverlayHost Scope="@Scope" IsMobile="@_isMobile" CloseRequested="@OverlayCloseRequested" FallbackFocusSelector="@FallbackFocusSelector" />
+</div>
+
+@code {
+    [Parameter] public DockScope Scope { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public int MinimumContentWidth { get; set; } = DockLayoutState.DefaultMinimumContentWidth;
+    [Parameter] public string DataTestId { get; set; } = "dock-layout-host";
+    [Parameter] public string ContentDataTestId { get; set; } = "dock-layout-host-content";
+    [Parameter] public string FallbackFocusSelector { get; set; } = "#main-content";
+    [Parameter] public Func<DockPanelId, Task>? TabSelectRequested { get; set; }
+    [Parameter] public Func<DockPanelEntry, Task>? OverlayCloseRequested { get; set; }
+    [Parameter, EditorRequired] public RenderFragment ChildContent { get; set; } = default!;
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public IDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private const int MobileDockOverlayBreakpointPx = 760;
+    private bool _isMobile;
+    private bool _viewportSubscribed;
+    private int _viewportWidth;
+    private DockScope? _lastPublishedScope;
+    private int? _lastPublishedMinimumContentWidth;
+
+    private string ScopeName => Scope.ToString().ToLowerInvariant();
+
+    Guid IBrowserViewportObserver.Id { get; } = Guid.CreateVersion7();
+
+    ResizeOptions IBrowserViewportObserver.ResizeOptions { get; } = new()
+    {
+        ReportRate = 250,
+        NotifyOnBreakpointOnly = false
+    };
+
+    private string RootClass => string.Join(' ', new[]
+    {
+        "dock-layout-host",
+        $"dock-layout-host--{ScopeName}",
+        DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.Start) > 0 ? "dock-layout-host--has-start" : null,
+        DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.End) > 0 ? "dock-layout-host--has-end" : null,
+        DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.Bottom) > 0 ? "dock-layout-host--has-bottom" : null,
+        Class
+    }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+    private string GridStyle => string.Join(' ', new[]
+    {
+        $"--dock-layout-start-width: {DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.Start)}px;",
+        $"--dock-layout-end-width: {DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.End)}px;"
+    });
+
+    protected override void OnInitialized() => DockLayoutState.Changed += OnDockLayoutChanged;
+
+    protected override void OnParametersSet()
+    {
+        // Publish this host's floor only when Scope or MinimumContentWidth changes on this instance
+        // so unrelated re-renders cannot overwrite a sibling instance's active floor or stale viewport.
+        if (_lastPublishedScope == Scope && _lastPublishedMinimumContentWidth == MinimumContentWidth)
+            return;
+
+        _lastPublishedScope = Scope;
+        _lastPublishedMinimumContentWidth = MinimumContentWidth;
+        DockLayoutState.SetMinimumContentWidth(Scope, MinimumContentWidth);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_viewportSubscribed)
+        {
+            _viewportSubscribed = true;
+            try
+            {
+                await BrowserViewportService.SubscribeAsync(this, fireImmediately: true);
+            }
+            catch (Exception ex) when (ex is Microsoft.JSInterop.JSException or InvalidOperationException)
+            {
+                // Ignore JS viewport listener failures in non-browser harnesses.
+            }
+        }
+    }
+
+    public void Dispose() => DockLayoutState.Changed -= OnDockLayoutChanged;
+
+    public async ValueTask DisposeAsync()
+    {
+        DockLayoutState.Changed -= OnDockLayoutChanged;
+
+        if (_viewportSubscribed)
+        {
+            _viewportSubscribed = false;
+            try
+            {
+                await BrowserViewportService.UnsubscribeAsync(this);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or Microsoft.JSInterop.JSException)
+            {
+                // Ignore disconnect races during circuit teardown.
+            }
+        }
+    }
+
+    private void OnDockLayoutChanged() => _ = InvokeAsync(StateHasChanged);
+
+    Task IBrowserViewportObserver.NotifyBrowserViewportChangeAsync(BrowserViewportEventArgs args)
+    {
+        if (args?.BrowserWindowSize is not { Width: > 0 } windowSize)
+            return Task.CompletedTask;
+
+        bool isMobile = windowSize.Width <= MobileDockOverlayBreakpointPx;
+        _viewportWidth = windowSize.Width;
+        _lastPublishedScope = Scope;
+        _lastPublishedMinimumContentWidth = MinimumContentWidth;
+        DockLayoutState.UpdateViewport(_viewportWidth, isMobile, Scope, MinimumContentWidth);
+
+        if (_isMobile == isMobile)
+            return Task.CompletedTask;
+
+        _isMobile = isMobile;
+        return InvokeAsync(StateHasChanged);
+    }
+}

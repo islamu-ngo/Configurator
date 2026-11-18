@@ -3,9 +3,17 @@ namespace Configurator.Browser.Tests;
 using System.Text;
 using System.Text.Json.Nodes;
 using Bunit;
+using Configurator.Browser.Components.Configuration;
+using Configurator.Browser.Components.Docking;
 using Configurator.Browser.Layout;
+using Configurator.Browser.Resources;
+using Configurator.Browser.Services;
+using Configurator.Browser.Services.Docking;
 using Configurator.Core.Definitions;
+using Configurator.Presentation;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
 
 public sealed class BrowserConfigurationNavigationTests
 {
@@ -60,18 +68,26 @@ public sealed class BrowserConfigurationNavigationTests
             builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
             builder.CloseComponent();
         }));
-        await Assert.That(component.FindAll("#application-navigation [data-section]").Count).IsEqualTo(2);
-        await Assert.That(component.FindAll(".configuration-configure-panel nav")).IsEmpty();
+        await Assert.That(component.FindAll("#application-navigation [data-section]")).IsEmpty();
+        await Assert.That(component.FindAll(".configuration-configure-panel .configuration-configure-panel__nav nav.configuration-navigation[aria-label='Sections'] [data-section]").Count).IsEqualTo(2);
+        await Assert.That(component.FindAll("nav nav")).IsEmpty();
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("example.test");
         component.Find("#secret-consent").Change(true);
+        await Assert.That(component.Find("button[aria-controls='application-navigation']").GetAttribute("aria-expanded")).IsEqualTo("true");
         await component.Find("button[aria-controls='application-navigation']").ClickAsync(new MouseEventArgs());
-        await component.Find("[data-section='credentials']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("button[aria-controls='application-navigation']").GetAttribute("aria-expanded")).IsEqualTo("false");
+
+        // Form section rail remains mounted, interactive, and retains entered answers + secret consent while global Menu is collapsed.
+        await Assert.That(component.FindAll(".configuration-configure-panel nav [data-section]").Count).IsEqualTo(2);
+        await component.Find(".configuration-configure-panel nav [data-section='credentials']").ClickAsync(new MouseEventArgs());
         await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0])
             .IsEqualTo(component.FindComponent<ConfigurationConfigurePanel>().Instance.SectionHeading!.Value);
         component.Find("[data-field='credential'] input").Input("synthetic-navigation-secret");
-        component.Find("[data-section='connection']").Click();
+
+        await component.Find("button[aria-controls='application-navigation']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("button[aria-controls='application-navigation']").GetAttribute("aria-expanded")).IsEqualTo("true");
+        await component.Find(".configuration-configure-panel nav [data-section='connection']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("example.test");
         await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsTrue();
         await Assert.That(component.FindAll("[data-section-panel='credentials']")).IsEmpty();
@@ -297,21 +313,198 @@ public sealed class BrowserConfigurationNavigationTests
 
         await component.Find("[data-layout-mode='all-sections']").ClickAsync(new MouseEventArgs());
 
-        // Left section rail stays persistently populated in AllSections with zero horizontal jump pills.
-        await Assert.That(component.FindAll("#application-navigation [data-section]").Count).IsEqualTo(2);
+        // Persistent rail lives inside ConfigurationConfigurePanel __nav while [data-layout-switcher] leads __main above __fields.
+        await Assert.That(component.FindAll("#application-navigation [data-section]")).IsEmpty();
+        await Assert.That(component.FindAll(".configuration-configure-panel__nav [data-section]").Count).IsEqualTo(2);
+        await Assert.That(component.FindAll(".configuration-configure-panel__nav [data-layout-switcher]")).IsEmpty();
+        await Assert.That(component.FindAll(".configuration-configure-panel__main > .configuration-configure-panel__toolbar[data-layout-switcher]")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll(".configuration-configure-panel__main > .configuration-configure-panel__fields")).Count().IsEqualTo(1);
         await Assert.That(component.FindAll(".configuration-compact-workspace__jumps, [data-compact-section-jump]")).IsEmpty();
-        await Assert.That(component.Find("#application-navigation [data-section='connection']").GetAttribute("aria-current")).IsEqualTo("location");
+        await Assert.That(component.Find(".configuration-configure-panel__nav [data-section='connection']").GetAttribute("aria-current")).IsEqualTo("location");
 
         // Scrollspy intersection callback updates active section aria-current="location" cleanly.
         await panel.InvokeAsync(() => panel.Instance.OnScrollspySectionChangedAsync("credentials"));
-        await Assert.That(component.Find("#application-navigation [data-section='credentials']").GetAttribute("aria-current")).IsEqualTo("location");
-        await Assert.That(component.Find("#application-navigation [data-section='connection']").GetAttribute("aria-current")).IsNull();
+        await Assert.That(component.Find(".configuration-configure-panel__nav [data-section='credentials']").GetAttribute("aria-current")).IsEqualTo("location");
+        await Assert.That(component.Find(".configuration-configure-panel__nav [data-section='connection']").GetAttribute("aria-current")).IsNull();
 
-        // Explicit review toggle marks section reviewed and preserves state across layout switching.
+        // Explicit review toggle marks section reviewed and preserves state across layout switching, while retaining active scrollspy section.
         await component.Find("[data-action='toggle-section-reviewed'][data-section-id='connection']").ClickAsync(new MouseEventArgs());
-        await Assert.That(component.Find("#application-navigation [data-section='connection'] [data-review-state]").GetAttribute("data-review-state")).IsEqualTo("reviewed");
+        await Assert.That(component.Find(".configuration-configure-panel__nav [data-section='connection'] [data-review-state]").GetAttribute("data-review-state")).IsEqualTo("reviewed");
 
         await component.Find("[data-layout-mode='section-by-section']").ClickAsync(new MouseEventArgs());
-        await Assert.That(component.Find("#application-navigation [data-section='connection'] [data-review-state]").GetAttribute("data-review-state")).IsEqualTo("reviewed");
+        await Assert.That(component.Find(".configuration-configure-panel__nav [data-section='connection'] [data-review-state]").GetAttribute("data-review-state")).IsEqualTo("reviewed");
+        await Assert.That(component.FindAll("[data-section-panel='credentials']")).Count().IsEqualTo(1);
+        await Assert.That(component.Find(".configuration-configure-panel__nav [data-section='credentials']").GetAttribute("aria-current")).IsEqualTo("step");
+    }
+
+    [Test]
+    public async Task SingleSectionAndLiteralRootDefinitionsOmitPersistentFormNavAndLowerWorkspaceFloor()
+    {
+        JsonNode singleSectionDoc = JsonNode.Parse(BrowserFixture.Definition.CanonicalBytes.Span)!;
+        Definition singleSectionDef = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(singleSectionDoc.ToJsonString()));
+        Definition literalRootDef = BrowserRootEditingTests.Definition("Conformance.RootMap");
+
+        await using BunitContext context = BrowserFixture.Context();
+        IRenderedComponent<ConfigurationEditor> singleEditor = context.Render<ConfigurationEditor>(p => p.Add(x => x.Definition, singleSectionDef));
+        await Assert.That(singleEditor.FindAll(".configuration-configure-panel__nav")).IsEmpty();
+        await Assert.That(singleEditor.FindComponent<DockLayoutHost>().Instance.MinimumContentWidth).IsEqualTo(DockLayoutState.DefaultMinimumContentWidth);
+
+        IRenderedComponent<ConfigurationEditor> rootEditor = context.Render<ConfigurationEditor>(p => p.Add(x => x.Definition, literalRootDef));
+        await Assert.That(rootEditor.FindAll(".configuration-configure-panel__nav")).IsEmpty();
+        await Assert.That(rootEditor.FindComponent<DockLayoutHost>().Instance.MinimumContentWidth).IsEqualTo(DockLayoutState.DefaultMinimumContentWidth);
+    }
+
+    [Test]
+    public async Task WorkspaceMinimumContentWidthProtects420PxFormCanvasAcrossDensitiesAndResetsOutsideDesktopConfigure()
+    {
+        Definition definition = GroupedDefinition();
+        await using BunitContext context = BrowserFixture.Context();
+        DockLayoutState dockLayout = context.Services.GetRequiredService<DockLayoutState>();
+        AppearanceThemeService appearance = context.Services.GetRequiredService<AppearanceThemeService>();
+
+        IRenderedComponent<MainLayout> app = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
+        {
+            builder.OpenComponent<ConfigurationEditor>(0);
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
+            builder.CloseComponent();
+        }));
+
+        await app.InvokeAsync(() => dockLayout.UpdateViewport(1440, isMobile: false, DockScope.Shell, DockLayoutState.DefaultMinimumContentWidth));
+        IRenderedComponent<DockLayoutHost> workspaceDock = app.FindComponents<DockLayoutHost>().Single(h => h.Instance.Scope == DockScope.Workspace);
+
+        // Comfortable: 790px floor -> Inspector (360) stays docked at 1150px, overlays at 1149px while StartNav (256) stays docked.
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(790);
+        await app.Find("[data-action='toggle-inspector']").ClickAsync(new MouseEventArgs());
+
+        await app.InvokeAsync(() => dockLayout.UpdateViewport(1150, isMobile: false));
+        await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.InspectorId)!)).IsFalse();
+
+        await app.InvokeAsync(() => dockLayout.UpdateViewport(1149, isMobile: false));
+        await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.InspectorId)!)).IsTrue();
+        await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsFalse();
+
+        // Spacious (806px), Compact (774px), Dense (766px).
+        await app.InvokeAsync(() => appearance.SetDensityAsync("spacious").AsTask());
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(806);
+
+        await app.InvokeAsync(() => appearance.SetDensityAsync("compact").AsTask());
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(774);
+
+        await app.InvokeAsync(() => appearance.SetDensityAsync("dense").AsTask());
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(766);
+
+        await app.InvokeAsync(() => appearance.SetDensityAsync("comfortable").AsTask());
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(790);
+
+        // At <= 960px (where form nav collapses above form fields), Workspace floor drops to 420px so StartNav fits if Inspector is closed.
+        await app.Find("[data-action='toggle-inspector']").ClickAsync(new MouseEventArgs());
+        await app.InvokeAsync(() => dockLayout.UpdateViewport(1000, isMobile: false));
+        await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsTrue();
+
+        await app.InvokeAsync(() => dockLayout.UpdateViewport(960, isMobile: false));
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(DockLayoutState.DefaultMinimumContentWidth);
+        await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsFalse();
+
+        // At 1000px desktop Configure, opening in-place Settings or switching to Review resets floor to 420px so StartNav fits docked.
+        await app.InvokeAsync(() => dockLayout.UpdateViewport(1000, isMobile: false));
+        await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsTrue();
+
+        await app.Find("header [data-action='open-settings']").ClickAsync(new MouseEventArgs());
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(DockLayoutState.DefaultMinimumContentWidth);
+        await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsFalse();
+
+        await app.Find("[data-action='return-to-configuration']").ClickAsync(new MouseEventArgs());
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(790);
+        await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsTrue();
+
+        await BrowserFixture.SelectPanelAsync(app, "review");
+        await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsFalse();
+    }
+
+    [Test]
+    public async Task ArabicRtlPreservesSiblingNavLandmarksBidiIsolationAndZeroAppNavSections()
+    {
+        JsonNode document = JsonNode.Parse(GroupedDefinition().CanonicalBytes.Span)!;
+        document["locales"] = new JsonArray("ar", "en");
+        document["localization"] = JsonNode.Parse("""
+            {"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}}
+            """);
+        Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(document.ToJsonString()));
+        await using BunitContext context = BrowserFixture.Context();
+        BrowserNavigationState navState = context.Services.GetRequiredService<BrowserNavigationState>();
+        navState.SelectLocale("ar");
+
+        IRenderedComponent<MainLayout> component = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
+        {
+            builder.OpenComponent<ConfigurationEditor>(0);
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
+            builder.AddAttribute(2, nameof(ConfigurationEditor.InitialLocale), "ar");
+            builder.CloseComponent();
+        }));
+
+        await Assert.That(component.Find(".main-layout").GetAttribute("dir")).IsEqualTo("rtl");
+        await Assert.That(component.Find(".configuration-editor").GetAttribute("dir")).IsEqualTo("rtl");
+        await Assert.That(component.Find("#application-navigation").GetAttribute("aria-label")).IsEqualTo(BrowserStrings.Get("ApplicationNavigation", "ar"));
+        await Assert.That(component.Find(".configuration-configure-panel__nav nav.configuration-navigation").GetAttribute("aria-label")).IsEqualTo(BrowserStrings.Get("Sections", "ar"));
+        await Assert.That(component.FindAll("#application-navigation [data-section]")).IsEmpty();
+        await Assert.That(component.FindAll("nav nav")).IsEmpty();
+        await Assert.That(component.FindAll("bdi").Count).IsGreaterThan(0);
+    }
+
+    [Test]
+    public async Task InPlaceSettingsRoundTripPreservesSeparatedSectionRailAnswersAndConsent()
+    {
+        Definition definition = GroupedDefinition();
+        await using BunitContext context = BrowserFixture.Context();
+        IRenderedComponent<MainLayout> component = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
+        {
+            builder.OpenComponent<ConfigurationEditor>(0);
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
+            builder.CloseComponent();
+        }));
+
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
+        await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "roundtrip.example.test" });
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find(".configuration-configure-panel__nav [data-section='credentials']").ClickAsync(new MouseEventArgs());
+
+        await component.Find("header [data-action='open-settings']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("#application-navigation [data-section]")).IsEmpty();
+        await Assert.That(component.FindAll("#application-navigation .nav-menu__workspace a")).Count().IsEqualTo(3);
+        await Assert.That(component.FindAll("#application-navigation .nav-menu__footer .nav-menu__local")).Count().IsEqualTo(1);
+        await Assert.That(component.Find("main#main-content").HasAttribute("hidden")).IsTrue();
+
+        await component.Find("[data-action='return-to-configuration']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("main#main-content").HasAttribute("hidden")).IsFalse();
+        await Assert.That(component.Find(".configuration-configure-panel__nav [data-section='credentials']").GetAttribute("aria-current")).IsEqualTo("step");
+        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsTrue();
+
+        await component.Find(".configuration-configure-panel__nav [data-section='connection']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("roundtrip.example.test");
+    }
+
+    [Test]
+    public async Task MarkSectionReviewedExposesVisibleReviewedBadgeAlongsideSemanticState()
+    {
+        Definition definition = GroupedDefinition();
+        await using BunitContext context = BrowserFixture.Context();
+        IRenderedComponent<ConfigurationEditor> component = context.Render<ConfigurationEditor>(p => p.Add(x => x.Definition, definition));
+
+        AngleSharp.Dom.IElement initialStatus = component.Find(".configuration-configure-panel__nav [data-section='connection'] [data-review-state]");
+        await Assert.That(initialStatus.GetAttribute("data-review-state")).IsEqualTo("not-visited");
+        await Assert.That(initialStatus.ClassList.Contains("sr-only")).IsTrue();
+
+        await component.Find(".configuration-configure-panel__nav [data-section='credentials']").ClickAsync(new MouseEventArgs());
+        AngleSharp.Dom.IElement openedStatus = component.Find(".configuration-configure-panel__nav [data-section='credentials'] [data-review-state]");
+        await Assert.That(openedStatus.GetAttribute("data-review-state")).IsEqualTo("opened");
+        await Assert.That(openedStatus.ClassList.Contains("sr-only")).IsTrue();
+
+        await component.Find(".configuration-configure-panel__nav [data-section='connection']").ClickAsync(new MouseEventArgs());
+        await component.Find("[data-action='toggle-section-reviewed'][data-section-id='connection']").ClickAsync(new MouseEventArgs());
+
+        AngleSharp.Dom.IElement reviewedBadge = component.Find(".configuration-configure-panel__nav [data-section='connection'] [data-review-state='reviewed']");
+        await Assert.That(reviewedBadge.ClassList.Contains("sr-only")).IsFalse();
+        await Assert.That(reviewedBadge.ClassList.Contains("configuration-navigation__reviewed")).IsTrue();
+        await Assert.That(reviewedBadge.TextContent.Trim()).IsEqualTo("Reviewed");
     }
 }
