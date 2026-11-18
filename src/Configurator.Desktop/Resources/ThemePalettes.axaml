@@ -68,5 +68,27 @@
       <SolidColorBrush x:Key="ConfiguratorBorderBrush" Color="#FFFFFF" />
       <SolidColorBrush x:Key="ConfiguratorOutlineVariantBrush" Color="#FFFFFF" />
     </ResourceDictionary>
+    <ResourceDictionary x:Key="{x:Static local:DesktopTheme.LightHighContrast}">
+      <SolidColorBrush x:Key="ConfiguratorCanvasBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ConfiguratorInputBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ConfiguratorSurfaceBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ConfiguratorSurfaceContainerBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ConfiguratorSurfaceContainerHighBrush" Color="#F0F0F0" />
+      <SolidColorBrush x:Key="ConfiguratorSecondaryTextBrush" Color="#000000" />
+      <SolidColorBrush x:Key="ConfiguratorAccentBrush" Color="#003599" />
+      <SolidColorBrush x:Key="ConfiguratorFocusBrush" Color="#003599" />
+      <SolidColorBrush x:Key="ConfiguratorPrimaryContainerBrush" Color="#003599" />
+      <SolidColorBrush x:Key="ConfiguratorOnPrimaryContainerBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ConfiguratorSuccessBrush" Color="#005500" />
+      <SolidColorBrush x:Key="ConfiguratorWarningBrush" Color="#5A3900" />
+      <SolidColorBrush x:Key="ConfiguratorSelectedBrush" Color="#003599" />
+      <SolidColorBrush x:Key="ConfiguratorSelectedTextBrush" Color="#FFFFFF" />
+      <SolidColorBrush x:Key="ConfiguratorDisabledBrush" Color="#F0F0F0" />
+      <SolidColorBrush x:Key="ConfiguratorDisabledTextBrush" Color="#3F3F3F" />
+      <SolidColorBrush x:Key="ConfiguratorErrorBrush" Color="#8A0000" />
+      <SolidColorBrush x:Key="ConfiguratorTextBrush" Color="#000000" />
+      <SolidColorBrush x:Key="ConfiguratorBorderBrush" Color="#000000" />
+      <SolidColorBrush x:Key="ConfiguratorOutlineVariantBrush" Color="#000000" />
+    </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
 </ResourceDictionary>

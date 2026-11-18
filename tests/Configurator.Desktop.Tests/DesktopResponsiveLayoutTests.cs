@@ -1,8 +1,8 @@
 namespace Configurator.Desktop.Tests;
 
 using Avalonia;
-using Avalonia.Controls;
 using Avalonia.Automation;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.LogicalTree;
@@ -128,5 +128,97 @@ public sealed class DesktopResponsiveLayoutTests
             await Assert.That(result.firstFieldBottom).IsLessThanOrEqualTo(420d);
         }
         finally { await Task.Run(session.Dispose); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task StoreProjectsRenderCompactLandscapeTwoColumnCardsWithDecodedLogoAndDetailsModal()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopResponsiveLayoutTests));
+        try
+        {
+            var result = await session.Dispatch(async () =>
+            {
+                using var storeProvider = new Configurator.Presentation.Store.EmbeddedDefinitionStoreProvider();
+                var messenger = new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger();
+                using var loader = new Configurator.Desktop.ViewModels.DefinitionLoaderViewModel(messenger, new NoDialogs(), storeProvider: storeProvider);
+                using var workspace = new Configurator.Desktop.ViewModels.FormWorkspaceViewModel(messenger);
+                using var publisher = new Configurator.Desktop.ViewModels.ArtifactPublisherViewModel(messenger, new NoDialogs(), new Configurator.Artifacts.ProtectedArtifactWriter());
+                using var importReview = new Configurator.Desktop.ViewModels.DesktopImportReviewViewModel(messenger, new NoDialogs(), publisher);
+                using var shell = new Configurator.Desktop.ViewModels.DesktopShellViewModel(messenger, loader, workspace, publisher, importReview);
+                await shell.Loader.LoadStoreAsync();
+
+                var window = new MainWindow { DataContext = shell, Width = 1280, Height = 860 };
+                try
+                {
+                    window.Show();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    window.UpdateLayout();
+
+                    var cardsControl = window.GetNamedControl<ItemsControl>("StoreProjects");
+                    Border[] cards = cardsControl.GetVisualDescendants().OfType<Border>()
+                        .Where(border => border.Classes.Contains("store-project-card"))
+                        .ToArray();
+                    double firstCardTop = cards.Length > 0 ? cards[0].TranslatePoint(default, cardsControl)!.Value.Y : -1;
+                    double secondCardTop = cards.Length > 1 ? cards[1].TranslatePoint(default, cardsControl)!.Value.Y : -1;
+                    bool twoColumnRow = cards.Length >= 2 && Math.Abs(firstCardTop - secondCardTop) < 4d;
+                    bool compactLandscape = cards.All(card => card.Bounds.Height is > 80d and <= 190d);
+
+                    Image? logo = cardsControl.GetVisualDescendants().OfType<Image>()
+                        .FirstOrDefault(image => image.Name == "StoreProjectLogo" && image.IsEffectivelyVisible && image.Source is not null);
+                    double? logoWidth = logo?.Bounds.Width;
+
+                    Button? detailsButton = cardsControl.GetVisualDescendants().OfType<Button>()
+                        .FirstOrDefault(button => button.Name == "StoreProjectDetailsButton");
+                    if (detailsButton?.Command is { } detailsCmd && detailsCmd.CanExecute(detailsButton.CommandParameter))
+                        detailsCmd.Execute(detailsButton.CommandParameter);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    var detailsModal = window.FindNamedControl<Control>("StoreProjectDetailsDialog");
+                    bool modalVisible = detailsModal?.IsEffectivelyVisible == true;
+                    string modalText = detailsModal is null
+                        ? string.Empty
+                        : string.Join("\n", detailsModal.GetVisualDescendants().OfType<TextBlock>()
+                            .Where(tb => !string.IsNullOrWhiteSpace(tb.Text))
+                            .Select(tb => tb.Text!));
+
+                    window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape, Source = window });
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    bool modalClosedOnEsc = detailsModal?.IsEffectivelyVisible != true;
+
+                    return (
+                        cardCount: cards.Length,
+                        twoColumnRow,
+                        compactLandscape,
+                        hasDecodedLogo: logo is not null && logoWidth is >= 48d and <= 96d,
+                        hasDetailsButton: detailsButton is not null,
+                        modalVisible,
+                        hasLicenseInModal: modalText.Contains("CC-BY-4.0", StringComparison.Ordinal),
+                        modalClosedOnEsc);
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+
+            await Assert.That(result.cardCount).IsGreaterThanOrEqualTo(2);
+            await Assert.That(result.twoColumnRow).IsTrue();
+            await Assert.That(result.compactLandscape).IsTrue();
+            await Assert.That(result.hasDecodedLogo).IsTrue();
+            await Assert.That(result.hasDetailsButton).IsTrue();
+            await Assert.That(result.modalVisible).IsTrue();
+            await Assert.That(result.hasLicenseInModal).IsTrue();
+            await Assert.That(result.modalClosedOnEsc).IsTrue();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
+    private sealed class NoDialogs : Configurator.Desktop.Services.IStorageDialogService
+    {
+        public Task<Configurator.Desktop.Services.StorageSelection<Uri>> SelectAsync(Configurator.Desktop.ViewModels.DesktopPathSelectionKind kind, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new Configurator.Desktop.Services.StorageSelection<Uri>(Configurator.Desktop.Services.StorageSelectionStatus.Cancelled));
+        public Task<Configurator.Desktop.Services.StorageSelection<Configurator.Artifacts.BoundedFileInput>> ReadImportAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new Configurator.Desktop.Services.StorageSelection<Configurator.Artifacts.BoundedFileInput>(Configurator.Desktop.Services.StorageSelectionStatus.Cancelled));
     }
 }

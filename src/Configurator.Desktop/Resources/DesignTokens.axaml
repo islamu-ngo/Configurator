@@ -135,4 +135,55 @@
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="14" />
   </Style>
+  <Style Selector="Border.end-dock">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="10" />
+  </Style>
+  <Style Selector="Thumb.dock-splitter, GridSplitter.dock-splitter">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorOutlineVariantBrush}" />
+    <Setter Property="Width" Value="6" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="VerticalAlignment" Value="Stretch" />
+    <Setter Property="Cursor" Value="SizeWestEast" />
+  </Style>
+  <Style Selector="Thumb.dock-splitter">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}" />
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="Thumb.dock-splitter:pointerover, Thumb.dock-splitter:focus-visible, GridSplitter.dock-splitter:pointerover, GridSplitter.dock-splitter:focus-visible">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorAccentBrush}" />
+  </Style>
+  <Style Selector="Border.store-project-card">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSurfaceBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="12" />
+    <Setter Property="Margin" Value="0" />
+  </Style>
+  <Style Selector="Border.store-logo-tile">
+    <Setter Property="Width" Value="76" />
+    <Setter Property="Height" Value="76" />
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSurfaceContainerHighBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorOutlineVariantBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+  <Style Selector="Button.preset-chip">
+    <Setter Property="Padding" Value="10,6" />
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+  <Style Selector="Button.preset-chip.active-preset, Button.preset-chip.active-preset:pointerover">
+    <Setter Property="Background" Value="{DynamicResource ConfiguratorSelectedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource ConfiguratorSelectedTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource ConfiguratorFocusBrush}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
 </Styles>

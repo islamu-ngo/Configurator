@@ -4,12 +4,16 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Configurator.Core.Definitions;
+using Configurator.Desktop.Resources;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.Views;
 using Configurator.Presentation;
@@ -215,7 +219,7 @@ public sealed class DesktopUnifiedWorkspaceAndDocumentTests
                     return (
                         isOpen: shell.Inspector.IsOpen,
                         paneVisible: inspectorPane?.IsEffectivelyVisible == true,
-                        paneWidthBounded: inspectorPane is not null && inspectorPane.Bounds.Width <= 321,
+                        paneWidthBounded: inspectorPane is not null && inspectorPane.Bounds.Width is >= 280 and <= 620,
                         focusPreserved: ReferenceEquals(focusedBefore, hostEditor) && ReferenceEquals(focusedAfter, hostEditor),
                         hasHostInstructions: combined.Contains("Public host identifier", StringComparison.Ordinal),
                         hasUnitsOrBounds: combined.Contains("minLength", StringComparison.OrdinalIgnoreCase) ||
@@ -470,5 +474,147 @@ public sealed class DesktopUnifiedWorkspaceAndDocumentTests
             }
         };
         return Encoding.UTF8.GetBytes(root.ToJsonString());
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task LocalizedStringsFixWireKeyCopiedStatusRemovesTextBlockMnemonicsAndMapsInputsChanged()
+    {
+        var enStrings = new DesktopStrings("en");
+        var arStrings = new DesktopStrings("ar");
+        string enWireCopied = enStrings.Read("WireKeyCopiedStatus");
+        string arWireCopied = arStrings.Read("WireKeyCopiedStatus");
+        string enOptional = enStrings.Read("OptionalEditors");
+        string arOptional = arStrings.Read("OptionalEditors");
+
+        await Assert.That(enWireCopied).IsNotEqualTo("WireKeyCopiedStatus");
+        await Assert.That(string.IsNullOrWhiteSpace(enWireCopied)).IsFalse();
+        await Assert.That(arWireCopied).IsNotEqualTo("WireKeyCopiedStatus");
+        await Assert.That(arWireCopied.Any(c => c is >= '\u0600' and <= '\u06ff')).IsTrue();
+        await Assert.That(enOptional.Contains('_', StringComparison.Ordinal)).IsFalse();
+        await Assert.That(arOptional.Contains('_', StringComparison.Ordinal)).IsFalse();
+
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopUnifiedWorkspaceAndDocumentTests));
+        try
+        {
+            var observed = await session.Dispatch(() =>
+            {
+                using var shell = DesktopTestContext.Root();
+                shell.Loader.LoadDefinition(DesktopApplicationTests.DefinitionWithExperiences());
+                var window = new MainWindow { DataContext = shell, Width = 1280, Height = 820 };
+                try
+                {
+                    window.Show();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    shell.Workspace.Fields.Single(f => f.Id == "name").Text = "trigger-inputs-changed";
+                    shell.Navigation.OpenCommand.Execute(null);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    TextBlock statusTextBlock = window.GetNamedControl<TextBlock>("Status");
+                    string openStatusText = statusTextBlock.Text ?? string.Empty;
+                    bool politeLive = AutomationProperties.GetLiveSetting(statusTextBlock) == AutomationLiveSetting.Polite;
+
+                    shell.Navigation.ConfigureCommand.Execute(null);
+                    shell.Navigation.LayoutMode = ConfigureLayoutMode.AllSections;
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    string[] visibleTexts = window.GetVisualDescendants().OfType<TextBlock>()
+                        .Where(tb => tb.IsEffectivelyVisible &&
+                            tb is not AccessText &&
+                            !tb.Classes.Contains("code-font") &&
+                            !string.IsNullOrEmpty(tb.Text))
+                        .Select(tb => tb.Text!)
+                        .ToArray();
+
+                    return (
+                        machineStatus: shell.Status,
+                        openStatusText,
+                        politeLive,
+                        showsRawInputsChanged: visibleTexts.Any(t => string.Equals(t, "inputs-changed", StringComparison.Ordinal)),
+                        showsUnderscoreMnemonic: visibleTexts.Any(t => t.StartsWith('_') || t.Contains(" _", StringComparison.Ordinal)));
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+
+            await Assert.That(observed.machineStatus).IsEqualTo("inputs-changed");
+            await Assert.That(string.IsNullOrWhiteSpace(observed.openStatusText)).IsFalse();
+            await Assert.That(observed.openStatusText).IsNotEqualTo("inputs-changed");
+            await Assert.That(observed.politeLive).IsTrue();
+            await Assert.That(observed.showsRawInputsChanged).IsFalse();
+            await Assert.That(observed.showsUnderscoreMnemonic).IsFalse();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task SectionRailDeduplicatesReviewButtonsAndTabbedEndDockSwitchesBetweenInspectorAndDocument()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopUnifiedWorkspaceAndDocumentTests));
+        try
+        {
+            var observed = await session.Dispatch(() =>
+            {
+                using var shell = DesktopTestContext.Root();
+                shell.Loader.LoadDefinition(RichCompactDefinitionBytes());
+                var window = new MainWindow { DataContext = shell, Width = 1360, Height = 820 };
+                try
+                {
+                    window.Show();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    var rail = window.GetNamedControl<ListBox>("SectionRail");
+                    int railButtonCount = rail.GetVisualDescendants().OfType<Button>().Count();
+                    var headerReviewButton = window.FindNamedControl<Button>("SectionReviewButton");
+
+                    shell.ToggleInspectorCommand.Execute(null);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    var endDock = window.FindNamedControl<Control>("EndDockPane");
+                    var inspectorTab = window.FindNamedControl<Button>("InspectorDockTab");
+                    var documentTab = window.FindNamedControl<Button>("DocumentDockTab");
+                    var inspectorPane = window.FindNamedControl<Control>("InspectorPane");
+
+                    double defaultEndWidth = endDock?.Bounds.Width ?? 0d;
+
+                    documentTab?.Command?.Execute(documentTab.CommandParameter);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    var documentDockPanel = window.FindNamedControl<Control>("DocumentDockPanel");
+                    bool documentDockedBesideForm = documentDockPanel?.IsEffectivelyVisible == true &&
+                        window.GetVisualDescendants().OfType<Control>().Any(c => c.Name == "Fields" && c.IsEffectivelyVisible);
+
+                    inspectorTab?.Command?.Execute(inspectorTab.CommandParameter);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+                    bool inspectorRestored = inspectorPane?.IsEffectivelyVisible == true;
+
+                    return (
+                        railButtonCount,
+                        hasSingleHeaderReview: headerReviewButton is not null,
+                        hasEndDock: endDock is not null,
+                        hasTabs: inspectorTab is not null && documentTab is not null,
+                        defaultEndWidth,
+                        documentDockedBesideForm,
+                        inspectorRestored);
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+
+            await Assert.That(observed.railButtonCount).IsEqualTo(0);
+            await Assert.That(observed.hasSingleHeaderReview).IsTrue();
+            await Assert.That(observed.hasEndDock).IsTrue();
+            await Assert.That(observed.hasTabs).IsTrue();
+            await Assert.That(observed.defaultEndWidth).IsBetween(300d, 620d);
+            await Assert.That(observed.documentDockedBesideForm).IsTrue();
+            await Assert.That(observed.inspectorRestored).IsTrue();
+        }
+        finally { await Task.Run(session.Dispose); }
     }
 }

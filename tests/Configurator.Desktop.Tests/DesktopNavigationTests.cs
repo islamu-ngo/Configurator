@@ -7,12 +7,16 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.LogicalTree;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using Configurator.Desktop.Resources;
 using Configurator.Desktop.ViewModels;
 using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Desktop.Views;
 using Configurator.Presentation;
+using Configurator.Presentation.Theming;
 
 public sealed class DesktopNavigationTests
 {
@@ -250,7 +254,7 @@ public sealed class DesktopNavigationTests
                     Dispatcher.UIThread.RunJobs();
 
                     var rail = window.GetNamedControl<ListBox>("SectionRail");
-                    double railWidth = rail.Width;
+                    double railWidth = rail.Bounds.Width;
 
                     var field = shell.Workspace.Fields.Single(item => item.Id == "name");
                     field.Text = "Updated service";
@@ -292,7 +296,7 @@ public sealed class DesktopNavigationTests
                 finally { window.Close(); }
             }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
 
-            await Assert.That(result.railWidth).IsEqualTo(300d);
+            await Assert.That(result.railWidth).IsBetween(240d, 460d);
             await Assert.That(result.canUndoBefore).IsTrue();
             await Assert.That(result.revertedByUndo).IsTrue();
             await Assert.That(result.canRedoAfter).IsTrue();
@@ -360,7 +364,7 @@ public sealed class DesktopNavigationTests
                     var discoveryOverlay = window.FindNamedControl<Control>("DiscoveryOverlay");
                     bool discoveryVisibleOnCtrlK = discoveryOverlay?.IsEffectivelyVisible == true;
 
-                    // Ctrl+Shift+E opens DocumentDrawerOverlay without losing AllSections.
+                    // Ctrl+Shift+E opens docked Document tab without losing AllSections.
                     window.RaiseEvent(new KeyEventArgs
                     {
                         RoutedEvent = InputElement.KeyDownEvent,
@@ -370,7 +374,7 @@ public sealed class DesktopNavigationTests
                     });
                     window.UpdateLayout();
                     Dispatcher.UIThread.RunJobs();
-                    var docDrawer = window.FindNamedControl<Control>("DocumentDrawerOverlay");
+                    var docDrawer = window.FindNamedControl<Control>("DocumentDockPanel");
                     bool docDrawerOpen = docDrawer?.IsEffectivelyVisible == true;
                     window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape, Source = window });
                     window.UpdateLayout();
@@ -407,5 +411,168 @@ public sealed class DesktopNavigationTests
             await Assert.That(result.reviewedAfterSet).IsTrue();
         }
         finally { await Task.Run(session.Dispose); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task InPlaceSettingsReturnsToConfigurationWithAnswersIntactAndAppliesEventPresetsAndCustomHsl()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopNavigationTests));
+        try
+        {
+            var observed = await session.Dispatch(() =>
+            {
+                using var theme = new DesktopTheme(Application.Current!, _ => () => { });
+                var messenger = new CommunityToolkit.Mvvm.Messaging.WeakReferenceMessenger();
+                var dialogs = new NoDialogs();
+                using var loader = new DefinitionLoaderViewModel(messenger, dialogs);
+                using var workspace = new FormWorkspaceViewModel(messenger);
+                using var publisher = new ArtifactPublisherViewModel(messenger, dialogs, new Configurator.Artifacts.ProtectedArtifactWriter());
+                using var importReview = new DesktopImportReviewViewModel(messenger, dialogs, publisher);
+                using var shell = new DesktopShellViewModel(messenger, loader, workspace, publisher, importReview, theme: theme);
+                shell.Loader.LoadDefinition(DesktopApplicationTests.DefinitionWithExperiences());
+
+                var window = new MainWindow { DataContext = shell, Width = 1280, Height = 820 };
+                try
+                {
+                    window.Show();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    var nameField = shell.Workspace.Fields.Single(f => f.Id == "name");
+                    nameField.Text = "preserved-desktop-answer";
+                    long revisionBefore = shell.Workspace.Form!.InputRevision;
+
+                    shell.Navigation.SettingsCommand.Execute(null);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    var returnButton = window.FindNamedControl<Button>("ReturnToConfigurationButton");
+                    bool returnVisible = returnButton?.IsEffectivelyVisible == true;
+                    returnButton?.Command?.Execute(returnButton.CommandParameter);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    DesktopWorkspaceStage stageAfterReturn = shell.Navigation.Stage;
+                    string? answerAfterReturn = shell.Workspace.Form.Snapshot().Values["name"].GetString();
+                    long revisionAfterReturn = shell.Workspace.Form.InputRevision;
+
+                    shell.Navigation.SettingsCommand.Execute(null);
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    var modeSelector = window.FindNamedControl<ComboBox>("SettingsAppearanceModeSelector");
+                    var presetGallery = window.FindNamedControl<ItemsControl>("SettingsPresetGallery");
+                    var naturalHexBox = window.FindNamedControl<TextBox>("SettingsCustomNaturalHex");
+                    var brandHexBox = window.FindNamedControl<TextBox>("SettingsCustomBrandHex");
+
+                    int modeCount = modeSelector?.ItemCount ?? 0;
+                    int presetCount = presetGallery?.ItemCount ?? 0;
+
+                    var accentColors = new List<Color>();
+                    if (presetGallery is not null)
+                    {
+                        foreach (Button presetButton in presetGallery.GetVisualDescendants().OfType<Button>().Take(ThemePresetCatalog.All.Count))
+                        {
+                            presetButton.Command?.Execute(presetButton.CommandParameter);
+                            window.UpdateLayout();
+                            Dispatcher.UIThread.RunJobs();
+                            if (window.TryFindResource("ConfiguratorAccentBrush", window.ActualThemeVariant, out object? brush) &&
+                                brush is SolidColorBrush solid)
+                            {
+                                accentColors.Add(solid.Color);
+                            }
+                        }
+                    }
+
+                    if (naturalHexBox is not null && brandHexBox is not null)
+                    {
+                        naturalHexBox.Text = "#F4EFE6";
+                        brandHexBox.Text = "#0E7490";
+                        window.UpdateLayout();
+                        Dispatcher.UIThread.RunJobs();
+                    }
+
+                    Color? customAccent = window.TryFindResource("ConfiguratorAccentBrush", window.ActualThemeVariant, out object? customBrush) &&
+                        customBrush is SolidColorBrush customSolid
+                        ? customSolid.Color
+                        : null;
+
+                    if (modeSelector is { ItemCount: >= 5 })
+                    {
+                        modeSelector.SelectedIndex = 3; // Light High Contrast
+                        window.UpdateLayout();
+                        Dispatcher.UIThread.RunJobs();
+                    }
+                    ThemeVariant? lightHcVariant = window.ActualThemeVariant;
+                    Color? lightHcCanvas = window.TryFindResource("ConfiguratorCanvasBrush", window.ActualThemeVariant, out object? lhcCanvas) &&
+                        lhcCanvas is SolidColorBrush lhcCanvasBrush ? lhcCanvasBrush.Color : null;
+                    Color? lightHcText = window.TryFindResource("ConfiguratorTextBrush", window.ActualThemeVariant, out object? lhcText) &&
+                        lhcText is SolidColorBrush lhcTextBrush ? lhcTextBrush.Color : null;
+
+                    if (modeSelector is { ItemCount: >= 5 })
+                    {
+                        modeSelector.SelectedIndex = 4; // Dark High Contrast
+                        window.UpdateLayout();
+                        Dispatcher.UIThread.RunJobs();
+                    }
+                    ThemeVariant? darkHcVariant = window.ActualThemeVariant;
+
+                    return (
+                        returnVisible,
+                        stageAfterReturn,
+                        answerAfterReturn,
+                        revisionPreserved: revisionBefore == revisionAfterReturn,
+                        modeCount,
+                        presetCount,
+                        distinctPresetAccents: accentColors.Distinct().Count(),
+                        customApplied: customAccent is not null,
+                        lightHcDistinct: lightHcVariant is not null &&
+                            lightHcVariant != ThemeVariant.Light &&
+                            lightHcVariant != DesktopTheme.HighContrast &&
+                            string.Equals(lightHcVariant.Key?.ToString(), "ConfiguratorLightHighContrast", StringComparison.Ordinal),
+                        lightHcContrastOk: lightHcCanvas is not null && lightHcText is not null && Contrast(lightHcText.Value, lightHcCanvas.Value) >= 7.0,
+                        darkHcActive: darkHcVariant == DesktopTheme.HighContrast);
+                }
+                finally
+                {
+                    DesktopDensity.Apply(Application.Current, WorkspaceDensity.Comfortable);
+                    window.Close();
+                }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+
+            await Assert.That(observed.returnVisible).IsTrue();
+            await Assert.That(observed.stageAfterReturn).IsEqualTo(DesktopWorkspaceStage.Configure);
+            await Assert.That(observed.answerAfterReturn).IsEqualTo("preserved-desktop-answer");
+            await Assert.That(observed.revisionPreserved).IsTrue();
+            await Assert.That(observed.modeCount).IsEqualTo(5);
+            await Assert.That(observed.presetCount).IsGreaterThanOrEqualTo(ThemePresetCatalog.All.Count);
+            await Assert.That(observed.distinctPresetAccents).IsGreaterThanOrEqualTo(4);
+            await Assert.That(observed.customApplied).IsTrue();
+            await Assert.That(observed.lightHcDistinct).IsTrue();
+            await Assert.That(observed.lightHcContrastOk).IsTrue();
+            await Assert.That(observed.darkHcActive).IsTrue();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
+    private static double Contrast(Color first, Color second)
+    {
+        static double Channel(byte channel)
+        {
+            double value = channel / 255.0;
+            return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+        }
+        static double Luminance(Color color) => 0.2126 * Channel(color.R) + 0.7152 * Channel(color.G) + 0.0722 * Channel(color.B);
+        double a = Luminance(first), b = Luminance(second);
+        return (Math.Max(a, b) + 0.05) / (Math.Min(a, b) + 0.05);
+    }
+
+    private sealed class NoDialogs : Configurator.Desktop.Services.IStorageDialogService
+    {
+        public Task<Configurator.Desktop.Services.StorageSelection<Uri>> SelectAsync(DesktopPathSelectionKind kind, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new Configurator.Desktop.Services.StorageSelection<Uri>(Configurator.Desktop.Services.StorageSelectionStatus.Cancelled));
+        public Task<Configurator.Desktop.Services.StorageSelection<Configurator.Artifacts.BoundedFileInput>> ReadImportAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new Configurator.Desktop.Services.StorageSelection<Configurator.Artifacts.BoundedFileInput>(Configurator.Desktop.Services.StorageSelectionStatus.Cancelled));
     }
 }

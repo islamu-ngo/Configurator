@@ -54,8 +54,8 @@ after cancellation or workspace replacement cannot change the new workspace.
 ## Desktop GUI Layout
 
 The workspace has four top-level stages accessible from the fixed header bar:
-**Open** admits a definition from the bundled catalog, local file, or public HTTPS link.
-**Configure** pairs two continuous/stepped Presentation layouts (**Section by section** and virtualized **All sections**, sharing live reactive editors without a duplicate table fork) with an interactive **Document** (`Ctrl + Shift + E` JSON/`.env` diff drawer), inline **Error summary** banners (`F7` next issue, `F8` next required setting, `F9` next unreviewed section), a keyboard-driven **Find / Commands** popover (`Ctrl + K`), minority `Required` pills with 3 px `inline-start` semantic stripes (and single header notice on universal-required sections), and a metadata-only **Inspector** pane showing schema path, wire key, validation bounds, controller impact, output bindings, and static guidance links without ever displaying supplied answers or secrets.
+**Open** admits a definition from compact 2-per-row landscape Store cards (`76×76` curated PNG icon or fallback monogram, `ⓘ` **Project details** modal showing license attribution, outputs, and digests), local files, or public HTTPS links.
+**Configure** pairs a single-row Configure Ribbon over two continuous/stepped Presentation layouts (**Section by section** and virtualized **All sections**, sharing live reactive editors without a duplicate table fork) with a resizable **Start section rail** (`240–460` logical units, default `310`, dragged via splitter or keyboard arrow keys without repeated per-item review buttons), a resizable **Tabbed End dock** (**Inspector (`F2`)** | **Document (`Ctrl + Shift + E` JSON/`.env` diff)**, `300–620` logical units, default `360`, falling back cleanly to overlay mode below `900` logical units or when center width would fall below `420` units), inline **Error summary** banners (`F7` next issue, `F8` next required setting, `F9` next unreviewed section), a keyboard-driven **Find / Commands** popover (`Ctrl + K`), minority `Required` pills with 3 px `inline-start` semantic stripes (and single header section-review toggle and universal-required notice), and metadata-only schema inspection that never displays supplied answers or secrets.
 The required-work summary shows ready and total required counts from the
 current selected scope, placing Field #1 directly above the fold at `960×800`. Switching layouts or pages does not create a second answer set.
 Window text scaling also reaches section summaries, unified All-sections rows, field help and
@@ -63,10 +63,9 @@ Inspector details; those controls follow the application's text size setting.
 **Review outputs** separates step **1. Review & prepare outputs** from step **2. Deliberate create-only save**.
 **Settings** provides a dedicated left-sidebar workspace organized into sections
 (**Appearance**, **Language & layout**, **Keyboard & dialogs**, and
-**Privacy & host output**) for session display preferences, keyboard shortcuts,
-and local host output guarantees.
-Compact **Appearance**, **Language**, and **Direction** selectors also remain
-directly accessible in the top header without an extra dropdown panel. The top
+**Privacy & host output**) with a top-left **← Return to configuration** button when a workspace is loaded, switching back without discarding active answers or secret consent.
+Compact **Appearance** (**System**, **Light**, **Dark**), **Language**, and **Direction** selectors also remain
+directly accessible in the top header without an extra dropdown panel. **Settings → Appearance** additionally exposes all **5 contrast modes** (**System**, **Light**, **Dark**, **Light High Contrast**, **Dark High Contrast**), all **8 ISLAMU Event presets**, and the **Custom `Natural + Brand`** HSL palette generator with live contrast preview. The top
 header stays fixed while only the active stage body scrolls.
 Changing stages does not collect another copy of your answers or discard
 unfinished numeric text. Validation and missing counts cover the whole active
@@ -77,13 +76,12 @@ Paging changes the displayed editors while the workspace retains their drafts
 and identities. Definitions whose root is a map or a variant have a neutral
 Configure section so their recursive editor remains reachable.
 
-Small windows (`< 900` logical units) collapse the responsive `SplitView` rail into an overlay drawer behind **Sections**, expose a compact section selector, and show the Contextual Inspector as an overlay drawer when opened. Wider workspaces (`>= 1200` logical units) can dock the `320`-unit **Inspector** alongside the `300`-unit left section rail (with explicit per-section **Mark reviewed** / **Reviewed** toggles), while the active workspace body scrolls independently within its reading container (`<= 800` units in Section-by-section mode, or `Grid` `*`-row virtualized bounds in All-sections mode and Document diff overlays). Resizing rearranges the existing editing surface rather than
+Small windows (`< 900` logical units) collapse the responsive `SplitView` rail into an overlay drawer behind **Sections**, expose a compact section selector, and show the **Tabbed End dock** (**Inspector** / **Document**) as an overlay sheet when opened. Wider workspaces (`>= 900` logical units with `>= 420` center units) dock both the resizable `240–460`-unit Start section rail and `300–620`-unit **End dock** (`Inspector` | `Document`), while the active workspace body scrolls independently within its reading container (`<= 800` units in Section-by-section mode, or `Grid` `*`-row virtualized bounds in All-sections mode). Resizing rearranges the existing editing surface rather than
 replacing an in-progress text input.
 
-Appearance offers **System**, **Light** (Latte), and **Dark** (Macchiato).
-The preference lasts for this application session; restarting uses System.
-Native high contrast takes priority, and turning it off restores your chosen
-ordinary appearance. Appearance changes do not alter answers or preparation.
+Appearance supports session-scoped **System**, **Light**, **Dark**, **Light High Contrast**, and **Dark High Contrast** modes across all **8 Event presets** and Custom `Natural + Brand` palettes; restarting resets to the default session preference.
+Native high contrast takes priority for non-explicit contrast modes, and turning it off restores your chosen
+ordinary appearance. Appearance and localized status text changes never alter answers or preparation.
 
 ---
 
@@ -122,13 +120,14 @@ Navigate quickly using native keyboard controls:
 | `Shift + Tab` | Move focus backward to the previous field, control, or button |
 | `Ctrl + O` | Focus the definition file path input |
 | `Ctrl + K` | Open the **Find / Commands** discovery popover (`DiscoveryOverlay`) |
-| `Ctrl + Shift + E` | Open or toggle the **Document** (`JSON` / `.env`) overlay drawer |
-| `F2` | Toggle the metadata-only **Inspector** drawer/pane |
+| `Ctrl + Shift + E` | Toggle the docked **Document** (`JSON` / `.env`) tab inside the End dock |
+| `F2` | Toggle the metadata-only **Inspector** tab inside the End dock |
 | `F7` | Jump to the next validation error and open the **Error summary** banner |
 | `F8` | Jump to the next missing required or actionable setting |
 | `F9` | Jump to the next unreviewed section and focus its first setting |
 | `Ctrl + Enter` | Open Review and prepare the selected outputs; saving remains separate |
-| `Escape` | Dismiss popups, discovery popover, or the Document drawer first; otherwise cancel work or discard preparation |
+| `Escape` | Dismiss popups, Project details dialog, discovery popover, or the End dock Document tab first; otherwise cancel work or discard preparation |
+| Splitter `←` / `→` / `Home` | Resize focused Start or End dock splitters (inverting naturally in RTL) or reset to default width (`310` / `360`) |
 | `Alt + <Letter>` | Activate button matching the underlined access key |
 | Direction controls | Follow the definition locale's direction, or explicitly override left-to-right/right-to-left layout |
 

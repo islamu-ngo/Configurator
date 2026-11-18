@@ -4,5 +4,7 @@ public enum DesktopAppearance
 {
     System,
     Light,
-    Dark
+    Dark,
+    LightHighContrast,
+    DarkHighContrast
 }

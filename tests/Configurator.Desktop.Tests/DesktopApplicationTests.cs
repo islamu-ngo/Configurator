@@ -989,14 +989,17 @@ public sealed class DesktopApplicationTests
             Dispatcher.UIThread.RunJobs();
             return (success: imported, masked: Input<TextBox>(window, "Owner name").PasswordChar != '\0',
                 displayed: Input<TextBox>(window, "Owner name").Text == marker,
-                status: window.GetNamedControl<TextBlock>("Status").Text);
+                machineStatus: shell.Status,
+                statusText: window.GetNamedControl<TextBlock>("Status").Text ?? string.Empty);
         });
         CryptographicOperations.ZeroMemory(content);
-        await Assert.That(result.status).IsEqualTo("import-ready");
+        await Assert.That(result.machineStatus).IsEqualTo("import-ready");
+        await Assert.That(string.IsNullOrWhiteSpace(result.statusText)).IsFalse();
+        await Assert.That(result.statusText).IsNotEqualTo("import-ready");
         await Assert.That(result.success).IsTrue();
         await Assert.That(result.masked).IsTrue();
         await Assert.That(result.displayed).IsTrue();
-        await Assert.That(result.status).DoesNotContain(marker, StringComparison.Ordinal);
+        await Assert.That(result.statusText).DoesNotContain(marker, StringComparison.Ordinal);
     }
 
     private static DesktopShellViewModel Shell(

@@ -10,9 +10,9 @@
     </WrapPanel>
     <TextBlock Name="ProtectedCapability" Text="{Binding Publisher.ProtectedCapability}" TextWrapping="Wrap"
                IsVisible="{Binding Publisher.ProtectedCapability, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-    <TextBlock Name="Status" AutomationProperties.AutomationId="OperationStatus" Text="{Binding Status}" TextWrapping="Wrap"
+    <TextBlock Name="Status" AutomationProperties.AutomationId="OperationStatus" Text="{Binding StatusDisplay}" TextWrapping="Wrap"
                AutomationProperties.Name="{Binding Workspace.Strings[OperationStatus]}" AutomationProperties.LiveSetting="Polite"
-               IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+               IsVisible="{Binding StatusDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
     <TextBlock Name="StatusHelp" Text="{Binding StatusHelp}" TextWrapping="Wrap"
                AutomationProperties.Name="{Binding Workspace.Strings[NextStep]}"
                IsVisible="{Binding StatusHelp, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

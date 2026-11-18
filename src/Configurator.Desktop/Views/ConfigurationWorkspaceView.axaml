@@ -101,7 +101,8 @@
         <TextBlock Text="{Binding Workspace.Strings[SectionAllFieldsRequired]}" FontWeight="SemiBold"
                    Foreground="{DynamicResource ConfiguratorOnPrimaryContainerBrush}" />
       </Border>
-      <Button Content="{Binding Navigation.SelectedSection.ReviewActionLabel}"
+      <Button Name="SectionReviewButton"
+              Content="{Binding Navigation.SelectedSection.ReviewActionLabel}"
               Command="{Binding Navigation.SelectedSection.ToggleReviewedCommand}"
               Classes.active-stage="{Binding Navigation.SelectedSection.IsReviewed}"
               Padding="8,2" Margin="0" VerticalAlignment="Center" />

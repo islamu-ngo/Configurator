@@ -1,9 +1,16 @@
 <UserControl x:Class="Configurator.Desktop.Views.SettingsWorkspaceView"
     xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:Configurator.Desktop.ViewModels"
+    xmlns:res="using:Configurator.Desktop.Resources"
     xmlns:local="using:Configurator.Desktop.Views"
     x:DataType="vm:DesktopShellViewModel" x:CompileBindings="True">
-  <StackPanel Spacing="16" MaxWidth="800">
+  <StackPanel Spacing="16" MaxWidth="860">
+    <Button Name="ReturnToConfigurationButton"
+            AutomationProperties.AutomationId="ReturnToConfigurationButton"
+            Content="{Binding Workspace.Strings[ReturnToConfigurationLabel]}"
+            Command="{Binding Navigation.ReturnToConfigurationCommand}"
+            IsVisible="{Binding Navigation.CanReturnToConfiguration}"
+            HorizontalAlignment="Left" />
     <TextBlock Text="{Binding Workspace.Strings[Settings]}"
                FontSize="{DynamicResource ConfiguratorHeadingFontSize}"
                FontWeight="SemiBold" />
@@ -32,20 +39,133 @@
 
     <Border BorderBrush="{DynamicResource ConfiguratorBorderBrush}"
             Background="{DynamicResource ConfiguratorSurfaceBrush}"
-            BorderThickness="1" Padding="16"
+            BorderThickness="1" Padding="16" CornerRadius="8"
             IsVisible="{Binding Navigation.IsAppearanceSettings}">
-      <StackPanel Spacing="12">
+      <StackPanel Spacing="16">
         <StackPanel Spacing="4">
           <TextBlock Text="{Binding Workspace.Strings[AppearanceLabel]}" FontWeight="SemiBold" />
-          <ComboBox Name="SettingsAppearance"
-                    SelectedIndex="{Binding AppearanceIndex, Mode=TwoWay}"
+          <ComboBox Name="SettingsAppearanceModeSelector"
+                    SelectedIndex="{Binding AppearanceModeIndex, Mode=TwoWay}"
                     AutomationProperties.Name="{Binding Workspace.Strings[AppearanceLabel]}"
-                    HorizontalAlignment="Left" MinWidth="180">
+                    HorizontalAlignment="Left" MinWidth="220">
             <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceSystem]}" />
             <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceLight]}" />
             <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceDark]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceLightHighContrast]}" />
+            <ComboBoxItem Content="{Binding Workspace.Strings[AppearanceDarkHighContrast]}" />
           </ComboBox>
         </StackPanel>
+
+        <StackPanel Spacing="8">
+          <TextBlock Text="{Binding Workspace.Strings[ThemePresetLabel]}" FontWeight="SemiBold" />
+          <ItemsControl Name="SettingsPresetGallery" ItemsSource="{Binding ThemePresets}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel ItemSpacing="8" LineSpacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:DesktopThemePresetItem">
+                <Button Classes="preset-chip"
+                        Classes.active-preset="{Binding IsSelected}"
+                        Command="{Binding $parent[local:SettingsWorkspaceView].((vm:DesktopShellViewModel)DataContext).SelectThemePresetCommand}"
+                        CommandParameter="{Binding ThemeKey}"
+                        Margin="0">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Border Width="14" Height="14" CornerRadius="7"
+                            BorderBrush="{DynamicResource ConfiguratorBorderBrush}" BorderThickness="1"
+                            Background="{Binding NaturalHex, Converter={x:Static res:HexToBrushConverter.Instance}}" />
+                    <Border Width="14" Height="14" CornerRadius="7"
+                            BorderBrush="{DynamicResource ConfiguratorBorderBrush}" BorderThickness="1"
+                            Background="{Binding BrandHex, Converter={x:Static res:HexToBrushConverter.Instance}}" />
+                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <WrapPanel ItemSpacing="8" VerticalAlignment="Center">
+            <Button Name="SelectCustomThemeButton"
+                    Classes="preset-chip"
+                    Classes.active-preset="{Binding IsCustomPreset}"
+                    Content="{Binding Workspace.Strings[ThemePresetCustomName]}"
+                    Command="{Binding SelectCustomThemeCommand}"
+                    Margin="0" />
+            <Button Name="ResetCustomThemeButton"
+                    Content="{Binding Workspace.Strings[ThemeResetCustomLabel]}"
+                    Command="{Binding ResetCustomThemeCommand}"
+                    Margin="0" />
+          </WrapPanel>
+        </StackPanel>
+
+        <Border Classes="m3-card" Name="CustomThemeBuilderPanel"
+                Background="{DynamicResource ConfiguratorSurfaceContainerBrush}">
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+            <StackPanel Grid.Column="0" Spacing="6">
+              <TextBlock Text="{Binding Workspace.Strings[ThemeCustomNaturalLabel]}" FontWeight="SemiBold" />
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Border Width="24" Height="24" CornerRadius="4"
+                        BorderBrush="{DynamicResource ConfiguratorBorderBrush}" BorderThickness="1"
+                        Background="{Binding CustomNaturalHex, Converter={x:Static res:HexToBrushConverter.Instance}}" />
+                <TextBox Name="SettingsCustomNaturalHex"
+                         Text="{Binding CustomNaturalHex, Mode=TwoWay}"
+                         FlowDirection="LeftToRight" Width="120"
+                         AutomationProperties.Name="{Binding Workspace.Strings[ThemeCustomNaturalLabel]}" />
+              </StackPanel>
+              <TextBlock Text="{Binding Workspace.Strings[ThemeHueLabel]}" />
+              <Slider Name="CustomNaturalHueSlider" Minimum="0" Maximum="360"
+                      Value="{Binding CustomNaturalHue, Mode=TwoWay}" />
+              <TextBlock Text="{Binding Workspace.Strings[ThemeSaturationLabel]}" />
+              <Slider Name="CustomNaturalSaturationSlider" Minimum="0" Maximum="100"
+                      Value="{Binding CustomNaturalSaturation, Mode=TwoWay}" />
+              <TextBlock Text="{Binding Workspace.Strings[ThemeLightnessLabel]}" />
+              <Slider Name="CustomNaturalLightnessSlider" Minimum="0" Maximum="100"
+                      Value="{Binding CustomNaturalLightness, Mode=TwoWay}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Spacing="6">
+              <TextBlock Text="{Binding Workspace.Strings[ThemeCustomBrandLabel]}" FontWeight="SemiBold" />
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Border Width="24" Height="24" CornerRadius="4"
+                        BorderBrush="{DynamicResource ConfiguratorBorderBrush}" BorderThickness="1"
+                        Background="{Binding CustomBrandHex, Converter={x:Static res:HexToBrushConverter.Instance}}" />
+                <TextBox Name="SettingsCustomBrandHex"
+                         Text="{Binding CustomBrandHex, Mode=TwoWay}"
+                         FlowDirection="LeftToRight" Width="120"
+                         AutomationProperties.Name="{Binding Workspace.Strings[ThemeCustomBrandLabel]}" />
+              </StackPanel>
+              <TextBlock Text="{Binding Workspace.Strings[ThemeHueLabel]}" />
+              <Slider Name="CustomBrandHueSlider" Minimum="0" Maximum="360"
+                      Value="{Binding CustomBrandHue, Mode=TwoWay}" />
+              <TextBlock Text="{Binding Workspace.Strings[ThemeSaturationLabel]}" />
+              <Slider Name="CustomBrandSaturationSlider" Minimum="0" Maximum="100"
+                      Value="{Binding CustomBrandSaturation, Mode=TwoWay}" />
+              <TextBlock Text="{Binding Workspace.Strings[ThemeLightnessLabel]}" />
+              <Slider Name="CustomBrandLightnessSlider" Minimum="0" Maximum="100"
+                      Value="{Binding CustomBrandLightness, Mode=TwoWay}" />
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <Border Classes="m3-card" Background="{DynamicResource ConfiguratorSurfaceBrush}" Padding="12">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{Binding Workspace.Strings[ThemePreviewLabel]}" FontWeight="SemiBold" />
+            <WrapPanel ItemSpacing="8" LineSpacing="8" VerticalAlignment="Center">
+              <Border Classes="tonal-pill">
+                <TextBlock Text="{Binding Workspace.Strings[ThemePreviewSurfaceSample]}" />
+              </Border>
+              <Border Background="{DynamicResource ConfiguratorPrimaryContainerBrush}" CornerRadius="6" Padding="10,4">
+                <TextBlock Text="{Binding Workspace.Strings[ThemePreviewAccentSample]}"
+                           Foreground="{DynamicResource ConfiguratorOnPrimaryContainerBrush}" FontWeight="SemiBold" />
+              </Border>
+              <Border Background="{DynamicResource ConfiguratorSelectedBrush}" CornerRadius="6" Padding="10,4">
+                <TextBlock Text="{Binding ActiveThemeKey}"
+                           Foreground="{DynamicResource ConfiguratorSelectedTextBrush}" FontWeight="SemiBold" />
+              </Border>
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+
         <StackPanel Spacing="4">
           <TextBlock Text="{Binding Workspace.Strings[SettingsDensityLabel]}" FontWeight="SemiBold" />
           <ComboBox Name="SettingsDensitySelector"

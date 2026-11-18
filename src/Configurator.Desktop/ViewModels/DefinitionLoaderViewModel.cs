@@ -101,9 +101,24 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
             static (loader, message) => loader._generation = message.Generation);
     }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStoreDetails))]
+    private StoreProjectCardViewModel? _selectedStoreDetails;
+
     public bool CanSelectPath => !_disposed && !IsBusy;
     public StoreCatalogViewModel StoreCatalog { get; }
     public DefinitionExplorerViewModel Explorer { get; }
+    public bool HasStoreDetails => !_disposed && SelectedStoreDetails is not null;
+
+    [RelayCommand]
+    public void OpenStoreDetails(StoreProjectCardViewModel? card)
+    {
+        if (_disposed || card is null) return;
+        SelectedStoreDetails = card;
+    }
+
+    [RelayCommand]
+    public void CloseStoreDetails() => SelectedStoreDetails = null;
 
     public string StoreSearchQuery
     {
@@ -132,6 +147,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
 
     private void ClearDefinition()
     {
+        SelectedStoreDetails = null;
         _definition = null;
         _messenger.Send(new DefinitionClearedMessage());
         OnPropertyChanged(nameof(DefinitionPin));
@@ -411,6 +427,7 @@ public sealed partial class DefinitionLoaderViewModel : ObservableObject, IDispo
         if (_disposed) return;
         _disposed = true;
         Explorer.Close();
+        SelectedStoreDetails = null;
         _definition = null;
         StoreCatalog.PropertyChanged -= OnStoreCatalogPropertyChanged;
         StoreCatalog.Dispose();

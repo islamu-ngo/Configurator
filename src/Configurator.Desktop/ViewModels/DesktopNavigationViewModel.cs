@@ -2,11 +2,19 @@ namespace Configurator.Desktop.ViewModels;
 
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Configurator.Core.Definitions;
 using Configurator.Desktop.ViewModels.Fields;
 using Configurator.Presentation;
+
+/// <summary>Active tab inside the desktop End Dock (<see cref="Inspector"/> or <see cref="Document"/>).</summary>
+public enum DesktopEndDockTab
+{
+    Inspector = 0,
+    Document = 1
+}
 
 /// <summary>Single actionable error/required entry displayed inside the inline Desktop ErrorSummary banner.</summary>
 public sealed record DesktopErrorSummaryItem(
@@ -19,6 +27,14 @@ public sealed record DesktopErrorSummaryItem(
 public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisposable
 {
     public const int RootPageSize = 50;
+    public const double StartDockDefaultWidth = 310;
+    public const double StartDockMinWidth = 240;
+    public const double StartDockMaxWidth = 460;
+    public const double EndDockDefaultWidth = 360;
+    public const double EndDockMinWidth = 300;
+    public const double EndDockMaxWidth = 620;
+    public const double CenterCanvasMinWidth = 420;
+
     private readonly FormWorkspaceViewModel _workspace;
     private DefinitionFormModel? _form;
     private DesktopSectionViewModel[] _sections = [];
@@ -31,8 +47,13 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
     private DesktopErrorSummaryItem[] _errorSummaryItems = [];
     private DesktopWorkspaceStage _stage;
     private ConfigureLayoutMode _layoutMode = ConfigureLayoutMode.SectionBySection;
+    private double _viewportWidth = 1280;
     private bool _isWideViewport = true;
     private bool _isNarrowRailOpen;
+    private double _startPaneWidth = StartDockDefaultWidth;
+    private double _endPaneWidth = EndDockDefaultWidth;
+    private bool _isEndDockInspectorOpen;
+    private DesktopEndDockTab _activeEndDockTab = DesktopEndDockTab.Inspector;
     private bool _isDiscoveryOpen;
     private bool _showErrorSummary;
     private bool _isDocumentOpen;
@@ -91,6 +112,9 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
             OnPropertyChanged(nameof(SplitPaneOpenLength));
             OnPropertyChanged(nameof(IsBoundedAllSections));
             OnPropertyChanged(nameof(ShowRailToggle));
+            OnPropertyChanged(nameof(CanReturnToConfiguration));
+            ReturnToConfigurationCommand.NotifyCanExecuteChanged();
+            NotifyEndDockChanged();
         }
     }
     public bool IsWideViewport
@@ -105,8 +129,18 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
             OnPropertyChanged(nameof(IsOverlayPane));
             OnPropertyChanged(nameof(SplitPaneOpenLength));
             OnPropertyChanged(nameof(ShowRailToggle));
+            NotifyEndDockChanged();
         }
     }
+
+    public void UpdateViewportWidth(double width)
+    {
+        if (_disposed || double.IsNaN(width) || width <= 0) return;
+        _viewportWidth = width;
+        IsWideViewport = width >= 900;
+        NotifyEndDockChanged();
+    }
+
     public bool IsNarrowViewport => !IsWideViewport;
     public bool IsNarrowRailOpen
     {
@@ -117,12 +151,131 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
             OnPropertyChanged(nameof(IsSplitPaneOpen));
             OnPropertyChanged(nameof(IsOverlayPane));
             OnPropertyChanged(nameof(SplitPaneOpenLength));
+            NotifyEndDockChanged();
         }
     }
     public bool IsSplitPaneOpen => (IsConfigure || IsSettings) && (IsWideViewport || IsNarrowRailOpen);
+    public bool IsWideRailOpen => IsWideViewport && (IsConfigure || IsSettings);
     public bool IsOverlayPane => !IsWideViewport || (!IsConfigure && !IsSettings);
-    public double SplitPaneOpenLength => IsSplitPaneOpen ? 316 : 0;
+    public double StartPaneWidth
+    {
+        get => _startPaneWidth;
+        set
+        {
+            double clamped = Math.Clamp(value, StartDockMinWidth, StartDockMaxWidth);
+            if (_disposed || Math.Abs(_startPaneWidth - clamped) < 0.1) return;
+            _startPaneWidth = clamped;
+            OnPropertyChanged(nameof(StartPaneWidth));
+            OnPropertyChanged(nameof(SplitPaneOpenLength));
+            NotifyEndDockChanged();
+        }
+    }
+    public double SplitPaneOpenLength => IsSplitPaneOpen ? StartPaneWidth : 0;
     public bool ShowRailToggle => !IsWideViewport && (IsConfigure || IsSettings);
+
+    public double EndPaneWidth
+    {
+        get => _endPaneWidth;
+        set
+        {
+            double clamped = Math.Clamp(value, EndDockMinWidth, EndDockMaxWidth);
+            if (_disposed || Math.Abs(_endPaneWidth - clamped) < 0.1) return;
+            _endPaneWidth = clamped;
+            OnPropertyChanged(nameof(EndPaneWidth));
+            OnPropertyChanged(nameof(EndDockColumnWidth));
+            NotifyEndDockChanged();
+        }
+    }
+
+    public GridLength EndDockColumnWidth
+    {
+        get => IsInlineEndDockVisible ? new GridLength(_endPaneWidth, GridUnitType.Pixel) : GridLength.Auto;
+        set
+        {
+            if (!_disposed && value.IsAbsolute)
+                EndPaneWidth = value.Value;
+        }
+    }
+
+    public DesktopEndDockTab ActiveEndDockTab
+    {
+        get => _activeEndDockTab;
+        set
+        {
+            if (_disposed || !Enum.IsDefined(value) || !SetProperty(ref _activeEndDockTab, value)) return;
+            NotifyEndDockChanged();
+        }
+    }
+
+    public bool IsEndDockOpen => !_disposed && IsConfigure && (_isDocumentOpen || _isEndDockInspectorOpen);
+    public bool IsOverlayEndDock =>
+        !IsWideViewport ||
+        (_viewportWidth - (IsSplitPaneOpen ? StartPaneWidth : 0) - EndPaneWidth < CenterCanvasMinWidth);
+    public bool IsInlineEndDockVisible => IsEndDockOpen && !IsOverlayEndDock;
+    public bool IsOverlayEndDockVisible => IsEndDockOpen && IsOverlayEndDock;
+    public bool IsInspectorTabSelected => ActiveEndDockTab == DesktopEndDockTab.Inspector;
+    public bool IsDocumentTabSelected => ActiveEndDockTab == DesktopEndDockTab.Document;
+    public bool IsInspectorTabVisible => IsEndDockOpen && ActiveEndDockTab == DesktopEndDockTab.Inspector;
+    public bool IsDocumentTabVisible => IsEndDockOpen && ActiveEndDockTab == DesktopEndDockTab.Document;
+
+    public void ResizeStartPane(double deltaPx, bool isRightToLeft = false)
+    {
+        double directional = isRightToLeft ? -deltaPx : deltaPx;
+        StartPaneWidth += directional;
+    }
+
+    public void ResetStartPaneWidth() => StartPaneWidth = StartDockDefaultWidth;
+
+    public void ResizeEndPane(double deltaPx, bool isRightToLeft = false)
+    {
+        double directional = isRightToLeft ? deltaPx : -deltaPx;
+        EndPaneWidth += directional;
+    }
+
+    public void ResetEndPaneWidth() => EndPaneWidth = EndDockDefaultWidth;
+
+    internal void SyncInspectorOpen(bool open)
+    {
+        if (_disposed || _isEndDockInspectorOpen == open) return;
+        _isEndDockInspectorOpen = open;
+        if (open)
+            _activeEndDockTab = DesktopEndDockTab.Inspector;
+        else if (_isDocumentOpen)
+            _activeEndDockTab = DesktopEndDockTab.Document;
+        NotifyEndDockChanged();
+    }
+
+    public void SelectInspectorTab()
+    {
+        if (_disposed || _form is null) return;
+        _activeEndDockTab = DesktopEndDockTab.Inspector;
+        NotifyEndDockChanged();
+    }
+
+    public void SelectDocumentTab()
+    {
+        if (_disposed || _form is null) return;
+        _activeEndDockTab = DesktopEndDockTab.Document;
+        if (!_isDocumentOpen)
+            IsDocumentOpen = true;
+        else
+            NotifyEndDockChanged();
+    }
+
+    private void NotifyEndDockChanged()
+    {
+        OnPropertyChanged(nameof(IsWideRailOpen));
+        OnPropertyChanged(nameof(ActiveEndDockTab));
+        OnPropertyChanged(nameof(IsEndDockOpen));
+        OnPropertyChanged(nameof(IsOverlayEndDock));
+        OnPropertyChanged(nameof(IsInlineEndDockVisible));
+        OnPropertyChanged(nameof(IsOverlayEndDockVisible));
+        OnPropertyChanged(nameof(EndDockColumnWidth));
+        OnPropertyChanged(nameof(IsInspectorTabSelected));
+        OnPropertyChanged(nameof(IsDocumentTabSelected));
+        OnPropertyChanged(nameof(IsInspectorTabVisible));
+        OnPropertyChanged(nameof(IsDocumentTabVisible));
+    }
     public bool IsDiscoveryOpen
     {
         get => _isDiscoveryOpen;
@@ -204,17 +357,25 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
             if (value)
             {
                 Stage = DesktopWorkspaceStage.Configure;
+                _activeEndDockTab = DesktopEndDockTab.Document;
                 _isDiscoveryOpen = false;
                 _isCommandPaletteOpen = false;
                 OnPropertyChanged(nameof(IsDiscoveryOpen));
                 OnPropertyChanged(nameof(IsCommandPaletteOpen));
                 OnPropertyChanged(nameof(HasDiscoveryCommands));
             }
+            else if (_isEndDockInspectorOpen)
+            {
+                _activeEndDockTab = DesktopEndDockTab.Inspector;
+            }
             OnPropertyChanged(nameof(IsSectionBySectionMode));
             OnPropertyChanged(nameof(IsAllSectionsMode));
             OnPropertyChanged(nameof(IsBoundedAllSections));
+            NotifyEndDockChanged();
         }
     }
+
+    public bool CanReturnToConfiguration => !_disposed && IsSettings && HasWorkspace;
 
     public bool IsSectionBySectionMode => LayoutMode == ConfigureLayoutMode.SectionBySection;
     public bool IsAllSectionsMode => LayoutMode == ConfigureLayoutMode.AllSections;
@@ -310,6 +471,8 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
     [RelayCommand] private void Configure() => Stage = DesktopWorkspaceStage.Configure;
     [RelayCommand] private void Review() => Stage = DesktopWorkspaceStage.Review;
     [RelayCommand] private void Settings() => Stage = DesktopWorkspaceStage.Settings;
+    [RelayCommand(CanExecute = nameof(CanReturnToConfiguration))]
+    private void ReturnToConfiguration() => Stage = DesktopWorkspaceStage.Configure;
     [RelayCommand] private void ToggleNarrowRail() { if (!IsWideViewport) IsNarrowRailOpen = !IsNarrowRailOpen; }
     [RelayCommand] private void SelectSectionBySectionMode() { IsDocumentOpen = false; LayoutMode = ConfigureLayoutMode.SectionBySection; }
     [RelayCommand] private void SelectAllSectionsMode() { IsDocumentOpen = false; LayoutMode = ConfigureLayoutMode.AllSections; }
@@ -318,7 +481,8 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
     [RelayCommand] private void SetDiscoveryFilter(DefinitionDiscoveryFilter filter) => DiscoveryFilter = filter;
     [RelayCommand] private void ToggleCommandPalette() => IsCommandPaletteOpen = !IsCommandPaletteOpen;
     [RelayCommand] private void CloseCommandPalette() { IsCommandPaletteOpen = false; IsDiscoveryOpen = false; }
-    [RelayCommand] public void OpenDiscovery(bool withCommandPalette = true)
+    [RelayCommand]
+    public void OpenDiscovery(bool withCommandPalette = true)
     {
         if (_disposed || _form is null) return;
         Stage = DesktopWorkspaceStage.Configure;
@@ -533,6 +697,9 @@ public sealed partial class DesktopNavigationViewModel : ObservableObject, IDisp
             OnPropertyChanged(nameof(IsOverlayPane));
             OnPropertyChanged(nameof(SplitPaneOpenLength));
             OnPropertyChanged(nameof(ShowRailToggle));
+            OnPropertyChanged(nameof(CanReturnToConfiguration));
+            ReturnToConfigurationCommand.NotifyCanExecuteChanged();
+            NotifyEndDockChanged();
             RefreshPage();
             RefreshAllSections();
             RefreshErrorSummary();

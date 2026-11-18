@@ -3,6 +3,8 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:vm="using:Configurator.Desktop.ViewModels"
+    xmlns:res="using:Configurator.Desktop.Resources"
+    xmlns:store="using:Configurator.Presentation.Store"
     xmlns:local="using:Configurator.Desktop.Views"
     x:DataType="vm:DesktopShellViewModel"
     x:CompileBindings="True"
@@ -37,28 +39,28 @@
     <Style Selector="StackPanel.compact-navigation">
       <Setter Property="IsVisible" Value="True" />
     </Style>
-    <Style Selector="Border.inspector-pane">
+    <Style Selector="Border.end-dock">
+      <Setter Property="Grid.Column" Value="2" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="MinWidth" Value="300" />
+      <Setter Property="MaxWidth" Value="620" />
+      <Setter Property="Margin" Value="8,0,0,0" />
+      <Setter Property="ZIndex" Value="0" />
+    </Style>
+    <Style Selector="Border.end-dock.overlay-end-dock">
       <Setter Property="Grid.Column" Value="0" />
       <Setter Property="HorizontalAlignment" Value="Right" />
-      <Setter Property="Width" Value="300" />
+      <Setter Property="Width" Value="340" />
       <Setter Property="Margin" Value="0" />
-      <Setter Property="ZIndex" Value="6" />
+      <Setter Property="ZIndex" Value="10" />
     </Style>
     <ContainerQuery Name="Workspace" Query="min-width: 900">
       <Style Selector="StackPanel.compact-navigation">
         <Setter Property="IsVisible" Value="False" />
       </Style>
     </ContainerQuery>
-    <ContainerQuery Name="Workspace" Query="min-width: 1200">
-      <Style Selector="Border.inspector-pane">
-        <Setter Property="Grid.Column" Value="1" />
-        <Setter Property="HorizontalAlignment" Value="Stretch" />
-        <Setter Property="Width" Value="320" />
-        <Setter Property="Margin" Value="16,0,0,0" />
-        <Setter Property="ZIndex" Value="0" />
-      </Style>
-    </ContainerQuery>
   </Window.Styles>
+  <Panel>
   <Grid RowDefinitions="Auto,*" Margin="20" RowSpacing="12">
     <Border Grid.Row="0" BorderBrush="{DynamicResource ConfiguratorBorderBrush}" BorderThickness="0,0,0,1" Padding="0,0,0,8">
       <Grid Classes="header-bar" Container.Name="Header" Container.Sizing="Width" RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -109,16 +111,21 @@
         </WrapPanel>
       </Grid>
     </Border>
-    <Grid Grid.Row="1" Container.Name="Workspace" Container.Sizing="Width" ColumnDefinitions="*,Auto">
+    <Grid Grid.Row="1" Container.Name="Workspace" Container.Sizing="Width">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="{Binding Navigation.EndDockColumnWidth, Mode=TwoWay}" MinWidth="0" />
+      </Grid.ColumnDefinitions>
       <SplitView Name="WorkspaceSplitView" Grid.Column="0"
                  Classes="workspace-split"
                  Classes.overlay-pane="{Binding Navigation.IsOverlayPane}"
                  OpenPaneLength="{Binding Navigation.SplitPaneOpenLength}" CompactPaneLength="0"
                  IsPaneOpen="{Binding Navigation.IsSplitPaneOpen, Mode=OneWay}">
         <SplitView.Pane>
-          <Grid IsVisible="{Binding Navigation.IsSplitPaneOpen}">
+          <Grid IsVisible="{Binding Navigation.IsSplitPaneOpen}" Width="{Binding Navigation.StartPaneWidth}">
             <Panel IsVisible="{Binding Navigation.IsConfigure}">
-              <ListBox Name="SectionRail" Classes="section-rail" Width="300" Margin="0,0,16,0"
+              <ListBox Name="SectionRail" Classes="section-rail" HorizontalAlignment="Stretch" Margin="0,0,4,0"
                        ItemsSource="{Binding Navigation.Sections}" SelectedItem="{Binding Navigation.SelectedSection, Mode=TwoWay}"
                        AutomationProperties.Name="{Binding Workspace.Strings[Section]}"
                        VerticalAlignment="Stretch"
@@ -128,19 +135,14 @@
                   <DataTemplate x:DataType="vm:DesktopSectionViewModel">
                     <StackPanel Spacing="4" Margin="8,6">
                       <TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold" />
-                      <WrapPanel Orientation="Horizontal" ItemSpacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding StatusSummary}" TextWrapping="Wrap" Opacity="0.88" VerticalAlignment="Center" />
-                        <Button Content="{Binding ReviewActionLabel}" Command="{Binding ToggleReviewedCommand}"
-                                Classes.active-stage="{Binding IsReviewed}"
-                                Padding="6,2" MinHeight="26" Margin="0" />
-                      </WrapPanel>
+                      <TextBlock Text="{Binding StatusSummary}" TextWrapping="Wrap" Opacity="0.88" />
                     </StackPanel>
                   </DataTemplate>
                 </ListBox.ItemTemplate>
               </ListBox>
             </Panel>
             <Panel IsVisible="{Binding Navigation.IsSettings}">
-              <ListBox Name="SettingsSectionRail" Classes="section-rail" Width="300" Margin="0,0,16,0"
+              <ListBox Name="SettingsSectionRail" Classes="section-rail" HorizontalAlignment="Stretch" Margin="0,0,4,0"
                        ItemsSource="{Binding Navigation.SettingsSections}"
                        SelectedItem="{Binding Navigation.SelectedSettingsSection, Mode=TwoWay}"
                        AutomationProperties.Name="{Binding Workspace.Strings[Settings]}"
@@ -157,7 +159,14 @@
           </Grid>
         </SplitView.Pane>
         <SplitView.Content>
-          <Grid RowDefinitions="Auto,*">
+          <Grid ColumnDefinitions="Auto,*">
+            <Thumb Name="StartDockSplitter" Grid.Column="0" Classes="dock-splitter" Focusable="True"
+                   Margin="0,0,8,0"
+                   IsVisible="{Binding Navigation.IsWideRailOpen}"
+                   DragDelta="OnStartDockDragDelta" KeyDown="OnStartDockKeyDown" DoubleTapped="OnStartDockDoubleTapped"
+                   AutomationProperties.Name="{Binding Workspace.Strings[DockResizeStartLabel]}"
+                   ToolTip.Tip="{Binding Workspace.Strings[DockResizeStartLabel]}" />
+            <Grid Grid.Column="1" RowDefinitions="Auto,*">
             <Border Grid.Row="0" IsVisible="{Binding Navigation.IsConfigure}" Padding="0,0,0,6" Margin="0,0,0,6"
                     BorderBrush="{DynamicResource ConfiguratorOutlineVariantBrush}" BorderThickness="0,0,0,1" MaxWidth="1040" HorizontalAlignment="Stretch">
               <WrapPanel ItemSpacing="6" VerticalAlignment="Center">
@@ -230,18 +239,18 @@
                       </ListBox.ItemsPanel>
                     </ListBox>
                   </Border>
-                  <TextBlock Grid.Row="2" Text="{Binding Status}" Margin="0,4,0,0"
+                  <TextBlock Grid.Row="2" Name="BoundedStatus" Text="{Binding StatusDisplay}" Margin="0,4,0,0"
                              Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap"
-                             IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                             IsVisible="{Binding StatusDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 </Grid>
 
                 <ScrollViewer Grid.Row="1" Name="WorkspaceScroll" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0"
                               IsVisible="{Binding !Navigation.IsBoundedAllSections}">
                   <StackPanel Spacing="14">
-                    <local:DefinitionLoaderView IsVisible="{Binding Navigation.IsOpen}" MaxWidth="800" HorizontalAlignment="Stretch" />
+                    <local:DefinitionLoaderView IsVisible="{Binding Navigation.IsOpen}" MaxWidth="920" HorizontalAlignment="Stretch" />
                     <local:ConfigurationWorkspaceView IsVisible="{Binding Navigation.IsConfigure}" MaxWidth="800" HorizontalAlignment="Stretch" />
                     <local:ArtifactPublicationView IsVisible="{Binding Navigation.IsReview}" MaxWidth="800" HorizontalAlignment="Stretch" />
-                    <local:SettingsWorkspaceView IsVisible="{Binding Navigation.IsSettings}" MaxWidth="800" HorizontalAlignment="Stretch" />
+                    <local:SettingsWorkspaceView IsVisible="{Binding Navigation.IsSettings}" MaxWidth="860" HorizontalAlignment="Stretch" />
                     <local:WorkspaceActionBar IsVisible="{Binding !Navigation.IsSettings}" MaxWidth="800" HorizontalAlignment="Stretch" />
                   </StackPanel>
                 </ScrollViewer>
@@ -256,30 +265,123 @@
                   <local:ConfigurationDiscoveryView />
                 </ScrollViewer>
               </Border>
-
-              <!-- Ctrl+Shift+E Document Drawer Overlay -->
-              <Border Name="DocumentDrawerOverlay" Classes="overlay-drawer"
-                      IsVisible="{Binding Navigation.IsDocumentOpen}"
-                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                      MaxWidth="1040" Margin="8" ZIndex="10">
-                <Grid RowDefinitions="Auto,*" RowSpacing="8">
-                  <DockPanel Grid.Row="0">
-                    <Button DockPanel.Dock="Right" Name="DocumentCloseButton"
-                            Content="{Binding Workspace.Strings[DocumentDrawerCloseLabel]}"
-                            Command="{Binding Navigation.CloseDocumentDrawerCommand}" Margin="0" />
-                    <TextBlock Text="{Binding Workspace.Strings[ConfigureModeDocument]}"
-                               FontSize="{DynamicResource ConfiguratorHeadingFontSize}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                  </DockPanel>
-                  <local:DocumentEditorView Grid.Row="1" DataContext="{Binding DocumentEditor}" />
-                </Grid>
-              </Border>
             </Panel>
+            </Grid>
           </Grid>
         </SplitView.Content>
       </SplitView>
-      <Border Name="InspectorPane" Classes="inspector-pane" IsVisible="{Binding Inspector.IsOpen}">
-        <local:DesktopInspectorView DataContext="{Binding Inspector}" />
+      <GridSplitter Name="EndDockSplitter" Grid.Column="1" Classes="dock-splitter"
+                    ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Focusable="True"
+                    IsVisible="{Binding Navigation.IsInlineEndDockVisible}"
+                    KeyDown="OnEndDockKeyDown" DoubleTapped="OnEndDockDoubleTapped"
+                    AutomationProperties.Name="{Binding Workspace.Strings[DockResizeEndLabel]}"
+                    ToolTip.Tip="{Binding Workspace.Strings[DockResizeEndLabel]}" />
+      <Border Name="EndDockPane" Classes="end-dock"
+              Classes.overlay-end-dock="{Binding Navigation.IsOverlayEndDock}"
+              IsVisible="{Binding Navigation.IsEndDockOpen}">
+        <Grid RowDefinitions="Auto,*" RowSpacing="8">
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="6">
+            <WrapPanel Grid.Column="0" ItemSpacing="6" VerticalAlignment="Center">
+              <Button Name="InspectorDockTab"
+                      Classes.active-stage="{Binding Navigation.IsInspectorTabSelected}"
+                      Content="{Binding Workspace.Strings[EndDockInspectorTab]}"
+                      Command="{Binding SelectInspectorTabCommand}" Margin="0" />
+              <Button Name="DocumentDockTab"
+                      Classes.active-stage="{Binding Navigation.IsDocumentTabSelected}"
+                      Content="{Binding Workspace.Strings[EndDockDocumentTab]}"
+                      Command="{Binding SelectDocumentTabCommand}" Margin="0" />
+            </WrapPanel>
+            <Button Grid.Column="1" Name="CloseEndDockButton"
+                    Content="✕" MinWidth="32" Padding="8,2" Margin="0"
+                    Command="{Binding CloseEndDockCommand}"
+                    AutomationProperties.Name="{Binding Workspace.Strings[EndDockCloseLabel]}" />
+          </Grid>
+          <Border Grid.Row="1" Name="InspectorPane"
+                  IsVisible="{Binding Navigation.IsInspectorTabVisible}">
+            <local:DesktopInspectorView DataContext="{Binding Inspector}" />
+          </Border>
+          <Border Grid.Row="1" Name="DocumentDockPanel"
+                  IsVisible="{Binding Navigation.IsDocumentTabVisible}">
+            <local:DocumentEditorView DataContext="{Binding DocumentEditor}" />
+          </Border>
+        </Grid>
       </Border>
     </Grid>
   </Grid>
+  <Border Background="#80000000" IsVisible="{Binding Loader.HasStoreDetails}" ZIndex="20">
+    <Border Name="StoreProjectDetailsDialog" Classes="overlay-drawer"
+            HorizontalAlignment="Center" VerticalAlignment="Center"
+            Width="640" MaxHeight="620" Margin="24">
+      <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+        <Grid Grid.Row="0" ColumnDefinitions="76,*,Auto" ColumnSpacing="12">
+          <Border Grid.Column="0" Classes="store-logo-tile">
+            <Panel>
+              <Image Width="74" Height="74" Stretch="Uniform"
+                     IsVisible="{Binding Loader.SelectedStoreDetails.HasIcon, FallbackValue=False}"
+                     Source="{Binding Loader.SelectedStoreDetails.IconBytes, Converter={x:Static res:StoreIconBitmapConverter.Instance}, FallbackValue={x:Null}}" />
+              <TextBlock Text="{Binding Loader.SelectedStoreDetails.Monogram, FallbackValue=''}"
+                         IsVisible="{Binding !Loader.SelectedStoreDetails.HasIcon, FallbackValue=False}"
+                         FontSize="22" FontWeight="SemiBold"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Panel>
+          </Border>
+          <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Workspace.Strings[StoreDetailsTitle]}"
+                       Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" FontSize="12" />
+            <TextBlock Text="{Binding Loader.SelectedStoreDetails.Name, FallbackValue=''}"
+                       FontSize="{DynamicResource ConfiguratorHeadingFontSize}" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Loader.SelectedStoreDetails.ApplicationId, FallbackValue=''}"
+                       Classes="code-font" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+          </StackPanel>
+          <Button Grid.Column="2" Name="CloseStoreDetailsButton"
+                  Content="{Binding Workspace.Strings[StoreDetailsCloseLabel]}"
+                  Command="{Binding Loader.CloseStoreDetailsCommand}" VerticalAlignment="Top" Margin="0" />
+        </Grid>
+        <ScrollViewer Grid.Row="1">
+          <StackPanel Spacing="10">
+            <TextBlock Text="{Binding Loader.SelectedStoreDetails.Description, FallbackValue=''}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Loader.SelectedStoreDetails.TagsDisplay, FallbackValue=''}"
+                       IsVisible="{Binding Loader.SelectedStoreDetails.HasTags, FallbackValue=False}"
+                       Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
+            <Border Classes="m3-card" IsVisible="{Binding Loader.SelectedStoreDetails.HasIcon, FallbackValue=False}">
+              <StackPanel Spacing="4">
+                <TextBlock Text="{Binding Workspace.Strings[StoreDetailsLicenseLabel]}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Loader.SelectedStoreDetails.IconLicense, FallbackValue=''}" Classes="code-font" />
+                <TextBlock Text="{Binding Workspace.Strings[StoreDetailsAttributionLabel]}" FontWeight="SemiBold" Margin="0,4,0,0" />
+                <TextBlock Text="{Binding Loader.SelectedStoreDetails.IconAttribution, FallbackValue=''}"
+                           Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+            <TextBlock Text="{Binding Workspace.Strings[StoreDetailsRevisionsHeading]}" FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding Loader.SelectedStoreDetails.Project.Revisions}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="store:DefinitionStoreRevision">
+                  <Border Classes="m3-card" Margin="0,0,0,6">
+                    <StackPanel Spacing="2">
+                      <WrapPanel ItemSpacing="8">
+                        <TextBlock Text="{Binding Revision, StringFormat='Revision {0}'}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding Publisher}" Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" />
+                      </WrapPanel>
+                      <TextBlock Text="{Binding Digest}" Classes="code-font"
+                                 Foreground="{DynamicResource ConfiguratorSecondaryTextBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </ScrollViewer>
+        <WrapPanel Grid.Row="2" HorizontalAlignment="Right" ItemSpacing="8">
+          <Button Content="{Binding Workspace.Strings[InspectProjectLabel]}"
+                  Command="{Binding Loader.InspectStoreProjectCommand}"
+                  CommandParameter="{Binding Loader.SelectedStoreDetails}" Margin="0" />
+          <Button Classes="active-stage"
+                  Content="{Binding Workspace.Strings[ConfigureProject]}"
+                  Command="{Binding Loader.ConfigureStoreProjectCommand}"
+                  CommandParameter="{Binding Loader.SelectedStoreDetails}" Margin="0" />
+        </WrapPanel>
+      </Grid>
+    </Border>
+  </Border>
+  </Panel>
 </Window>

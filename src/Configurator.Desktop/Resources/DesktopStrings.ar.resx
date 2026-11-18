@@ -164,7 +164,7 @@
   <data name="LatestRevisionLabel" xml:space="preserve"><value>أحدث مراجعة:</value></data>
   <data name="ApplicationIdLabel" xml:space="preserve"><value>التطبيق:</value></data>
   <data name="Experience" xml:space="preserve"><value>تجربة التهيئة</value></data>
-  <data name="OptionalEditors" xml:space="preserve"><value>إظهار المحررات _الاختيارية</value></data>
+  <data name="OptionalEditors" xml:space="preserve"><value>إظهار المحررات الاختيارية</value></data>
   <data name="RightToLeft" xml:space="preserve"><value>اتجاه من _اليمين إلى اليسار</value></data>
   <data name="Artifact" xml:space="preserve"><value>المخرج المعلن</value></data>
   <data name="FileName" xml:space="preserve"><value>اسم الملف الجديد</value></data>
@@ -321,6 +321,7 @@ Escape: إغلاق النافذة المنبثقة أو إلغاء العملي�
   <data name="DeprecatedBadge" xml:space="preserve"><value>مهمل</value></data>
   <data name="ControllerBadge" xml:space="preserve"><value>يتحكم بإعدادات أخرى</value></data>
   <data name="CopyWireKeyLabel" xml:space="preserve"><value>نسخ المفتاح</value></data>
+  <data name="WireKeyCopiedStatus" xml:space="preserve"><value>تم نسخ المفتاح التقني إلى الحافظة.</value></data>
   <data name="OmitSwitchLabel" xml:space="preserve"><value>تخطي</value></data>
   <data name="SwitchOmittedStatus" xml:space="preserve"><value>غير مزود (متخطى)</value></data>
   <data name="UniqueDuplicateWarning" xml:space="preserve"><value>يوجد مفتاح مكرر؛ يجب أن تكون العناصر فريدة.</value></data>
@@ -398,4 +399,62 @@ Escape: إغلاق النافذة المنبثقة أو إلغاء العملي�
   <data name="SecretPreviewLabel" xml:space="preserve"><value>المعاينة المولّدة</value></data>
   <data name="SecretApplyGenerated" xml:space="preserve"><value>تطبيق السر</value></data>
   <data name="SecretDialogCancelLabel" xml:space="preserve"><value>إلغاء</value></data>
+  <data name="ReturnToConfigurationLabel" xml:space="preserve"><value>← العودة إلى الإعداد</value></data>
+  <data name="AppearanceLightHighContrast" xml:space="preserve"><value>تباين عالٍ فاتح</value></data>
+  <data name="AppearanceDarkHighContrast" xml:space="preserve"><value>تباين عالٍ داكن</value></data>
+  <data name="ThemePresetLabel" xml:space="preserve"><value>نمط السمة</value></data>
+  <data name="ThemePresetCustomName" xml:space="preserve"><value>لوحة مخصصة</value></data>
+  <data name="ThemeCustomNaturalLabel" xml:space="preserve"><value>اللون الأساسي (السطوح والخلفيات)</value></data>
+  <data name="ThemeCustomBrandLabel" xml:space="preserve"><value>لون العلامة (التمييز والتركيز)</value></data>
+  <data name="ThemeHueLabel" xml:space="preserve"><value>درجة اللون</value></data>
+  <data name="ThemeSaturationLabel" xml:space="preserve"><value>التشبع</value></data>
+  <data name="ThemeLightnessLabel" xml:space="preserve"><value>السطوع</value></data>
+  <data name="ThemeHexLabel" xml:space="preserve"><value>الرمز الست عشري</value></data>
+  <data name="ThemeResetCustomLabel" xml:space="preserve"><value>إعادة ضبط الألوان المخصصة</value></data>
+  <data name="ThemePreviewLabel" xml:space="preserve"><value>معاينة السمة مباشرة</value></data>
+  <data name="ThemePreviewSurfaceSample" xml:space="preserve"><value>معاينة تباين النص والسطح</value></data>
+  <data name="ThemePreviewAccentSample" xml:space="preserve"><value>تمييز محدد</value></data>
+  <data name="DockResizeStartLabel" xml:space="preserve"><value>تغيير عرض شريط التنقل</value></data>
+  <data name="DockResizeEndLabel" xml:space="preserve"><value>تغيير عرض اللوحة الجانبية</value></data>
+  <data name="EndDockInspectorTab" xml:space="preserve"><value>المفتش (F2)</value></data>
+  <data name="EndDockDocumentTab" xml:space="preserve"><value>المستند (JSON)</value></data>
+  <data name="EndDockCloseLabel" xml:space="preserve"><value>إغلاق اللوحة الجانبية</value></data>
+  <data name="StoreProjectDetailsButtonLabel" xml:space="preserve"><value>تفاصيل المشروع</value></data>
+  <data name="StoreDetailsTitle" xml:space="preserve"><value>بيانات المشروع ورخصة الأيقونة</value></data>
+  <data name="StoreDetailsCloseLabel" xml:space="preserve"><value>إغلاق التفاصيل</value></data>
+  <data name="StoreDetailsRevisionsHeading" xml:space="preserve"><value>الإصدارات المنشورة</value></data>
+  <data name="StoreDetailsLicenseLabel" xml:space="preserve"><value>رخصة الأيقونة</value></data>
+  <data name="StoreDetailsAttributionLabel" xml:space="preserve"><value>النسبة والمصدر</value></data>
+  <data name="StoreCuratedSourceBadge" xml:space="preserve"><value>حزمة منسقة</value></data>
+  <data name="StatusCodeDefinitionRequired" xml:space="preserve"><value>لم يُحمّل تعريف بعد.</value></data>
+  <data name="StatusCodeDefinitionLoaded" xml:space="preserve"><value>تم تحميل التعريف وتفعيله في مساحة العمل.</value></data>
+  <data name="StatusCodeDefinitionInvalid" xml:space="preserve"><value>فشل التحقق البنيوي للتعريف المحدد.</value></data>
+  <data name="StatusCodeDefinitionUnreadable" xml:space="preserve"><value>تعذرت قراءة ملف التعريف المحدد.</value></data>
+  <data name="StatusCodePathEmpty" xml:space="preserve"><value>أدخل مسار تعريف محلياً قبل التحميل.</value></data>
+  <data name="StatusCodeLoadCancelled" xml:space="preserve"><value>تم إلغاء تحميل التعريف.</value></data>
+  <data name="StatusCodeInputsChanged" xml:space="preserve"><value>تم تعديل المدخلات — تحقّق وجهّز المخرجات قبل الحفظ.</value></data>
+  <data name="StatusCodeOperationCancelled" xml:space="preserve"><value>تم إلغاء العملية الحالية والتراجع عن التجهيز السابق.</value></data>
+  <data name="StatusCodeValidationReady" xml:space="preserve"><value>اجتازت جميع فحوصات التحقق النشطة بنجاح.</value></data>
+  <data name="StatusCodeValidationInvalid" xml:space="preserve"><value>أظهر التحقق مشكلات يلزم إصلاحها قبل التجهيز.</value></data>
+  <data name="StatusCodePreparationReady" xml:space="preserve"><value>المخرج مجهّز وجاهز للحفظ المحمي.</value></data>
+  <data name="StatusCodePreparationIncomplete" xml:space="preserve"><value>تم تجهيز المسودة مع بقاء أسرار مؤجلة.</value></data>
+  <data name="StatusCodePreparationInvalid" xml:space="preserve"><value>تعذر التجهيز؛ أصلح المشكلات الظاهرة أولاً.</value></data>
+  <data name="StatusCodePreparationFault" xml:space="preserve"><value>توقف التجهيز بسبب خطأ داخلي.</value></data>
+  <data name="StatusCodeSaveComplete" xml:space="preserve"><value>تم إنشاء ملف المخرج المحمي بنجاح.</value></data>
+  <data name="StatusCodeSaveFailed" xml:space="preserve"><value>لم يكتمل الحفظ المحمي بنجاح.</value></data>
+  <data name="StatusCodeBundleSaveComplete" xml:space="preserve"><value>تم إنشاء حزمة المخرجات المحمية بنجاح.</value></data>
+  <data name="StatusCodeBundleSavePartial" xml:space="preserve"><value>انتهى حفظ الحزمة بنتائج جزئية عبر الوجهات.</value></data>
+  <data name="StatusCodeBundleSaveBlocked" xml:space="preserve"><value>حفظ الحزمة المحمي غير متاح لهذا الجهاز أو المسار.</value></data>
+  <data name="StatusCodeBundleInvalid" xml:space="preserve"><value>أخفق التحقق لواحد أو أكثر من مخرجات الحزمة.</value></data>
+  <data name="StatusCodeImportReady" xml:space="preserve"><value>تم تطبيق القيم المستوردة على مساحة العمل.</value></data>
+  <data name="StatusCodeImportComparisonReady" xml:space="preserve"><value>أصبحت مقارنة الملف المستورد جاهزة للمراجعة.</value></data>
+  <data name="StatusCodeImportFailed" xml:space="preserve"><value>تعذر تطبيق الاستيراد بأمان.</value></data>
+  <data name="StatusCodeDocumentPreviewReady" xml:space="preserve"><value>أصبحت معاينة فروقات المستند جاهزة للفحص.</value></data>
+  <data name="StatusCodeDocumentApplied" xml:space="preserve"><value>تم تطبيق تغييرات المستند على مساحة العمل.</value></data>
+  <data name="StatusCodeDocumentStale" xml:space="preserve"><value>أصبحت معاينة المستند قديمة بعد تعديلات مساحة العمل.</value></data>
+  <data name="StatusCodeDocumentError" xml:space="preserve"><value>يحتوي المستند على صياغة أو قيم غير صالحة.</value></data>
+  <data name="StatusCodeSelectionUnavailable" xml:space="preserve"><value>منتقي الملفات غير متاح على هذا النظام.</value></data>
+  <data name="StatusCodeSelectionNonlocal" xml:space="preserve"><value>لا يُسمح إلا باختيار الملفات المحلية على هذا الجهاز.</value></data>
+  <data name="StatusCodeRemoteError" xml:space="preserve"><value>لم يكتمل جلب المخطط عبر HTTPS.</value></data>
+  <data name="StatusCodeStoreOpenFailed" xml:space="preserve"><value>تعذر فتح تعريف المتجر المدمج.</value></data>
 </root>

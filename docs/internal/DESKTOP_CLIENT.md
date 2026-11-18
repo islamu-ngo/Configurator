@@ -93,37 +93,52 @@ localized titles, progress and borrowed editor references update in place,
 preserving native selector selection instead of replacing item sources on
 keystrokes. In `MainWindow`, `WorkspaceSplitView` (`SplitView` switching between
 `Inline` `>= 900` logical units and `Overlay` `< 900` logical units) hosts the
-`300`-unit `SectionRail` (with explicit per-section `SetSectionReviewed` /
-`ToggleReviewedCommand` buttons) and `SettingsSectionRail`, while `Grid` row `*`
-separates the virtualized `AllSectionsFieldsList` (`VirtualizingStackPanel` over
-shared `FieldViewModel` instances) from `WorkspaceScroll` (`<= 800` logical
-units for Section-by-section cards, `DefinitionLoaderView`,
-`ArtifactPublicationView`, `SettingsWorkspaceView`, and `WorkspaceActionBar`)
-without nesting virtualization inside infinite `ScrollViewer` bounds. Inline
-`ConfigurationDiscoveryView` moves behind `DiscoveryOverlay` (`Ctrl+K`) and
-pre-field controls condense onto a compact setup strip so Field #1 renders above
-the fold at `960×800`; inline `ErrorSummaryBanner` (`ErrorSummaryItems`), `F7`,
-`F8`, and `F9` route focus through `ResolveNextActionableTarget` without
-ejecting `ConfigureLayoutMode`. Field headers in `FieldTemplates.axaml` use a
-3 px `inline-start` semantic border (`Border.field-row` reacting to Light, Dark,
+resizable Start dock (`StartDockMinWidth = 240` to `StartDockMaxWidth = 460`,
+default `StartDockDefaultWidth = 310` with keyboard/drag `StartDockSplitter` `Thumb`,
+hosting 2-line concise `SectionRail` items without repeated per-item review buttons and
+`SettingsSectionRail`) alongside a resizable Tabbed End dock (`EndDockMinWidth = 300`
+to `EndDockMaxWidth = 620`, default `EndDockDefaultWidth = 360` with native `<GridSplitter>`
+`EndDockSplitter` and `Inspector (F2)` | `Document (JSON)` tabs, degrading automatically to
+an overlay drawer when viewport `< 900` or remaining center canvas would fall below
+`CenterCanvasMinWidth = 420`). `Grid` row `*` separates the virtualized `AllSectionsFieldsList`
+(`VirtualizingStackPanel` over shared `FieldViewModel` instances) from `WorkspaceScroll`
+(`<= 800` logical units for Section-by-section cards, `<= 860` for `SettingsWorkspaceView`,
+`<= 920` for 2-column compact landscape `DefinitionLoaderView` Store cards with
+`StoreIconBitmapConverter` PNG logos + `StoreProjectDetailsDialog` `ⓘ` modal,
+`ArtifactPublicationView`, and `WorkspaceActionBar`) without nesting virtualization inside
+infinite `ScrollViewer` bounds. Inline `ConfigurationDiscoveryView` moves behind
+`DiscoveryOverlay` (`Ctrl+K`) and pre-field controls condense onto a compact setup strip
+so Field #1 renders above the fold at `960×800`; inline `ErrorSummaryBanner`
+(`ErrorSummaryItems`), `F7`, `F8`, and `F9` route focus through `ResolveNextActionableTarget`
+without ejecting `ConfigureLayoutMode`. Field headers in `FieldTemplates.axaml` use a
+3 px `inline-start` semantic border (`Border.field-row` reacting to Light, Dark, LightHC,
 and HighContrast `ThemePalettes.axaml` brushes), minority `Required` pills (and
-`SectionAllFieldsRequired` header notices when multi-field sections are 100%
-required), and a condensed secondary metadata line. A compact fixed header keeps stage navigation
-(`Open`, `Configure`, `Review outputs`, `Settings`) alongside direct session
-selectors (`Appearance`, `DefinitionLocale`, `DirectionMode` backed by
-`FormWorkspaceViewModel.DirectionModeIndex`) without a display-settings expander;
-`WorkspaceScroll` scrolls the active body independently of the left sidebar's
-own vertical scrollbar. `DesktopSettingsSection` exposes four localized
-settings categories (Appearance with `DesktopTheme.IsHighContrast`, Language &
-layout, Keyboard & dialogs, and Privacy & host output). Native inputs/actions
-retain minimum rather than fixed heights.
+`SectionAllFieldsRequired` header notices when multi-field sections are 100% required), a
+single section-header `SectionReviewButton`, and a condensed secondary metadata line.
+`DesktopShellViewModel.StatusDisplay` maps machine codes (`inputs-changed`,
+`import-ready`, etc.) strictly to localized UI strings, `WireKeyCopiedStatus` is
+localized in EN/AR, and `OptionalEditors` drops unparsed `_` mnemonics from
+`<TextBlock>` rendering. A compact fixed header keeps stage navigation (`Open`,
+`Configure`, `Review outputs`, `Settings`) alongside direct session selectors
+(`Appearance`, `DefinitionLocale`, `DirectionMode` backed by
+`FormWorkspaceViewModel.DirectionModeIndex`), while `SettingsWorkspaceView` renders a
+top-left `ReturnToConfigurationButton` (`CanReturnToConfiguration`, `ReturnToConfigurationCommand`)
+when a workspace is loaded without discarding answers or secrets. `WorkspaceScroll` scrolls
+the active body independently of the left sidebar's own vertical scrollbar.
+`DesktopSettingsSection` exposes four localized settings categories (Appearance with
+5 modes, 8 Event presets, Custom `Natural + Brand` HSL builder with live preview, and
+`DesktopTheme.IsHighContrast`, Language & layout, Keyboard & dialogs, and Privacy & host
+output). Native inputs/actions retain minimum rather than fixed heights.
 
-`DesktopTheme` remains the native contrast subscription owner. Session-only
-System/Light/Dark preferences select default, Latte and Macchiato resources;
-native high contrast overrides them until disabled. Static startup Fluent
-palettes and dynamic resource consumers avoid rebuilding the workspace when
-appearance changes. These adapter contracts do not establish actual-host
-accessibility or package qualification.
+`DesktopTheme` owns the native contrast subscription (`HighContrast` dark and
+`LightHighContrast` variants) and applies all 8 `ThemePresetCatalog` presets and Custom
+`ThemePaletteGenerator` palettes across `ThemePalettes.axaml` resource dictionaries using
+WCAG-clamped `SolidColorBrush` color updates (`>= 4.55:1` text / `>= 3.05:1` boundaries,
+`>= 7.0:1` high contrast) without rebuilding the workspace. Header `Appearance` retains 3
+quick session modes (`System`, `Light`, `Dark`) while `SettingsAppearanceModeSelector`
+supports all 5 modes (`System`, `Light`, `Dark`, `LightHighContrast`, `DarkHighContrast`);
+native high contrast overrides non-explicit modes until disabled. These adapter contracts
+do not establish actual-host accessibility or package qualification.
 
 ## Output guidance and transfer ownership
 

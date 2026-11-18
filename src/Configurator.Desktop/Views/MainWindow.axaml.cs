@@ -38,7 +38,7 @@ public sealed partial class MainWindow : Window
         {
             double width = Bounds.Width > 0 ? Bounds.Width : Width;
             if (!double.IsNaN(width) && width > 0)
-                shell.Navigation.IsWideViewport = width >= 900;
+                shell.Navigation.UpdateViewportWidth(width);
         }
     }
 
@@ -51,7 +51,68 @@ public sealed partial class MainWindow : Window
         _attachedShell.Navigation.AllSectionsScrollRequested += OnAllSectionsScrollRequested;
         double width = Bounds.Width > 0 ? Bounds.Width : Width;
         if (!double.IsNaN(width) && width > 0)
-            _attachedShell.Navigation.IsWideViewport = width >= 900;
+            _attachedShell.Navigation.UpdateViewportWidth(width);
+    }
+
+    private void OnStartDockDragDelta(object? sender, VectorEventArgs args)
+    {
+        if (DataContext is not DesktopShellViewModel shell) return;
+        bool isRtl = FlowDirection == Avalonia.Media.FlowDirection.RightToLeft;
+        shell.Navigation.ResizeStartPane(args.Vector.X, isRtl);
+    }
+
+    private void OnStartDockKeyDown(object? sender, KeyEventArgs args)
+    {
+        if (DataContext is not DesktopShellViewModel shell) return;
+        bool isRtl = FlowDirection == Avalonia.Media.FlowDirection.RightToLeft;
+        if (args.Key == Key.Left)
+        {
+            shell.Navigation.ResizeStartPane(-16, isRtl);
+            args.Handled = true;
+        }
+        else if (args.Key == Key.Right)
+        {
+            shell.Navigation.ResizeStartPane(16, isRtl);
+            args.Handled = true;
+        }
+        else if (args.Key == Key.Home)
+        {
+            shell.Navigation.ResetStartPaneWidth();
+            args.Handled = true;
+        }
+    }
+
+    private void OnStartDockDoubleTapped(object? sender, TappedEventArgs args)
+    {
+        if (DataContext is DesktopShellViewModel shell)
+            shell.Navigation.ResetStartPaneWidth();
+    }
+
+    private void OnEndDockKeyDown(object? sender, KeyEventArgs args)
+    {
+        if (DataContext is not DesktopShellViewModel shell) return;
+        bool isRtl = FlowDirection == Avalonia.Media.FlowDirection.RightToLeft;
+        if (args.Key == Key.Left)
+        {
+            shell.Navigation.ResizeEndPane(-16, isRtl);
+            args.Handled = true;
+        }
+        else if (args.Key == Key.Right)
+        {
+            shell.Navigation.ResizeEndPane(16, isRtl);
+            args.Handled = true;
+        }
+        else if (args.Key == Key.Home)
+        {
+            shell.Navigation.ResetEndPaneWidth();
+            args.Handled = true;
+        }
+    }
+
+    private void OnEndDockDoubleTapped(object? sender, TappedEventArgs args)
+    {
+        if (DataContext is DesktopShellViewModel shell)
+            shell.Navigation.ResetEndPaneWidth();
     }
 
     private void OnAllSectionsScrollRequested(FieldViewModel field) =>
@@ -116,6 +177,10 @@ public sealed partial class MainWindow : Window
             {
                 while (popup.OpenedPopups.Count > 0) popup = popup.OpenedPopups[^1];
                 popup.Close();
+            }
+            else if (shell.Loader.HasStoreDetails)
+            {
+                shell.Loader.CloseStoreDetailsCommand.Execute(null);
             }
             else if (shell.Navigation.IsDiscoveryOpen)
             {

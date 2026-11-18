@@ -1,9 +1,9 @@
 namespace Configurator.Desktop.Tests;
 
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Automation;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -239,6 +239,108 @@ public sealed class DesktopKeyboardAccessibilityTests
             await Assert.That(result.fieldRowCount).IsGreaterThan(0);
             await Assert.That(result.hasStartStripes).IsTrue();
             await Assert.That(result.anyOptionalNoise).IsFalse();
+        }
+        finally { await Task.Run(session.Dispose); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task DockResizeHandlesSupportKeyboardClampingAndRtlInversionWithoutRawUiTokens()
+    {
+        var session = HeadlessUnitTestSession.StartNew(typeof(DesktopKeyboardAccessibilityTests));
+        try
+        {
+            var result = await session.Dispatch(() =>
+            {
+                using var shell = DesktopTestContext.Root();
+                shell.Loader.LoadDefinition(DesktopApplicationTests.DefinitionWithExperiences());
+                var window = new MainWindow { DataContext = shell, Width = 1400, Height = 820 };
+                try
+                {
+                    window.Show();
+                    window.UpdateLayout();
+                    Dispatcher.UIThread.RunJobs();
+
+                    var startHandle = window.FindNamedControl<Thumb>("StartDockSplitter");
+                    var endDock = window.FindNamedControl<Control>("EndDockPane");
+                    var endSplitter = window.FindNamedControl<Control>("EndDockSplitter");
+                    var sectionRail = window.GetNamedControl<ListBox>("SectionRail");
+
+                    double startInitialWidth = sectionRail.Bounds.Width;
+                    bool hasHandles = startHandle is { Focusable: true } && endSplitter is { Focusable: true };
+
+                    if (startHandle is not null)
+                    {
+                        startHandle.Focus();
+                        for (int step = 0; step < 12; step++)
+                        {
+                            startHandle.RaiseEvent(new KeyEventArgs
+                            {
+                                RoutedEvent = InputElement.KeyDownEvent,
+                                Key = Key.Right,
+                                Source = startHandle
+                            });
+                        }
+                        Dispatcher.UIThread.RunJobs();
+                        window.UpdateLayout();
+                    }
+
+                    double startExpandedWidth = sectionRail.Bounds.Width;
+
+                    shell.Workspace.SelectedLocale = "ar";
+                    shell.Navigation.SelectDocumentModeCommand.Execute(null);
+                    Dispatcher.UIThread.RunJobs();
+                    window.UpdateLayout();
+
+                    double rtlStartBefore = sectionRail.Bounds.Width;
+                    if (startHandle is not null)
+                    {
+                        startHandle.Focus();
+                        // In RTL, Left grows the Start dock inward toward the reading canvas.
+                        startHandle.RaiseEvent(new KeyEventArgs
+                        {
+                            RoutedEvent = InputElement.KeyDownEvent,
+                            Key = Key.Left,
+                            Source = startHandle
+                        });
+                        Dispatcher.UIThread.RunJobs();
+                        window.UpdateLayout();
+                    }
+
+                    double rtlStartAfterLeft = sectionRail.Bounds.Width;
+
+                    string[] visibleTexts = window.GetVisualDescendants().OfType<TextBlock>()
+                        .Where(tb => tb.IsEffectivelyVisible &&
+                            tb is not Avalonia.Controls.Primitives.AccessText &&
+                            !tb.Classes.Contains("code-font") &&
+                            !string.IsNullOrEmpty(tb.Text))
+                        .Select(tb => tb.Text!)
+                        .ToArray();
+                    bool hasRawTokenLeak = visibleTexts.Any(text =>
+                        (text.StartsWith('_') || text.Contains(" _", StringComparison.Ordinal)) ||
+                        string.Equals(text, "WireKeyCopiedStatus", StringComparison.Ordinal) ||
+                        string.Equals(text, "inputs-changed", StringComparison.Ordinal));
+
+                    return (
+                        hasHandles,
+                        startInitialWidth,
+                        startExpandedWidth,
+                        rtlStartBefore,
+                        rtlStartAfterLeft,
+                        endDockVisible: endDock?.IsEffectivelyVisible == true,
+                        hasRawTokenLeak);
+                }
+                finally { window.Close(); }
+            }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(30));
+
+            await Assert.That(result.hasHandles).IsTrue();
+            await Assert.That(result.startInitialWidth).IsBetween(240d, 460d);
+            await Assert.That(result.startExpandedWidth).IsBetween(240d, 460d);
+            await Assert.That(result.startExpandedWidth).IsGreaterThan(result.startInitialWidth);
+            await Assert.That(result.rtlStartBefore).IsBetween(240d, 460d);
+            await Assert.That(result.rtlStartAfterLeft).IsBetween(240d, 460d);
+            await Assert.That(result.endDockVisible).IsTrue();
+            await Assert.That(result.hasRawTokenLeak).IsFalse();
         }
         finally { await Task.Run(session.Dispose); }
     }

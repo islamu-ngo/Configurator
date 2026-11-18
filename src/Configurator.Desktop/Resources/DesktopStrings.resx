@@ -164,7 +164,7 @@
   <data name="LatestRevisionLabel" xml:space="preserve"><value>Latest revision:</value></data>
   <data name="ApplicationIdLabel" xml:space="preserve"><value>Application:</value></data>
   <data name="Experience" xml:space="preserve"><value>Configuration experience</value></data>
-  <data name="OptionalEditors" xml:space="preserve"><value>Show _optional editors</value></data>
+  <data name="OptionalEditors" xml:space="preserve"><value>Show optional editors</value></data>
   <data name="RightToLeft" xml:space="preserve"><value>_Right-to-left layout</value></data>
   <data name="Artifact" xml:space="preserve"><value>Declared artifact</value></data>
   <data name="FileName" xml:space="preserve"><value>New file name</value></data>
@@ -321,6 +321,7 @@ File and folder pickers use Avalonia managed system dialogs on X11, Wayland, mac
   <data name="DeprecatedBadge" xml:space="preserve"><value>Deprecated</value></data>
   <data name="ControllerBadge" xml:space="preserve"><value>Controls downstream settings</value></data>
   <data name="CopyWireKeyLabel" xml:space="preserve"><value>Copy key</value></data>
+  <data name="WireKeyCopiedStatus" xml:space="preserve"><value>Wire key copied to clipboard.</value></data>
   <data name="OmitSwitchLabel" xml:space="preserve"><value>Omit</value></data>
   <data name="SwitchOmittedStatus" xml:space="preserve"><value>Not supplied (omitted)</value></data>
   <data name="UniqueDuplicateWarning" xml:space="preserve"><value>Duplicate item key detected; entries must be unique.</value></data>
@@ -398,4 +399,62 @@ File and folder pickers use Avalonia managed system dialogs on X11, Wayland, mac
   <data name="SecretPreviewLabel" xml:space="preserve"><value>Generated preview</value></data>
   <data name="SecretApplyGenerated" xml:space="preserve"><value>Apply secret</value></data>
   <data name="SecretDialogCancelLabel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="ReturnToConfigurationLabel" xml:space="preserve"><value>← Return to configuration</value></data>
+  <data name="AppearanceLightHighContrast" xml:space="preserve"><value>Light High Contrast</value></data>
+  <data name="AppearanceDarkHighContrast" xml:space="preserve"><value>Dark High Contrast</value></data>
+  <data name="ThemePresetLabel" xml:space="preserve"><value>Theme preset</value></data>
+  <data name="ThemePresetCustomName" xml:space="preserve"><value>Custom palette</value></data>
+  <data name="ThemeCustomNaturalLabel" xml:space="preserve"><value>Natural (surfaces and neutrals)</value></data>
+  <data name="ThemeCustomBrandLabel" xml:space="preserve"><value>Brand (accent and focus)</value></data>
+  <data name="ThemeHueLabel" xml:space="preserve"><value>Hue</value></data>
+  <data name="ThemeSaturationLabel" xml:space="preserve"><value>Saturation</value></data>
+  <data name="ThemeLightnessLabel" xml:space="preserve"><value>Lightness</value></data>
+  <data name="ThemeHexLabel" xml:space="preserve"><value>Hex color</value></data>
+  <data name="ThemeResetCustomLabel" xml:space="preserve"><value>Reset custom colors</value></data>
+  <data name="ThemePreviewLabel" xml:space="preserve"><value>Live theme preview</value></data>
+  <data name="ThemePreviewSurfaceSample" xml:space="preserve"><value>Surface and body text contrast preview</value></data>
+  <data name="ThemePreviewAccentSample" xml:space="preserve"><value>Selected accent</value></data>
+  <data name="DockResizeStartLabel" xml:space="preserve"><value>Resize navigation sidebar</value></data>
+  <data name="DockResizeEndLabel" xml:space="preserve"><value>Resize side panel</value></data>
+  <data name="EndDockInspectorTab" xml:space="preserve"><value>Inspector (F2)</value></data>
+  <data name="EndDockDocumentTab" xml:space="preserve"><value>Document (JSON)</value></data>
+  <data name="EndDockCloseLabel" xml:space="preserve"><value>Close side panel</value></data>
+  <data name="StoreProjectDetailsButtonLabel" xml:space="preserve"><value>Project details</value></data>
+  <data name="StoreDetailsTitle" xml:space="preserve"><value>Project metadata and icon license</value></data>
+  <data name="StoreDetailsCloseLabel" xml:space="preserve"><value>Close details</value></data>
+  <data name="StoreDetailsRevisionsHeading" xml:space="preserve"><value>Published revisions</value></data>
+  <data name="StoreDetailsLicenseLabel" xml:space="preserve"><value>Icon license</value></data>
+  <data name="StoreDetailsAttributionLabel" xml:space="preserve"><value>Attribution</value></data>
+  <data name="StoreCuratedSourceBadge" xml:space="preserve"><value>Curated package</value></data>
+  <data name="StatusCodeDefinitionRequired" xml:space="preserve"><value>No definition loaded yet.</value></data>
+  <data name="StatusCodeDefinitionLoaded" xml:space="preserve"><value>Definition loaded cleanly in the active workspace.</value></data>
+  <data name="StatusCodeDefinitionInvalid" xml:space="preserve"><value>The selected definition failed structural validation.</value></data>
+  <data name="StatusCodeDefinitionUnreadable" xml:space="preserve"><value>The selected definition file could not be read.</value></data>
+  <data name="StatusCodePathEmpty" xml:space="preserve"><value>Enter a local definition path before loading.</value></data>
+  <data name="StatusCodeLoadCancelled" xml:space="preserve"><value>Definition loading was cancelled.</value></data>
+  <data name="StatusCodeInputsChanged" xml:space="preserve"><value>Inputs changed — validate and prepare before saving.</value></data>
+  <data name="StatusCodeOperationCancelled" xml:space="preserve"><value>Operation cancelled; previous preparation discarded.</value></data>
+  <data name="StatusCodeValidationReady" xml:space="preserve"><value>All active validation checks passed.</value></data>
+  <data name="StatusCodeValidationInvalid" xml:space="preserve"><value>Validation reported issues to resolve before preparing.</value></data>
+  <data name="StatusCodePreparationReady" xml:space="preserve"><value>Output prepared cleanly and ready to save.</value></data>
+  <data name="StatusCodePreparationIncomplete" xml:space="preserve"><value>Draft prepared with deferred secret placeholders.</value></data>
+  <data name="StatusCodePreparationInvalid" xml:space="preserve"><value>Preparation could not complete; resolve reported issues.</value></data>
+  <data name="StatusCodePreparationFault" xml:space="preserve"><value>Preparation stopped due to an internal error.</value></data>
+  <data name="StatusCodeSaveComplete" xml:space="preserve"><value>Protected output file created successfully.</value></data>
+  <data name="StatusCodeSaveFailed" xml:space="preserve"><value>Protected save did not succeed.</value></data>
+  <data name="StatusCodeBundleSaveComplete" xml:space="preserve"><value>Protected output bundle created successfully.</value></data>
+  <data name="StatusCodeBundleSavePartial" xml:space="preserve"><value>Bundle save finished with partial destination results.</value></data>
+  <data name="StatusCodeBundleSaveBlocked" xml:space="preserve"><value>Protected bundle save is unavailable for this host or target.</value></data>
+  <data name="StatusCodeBundleInvalid" xml:space="preserve"><value>One or more selected bundle outputs failed validation.</value></data>
+  <data name="StatusCodeImportReady" xml:space="preserve"><value>Imported configuration values applied to workspace.</value></data>
+  <data name="StatusCodeImportComparisonReady" xml:space="preserve"><value>Imported file comparison is ready for review.</value></data>
+  <data name="StatusCodeImportFailed" xml:space="preserve"><value>The import could not be applied safely.</value></data>
+  <data name="StatusCodeDocumentPreviewReady" xml:space="preserve"><value>Document diff preview is ready to inspect.</value></data>
+  <data name="StatusCodeDocumentApplied" xml:space="preserve"><value>Document changes applied to workspace.</value></data>
+  <data name="StatusCodeDocumentStale" xml:space="preserve"><value>Document preview became stale after workspace edits.</value></data>
+  <data name="StatusCodeDocumentError" xml:space="preserve"><value>Document source contains invalid syntax or values.</value></data>
+  <data name="StatusCodeSelectionUnavailable" xml:space="preserve"><value>Native file picker is unavailable on this host.</value></data>
+  <data name="StatusCodeSelectionNonlocal" xml:space="preserve"><value>Only local files on this computer can be opened.</value></data>
+  <data name="StatusCodeRemoteError" xml:space="preserve"><value>Remote schema fetch did not complete.</value></data>
+  <data name="StatusCodeStoreOpenFailed" xml:space="preserve"><value>Embedded store definition could not be opened.</value></data>
 </root>
