@@ -54,9 +54,11 @@ sequenceDiagram
 1. **Launch Request:** The user clicks a deep link from your project's website or repository.
 2. **Local Boot:** Configurator's static WebAssembly client boots in the operator's browser.
 3. **Definition Pinning:** Configurator fetches the public canonical definition and pins its revision and SHA-256 digest inside a collapsed **Source details** disclosure, letting the operator inspect settings read-only (`/explore/{FamilyId}`) or pick from three task cards (**Start fresh**, **Use an existing configuration**, or **Open a saved profile**).
-4. **Interactive Setup:** The operator acknowledges workspace custody and
+4. **Interactive Setup & In-Place Settings:** The operator acknowledges workspace custody and
    completes questions. Secret entry starts disabled; enabling it is a separate
-   per-workspace action.
+   per-workspace action. Opening **Settings** during active configuration displays
+   settings in place with a **← Return to configuration** action while keeping answers,
+   drafts, and secret consent intact; leaving the launch route still triggers discard confirmation and invalidates workspace state.
 5. **Deliberate Export:** The operator copies or downloads restricted output.
    Secret-deferred drafts remain incomplete and restricted. Browser exports
    cannot enforce native owner-only/create-only protection or target acceptance.

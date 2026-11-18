@@ -1,0 +1,206 @@
+@using Configurator.Browser.Services.Accessibility
+@inject BrowserNavigationState NavigationState
+@inject AccessibilityAnnouncerService Announcer
+
+<div class="settings-workspace" data-settings-workspace="true" lang="@Culture.Locale" dir="@(IsRtl ? "rtl" : "ltr")">
+    <div class="settings-layout">
+        <div class="settings-layout__container">
+            @if (InPlace && NavigationState.IsActive)
+            {
+                <div class="settings-workspace__return-bar">
+                    <button type="button"
+                            class="button button--secondary settings-workspace__return"
+                            data-action="return-to-configuration"
+                            @onclick="ReturnToConfiguration">
+                        @T("ReturnToConfiguration")
+                    </button>
+                </div>
+            }
+
+            <header class="settings-header">
+                <h1 class="settings-header__title">@T("Settings")</h1>
+                <p class="settings-header__subtitle">@T("SettingsSubtitle")</p>
+            </header>
+
+            <div class="settings-layout__body">
+                <nav class="settings-sections" aria-label="@T("SettingsSectionsNav")">
+                    @if (InPlace)
+                    {
+                        <button type="button"
+                                class="@GetNavItemClass(null)"
+                                data-settings-nav="all"
+                                aria-current="@(CurrentSection is null ? "page" : null)"
+                                @onclick="@(() => SelectSectionInPlace(null))">
+                            @T("ViewAll")
+                        </button>
+                        @foreach (SettingsSectionDefinition item in Sections)
+                        {
+                            string sectionKey = item.Key;
+                            <button type="button"
+                                    class="@GetNavItemClass(sectionKey)"
+                                    data-settings-nav="@sectionKey"
+                                    aria-current="@(item == CurrentSection ? "page" : null)"
+                                    @onclick="@(() => SelectSectionInPlace(sectionKey))">
+                                @T(item.LabelKey)
+                            </button>
+                        }
+                    }
+                    else
+                    {
+                        <a href="settings"
+                           class="@GetNavItemClass(null)"
+                           data-settings-nav="all"
+                           aria-current="@(CurrentSection is null ? "page" : null)">
+                            @T("ViewAll")
+                        </a>
+                        @foreach (SettingsSectionDefinition item in Sections)
+                        {
+                            <a href="@($"settings/{item.Key}")"
+                               class="@GetNavItemClass(item.Key)"
+                               data-settings-nav="@item.Key"
+                               aria-current="@(item == CurrentSection ? "page" : null)">
+                                @T(item.LabelKey)
+                            </a>
+                        }
+                    }
+                </nav>
+
+                <div class="settings-content">
+                    @if (CurrentSection is null)
+                    {
+                        <div class="settings-search">
+                            <label class="sr-only" for="settings-search">@T("SearchSettingsLabel")</label>
+                            <input id="settings-search"
+                                   class="app-input settings-search__input"
+                                   type="search"
+                                   value="@_searchTerm"
+                                   placeholder="@T("SearchSettingsPlaceholder")"
+                                   @oninput="OnSearchInputAsync" />
+                        </div>
+
+                        @if (FilteredSections.Count == 0)
+                        {
+                            <p class="settings-content__empty" role="status">@T("NoSettingsMatch")</p>
+                        }
+                        else
+                        {
+                            @foreach (SettingsSectionDefinition item in FilteredSections)
+                            {
+                                @RenderSection(item)
+                            }
+                        }
+                    }
+                    else
+                    {
+                        @RenderSection(CurrentSection)
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+    [Parameter] public string? Section { get; set; }
+    [Parameter] public bool InPlace { get; set; }
+    [Parameter] public bool FocusCustomTheme { get; set; }
+
+    private string _searchTerm = string.Empty;
+
+    private static readonly SettingsSectionDefinition[] Sections =
+    [
+        new("appearance", "SettingsAppearance", "SettingsAppearanceDesc",
+            ["theme", "color", "dark", "light", "contrast", "direction", "rtl", "custom", "hsl", "density", "naming"],
+            typeof(SettingsAppearanceSection)),
+        new("language", "SettingsLanguage", "SettingsLanguageDesc",
+            ["language", "locale", "english", "arabic", "rtl", "ltr"],
+            typeof(SettingsLanguageSection)),
+        new("privacy", "SettingsPrivacy", "SettingsPrivacyDesc",
+            ["privacy", "custody", "secrets", "storage", "offline", "local"],
+            typeof(SettingsPrivacySection)),
+        new("shortcuts", "SettingsShortcuts", "SettingsShortcutsDesc",
+            ["keyboard", "shortcuts", "ctrl+k", "f2", "escape", "tabs"],
+            typeof(SettingsKeyboardSection))
+    ];
+
+    private bool IsRtl => Culture.Direction == "rtl";
+
+    private SettingsSectionDefinition? CurrentSection => Sections.FirstOrDefault(item =>
+        string.Equals(item.Key, Section, StringComparison.OrdinalIgnoreCase));
+
+    private IReadOnlyList<SettingsSectionDefinition> FilteredSections
+    {
+        get
+        {
+            string term = _searchTerm.Trim();
+            if (term.Length == 0)
+                return Sections;
+
+            return Sections
+                .Where(item => T(item.LabelKey).Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || T(item.DescriptionKey).Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || item.Keywords.Any(keyword => keyword.Contains(term, StringComparison.OrdinalIgnoreCase)))
+                .ToArray();
+        }
+    }
+
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+
+    private string GetNavItemClass(string? key) => string.Equals(key, CurrentSection?.Key, StringComparison.Ordinal)
+        ? "settings-sections__link settings-sections__link--active"
+        : "settings-sections__link";
+
+    private void SelectSectionInPlace(string? section) => NavigationState.SelectSettingsSection(section);
+
+    private void ReturnToConfiguration() => NavigationState.ReturnToConfiguration();
+
+    private async Task OnSearchInputAsync(ChangeEventArgs args)
+    {
+        _searchTerm = args.Value?.ToString() ?? string.Empty;
+        int count = FilteredSections.Count;
+        string message = count == 0
+            ? T("NoSettingsMatch")
+            : string.Format(System.Globalization.CultureInfo.CurrentCulture, T("SettingsSectionsCountFound"), count);
+        await Announcer.AnnouncePoliteAsync(message);
+    }
+
+    private RenderFragment RenderSection(SettingsSectionDefinition item) => builder =>
+    {
+        string headingId = $"settings-section-{item.Key}-heading";
+        int sequence = 0;
+        builder.OpenElement(sequence++, "section");
+        builder.AddAttribute(sequence++, "id", $"settings-section-{item.Key}");
+        builder.AddAttribute(sequence++, "class", "settings-content__section");
+        builder.AddAttribute(sequence++, "data-settings-section", item.Key);
+        builder.AddAttribute(sequence++, "aria-labelledby", headingId);
+        builder.OpenElement(sequence++, "h2");
+        builder.AddAttribute(sequence++, "id", headingId);
+        builder.AddAttribute(sequence++, "class", "settings-section__heading");
+        builder.AddContent(sequence++, T(item.LabelKey));
+        builder.CloseElement();
+        builder.OpenElement(sequence++, "p");
+        builder.AddAttribute(sequence++, "class", "settings-section__description");
+        builder.AddContent(sequence++, T(item.DescriptionKey));
+        builder.CloseElement();
+        builder.OpenComponent<DynamicComponent>(sequence++);
+        builder.AddAttribute(sequence++, nameof(DynamicComponent.Type), item.ComponentType);
+        if (item.Key == "appearance" && FocusCustomTheme)
+        {
+            Dictionary<string, object> parameters = new()
+            {
+                [nameof(SettingsAppearanceSection.FocusCustomTheme)] = true
+            };
+            builder.AddAttribute(sequence++, nameof(DynamicComponent.Parameters), parameters);
+        }
+        builder.CloseComponent();
+        builder.CloseElement();
+    };
+
+    private sealed record SettingsSectionDefinition(
+        string Key,
+        string LabelKey,
+        string DescriptionKey,
+        string[] Keywords,
+        Type ComponentType);
+}

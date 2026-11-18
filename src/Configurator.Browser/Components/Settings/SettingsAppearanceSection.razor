@@ -1,0 +1,443 @@
+@using System.Globalization
+@using Configurator.Browser.Services.Accessibility
+@using Configurator.Presentation.Theming
+@inject AppearanceThemeService Appearance
+@inject AccessibilityFocusService AccessibilityFocus
+@implements IDisposable
+
+<div class="settings-appearance">
+    <div class="settings-form-section">
+        <h3 class="settings-form-section__title">@T("Appearance")</h3>
+        <p class="settings-form-section__desc">@T("ThemeModeDesc")</p>
+        <div class="settings-appearance__segmented" role="radiogroup" aria-label="@T("Appearance")">
+            @foreach (ModeOption option in ModeOptions)
+            {
+                bool active = Appearance.Current.ThemeMode == option.Value;
+                <button type="button"
+                        class="settings-appearance__pill @(active ? "settings-appearance__pill--active" : "")"
+                        role="radio"
+                        aria-checked="@(active ? "true" : "false")"
+                        data-settings-theme-mode="@option.Value"
+                        @onclick="@(() => SelectModeAsync(option.Value))">
+                    @T(option.ResourceKey)
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="settings-form-section">
+        <h3 class="settings-form-section__title">@T("TextDirectionLabel")</h3>
+        <p class="settings-form-section__desc">@T("TextDirectionDesc")</p>
+        <div class="settings-appearance__segmented" role="radiogroup" aria-label="@T("TextDirectionLabel")">
+            @foreach (OptionItem option in DirectionOptions)
+            {
+                bool active = Appearance.Current.Direction == option.Value;
+                <button type="button"
+                        class="settings-appearance__pill @(active ? "settings-appearance__pill--active" : "")"
+                        role="radio"
+                        aria-checked="@(active ? "true" : "false")"
+                        data-settings-direction="@option.Value"
+                        @onclick="@(() => SelectDirectionAsync(option.Value))">
+                    @T(option.ResourceKey)
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="settings-form-section">
+        <h3 class="settings-form-section__title">@T("Theme")</h3>
+        <p class="settings-form-section__desc">@T("ThemePresetsDesc")</p>
+        <div class="settings-appearance__preset-grid">
+            @foreach (ThemePreset preset in ThemePresetCatalog.All)
+            {
+                bool active = Appearance.Current.ThemeKey == preset.ThemeKey;
+                <button type="button"
+                        class="settings-appearance__theme-card @(active ? "settings-appearance__theme-card--active" : "")"
+                        data-settings-preset="@preset.ThemeKey"
+                        aria-pressed="@(active ? "true" : "false")"
+                        @onclick="@(() => SelectPresetAsync(preset.ThemeKey))">
+                    <span class="settings-appearance__theme-swatch" aria-hidden="true">
+                        <span class="settings-appearance__swatch-chip" style="@($"background:{preset.LightPalette.Primary};")"></span>
+                        <span class="settings-appearance__swatch-chip" style="@($"background:{preset.DarkPalette.Primary};")"></span>
+                    </span>
+                    <span class="settings-appearance__preset-name">@PresetDisplayName(preset)</span>
+                    <span class="settings-appearance__preset-meta">@T("SystemPresetBadge")</span>
+                </button>
+            }
+        </div>
+    </div>
+
+    <div id="settings-custom-theme" class="settings-form-section" tabindex="-1">
+        <h3 class="settings-form-section__title">@T("CustomTheme")</h3>
+        <p class="settings-form-section__desc">@T("CustomThemeBuilderDesc")</p>
+
+        <div class="settings-appearance__builder-grid">
+            <div class="settings-appearance__color-panel">
+                <h4 class="settings-appearance__color-heading">@T("NaturalColorLabel")</h4>
+                <p class="settings-appearance__color-desc">@T("NaturalColorDesc")</p>
+                <div class="settings-appearance__swatch-row">
+                    @foreach (string swatch in NaturalSwatches)
+                    {
+                        bool selected = string.Equals(swatch, _naturalHex, StringComparison.OrdinalIgnoreCase);
+                        <button type="button"
+                                class="settings-appearance__preset-swatch @(selected ? "settings-appearance__preset-swatch--active" : "")"
+                                style="@($"background:{swatch};")"
+                                data-custom-natural-swatch="@swatch"
+                                aria-label="@($"{T("NaturalColorLabel")} {swatch}")"
+                                aria-pressed="@(selected ? "true" : "false")"
+                                @onclick="@(() => UpdateNaturalHex(swatch))" />
+                    }
+                    <div class="settings-appearance__hex-field" data-custom-natural-hex="true">
+                        <label class="settings-appearance__hex-label" for="custom-natural-hex-input">@T("HexLabel")</label>
+                        <input id="custom-natural-hex-input"
+                               type="text"
+                               dir="ltr"
+                               class="app-input settings-appearance__hex-input"
+                               value="@_naturalHexInput"
+                               @onchange="OnNaturalHexChanged" />
+                    </div>
+                </div>
+                <div class="settings-appearance__hsl-sliders">
+                    <label class="settings-appearance__slider-row">
+                        <span>@T("HueLabel") (@((int)Math.Round(_naturalHsl.H))°)</span>
+                        <input type="range" min="0" max="360" step="1"
+                               data-hsl-slider="natural-hue"
+                               value="@((int)Math.Round(_naturalHsl.H))"
+                               @oninput="OnNaturalHueChanged" />
+                    </label>
+                    <label class="settings-appearance__slider-row">
+                        <span>@T("SaturationLabel") (@((int)Math.Round(_naturalHsl.S))%)</span>
+                        <input type="range" min="0" max="100" step="1"
+                               data-hsl-slider="natural-saturation"
+                               value="@((int)Math.Round(_naturalHsl.S))"
+                               @oninput="OnNaturalSaturationChanged" />
+                    </label>
+                    <label class="settings-appearance__slider-row">
+                        <span>@T("LightnessLabel") (@((int)Math.Round(_naturalHsl.L))%)</span>
+                        <input type="range" min="15" max="85" step="1"
+                               data-hsl-slider="natural-lightness"
+                               value="@((int)Math.Round(Math.Clamp(_naturalHsl.L, 15, 85)))"
+                               @oninput="OnNaturalLightnessChanged" />
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-appearance__color-panel">
+                <h4 class="settings-appearance__color-heading">@T("BrandColorLabel")</h4>
+                <p class="settings-appearance__color-desc">@T("BrandColorDesc")</p>
+                <div class="settings-appearance__swatch-row">
+                    @foreach (string swatch in BrandSwatches)
+                    {
+                        bool selected = string.Equals(swatch, _brandHex, StringComparison.OrdinalIgnoreCase);
+                        <button type="button"
+                                class="settings-appearance__preset-swatch @(selected ? "settings-appearance__preset-swatch--active" : "")"
+                                style="@($"background:{swatch};")"
+                                data-custom-brand-swatch="@swatch"
+                                aria-label="@($"{T("BrandColorLabel")} {swatch}")"
+                                aria-pressed="@(selected ? "true" : "false")"
+                                @onclick="@(() => UpdateBrandHex(swatch))" />
+                    }
+                    <div class="settings-appearance__hex-field" data-custom-brand-hex="true">
+                        <label class="settings-appearance__hex-label" for="custom-brand-hex-input">@T("HexLabel")</label>
+                        <input id="custom-brand-hex-input"
+                               type="text"
+                               dir="ltr"
+                               class="app-input settings-appearance__hex-input"
+                               value="@_brandHexInput"
+                               @onchange="OnBrandHexChanged" />
+                    </div>
+                </div>
+                <div class="settings-appearance__hsl-sliders">
+                    <label class="settings-appearance__slider-row">
+                        <span>@T("HueLabel") (@((int)Math.Round(_brandHsl.H))°)</span>
+                        <input type="range" min="0" max="360" step="1"
+                               data-hsl-slider="brand-hue"
+                               value="@((int)Math.Round(_brandHsl.H))"
+                               @oninput="OnBrandHueChanged" />
+                    </label>
+                    <label class="settings-appearance__slider-row">
+                        <span>@T("SaturationLabel") (@((int)Math.Round(_brandHsl.S))%)</span>
+                        <input type="range" min="15" max="95" step="1"
+                               data-hsl-slider="brand-saturation"
+                               value="@((int)Math.Round(Math.Clamp(_brandHsl.S, 15, 95)))"
+                               @oninput="OnBrandSaturationChanged" />
+                    </label>
+                    <label class="settings-appearance__slider-row">
+                        <span>@T("LightnessLabel") (@((int)Math.Round(_brandHsl.L))%)</span>
+                        <input type="range" min="15" max="85" step="1"
+                               data-hsl-slider="brand-lightness"
+                               value="@((int)Math.Round(Math.Clamp(_brandHsl.L, 15, 85)))"
+                               @oninput="OnBrandLightnessChanged" />
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-appearance__preview-wrap">
+            <h4 class="settings-appearance__color-heading">@T("LivePreviewLabel")</h4>
+            @{
+                ThemePalette preview = PreviewPalette;
+            }
+            <div class="settings-appearance__preview-card"
+                 data-settings-custom-preview="true"
+                 style="@($"background:{preview.Background};color:{preview.TextPrimary};border:1px solid {preview.LinesDefault};")">
+                <div class="settings-appearance__preview-appbar"
+                     style="@($"background:{preview.AppbarBackground};color:{preview.AppbarText};border-block-end:1px solid {preview.LinesDefault};")">
+                    <span>@T("PreviewAppBar")</span>
+                </div>
+                <div class="settings-appearance__preview-body">
+                    <div class="settings-appearance__preview-surface"
+                         style="@($"background:{preview.Surface};border:1px solid {preview.LinesDefault};")">
+                        <span class="settings-appearance__preview-title" style="@($"color:{preview.TextPrimary};")">@T("PreviewCardTitle")</span>
+                        <button type="button"
+                                class="settings-appearance__preview-btn"
+                                style="@($"background:{preview.Primary};color:{preview.PrimaryContrastText};")">
+                            @T("PreviewButton")
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-appearance__apply-row">
+                <button type="button"
+                        class="button button--primary"
+                        data-action="apply-custom-theme"
+                        @onclick="ApplyCustomThemeAsync">
+                    @T("ApplyCustomTheme")
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-form-section">
+        <h3 class="settings-form-section__title">@T("Density")</h3>
+        <p class="settings-form-section__desc">@T("WorkspaceDensityDesc")</p>
+        <div class="settings-appearance__segmented" role="radiogroup" aria-label="@T("Density")">
+            @foreach (OptionItem option in DensityOptions)
+            {
+                bool active = Appearance.Current.Density == option.Value;
+                <button type="button"
+                        class="settings-appearance__pill @(active ? "settings-appearance__pill--active" : "")"
+                        role="radio"
+                        aria-checked="@(active ? "true" : "false")"
+                        data-settings-density="@option.Value"
+                        @onclick="@(() => SelectDensityAsync(option.Value))">
+                    @T(option.ResourceKey)
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="settings-form-section">
+        <h3 class="settings-form-section__title">@T("NamingMode")</h3>
+        <p class="settings-form-section__desc">@T("FieldNamingDesc")</p>
+        <div class="settings-appearance__segmented" role="radiogroup" aria-label="@T("NamingMode")">
+            @foreach (OptionItem option in NamingOptions)
+            {
+                bool active = Appearance.Current.NamingMode == option.Value;
+                <button type="button"
+                        class="settings-appearance__pill @(active ? "settings-appearance__pill--active" : "")"
+                        role="radio"
+                        aria-checked="@(active ? "true" : "false")"
+                        data-settings-naming="@option.Value"
+                        @onclick="@(() => SelectNamingAsync(option.Value))">
+                    @T(option.ResourceKey)
+                </button>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+    [Parameter] public bool FocusCustomTheme { get; set; }
+
+    private sealed record ModeOption(string Value, string ResourceKey);
+    private sealed record OptionItem(string Value, string ResourceKey);
+
+    private static readonly ModeOption[] ModeOptions =
+    [
+        new("system", "System"),
+        new("light", "Light"),
+        new("dark", "Dark"),
+        new("lighthighcontrast", "LightHcShort"),
+        new("darkhighcontrast", "DarkHcShort")
+    ];
+
+    private static readonly OptionItem[] DirectionOptions =
+    [
+        new("auto", "Automatic"),
+        new("ltr", "LeftToRight"),
+        new("rtl", "RightToLeft")
+    ];
+
+    private static readonly OptionItem[] DensityOptions =
+    [
+        new("spacious", "DensitySpacious"),
+        new("comfortable", "Comfortable"),
+        new("compact", "Compact"),
+        new("dense", "DensityDense")
+    ];
+
+    private static readonly OptionItem[] NamingOptions =
+    [
+        new("humanized", "NamingHumanized"),
+        new("technical", "NamingTechnical")
+    ];
+
+    private static readonly string[] NaturalSwatches = ["#475569", "#5C6BC0", "#78716C", "#6B7280", "#44403C"];
+    private static readonly string[] BrandSwatches = ["#3B82F6", "#6366F1", "#8B5CF6", "#F43F5E", "#F59E0B", "#10B981"];
+
+    private string _naturalHex = ThemePreference.DefaultNaturalHex;
+    private string _naturalHexInput = ThemePreference.DefaultNaturalHex;
+    private HslColor _naturalHsl = HslColor.FromHex(ThemePreference.DefaultNaturalHex);
+    private string _brandHex = ThemePreference.DefaultBrandHex;
+    private string _brandHexInput = ThemePreference.DefaultBrandHex;
+    private HslColor _brandHsl = HslColor.FromHex(ThemePreference.DefaultBrandHex);
+    private bool _customFocusApplied;
+
+    private ThemePalette PreviewPalette
+    {
+        get
+        {
+            ThemePreset customPreset = ThemePaletteGenerator.CreateCustomPreset(_naturalHex, _brandHex);
+            return Appearance.IsHighContrast
+                ? (Appearance.IsDark ? customPreset.DarkHighContrastPalette : customPreset.LightHighContrastPalette)
+                : (Appearance.IsDark ? customPreset.DarkPalette : customPreset.LightPalette);
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        SyncFromAppearance();
+        Appearance.Changed += OnAppearanceChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (FocusCustomTheme && !_customFocusApplied)
+        {
+            _customFocusApplied = true;
+            await AccessibilityFocus.FocusByIdAsync("settings-custom-theme");
+        }
+    }
+
+    private void OnAppearanceChanged(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);
+
+    private void SyncFromAppearance()
+    {
+        if (HslColor.TryNormalizeHex(Appearance.Current.CustomNaturalHex, out string natural))
+            SetNaturalState(natural);
+        if (HslColor.TryNormalizeHex(Appearance.Current.CustomBrandHex, out string brand))
+            SetBrandState(brand);
+    }
+
+    private void SetNaturalState(string hex)
+    {
+        _naturalHex = hex;
+        _naturalHexInput = hex;
+        _naturalHsl = HslColor.FromHex(hex);
+    }
+
+    private void SetBrandState(string hex)
+    {
+        _brandHex = hex;
+        _brandHexInput = hex;
+        _brandHsl = HslColor.FromHex(hex);
+    }
+
+    private void UpdateNaturalHex(string hex)
+    {
+        if (HslColor.TryNormalizeHex(hex, out string normalized))
+            SetNaturalState(normalized);
+    }
+
+    private void UpdateBrandHex(string hex)
+    {
+        if (HslColor.TryNormalizeHex(hex, out string normalized))
+            SetBrandState(normalized);
+    }
+
+    private void OnNaturalHexChanged(ChangeEventArgs args)
+    {
+        string? raw = args.Value?.ToString();
+        _naturalHexInput = raw ?? _naturalHex;
+        if (HslColor.TryNormalizeHex(raw, out string normalized))
+            SetNaturalState(normalized);
+    }
+
+    private void OnBrandHexChanged(ChangeEventArgs args)
+    {
+        string? raw = args.Value?.ToString();
+        _brandHexInput = raw ?? _brandHex;
+        if (HslColor.TryNormalizeHex(raw, out string normalized))
+            SetBrandState(normalized);
+    }
+
+    private void OnNaturalHueChanged(ChangeEventArgs args)
+    {
+        if (TryParseSlider(args, out double value))
+            SetNaturalState(_naturalHsl.AdjustHue(value).ToHex());
+    }
+
+    private void OnNaturalSaturationChanged(ChangeEventArgs args)
+    {
+        if (TryParseSlider(args, out double value))
+            SetNaturalState(_naturalHsl.AdjustSaturation(value).ToHex());
+    }
+
+    private void OnNaturalLightnessChanged(ChangeEventArgs args)
+    {
+        if (TryParseSlider(args, out double value))
+            SetNaturalState(_naturalHsl.AdjustLightness(value).ToHex());
+    }
+
+    private void OnBrandHueChanged(ChangeEventArgs args)
+    {
+        if (TryParseSlider(args, out double value))
+            SetBrandState(_brandHsl.AdjustHue(value).ToHex());
+    }
+
+    private void OnBrandSaturationChanged(ChangeEventArgs args)
+    {
+        if (TryParseSlider(args, out double value))
+            SetBrandState(_brandHsl.AdjustSaturation(value).ToHex());
+    }
+
+    private void OnBrandLightnessChanged(ChangeEventArgs args)
+    {
+        if (TryParseSlider(args, out double value))
+            SetBrandState(_brandHsl.AdjustLightness(value).ToHex());
+    }
+
+    private static bool TryParseSlider(ChangeEventArgs args, out double value) =>
+        double.TryParse(args.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+
+    private Task SelectModeAsync(string mode) => Appearance.SetModeAsync(mode).AsTask();
+
+    private Task SelectDirectionAsync(string direction) => Appearance.SetDirectionAsync(direction).AsTask();
+
+    private Task SelectPresetAsync(string themeKey) => Appearance.SetThemePresetAsync(themeKey).AsTask();
+
+    private Task ApplyCustomThemeAsync() => Appearance.SetCustomThemeAsync(_naturalHex, _brandHex).AsTask();
+
+    private Task SelectDensityAsync(string density) => Appearance.SetDensityAsync(density).AsTask();
+
+    private Task SelectNamingAsync(string namingMode) => Appearance.SetNamingModeAsync(namingMode).AsTask();
+
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+
+    private string PresetDisplayName(ThemePreset preset) => preset.ThemeKey switch
+    {
+        "enterprise-blue" => T("PresetEnterpriseBlue"),
+        "emerald-green" => T("PresetEmeraldGreen"),
+        "abyssal-dark" => T("PresetAbyssalDark"),
+        "pure-white" => T("PresetPureWhite"),
+        "classic-white" => T("PresetClassicWhite"),
+        "classic-dark" => T("PresetClassicDark"),
+        "light-hc" => T("PresetLightHc"),
+        "dark-hc" => T("PresetDarkHc"),
+        _ => preset.DisplayName
+    };
+
+    public void Dispose() => Appearance.Changed -= OnAppearanceChanged;
+}

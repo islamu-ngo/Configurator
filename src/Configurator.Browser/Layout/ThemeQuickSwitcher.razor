@@ -1,54 +1,166 @@
+@using Configurator.Presentation.Theming
 @inject AppearanceThemeService Appearance
+@inject BrowserNavigationState NavigationState
+@inject NavigationManager Navigation
 @implements IDisposable
 
 <div class="theme-quick-switcher">
-    <div class="theme-quick-switcher__control">
-        <label for="appearance-mode">@T("Appearance")</label>
-        <select id="appearance-mode" value="@Appearance.Current.ThemeMode" @onchange="ModeChanged">
-            <option value="system">@T("System")</option>
-            <option value="light">@T("Light")</option>
-            <option value="dark">@T("Dark")</option>
-            <option value="lighthighcontrast">@T("LightHighContrast")</option>
-            <option value="darkhighcontrast">@T("DarkHighContrast")</option>
-        </select>
-    </div>
-    <div class="theme-quick-switcher__control">
-        <label for="appearance-direction">@T("Direction")</label>
-        <select id="appearance-direction" value="@Appearance.Current.Direction" @onchange="DirectionChanged">
-            <option value="auto">@T("Automatic")</option>
-            <option value="ltr">@T("LeftToRight")</option>
-            <option value="rtl">@T("RightToLeft")</option>
-        </select>
-    </div>
-    <div class="theme-quick-switcher__control">
-        <label for="appearance-density">@T("Density")</label>
-        <select id="appearance-density" value="@Appearance.Current.Density" @onchange="DensityChanged">
-            <option value="spacious">@T("Spacious")</option>
-            <option value="comfortable">@T("Comfortable")</option>
-            <option value="compact">@T("Compact")</option>
-            <option value="dense">@T("Dense")</option>
-        </select>
-    </div>
-    <div class="theme-quick-switcher__control">
-        <label for="appearance-naming">@T("NamingMode")</label>
-        <select id="appearance-naming" value="@Appearance.Current.NamingMode" @onchange="NamingChanged">
-            <option value="humanized">@T("Humanized")</option>
-            <option value="technical">@T("Technical")</option>
-        </select>
-    </div>
+    <MudMenu @bind-Open="_isOpen"
+             AnchorOrigin="Origin.BottomCenter"
+             TransformOrigin="Origin.TopCenter"
+             Dense="true"
+             Class="theme-quick-switcher__menu">
+        <ActivatorContent>
+            <MudIconButton Icon="@CurrentIcon"
+                           Color="Color.Inherit"
+                           Size="Size.Medium"
+                           OnClick="ToggleMenu"
+                           title="@GetAriaLabel()"
+                           aria-label="@GetAriaLabel()"
+                           data-action="toggle-theme-switcher"
+                           Class="navbar__theme-toggle" />
+        </ActivatorContent>
+        <ChildContent>
+            <div class="theme-quick-switcher__header">
+                <MudText Typo="Typo.subtitle2" Class="theme-quick-switcher__heading">@T("Theme")</MudText>
+            </div>
+            @foreach (ThemePreset preset in ThemePresetCatalog.All)
+            {
+                bool isActive = Appearance.Current.ThemeKey == preset.ThemeKey;
+                string swatch = preset.LightPalette.Primary;
+                <MudMenuItem OnClick="@(() => SelectPresetAsync(preset.ThemeKey))"
+                             data-theme-preset="@preset.ThemeKey"
+                             aria-pressed="@(isActive ? "true" : "false")"
+                             Class="@(isActive ? "theme-quick-switcher__item theme-quick-switcher__item--active" : "theme-quick-switcher__item")">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <span class="theme-quick-switcher__swatch" style="@($"background:{swatch};")" aria-hidden="true"></span>
+                        <MudText Typo="Typo.body2">@PresetDisplayName(preset)</MudText>
+                        @if (isActive)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" Class="theme-quick-switcher__check" />
+                        }
+                    </MudStack>
+                </MudMenuItem>
+            }
+            <MudDivider />
+            <div class="theme-quick-switcher__header">
+                <MudText Typo="Typo.subtitle2" Class="theme-quick-switcher__heading">@T("Mode")</MudText>
+            </div>
+            @foreach (ModeOption option in ModeOptions)
+            {
+                bool isCurrentMode = Appearance.Current.ThemeMode == option.Value;
+                <MudMenuItem OnClick="@(() => SelectModeAsync(option.Value))"
+                             data-theme-mode="@option.Value"
+                             aria-pressed="@(isCurrentMode ? "true" : "false")"
+                             Class="@(isCurrentMode ? "theme-quick-switcher__item theme-quick-switcher__item--active" : "theme-quick-switcher__item")">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@option.Icon" Size="Size.Small" />
+                        <MudText Typo="Typo.body2">@T(option.ResourceKey)</MudText>
+                        @if (isCurrentMode)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" Class="theme-quick-switcher__check" />
+                        }
+                    </MudStack>
+                </MudMenuItem>
+            }
+            <MudDivider />
+            <MudMenuItem OnClick="@(() => OpenSettingsAsync(customTheme: true))"
+                         data-action="open-custom-theme"
+                         Class="theme-quick-switcher__item">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Outlined.Palette" Size="Size.Small" />
+                    <MudText Typo="Typo.body2">@T("CustomTheme")</MudText>
+                </MudStack>
+            </MudMenuItem>
+            <MudMenuItem OnClick="@(() => OpenSettingsAsync(customTheme: false))"
+                         data-action="open-full-settings"
+                         Class="theme-quick-switcher__item">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Outlined.Settings" Size="Size.Small" />
+                    <MudText Typo="Typo.body2">@T("FullSettings")</MudText>
+                </MudStack>
+            </MudMenuItem>
+        </ChildContent>
+    </MudMenu>
 </div>
 
 @code {
     [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
-    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+    [Parameter] public EventCallback<bool> OpenSettingsRequested { get; set; }
+
+    private bool _isOpen;
+
+    private sealed record ModeOption(string Value, string ResourceKey, string Icon);
+
+    private static readonly ModeOption[] ModeOptions =
+    [
+        new("system", "System", Icons.Material.Rounded.AutoMode),
+        new("light", "Light", Icons.Material.Rounded.LightMode),
+        new("dark", "Dark", Icons.Material.Rounded.DarkMode),
+        new("lighthighcontrast", "LightHcShort", Icons.Material.Rounded.Visibility),
+        new("darkhighcontrast", "DarkHcShort", Icons.Material.Rounded.NightsStay)
+    ];
+
+    private string CurrentIcon => Appearance.Current.ThemeMode switch
+    {
+        "dark" or "darkhighcontrast" => Icons.Material.Rounded.DarkMode,
+        "light" or "lighthighcontrast" => Icons.Material.Rounded.LightMode,
+        _ => Icons.Material.Rounded.AutoMode
+    };
+
     protected override void OnInitialized() => Appearance.Changed += AppearanceChanged;
 
     private void AppearanceChanged(object? sender, EventArgs args) => _ = InvokeAsync(StateHasChanged);
 
-    private Task ModeChanged(ChangeEventArgs args) => Appearance.SetAsync(args.Value?.ToString() ?? "system", Appearance.Current.Direction).AsTask();
-    private Task DirectionChanged(ChangeEventArgs args) => Appearance.SetAsync(Appearance.Current.ThemeMode, args.Value?.ToString() ?? "auto").AsTask();
-    private Task DensityChanged(ChangeEventArgs args) => Appearance.SetDensityAsync(args.Value?.ToString() ?? "comfortable").AsTask();
-    private Task NamingChanged(ChangeEventArgs args) => Appearance.SetNamingModeAsync(args.Value?.ToString() ?? "humanized").AsTask();
+    private void ToggleMenu() => _isOpen = !_isOpen;
+
+    private async Task SelectPresetAsync(string themeKey)
+    {
+        _isOpen = false;
+        await Appearance.SetThemePresetAsync(themeKey);
+    }
+
+    private async Task SelectModeAsync(string mode)
+    {
+        _isOpen = false;
+        await Appearance.SetModeAsync(mode);
+    }
+
+    private async Task OpenSettingsAsync(bool customTheme)
+    {
+        _isOpen = false;
+        if (OpenSettingsRequested.HasDelegate)
+        {
+            await OpenSettingsRequested.InvokeAsync(customTheme);
+            return;
+        }
+
+        if (NavigationState.IsActive)
+        {
+            NavigationState.OpenSettings("appearance", customTheme);
+            return;
+        }
+
+        NavigationState.SetPendingFocusCustomTheme(customTheme);
+        Navigation.NavigateTo("settings/appearance");
+    }
+
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+
+    private string PresetDisplayName(ThemePreset preset) => preset.ThemeKey switch
+    {
+        "enterprise-blue" => T("PresetEnterpriseBlue"),
+        "emerald-green" => T("PresetEmeraldGreen"),
+        "abyssal-dark" => T("PresetAbyssalDark"),
+        "pure-white" => T("PresetPureWhite"),
+        "classic-white" => T("PresetClassicWhite"),
+        "classic-dark" => T("PresetClassicDark"),
+        "light-hc" => T("PresetLightHc"),
+        "dark-hc" => T("PresetDarkHc"),
+        _ => preset.DisplayName
+    };
+
+    private string GetAriaLabel() => $"{T("ThemeQuickSwitcherLabel")} ({Appearance.Current.ThemeMode})";
 
     public void Dispose() => Appearance.Changed -= AppearanceChanged;
 }

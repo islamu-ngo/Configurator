@@ -97,4 +97,14 @@ Event first-party transfer rights are separately recorded in
 [Browser UI provenance](../../extraction/BROWSER_UI_TRANSFER.md). Official
 [installation documentation](https://mudblazor.com/getting-started/installation)
 supplies only public facts about AddMudServices, providers and local asset paths.
-No source snippets, remote fonts or logo assets are incorporated.
+No source snippets or remote fonts are incorporated.
+
+## Curated store icon notice
+
+The curated `ISLAMU Event` store entry embeds an offline `128×128` PNG
+representation (`data:image/png;base64,...`) derived from
+`islamu-logo-text-only-v2-square.png`, licensed under **CC BY 4.0** by Amir
+Akrari (`Draft ISLAMU logo by Amir Akrari, licensed under CC BY 4.0.`). Both the
+machine-validated `iconLicense` / `iconAttribution` metadata in
+`store/islamu-event/curation.json` and `THIRD-PARTY-NOTICES.md` preserve that
+attribution without relicensing the asset or bundling external fonts.

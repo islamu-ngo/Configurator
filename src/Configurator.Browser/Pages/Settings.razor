@@ -1,0 +1,22 @@
+@page "/settings"
+@page "/settings/{Section?}"
+@using Configurator.Browser.Components.Settings
+@inject BrowserNavigationState NavigationState
+
+<PageTitle>@BrowserStrings.Get("Settings", Culture.Locale) · Configurator</PageTitle>
+
+<SettingsWorkspace Section="@Section" InPlace="false" FocusCustomTheme="@_focusCustomTheme" />
+
+@code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+    [Parameter] public string? Section { get; set; }
+    [SupplyParameterFromQuery(Name = "custom")] public string? CustomQuery { get; set; }
+
+    private bool _focusCustomTheme;
+
+    protected override void OnParametersSet()
+    {
+        bool fromQuery = string.Equals(CustomQuery, "true", StringComparison.OrdinalIgnoreCase);
+        _focusCustomTheme = fromQuery || NavigationState.ConsumePendingFocusCustomTheme();
+    }
+}

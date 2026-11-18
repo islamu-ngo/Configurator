@@ -196,13 +196,23 @@ registration lease after this asynchronous resolution, then captures the updated
 work generation for the loss confirmation.
 Cancel preserves the editor. Confirm invalidates pending work
 synchronously, awaits editor discard and releases custody before route loading.
-Each registration returns an owner-bound lease. Confirmation and post-discard
-checks retain that exact lease, including when the same component starts a new
-workspace. Discard and disposal capture their lease before awaiting retirement
-and release only that registration after cleanup. A replacement workspace
-cancels the older navigation; an old completion cannot release its custody.
-Generation checks also reject late confirmations. Group navigation
-stays within the same mounted editor and does not pass through this route guard.
+Each registration returns an owner-bound lease. Opening in-place Settings
+during an active `/launch/{FamilyId}` session hides the editor container
+(`hidden` / `inert`) instead of unmounting it, preserving transient answers,
+drafts, and secret consent until the operator uses **← Return to
+configuration**; route departures still pass through `WorkspaceNavigationGuard`.
+Non-sensitive presentation state persisted to browser local storage is strictly
+allowlisted to `configurator.appearance.v1` (`<= 512` B) and `configurator.dock.v1`
+(`<= 1,024` B) and rejects or clears unknown keys without storing answers, paths,
+or secrets. Curated PNG Store icons (`iconDataUri`) decode exclusively from inline
+validated bytes (`<= 12 KiB`) without network fetches.
+Confirmation and post-discard checks retain that exact lease, including when
+the same component starts a new workspace. Discard and disposal capture their
+lease before awaiting retirement and release only that registration after
+cleanup. A replacement workspace cancels the older navigation; an old
+completion cannot release its custody. Generation checks also reject late
+confirmations. Group navigation stays within the same mounted editor and does
+not pass through this route guard.
 
 `ConfigurationEditor` uses `DefinitionFormModel` snapshots and Core validation
 rather than a second browser evaluator. New workspaces use

@@ -1,0 +1,141 @@
+@using System.Globalization
+@using Configurator.Presentation.Store
+
+<MudDialog DefaultFocus="DefaultFocus.FirstChild">
+    <DialogContent>
+        <div class="store-details" data-project-details-dialog="true" lang="@Locale" dir="@Direction">
+            <AppDialogShell Title="@Title">
+                <HeaderContent>
+                    <div class="store-details__hero-meta">
+                        <div class="store-details__media">
+                            @if (!string.IsNullOrEmpty(IconDataUri))
+                            {
+                                <img src="@IconDataUri" alt="" class="store-details__logo" data-project-logo />
+                            }
+                            else
+                            {
+                                <span class="store-details__monogram" data-project-monogram aria-hidden="true">@Monogram</span>
+                            }
+                        </div>
+                        <div class="store-details__identity">
+                            <p class="store-details__app-id"><bdi dir="ltr">@ApplicationId</bdi></p>
+                            @if (!string.IsNullOrWhiteSpace(Description))
+                            {
+                                <p class="store-details__description"><bdi>@Description</bdi></p>
+                            }
+                        </div>
+                    </div>
+                </HeaderContent>
+                <ChildContent>
+                    <p class="store-details__trust">@T("TrustBoundary")</p>
+
+                    @if (OutputNames.Count > 0)
+                    {
+                        <div class="store-details__section">
+                            <h3 class="store-details__subheading">@T("OutputNames")</h3>
+                            <ul class="store-details__outputs" data-details-outputs>
+                                @foreach (string file in OutputNames)
+                                {
+                                    <li><code dir="ltr">@file</code></li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(IconAttribution))
+                    {
+                        <div class="store-details__section" data-icon-attribution>
+                            <h3 class="store-details__subheading">@T("IconAttributionLabel")</h3>
+                            <p class="store-details__attribution">
+                                @if (!string.IsNullOrWhiteSpace(IconLicense))
+                                {
+                                    <span class="store-details__license" dir="ltr">@IconLicense</span>
+                                    <span> · </span>
+                                }
+                                <span><bdi>@IconAttribution</bdi></span>
+                            </p>
+                        </div>
+                    }
+
+                    @if (Revisions.Count > 0)
+                    {
+                        <div class="store-details__section">
+                            <h3 class="store-details__subheading">@T("AvailableRevisions")</h3>
+                            @foreach (RevisionDetail detail in Revisions)
+                            {
+                                <section class="store-details__revision" data-details-revision="@detail.Revision">
+                                    <h4 class="store-details__revision-title">
+                                        <bdi>@detail.Title</bdi>
+                                        <span class="store-details__source-tag"> · @T(detail.IsLocal ? "AvailableInApp" : "DirectorySource")</span>
+                                    </h4>
+                                    <dl class="store-details__metadata">
+                                        <dt>@T("Family")</dt><dd><bdi dir="ltr">@detail.FamilyId.ToString("D")</bdi></dd>
+                                        <dt>@T("Revision")</dt><dd><bdi dir="ltr">@detail.Revision.ToString(CultureInfo.InvariantCulture)</bdi></dd>
+                                        <dt>@T("Digest")</dt><dd><code dir="ltr">@detail.Digest</code></dd>
+                                        <dt>@T("Publisher")</dt><dd><bdi>@detail.Publisher</bdi></dd>
+                                        @if (detail.OutputNames.Count > 0)
+                                        {
+                                            <dt>@T("OutputNames")</dt><dd><bdi dir="ltr">@string.Join(", ", detail.OutputNames)</bdi></dd>
+                                        }
+                                    </dl>
+                                    @foreach (SourceLink link in detail.SourceLinks)
+                                    {
+                                        <div class="store-details__source-link">
+                                            <a href="@link.Href">@T("DirectorySource"): <bdi>@link.Name</bdi></a>
+                                            @if (!string.IsNullOrWhiteSpace(link.Description))
+                                            {
+                                                <p><bdi>@link.Description</bdi></p>
+                                            }
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(detail.ConfigureHref))
+                                    {
+                                        <div class="store-details__revision-action">
+                                            <AppButton Href="@detail.ConfigureHref">@T("ConfigureRevision")</AppButton>
+                                        </div>
+                                    }
+                                </section>
+                            }
+                        </div>
+                    }
+                </ChildContent>
+                <ActionsContent>
+                    <AppButton Variant="Variant.Outlined" OnClick="Close" data-action="close-project-details">@T("Close")</AppButton>
+                </ActionsContent>
+            </AppDialogShell>
+        </div>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance Dialog { get; set; } = null!;
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string ApplicationId { get; set; } = string.Empty;
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string Locale { get; set; } = "en";
+    [Parameter] public string? IconDataUri { get; set; }
+    [Parameter] public string? IconLicense { get; set; }
+    [Parameter] public string? IconAttribution { get; set; }
+    [Parameter] public string Monogram { get; set; } = string.Empty;
+    [Parameter] public IReadOnlyList<string> OutputNames { get; set; } = [];
+    [Parameter] public IReadOnlyList<RevisionDetail> Revisions { get; set; } = [];
+
+    private string Direction => Locale == "ar" ? "rtl" : "ltr";
+
+    private string T(string key) => BrowserStrings.Get(key, Locale);
+
+    private void Close() => Dialog.Close();
+
+    public sealed record SourceLink(string ProjectId, string Name, string Description, string Href);
+
+    public sealed record RevisionDetail(
+        Guid FamilyId,
+        long Revision,
+        string Digest,
+        string Title,
+        string Publisher,
+        bool IsLocal,
+        IReadOnlyList<string> OutputNames,
+        IReadOnlyList<SourceLink> SourceLinks,
+        string? ConfigureHref);
+}

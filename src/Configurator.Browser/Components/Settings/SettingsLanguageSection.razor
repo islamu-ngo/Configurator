@@ -1,0 +1,44 @@
+@using System.Globalization
+@using Configurator.Browser.Services.Accessibility
+@inject BrowserNavigationState NavigationState
+@inject AccessibilityAnnouncerService Announcer
+
+<div class="settings-language">
+    <div class="settings-language__options" role="radiogroup" aria-label="@T("SettingsLanguage")">
+        @foreach (string locale in NavigationState.AvailableLocales)
+        {
+            bool active = string.Equals(locale, Culture.Locale, StringComparison.OrdinalIgnoreCase);
+            <button type="button"
+                    class="button @(active ? "button--primary" : "button--secondary")"
+                    role="radio"
+                    aria-checked="@(active ? "true" : "false")"
+                    data-settings-locale="@locale"
+                    @onclick="@(() => SelectLocaleAsync(locale))">
+                @DisplayName(locale)
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+
+    private string DisplayName(string locale)
+    {
+        string twoLetter = CultureInfo.GetCultureInfo(locale).TwoLetterISOLanguageName;
+        return twoLetter switch
+        {
+            "en" => T("EnglishLanguage"),
+            "ar" => T("ArabicLanguage"),
+            _ => CultureInfo.GetCultureInfo(locale).NativeName
+        };
+    }
+
+    private async Task SelectLocaleAsync(string locale)
+    {
+        NavigationState.SelectLocale(locale);
+        await Announcer.AnnouncePoliteAsync(DisplayName(locale));
+    }
+}

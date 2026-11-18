@@ -5,11 +5,13 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using AngleSharp.Dom;
 using Bunit;
+using Configurator.Browser.Components.Configuration;
 using Configurator.Browser.Layout;
 using Configurator.Browser.Services;
+using Configurator.Browser.Services.Accessibility;
+using Configurator.Browser.Services.Docking;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Sections;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
@@ -56,13 +58,17 @@ internal static class BrowserFixture
         context.Services.AddSingleton(TimeProvider.System);
         context.Services.AddSingleton(registry ?? new BrowserDefinitionRegistry([Definition]));
         context.Services.AddScoped<AppearanceThemeService>();
+        context.Services.AddScoped<AccessibilityFocusService>();
+        context.Services.AddScoped<AccessibilityAnnouncerService>();
+        context.Services.AddScoped<DockLayoutState>();
+        context.Services.AddScoped<IDockPanelRegistry>(services => services.GetRequiredService<DockLayoutState>());
+        context.Services.AddScoped<IDockLayoutPersistence, LocalStorageDockLayoutPersistence>();
         context.Services.AddScoped<BrowserNavigationState>();
         context.Services.AddScoped<BrowserOfflinePolicy>();
         context.Services.AddSingleton<Configurator.Presentation.Store.IDefinitionStoreProvider, Configurator.Presentation.Store.EmbeddedDefinitionStoreProvider>();
         context.Services.AddScoped<DefinitionStoreCatalog>();
         context.Services.AddScoped<WorkspaceSearchState>();
         context.Services.AddSingleton(new PopoverHost());
-        context.Services.AddSingleton(new SectionNavigationHost());
         context.Services.AddMudServices();
         var appearance = context.JSInterop.SetupModule("./js/browser-appearance.js");
         appearance.Setup<string?>("read", _ => true).SetResult(null);
@@ -80,8 +86,36 @@ internal static class BrowserFixture
         var rendering = context.JSInterop.SetupModule("./js/configuration-rendering.js");
         rendering.SetupVoid("nextFrame", _ => true).SetVoidResult();
         rendering.SetupVoid("nextTask", _ => true).SetVoidResult();
+        var accessibility = context.JSInterop.SetupModule("./js/accessibility.js");
+        accessibility.SetupVoid("announce", _ => true).SetVoidResult();
+        accessibility.Setup<bool>("setFocus", _ => true).SetResult(true);
+        accessibility.Setup<bool>("setFocusById", _ => true).SetResult(true);
+        accessibility.SetupVoid("saveActiveElement", _ => true).SetVoidResult();
+        accessibility.SetupVoid("restoreFocus", _ => true).SetVoidResult();
+        accessibility.SetupVoid("focusOnNavigate", _ => true).SetVoidResult();
+        accessibility.Setup<string>("getPreferredMotion", _ => true).SetResult("no-preference");
+        var dockResize = context.JSInterop.SetupModule("./js/dock-resize.js");
+        dockResize.SetupVoid("setPointerCapture", _ => true).SetVoidResult();
+        dockResize.SetupVoid("releasePointerCapture", _ => true).SetVoidResult();
+        dockResize.SetupVoid("schedulePanelWidth", _ => true).SetVoidResult();
+        var dockPersistence = context.JSInterop.SetupModule("./js/dock-layout-persistence.js");
+        dockPersistence.Setup<string?>("get", _ => true).SetResult(null);
+        dockPersistence.SetupVoid("set", _ => true).SetVoidResult();
+        dockPersistence.SetupVoid("remove", _ => true).SetVoidResult();
         return context;
     }
+
+    internal static IRenderedComponent<IComponent> PopoverSurface<T>(BunitContext context, IRenderedComponent<T> component)
+        where T : class, IComponent
+    {
+        if (component.FindComponents<MudPopoverProvider>().Count > 0)
+            return component;
+        var host = context.Services.GetRequiredService<PopoverHost>();
+        return host.Provider ??= context.Render<MudPopoverProvider>();
+    }
+
+    internal static IRenderedComponent<MudDialogProvider> DialogSurface(BunitContext context) =>
+        context.Render<MudDialogProvider>();
 
     internal static async Task SelectPanelAsync<T>(IRenderedComponent<T> component, string panel)
         where T : class, IComponent
@@ -138,15 +172,8 @@ internal static class BrowserFixture
     internal static IRenderedComponent<IComponent> SectionNavigation<T>(BunitContext context, IRenderedComponent<T> component)
         where T : class, IComponent
     {
-        if (component.FindComponents<SectionOutlet>().Count > 0) return component;
-        var host = context.Services.GetRequiredService<SectionNavigationHost>();
-        return host.Outlet ??= context.Render<SectionOutlet>(parameters =>
-            parameters.Add(item => item.SectionName, "configuration-sections"));
-    }
-
-    private sealed class SectionNavigationHost
-    {
-        internal IRenderedComponent<SectionOutlet>? Outlet { get; set; }
+        _ = component.FindComponent<ConfigurationConfigurePanel>();
+        return component;
     }
 
     internal static Task NotifyChoiceAsync<T>(IRenderedComponent<T> component, string field, string value)

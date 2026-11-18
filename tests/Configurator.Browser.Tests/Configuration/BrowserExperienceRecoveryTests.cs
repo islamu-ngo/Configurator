@@ -473,7 +473,8 @@ public sealed class BrowserExperienceRecoveryTests
 
         var page = context.Render<Catalogue>();
         await Assert.That(page.Find("[data-directory-state]").GetAttribute("data-directory-state")).IsEqualTo("unavailable");
-        await Assert.That(page.FindAll("[data-catalogue-entry]")).Count().IsGreaterThan(0);
+        await Assert.That(page.FindAll("[data-task-card='fresh']")).Count().IsGreaterThan(0);
+        await Assert.That(page.FindAll("[data-action='open-card-menu']")).Count().IsGreaterThan(0);
 
         shouldFail = false;
         await page.Find("[data-action='retry-directory']").ClickAsync(new MouseEventArgs());

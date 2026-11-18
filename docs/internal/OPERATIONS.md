@@ -3,7 +3,7 @@
 > **Audience:** Contributors | AI agents
 > **Status:** Implemented local engineering procedures; publication not activated
 > **Owner:** Packaging/Release
-> **Last Verified:** 2026-10-28
+> **Last Verified:** 2026-11-18
 > **Source Anchors:** `AGENTS.md`, `PROJECTS.md`, `global.json`, `eng/agent-workflow/`, `eng/release/`
 
 This selective transfer uses the AI-agent operational section from Event
@@ -2711,3 +2711,43 @@ fields) loaded via `/open`:
   - `Configurator.Architecture.Tests` (non-`Host` classes on fresh packages): `280/280` passed (`22` `[Category("Host")]` container policy tests require `CONFIGURATOR_HOST_URL` nginx container; pre-existing `TrustedVerifierPackagingTests` remains quarantined per baseline policy).
 - **Remaining manual / external gates:** Physical screen-reader & braille assistive-technology
   walkthrough (`en`/`ar` steward sign-off) and non-Linux OS native host packaging remain open.
+
+### Configuration Experience Unification Closure (2026-11-18, Wave 2 Phases 1–6)
+
+- **Shared theming & curated Store icons (`Phase 1`):** Ported Event 8 presets (`enterprise-blue`,
+  `emerald-green`, `abyssal-dark`, `pure-white`, `classic-white`, `classic-dark`, `light-hc`,
+  `dark-hc`) and Custom `Natural + Brand` HSL generation to `Configurator.Presentation.Theming`;
+  added fail-closed PNG `iconDataUri` (`<= 12 KiB`, square `16..256` `IHDR`), `iconLicense`,
+  and `iconAttribution` (`CC-BY-4.0` for `islamu-logo-text-only-v2-square.png`) in
+  `schemas/definition-store-curation.schema.json`, `BuildDefinitionStore.cs`,
+  `store/islamu-event/curation.json`, `THIRD-PARTY-NOTICES.md`, and `BROWSER_UI_TRANSFER.md`.
+- **Browser Event parity (`Phases 2–5`):** Aligned `tokens.css`, `base.css`, `components.css`, and
+  `mudblazor-overrides.css`; implemented `ThemeQuickSwitcher`, `LanguagePicker`, frosted 64px
+  `NavMenu`, `AppDialogShell`, `AppIconButton`, `AppSelect`, in-place `SettingsWorkspace` with
+  `← Return to configuration`, `DockLayoutHost`/`DockSideHost`/`DockOverlayHost` (`DockLayoutState`
+  `240–460px` Start default `310px`, `300–620px` Tabbed End default `360px`, `420px` content floor,
+  RTL-inverted `DockResizeHandle`, `LocalStorageDockLayoutPersistence` `configurator.dock.v1`),
+  and compact 2-per-row landscape `Catalogue` cards with `StoreProjectDetailsDialog` (`ⓘ` modal).
+- **Desktop Event parity (`Phase 6`):** Fixed `WireKeyCopiedStatus` EN/AR localization, literal
+  `_` in `OptionalEditors`, and localized `DesktopShellViewModel.StatusDisplay`; wired all 8 Event
+  presets, 5 modes (adding `DesktopTheme.LightHighContrast`), Custom HSL builder, top-left
+  `ReturnToConfigurationButton`, resizable Start (`StartDockSplitter` `Thumb`, `240–460` default
+  `310`) & Tabbed End (`EndDockSplitter` `GridSplitter`, `300–620` default `360`,
+  `Inspector (F2)` | `Document (JSON)`, overlay fallback below `900` or `< 420` center floor),
+  deduplicated 2-line `SectionRail`, and 2-column landscape `DefinitionLoaderView` Store cards with
+  `StoreIconBitmapConverter` PNG logos and `StoreProjectDetailsDialog`.
+- **Executed post-edit solution, package, native, and owner verification (`TMPDIR="$HOME/.cache/agent-tmp"`):**
+  - `dotnet restore Configurator.slnx --locked-mode && dotnet build Configurator.slnx --configuration Release --verbosity quiet --no-restore`: `0 Warning(s), 0 Error(s)` (29 projects).
+  - Scoped `dotnet format Configurator.slnx --verify-no-changes` across modified/added C# files: exit `0`.
+  - Generators & doc validators: `BuildDefinitionStore --self-test` `60/60` passed; `BuildDefinitionStore --check` `8 revisions` current; `GenerateConfiguratorRatchets --check` `3/3` current; `ValidateDefinitionDocumentation --self-test` `19 cases` passed; `ValidateDefinitionDocumentation` across edited docs `errors=0` (`88` local links).
+  - Packages published (`Configurator.Release.proj`): `PublishConfigurator` (`cli`, `terminal`, `desktop` `linux-x64`) & `PublishConfiguratorBrowser` (AOT): exit `0`.
+  - `Configurator.Core.Tests`: `968/968` passed (`15.9s`).
+  - `Configurator.Artifacts.Tests`: `233/233` passed (`44.8s`).
+  - `Configurator.Presentation.Tests`: `495/495` passed (`2.1s`).
+  - `Configurator.Browser.Tests`: `668/668` passed (`14.9s`); `ProfileWorkerHostTests.mjs`: `12/12` passed.
+  - `Configurator.Desktop.Tests`: `481/481` passed (`34.4s`).
+  - `Configurator.Desktop.NativeHost` (`linux-x64:X11`, `xvfb-run -a`, `--minimum-expected-checks 33`): `33/33` EN and `33/33` AR (`D01`–`D33`).
+  - `Configurator.Terminal.Tests`: `255/255` passed (`16.8s`).
+  - `Configurator.Cli.Tests`: `395/395` passed (`26.3s`).
+  - `Configurator.Architecture.Tests` (`Category!=Host` against freshly published packages): `280/280` passed (`9m 11s`).
+- **Remaining open gates:** Live Browser WASM walkthrough on the regenerated Wave 2 payload, containerized `BrowserHostPolicyTests` (`CONFIGURATOR_HOST_URL`), non-Linux host packaging, and physical screen-reader/assistive-technology sign-off (`en`/`ar`).

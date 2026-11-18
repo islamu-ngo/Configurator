@@ -1,0 +1,84 @@
+@using System.Globalization
+@using Configurator.Browser.Services.Accessibility
+@inject BrowserNavigationState NavigationState
+@inject AccessibilityAnnouncerService Announcer
+
+<div class="language-picker">
+    <MudMenu @bind-Open="_isOpen"
+             AnchorOrigin="Origin.BottomCenter"
+             TransformOrigin="Origin.TopCenter"
+             Dense="true"
+             Class="language-picker__menu">
+        <ActivatorContent>
+            <MudButton Variant="Variant.Text"
+                       Color="Color.Inherit"
+                       OnClick="ToggleMenu"
+                       EndIcon="@(_isOpen ? Icons.Material.Filled.ArrowDropUp : Icons.Material.Filled.ArrowDropDown)"
+                       aria-label="@GetAriaLabel()"
+                       data-action="toggle-language-picker"
+                       Class="language-picker__button">
+                <span class="language-picker__button-content">
+                    <MudIcon Icon="@Icons.Material.Outlined.Language" Size="Size.Small" />
+                    <span class="language-picker__current-language">@ShortCode(CurrentLocale)</span>
+                </span>
+            </MudButton>
+        </ActivatorContent>
+        <ChildContent>
+            @foreach (string locale in NavigationState.AvailableLocales)
+            {
+                bool active = string.Equals(locale, CurrentLocale, StringComparison.OrdinalIgnoreCase);
+                <MudMenuItem OnClick="@(() => SelectLocaleAsync(locale))"
+                             data-locale="@locale"
+                             aria-pressed="@(active ? "true" : "false")"
+                             Class="@(active ? "language-picker__item language-picker__item--active" : "language-picker__item")">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudText Typo="Typo.body2">@DisplayName(locale) (@ShortCode(locale))</MudText>
+                        @if (active)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" />
+                        }
+                    </MudStack>
+                </MudMenuItem>
+            }
+        </ChildContent>
+    </MudMenu>
+</div>
+
+@code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+
+    private bool _isOpen;
+
+    private string CurrentLocale => string.IsNullOrWhiteSpace(Culture.Locale) ? "en" : Culture.Locale;
+
+    private void ToggleMenu() => _isOpen = !_isOpen;
+
+    private async Task SelectLocaleAsync(string locale)
+    {
+        _isOpen = false;
+        if (string.Equals(locale, CurrentLocale, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        NavigationState.SelectLocale(locale);
+        await Announcer.AnnouncePoliteAsync(DisplayName(locale));
+    }
+
+    private string ShortCode(string locale) =>
+        CultureInfo.GetCultureInfo(locale).TwoLetterISOLanguageName.ToUpperInvariant();
+
+    private string DisplayName(string locale)
+    {
+        string twoLetter = CultureInfo.GetCultureInfo(locale).TwoLetterISOLanguageName;
+        return twoLetter switch
+        {
+            "en" => BrowserStrings.Get("EnglishLanguage", CurrentLocale),
+            "ar" => BrowserStrings.Get("ArabicLanguage", CurrentLocale),
+            _ => CultureInfo.GetCultureInfo(locale).NativeName
+        };
+    }
+
+    private string GetAriaLabel() => string.Format(
+        CultureInfo.GetCultureInfo(CurrentLocale),
+        BrowserStrings.Get("ChangeLanguageLabel", CurrentLocale),
+        DisplayName(CurrentLocale));
+}

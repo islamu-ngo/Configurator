@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Integrators | AI agents
 > **Status:** Mixed; current implementation routes and bounded historical evidence
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-11-16
+> **Last Verified:** 2026-11-18
 > **Source Anchors:** `docs/internal/CLI_CONTRACT.md`, `docs/internal/IMPORT_COMPARISON.md`, `docs/internal/OPERATIONS.md`, `docs/internal/adr/`
 
 This index separates claims that require different evidence. It routes to the
@@ -30,6 +30,25 @@ Physical screen-reader/braille assistive-technology evaluation (`en` and `ar` st
 sign-off), containerized `BrowserHostPolicyTests` (`22` tests requiring `CONFIGURATOR_HOST_URL`),
 and expanded non-Linux OS host qualification remain separate open gates and prevent
 blanket AT or cross-OS claims.
+
+## Configuration experience unification (2026-11-18)
+
+Browser, Desktop, and Presentation share the unified ISLAMU Event 8-preset
+(`ThemePresetCatalog`) and Custom `Natural + Brand` HSL theme engine across
+**System**, **Light**, **Dark**, **Light High Contrast**, and **Dark High Contrast**;
+top-level **Settings** with non-invalidating in-place **← Return to configuration**;
+1-row Configure Ribbon over resizable Start (`240–460` default `310`) and
+Tabbed End (`Inspector (F2)` | `Document (JSON)`, `300–620` default `360`,
+`420`-unit center content floor) docks; deduplicated section-header review actions;
+localized Desktop operation status display (`StatusDisplay`), EN/AR
+`WireKeyCopiedStatus`, mnemonic-free `OptionalEditors`; and compact 2-per-row
+landscape Store cards with fail-closed offline PNG logos (`iconDataUri` `<= 12 KiB`,
+`CC-BY-4.0`) and `ⓘ` **Project details** modals. The [closure record](OPERATIONS.md#configuration-experience-unification-closure-2026-11-18-wave-2-phases-16)
+records post-edit solution builds, generator/doc checks, fresh packages, unit
+suites, and Desktop `en`/`ar` X11 native checks (`33/33`). Live Chromium browser
+re-walkthrough on the regenerated Wave 2 WASM payload, containerized
+`BrowserHostPolicyTests`, and physical assistive-technology review remain separate
+open gates.
 
 ## Implemented scope
 

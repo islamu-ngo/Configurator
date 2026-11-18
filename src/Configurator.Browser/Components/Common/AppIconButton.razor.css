@@ -1,0 +1,7 @@
+.app-icon-button {
+    display: contents;
+}
+
+.app-icon-button ::deep .mud-icon-button {
+    transition: var(--isl-button-transition);
+}

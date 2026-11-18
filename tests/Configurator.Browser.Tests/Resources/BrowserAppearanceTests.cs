@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using Bunit;
 using Configurator.Browser.Layout;
 using Configurator.Browser.Services;
+using Configurator.Presentation.Theming;
 using Microsoft.Extensions.DependencyInjection;
 
 public sealed class BrowserAppearanceTests
@@ -27,7 +28,7 @@ public sealed class BrowserAppearanceTests
     [Test]
     public async Task OversizedPreferencesCannotBecomePersistentConfiguration()
     {
-        await Assert.That(AppearanceState.Parse(new string('x', 257))).IsEqualTo(new AppearanceState());
+        await Assert.That(AppearanceState.Parse(new string('x', AppearanceState.MaximumJsonBytes + 1))).IsEqualTo(new AppearanceState());
     }
 
     [Test]
@@ -64,7 +65,8 @@ public sealed class BrowserAppearanceTests
         await Assert.That(service.Current).IsEqualTo(new AppearanceState("lighthighcontrast", "ltr"));
         var writes = module.Invocations.Where(call => call.Identifier == "write").ToArray();
         await Assert.That(writes.Length).IsEqualTo(1);
-        await Assert.That(writes[0].Arguments.Cast<string>().ToArray()).IsEquivalentTo(["lighthighcontrast", "ltr", "comfortable", "humanized"]);
+        await Assert.That(writes[0].Arguments.Cast<string>().ToArray()).IsEquivalentTo(
+            ["lighthighcontrast", "ltr", "comfortable", "humanized", ThemePresetCatalog.DefaultThemeKey, ThemePreference.DefaultNaturalHex, ThemePreference.DefaultBrandHex]);
     }
 
     [Test]
@@ -115,7 +117,8 @@ public sealed class BrowserAppearanceTests
         await Assert.That(service.Current).IsEqualTo(new AppearanceState("light", "ltr", "dense", "humanized"));
         var writes = module.Invocations.Where(call => call.Identifier == "write").ToArray();
         await Assert.That(writes.Length).IsEqualTo(2);
-        await Assert.That(writes[1].Arguments.Cast<string>().ToArray()).IsEquivalentTo(["light", "ltr", "dense", "humanized"]);
+        await Assert.That(writes[1].Arguments.Cast<string>().ToArray()).IsEquivalentTo(
+            ["light", "ltr", "dense", "humanized", ThemePresetCatalog.DefaultThemeKey, ThemePreference.DefaultNaturalHex, ThemePreference.DefaultBrandHex]);
     }
 
     [Test]
@@ -189,21 +192,50 @@ public sealed class BrowserAppearanceTests
     }
 
     [Test]
-    public async Task ThemeQuickSwitcherOffersFourStepDensityAndNamingModeControls()
+    public async Task ThemeQuickSwitcherOffersEventPresetsModesAndSettingsActions()
     {
-        await using var context = BrowserFixture.Context();
-        var service = context.Services.GetRequiredService<AppearanceThemeService>();
-        var component = context.Render<ThemeQuickSwitcher>();
+        await using BunitContext context = BrowserFixture.Context();
+        AppearanceThemeService service = context.Services.GetRequiredService<AppearanceThemeService>();
+        IRenderedComponent<ThemeQuickSwitcher> component = context.Render<ThemeQuickSwitcher>();
+        IRenderedComponent<Microsoft.AspNetCore.Components.IComponent> surface = BrowserFixture.PopoverSurface(context, component);
 
-        string[] densityOptions = component.FindAll("#appearance-density option").Select(item => item.GetAttribute("value") ?? "").ToArray();
-        string[] namingOptions = component.FindAll("#appearance-naming option").Select(item => item.GetAttribute("value") ?? "").ToArray();
-        await Assert.That(densityOptions).IsEquivalentTo(["spacious", "comfortable", "compact", "dense"]);
-        await Assert.That(namingOptions).IsEquivalentTo(["humanized", "technical"]);
+        await component.Find("[data-action='toggle-theme-switcher']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
 
-        await component.Find("#appearance-density").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "dense" });
-        await component.Find("#appearance-naming").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "technical" });
-        await Assert.That(service.Current.Density).IsEqualTo("dense");
-        await Assert.That(service.Current.NamingMode).IsEqualTo("technical");
+        string[] presetKeys = surface.FindAll("[data-theme-preset]").Select(item => item.GetAttribute("data-theme-preset") ?? "").ToArray();
+        string[] modeKeys = surface.FindAll("[data-theme-mode]").Select(item => item.GetAttribute("data-theme-mode") ?? "").ToArray();
+        await Assert.That(presetKeys).IsEquivalentTo(
+            ["enterprise-blue", "emerald-green", "abyssal-dark", "pure-white", "classic-white", "classic-dark", "light-hc", "dark-hc"]);
+        await Assert.That(modeKeys).IsEquivalentTo(["system", "light", "dark", "lighthighcontrast", "darkhighcontrast"]);
+        await Assert.That(surface.FindAll("[data-action='open-custom-theme']")).Count().IsEqualTo(1);
+        await Assert.That(surface.FindAll("[data-action='open-full-settings']")).Count().IsEqualTo(1);
+
+        await surface.Find("[data-theme-preset='emerald-green']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await component.Find("[data-action='toggle-theme-switcher']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        await surface.Find("[data-theme-mode='dark']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+
+        await Assert.That(service.Current.ThemeKey).IsEqualTo("emerald-green");
+        await Assert.That(service.Current.ThemeMode).IsEqualTo("dark");
+        await Assert.That(service.IsDark).IsTrue();
+    }
+
+    [Test]
+    public async Task PresetAndCustomThemePalettesResolveDistinctContrastSafeMudThemes()
+    {
+        await using BunitContext context = BrowserFixture.Context();
+        AppearanceThemeService service = context.Services.GetRequiredService<AppearanceThemeService>();
+
+        await service.SetThemePresetAsync("emerald-green");
+        await service.SetModeAsync("light");
+        MudBlazor.MudTheme emerald = service.CreateTheme();
+        await Assert.That(emerald.PaletteLight.Primary.Value).IsEqualTo("#16a34aff");
+        await Assert.That(ContrastRatio(emerald.PaletteLight.PrimaryContrastText, emerald.PaletteLight.Primary) >= 4.5).IsTrue();
+
+        await service.SetCustomThemeAsync("#475569", "#0D9488");
+        await service.SetModeAsync("light");
+        MudBlazor.MudTheme custom = service.CreateTheme();
+        await Assert.That(custom.PaletteLight.Primary.Value).IsEqualTo("#0d9488ff");
+        await Assert.That(ContrastRatio(custom.PaletteLight.PrimaryContrastText, custom.PaletteLight.Primary) >= 4.5).IsTrue();
+        await Assert.That(ContrastRatio(custom.PaletteDark.TextPrimary, custom.PaletteDark.Surface) >= 4.5).IsTrue();
     }
 
     private static string RepositoryRoot()

@@ -1,88 +1,58 @@
 namespace Configurator.Browser.Services;
 
-using System.Text;
-using System.Text.Json;
 using Configurator.Presentation;
+using Configurator.Presentation.Theming;
 
-/// <summary>Only presentation preferences may cross the browser storage boundary.</summary>
+/// <summary>Only non-sensitive presentation preferences may cross the browser storage boundary.</summary>
 public sealed record AppearanceState(
     string ThemeMode = "system",
     string Direction = "auto",
     string Density = "comfortable",
-    string NamingMode = "humanized")
+    string NamingMode = "humanized",
+    string ThemeKey = ThemePresetCatalog.DefaultThemeKey,
+    string CustomNaturalHex = ThemePreference.DefaultNaturalHex,
+    string CustomBrandHex = ThemePreference.DefaultBrandHex)
 {
-    public static AppearanceState Parse(string? preference)
+    public const int MaximumJsonBytes = ThemePreference.MaximumJsonBytes;
+
+    public static AppearanceState Parse(string? preference) =>
+        FromPreference(ThemePreference.Parse(preference));
+
+    public static AppearanceState FromPreference(ThemePreference preference)
     {
-        if (string.IsNullOrEmpty(preference) || preference.Length > 256 || Encoding.UTF8.GetByteCount(preference) > 256)
-            return new();
-        try
-        {
-            using JsonDocument document = JsonDocument.Parse(preference, new JsonDocumentOptions { MaxDepth = 2 });
-            if (document.RootElement.ValueKind != JsonValueKind.Object) return new();
-            string? mode = null;
-            string? direction = null;
-            string? density = null;
-            string? namingMode = null;
-            foreach (JsonProperty property in document.RootElement.EnumerateObject())
-            {
-                if (property.Value.ValueKind != JsonValueKind.String) return new();
-                if (property.Name == "themeMode" && mode is null) mode = property.Value.GetString();
-                else if (property.Name == "direction" && direction is null) direction = property.Value.GetString();
-                else if (property.Name == "density" && density is null) density = property.Value.GetString();
-                else if (property.Name == "namingMode" && namingMode is null) namingMode = property.Value.GetString();
-                else return new();
-            }
-            if (!IsThemeMode(mode) || !IsDirection(direction)) return new();
-            density ??= "comfortable";
-            namingMode ??= "humanized";
-            return IsDensity(density) && IsNamingMode(namingMode)
-                ? new(mode!, direction!, density, namingMode)
-                : new();
-        }
-        catch (JsonException)
-        {
-            return new();
-        }
+        ArgumentNullException.ThrowIfNull(preference);
+        return new AppearanceState(
+            preference.ThemeMode,
+            preference.Direction,
+            preference.Density,
+            preference.NamingMode,
+            preference.ThemeKey,
+            preference.CustomNaturalHex,
+            preference.CustomBrandHex);
     }
 
-    public string ToJson()
-    {
-        string mode = IsThemeMode(ThemeMode) ? ThemeMode : "system";
-        string direction = IsDirection(Direction) ? Direction : "auto";
-        string density = IsDensity(Density) ? Density : "comfortable";
-        string namingMode = IsNamingMode(NamingMode) ? NamingMode : "humanized";
-        return $$"""{"themeMode":"{{mode}}","direction":"{{direction}}","density":"{{density}}","namingMode":"{{namingMode}}"}""";
-    }
+    public ThemePreference ToPreference() =>
+        new(ThemeMode, ThemeKey, CustomNaturalHex, CustomBrandHex, Direction, Density, NamingMode);
 
-    public WorkspaceDensity ToWorkspaceDensity() => Density switch
-    {
-        "spacious" => WorkspaceDensity.Spacious,
-        "compact" => WorkspaceDensity.Compact,
-        "dense" => WorkspaceDensity.Dense,
-        _ => WorkspaceDensity.Comfortable
-    };
+    public string ToJson() => ToPreference().ToJson();
 
-    public WorkspaceNamingMode ToWorkspaceNamingMode() => NamingMode == "technical"
-        ? WorkspaceNamingMode.Technical
-        : WorkspaceNamingMode.Humanized;
+    public WorkspaceDensity ToWorkspaceDensity() => ToPreference().ToWorkspaceDensity();
 
-    public static string FromWorkspaceDensity(WorkspaceDensity density) => density switch
-    {
-        WorkspaceDensity.Spacious => "spacious",
-        WorkspaceDensity.Compact => "compact",
-        WorkspaceDensity.Dense => "dense",
-        _ => "comfortable"
-    };
+    public WorkspaceNamingMode ToWorkspaceNamingMode() => ToPreference().ToWorkspaceNamingMode();
 
-    public static string FromWorkspaceNamingMode(WorkspaceNamingMode mode) => mode == WorkspaceNamingMode.Technical
-        ? "technical"
-        : "humanized";
+    public static string FromWorkspaceDensity(WorkspaceDensity density) =>
+        ThemePreference.FromWorkspaceDensity(density);
 
-    public static bool IsThemeMode(string? mode) => mode is "system" or "light" or "dark" or "lighthighcontrast" or "darkhighcontrast";
+    public static string FromWorkspaceNamingMode(WorkspaceNamingMode mode) =>
+        ThemePreference.FromWorkspaceNamingMode(mode);
 
-    public static bool IsDirection(string? direction) => direction is "auto" or "ltr" or "rtl";
+    public static bool IsThemeMode(string? mode) => ThemePreference.IsThemeMode(mode);
 
-    public static bool IsDensity(string? density) => density is "spacious" or "comfortable" or "compact" or "dense";
+    public static bool IsThemeKey(string? themeKey) => ThemePreference.IsThemeKey(themeKey);
 
-    public static bool IsNamingMode(string? namingMode) => namingMode is "humanized" or "technical";
+    public static bool IsDirection(string? direction) => ThemePreference.IsDirection(direction);
+
+    public static bool IsDensity(string? density) => ThemePreference.IsDensity(density);
+
+    public static bool IsNamingMode(string? namingMode) => ThemePreference.IsNamingMode(namingMode);
 }

@@ -20,8 +20,29 @@
     }
     else
     {
-        <p><bdi>@_project.Description</bdi></p>
-        <p class="eyebrow">@T("DirectorySource")</p>
+        StoreProjectCardViewModel storeCard = new(_project);
+        <div class="store-project__hero">
+            <div class="store-project__media">
+                @if (storeCard.HasIcon && storeCard.IconDataUri is { } iconUri)
+                {
+                    <img src="@iconUri" alt="" class="store-project__logo" data-project-logo />
+                }
+                else
+                {
+                    <span class="store-project__monogram" data-project-monogram aria-hidden="true">@storeCard.Monogram</span>
+                }
+            </div>
+            <div>
+                <p><bdi>@_project.Description</bdi></p>
+                <p class="eyebrow">@T("DirectorySource")</p>
+            </div>
+        </div>
+        @if (storeCard.HasIcon && !string.IsNullOrWhiteSpace(storeCard.IconAttribution))
+        {
+            <p class="store-project__attribution" data-icon-attribution>
+                @T("IconAttributionLabel"): <span dir="ltr">@storeCard.IconLicense</span> · <bdi>@storeCard.IconAttribution</bdi>
+            </p>
+        }
         <div class="actions">
             <a class="button button--secondary" data-action="explore-definition" href="@($"explore/{_project.FamilyId:D}")">@T("ExploreDefinitionAction")</a>
         </div>

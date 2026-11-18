@@ -3,9 +3,11 @@ namespace Configurator.Browser.Tests;
 using System.Text;
 using System.Text.Json.Nodes;
 using Bunit;
+using Configurator.Browser.Layout;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
 
 public sealed class BrowserSecretBoundaryTests
@@ -289,6 +291,31 @@ public sealed class BrowserSecretBoundaryTests
         // Search must never expose secret value or leak matches across revoked state.
         await component.InvokeAsync(() => form.SetDiscovery("synthetic-unmounted-secret-s04"));
         await Assert.That(form.Projection.Matches).IsEmpty();
+    }
+
+    [Test]
+    public async Task InPlaceSettingsPreservesActiveSecretConsentAndEnteredSecretsWhileReturnRestoresFocusToEditor()
+    {
+        await using BunitContext context = BrowserFixture.Context();
+        var exports = context.JSInterop.SetupModule("./js/browser-artifacts.js");
+        exports.SetupVoid("open", _ => true).SetVoidResult();
+        exports.Setup<bool>("copy", _ => true).SetResult(true);
+        exports.SetupVoid("invalidate", _ => true).SetVoidResult();
+        context.Services.GetRequiredService<NavigationManager>()
+            .NavigateTo($"launch/{BrowserFixture.Family}?digest={BrowserFixture.Definition.Digest.Value}");
+        IRenderedComponent<App> component = context.Render<App>();
+
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-in-place-secret" });
+
+        await component.Find("header [data-action='open-settings']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-action='return-to-configuration']")).Count().IsEqualTo(1);
+        await Assert.That(component.Find("[data-settings-workspace]").TextContent).DoesNotContain("synthetic-in-place-secret");
+        await Assert.That(exports.Invocations.Any(call => call.Identifier == "invalidate")).IsFalse();
+
+        await component.Find("[data-action='return-to-configuration']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsTrue();
+        await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("value")).IsEqualTo("synthetic-in-place-secret");
     }
 
     public sealed class EmittedSettingRow : ConfigurationSettingRow

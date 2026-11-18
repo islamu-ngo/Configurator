@@ -306,9 +306,16 @@ public sealed class LaunchRouteTests
 
         await Assert.That(fewCatalogue.FindAll("article").Count).IsLessThan(4);
         await Assert.That(fewCatalogue.FindAll("#catalogue-search")).IsEmpty();
-        await Assert.That(fewCatalogue.FindAll("[data-digest-disclosure]").Count).IsGreaterThan(0);
-        await Assert.That(fewCatalogue.FindAll("[data-digest-disclosure]").All(details => !details.HasAttribute("open"))).IsTrue();
+        await Assert.That(fewCatalogue.FindAll("[data-digest-disclosure]")).IsEmpty();
+        await Assert.That(fewCatalogue.FindAll("[data-action='open-project-details']").Count).IsGreaterThan(0);
         await Assert.That(fewCatalogue.FindAll("[data-project-origin='built-in']").Count).IsGreaterThan(0);
+
+        DefinitionStoreProject storeWithDigest = BrowserDefinitionStoreTests.CreateProject("minimal-self-hosted", "Minimal self-hosted", BrowserFixture.Definition);
+        await using BunitContext storeContext = BrowserFixture.Context(bundled);
+        storeContext.Services.AddSingleton<IDefinitionStoreProvider>(TestDefinitionStoreProvider.FromIndex([storeWithDigest]));
+        IRenderedComponent<Configurator.Browser.Pages.StoreProject> storePage =
+            storeContext.Render<Configurator.Browser.Pages.StoreProject>(parameters => parameters.Add(page => page.ProjectId, "minimal-self-hosted"));
+        await Assert.That(storePage.FindAll("[data-digest-disclosure]").All(details => !details.HasAttribute("open"))).IsTrue();
 
         Definition[] many =
         [
@@ -349,5 +356,32 @@ public sealed class LaunchRouteTests
         await Assert.That(page.FindAll("[data-task-card='import']").Count).IsEqualTo(1);
         await Assert.That(page.FindAll("[data-task-card='profile']").Count).IsEqualTo(1);
         await Assert.That(page.Find("[data-action='open-workspace']")).IsNotNull();
+    }
+
+    [Test]
+    public async Task NavigatingAwayFromLaunchToSettingsStillTriggersGuardAndInvalidatesEditor()
+    {
+        var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
+        await using BunitContext context = BrowserFixture.Context(registry);
+        var navigation = new RendererNavigationManager(context);
+        context.Services.AddSingleton<NavigationManager>(navigation);
+        navigation.NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0");
+        await navigation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        IRenderedComponent<App> component = context.Render<App>();
+
+        await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
+        await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "discarded-on-settings-nav.example.test" });
+
+        await component.InvokeAsync(() => navigation.NavigateTo("/settings"));
+        await component.Find("[data-action='confirm-discard']").ClickAsync(new MouseEventArgs());
+        await navigation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(navigation.ToBaseRelativePath(navigation.Uri)).IsEqualTo("settings");
+        await Assert.That(component.FindAll("[data-settings-section]")).Count().IsEqualTo(4);
+        await Assert.That(component.FindAll("[data-action='return-to-configuration']")).IsEmpty();
+
+        await component.InvokeAsync(() => navigation.NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0"));
+        await navigation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsNotEqualTo("discarded-on-settings-nav.example.test");
     }
 }

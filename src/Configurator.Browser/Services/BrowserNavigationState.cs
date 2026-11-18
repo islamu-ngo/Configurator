@@ -16,18 +16,27 @@ public sealed class BrowserNavigationState
     private Func<Task>? _discard;
     private Func<(string Locale, string Direction)>? _culture;
     private Func<bool>? _hasWork;
+    private Action<string>? _selectLocale;
+    private Func<IReadOnlyList<string>>? _availableLocales;
+    private string? _shellLocale;
     private long _generation;
     private long _workGeneration;
+    private bool _pendingFocusCustomTheme;
+    private bool _pendingRestoreConfigurationFocus;
     public bool IsActive => _owner is not null;
     public bool HasWork => _hasWork?.Invoke() ?? false;
+    public bool IsSettingsOpen { get; private set; }
+    public string? SettingsSection { get; private set; }
+    public bool SettingsFocusCustomTheme { get; private set; }
     public (string Locale, string Direction) Culture => _culture?.Invoke()
-        ?? (CultureInfo.CurrentUICulture.Name, CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft ? "rtl" : "ltr");
+        ?? ResolveShellCulture();
+    public IReadOnlyList<string> AvailableLocales => _availableLocales?.Invoke() ?? ["en", "ar"];
     public event EventHandler? Changed;
     public event EventHandler? WorkChanged;
 
     /// <summary>Returns the exact registration lease, including when the same editor reacquires custody.</summary>
     public long Register(object owner, Action invalidate, Func<Task> discard, Func<(string Locale, string Direction)> culture,
-        Func<bool> hasWork)
+        Func<bool> hasWork, Action<string>? selectLocale = null, Func<IReadOnlyList<string>>? availableLocales = null)
     {
         ArgumentNullException.ThrowIfNull(owner);
         ArgumentNullException.ThrowIfNull(invalidate);
@@ -41,8 +50,36 @@ public sealed class BrowserNavigationState
         _discard = discard;
         _culture = culture;
         _hasWork = hasWork;
+        _selectLocale = selectLocale;
+        _availableLocales = availableLocales;
         Changed?.Invoke(this, EventArgs.Empty);
         return lease;
+    }
+
+    public void SelectLocale(string locale)
+    {
+        if (string.IsNullOrWhiteSpace(locale)) return;
+        string normalized = locale.Trim();
+        if (_owner is not null && _selectLocale is not null)
+        {
+            _selectLocale(normalized);
+            return;
+        }
+
+        _shellLocale = normalized;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private (string Locale, string Direction) ResolveShellCulture()
+    {
+        if (!string.IsNullOrWhiteSpace(_shellLocale))
+        {
+            bool rtl = string.Equals(_shellLocale, "ar", StringComparison.OrdinalIgnoreCase)
+                || _shellLocale.StartsWith("ar-", StringComparison.OrdinalIgnoreCase);
+            return (_shellLocale, rtl ? "rtl" : "ltr");
+        }
+
+        return (CultureInfo.CurrentUICulture.Name, CultureInfo.CurrentUICulture.TextInfo.IsRightToLeft ? "rtl" : "ltr");
     }
 
     public void Release(object owner, long lease)
@@ -55,7 +92,54 @@ public sealed class BrowserNavigationState
         _discard = null;
         _culture = null;
         _hasWork = null;
+        _selectLocale = null;
+        _availableLocales = null;
+        IsSettingsOpen = false;
+        SettingsSection = null;
+        SettingsFocusCustomTheme = false;
+        _pendingRestoreConfigurationFocus = false;
         Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void OpenSettings(string? section = null, bool focusCustomTheme = false)
+    {
+        IsSettingsOpen = true;
+        SettingsSection = string.IsNullOrWhiteSpace(section) ? null : section.Trim();
+        SettingsFocusCustomTheme = focusCustomTheme;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SelectSettingsSection(string? section)
+    {
+        SettingsSection = string.IsNullOrWhiteSpace(section) ? null : section.Trim();
+        SettingsFocusCustomTheme = false;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void ReturnToConfiguration()
+    {
+        if (!IsSettingsOpen) return;
+        IsSettingsOpen = false;
+        SettingsSection = null;
+        SettingsFocusCustomTheme = false;
+        _pendingRestoreConfigurationFocus = true;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void SetPendingFocusCustomTheme(bool focusCustomTheme) => _pendingFocusCustomTheme = focusCustomTheme;
+
+    public bool ConsumePendingFocusCustomTheme()
+    {
+        bool pending = _pendingFocusCustomTheme;
+        _pendingFocusCustomTheme = false;
+        return pending;
+    }
+
+    public bool ConsumeRestoreConfigurationFocus()
+    {
+        bool pending = _pendingRestoreConfigurationFocus;
+        _pendingRestoreConfigurationFocus = false;
+        return pending;
     }
 
     /// <summary>Notifies chrome only for an actual locale change in the current workspace lease.</summary>

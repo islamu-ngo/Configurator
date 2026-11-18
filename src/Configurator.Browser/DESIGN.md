@@ -1,9 +1,12 @@
 # Browser workspace design
 
-This contract extracts the existing first-party component system. The owning
-values remain in `wwwroot/css/tokens.css`, `base.css`, `components.css` and
-`Services/AppearanceThemeService.cs`; this document does not define a second
-palette. No external visual assets, fonts or component implementation are added.
+> **Last Verified:** 2026-11-18
+> **Source Anchors:** `wwwroot/css/tokens.css`, `Services/AppearanceThemeService.cs`, `Components/Docking/`, `Components/Settings/`
+
+This contract extracts the first-party Event-aligned workspace system. The owning
+values remain in `wwwroot/css/tokens.css`, `base.css`, `components.css`,
+`mudblazor-overrides.css`, and `Services/AppearanceThemeService.cs`; this document does
+not define a second palette. No external visual assets or unapproved fonts are added.
 
 ## 1. Identity and hierarchy
 
@@ -25,9 +28,14 @@ Never turn a collapsed setting into an omitted answer.
 | Neutral separation and control boundary | `--isl-color-border`, `--isl-color-control-border` |
 | Error and success | `--isl-color-error`, `--isl-color-success` |
 
-Tokens follow the existing light, dark and high-contrast Mud palettes. State has
-a text label or semantic attribute as well as color. Rounded panels never use an
-accent stripe. Preserve visible keyboard focus rings and input error boundaries.
+Tokens follow the shared Event 8-preset system (`Enterprise Blue` default,
+`Emerald Green`, `Abyssal Dark`, `Pure White`, `Classic White`, `Classic Dark`,
+`Light High Contrast`, `Dark High Contrast`) plus the Custom `Natural + Brand`
+HSL palette generator across **System**, **Light**, **Dark**, **Light HC**, and
+**Dark HC** modes (`ThemePresetCatalog` / `ThemePaletteGenerator`). State has a
+text label or semantic attribute as well as color. Rounded panels never use an
+accent stripe. Preserve visible keyboard focus rings and WCAG contrast across all
+ordinary and high-contrast palettes.
 
 ## 3. Typography
 
@@ -46,29 +54,23 @@ Use the existing quarter-rem `--isl-space-1` through `--isl-space-16` scale,
 Browser mechanics such as percentages, intrinsic grid tracks and container
 queries are not new design tokens.
 
-The document remains the vertical scroll owner. The guided region uses a narrow
-section sidebar and a shrinking main column at wide container sizes; at narrow
-sizes it becomes one column in DOM reading order. There is no nested form
-scrollbar or fixed action bar covering inputs. Every grid child can shrink
-(`min-inline-size: 0`); primary content must reflow without horizontal scrolling
-at 320/390 pixels, long labels and enlarged text.
+The shell uses a frosted `64px` topbar (`NavMenu`) with brand identity,
+`ThemeQuickSwitcher`, `LanguagePicker`, and in-place **Settings** toggle. During
+active `/launch/{FamilyId}` sessions, **Settings** (`SettingsWorkspace`) mounts in
+place over a `hidden`/`inert` editor container with a top-left **← Return to
+configuration** button so answers, drafts, and secret consent survive round-trips.
 
-Application navigation is a deliberate disclosure, not a second permanent
-sidebar competing with section navigation. Its Menu trigger remains visible
-on desktop and phone; Escape closes the navigation and restores that trigger.
-The compact appbar is a wrapping cluster of identity/navigation, current-workspace
-search and existing appearance controls. It remains sticky during deep editing
-when the viewport is taller than 30rem. On shorter viewports, including browser
-zoom, the header and expanded application navigation scroll with the document
-so they cannot cover the editor. Open search instead fixes its entry and bounded
-results within that viewport while reserving its normal header space.
-On taller viewports application navigation opens beneath the header as a bounded
-overlay. Search results overlay the workspace
-without moving its edited question. The results region may scroll independently
-because it is a bounded transient overlay, not the form's vertical scroll owner.
-The viewport reserves a stable scrollbar gutter; modal scroll lock does not add
-a second body padding compensation or shift the active field.
-No route/hash navigation, docking framework or second answer model is involved.
+Configuration views pair a resizable global Start dock (`240–460px`, default `256px`
+hosting top workspace links, a bottom-pinned `Local workspace` custody card, short-viewport vertical scrolling, and a visible Close control in overlay mode) with an independent sticky `13–16rem` form section rail inside `ConfigurationConfigurePanel` (`padding: var(--isl-space-1)` focus-safe scrolling, collapsing into a compact wrapped chip bar at `<= 60rem`; mobile full-screen section drill-down stays deferred) and Tabbed End dock (`Inspector (F2)` |
+`Document (JSON)`, `300–620px`, default `360px`) coordinated by `DockLayoutState` priority allocation,
+enforcing a density-aware central content floor (`790px` Comfortable / `806px` Spacious / `774px` Compact / `766px` Dense while persistent desktop form nav renders above `960px`, else `420px`) so active form inputs stay `>= 420px`, with automatic overlay degradation
+at `<= 760px` or tight split widths. `DockResizeHandle` mirrors pointer/keyboard
+deltas in RTL (`RightToLeft`), and overlay close unmounts synchronously without
+stale-drawer animations. Home **Catalogue** cards (`Store`) render 2-per-row
+compact landscape tiles (`~124px` tall, left `76×76` validated PNG logo or
+monogram, bottom-right actions, and `ⓘ` `StoreProjectDetailsDialog` modal). Every
+grid child can shrink (`min-inline-size: 0`), preventing horizontal scrollbars at
+320/390 pixels, long labels, and enlarged text.
 
 ## 5. Reusable primitives and states
 
@@ -76,17 +78,7 @@ Workspace detail is Essential, Standard or All active in the selected profile,
 with an explicit Follow experience choice. Density supports the 4-step workspace
 density scale; CSS variables change field/group gaps and control height, never
 font size, answers or validation. Coarse-pointer controls retain 44px targets.
-`WorkspaceHeader` keeps the definition title, scope toggle chip (`[data-action="change-scope"]`), secret-consent chip,
-and top-level `Configure`, `Review`, and `Files` workflow stage buttons at the top of the workspace,
-while `ConfigurationConfigurePanel` hosts the orthogonal `[Section by section | All sections]` layout switcher (`[data-layout-mode]`),
-persistent left section rail (`ConfigurationNavigation` with `aria-current="step"` or `IntersectionObserver` scrollspy `aria-current="location"` and section-reviewed toggle),
-and slim single-row progress/reserved status header (`[data-status-slot="reserved"]` for `CLS = 0`)
-so the active section heading and first editable question lead cleanly above the fold at `1366x768` and `1440x900`. Returning-user entry actions (`[data-returning-entry]`) and secondary tools (Form/Developer
-mode switching, Humanized/Technical naming `Ctrl+Shift+K`, Undo/Redo
-`Ctrl+Z`/`Ctrl+Shift+Z` with secret purge on consent revocation + `ISnackbar`
-confirmation, `?` keyboard shortcut dialog, experience/detail, density, portable
-profile vault, language and declared-output privacy disclosures) render after
-the primary questions inside editor tools (`details.configuration-editor__view-options`). Optional
+`WorkspaceHeader` renders a single compact primary row containing the definition title, tabular progress + attention action, inline `[data-status-slot="reserved"]` (`CLS = 0`), active secret-unlocked pill when enabled, workflow stage buttons (`Configure`, `Review`, `Files`), and a right-aligned **Advanced** disclosure toggle (`[data-action="toggle-advanced-options"]`, displaying an override count badge when non-default modes are active), while `Launch` keeps a screen-reader `<h1>` without stacking a second hero block above the workspace so the active section navigation, layout switcher, section heading, and first editable questions begin near the top of `1366x768` and `1440x900` screens. Secondary controls (recipe/scope chip `#configuration-context`, secret-consent jump chip, **Output task**, Form/Developer mode switching, schema inspector `F2`, experience/detail profile, density, Humanized/Technical naming `Ctrl+Shift+K`, Undo/Redo `Ctrl+Z`/`Ctrl+Shift+Z`, `?` shortcuts, and `[data-digest-disclosure]` source details) stay tucked inside the `hidden`/`inert` `#workspace-advanced-options` panel until expanded. `ConfigurationConfigurePanel` hosts the sticky focus-safe left section rail (`ConfigurationNavigation` with `aria-current="step"` or `IntersectionObserver` scrollspy `aria-current="location"`, visible restrained `Reviewed` indicator without colored accent stripes, and tabular progress counts) beside `.configuration-configure-panel__main` containing the segmented `[Section by section | All sections]` layout switcher (`[data-layout-switcher]`, flush with Column 2 item #1 and preserving active scrollspy section back to `Section by section`), and returning-user entry actions (`[data-returning-entry]`) alongside `details.configuration-editor__view-options` render after the primary questions. Optional
 field omission moves into a named row-action menu; omitting a container
 explicitly names its nested answers and remains distinct from collapsing
 optional detail. Wide viewports (`>= 1280px`) render schema inspection in a
@@ -116,9 +108,9 @@ docked `ConfigurationInspectorPane`, while secret generation uses the modal
   part of the render signature so `aria-expanded` remains current.
 - **Workflow navigation:** a compact ordered Configure/Review/Prepare landmark
   targeting real sections. It describes location, not fabricated readiness.
-- **Section navigation:** title, independently counted required-answer progress,
-  correction/deferred status and a current-section indication. Buttons wrap
-  labels; current state has text and `aria-current`. Empty/inactive sections do
+- **Section navigation:** title, independently counted tabular-nums required-answer progress,
+  correction/deferred status, visible restrained `Reviewed` indicator (with tonal active surface and no colored accent stripe), and a current-section indication. Buttons wrap
+  labels (compacting to a wrapped chip bar at `<= 60rem`); current state has text and `aria-current`. Empty/inactive sections do
   not invent work.
 - **Editor:** connected label, required/optional state, current input, short help
   and error. Local optional disclosure uses a labeled button with

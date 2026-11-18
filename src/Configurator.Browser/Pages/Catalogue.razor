@@ -1,10 +1,13 @@
 @page "/"
 @implements IDisposable
+@using System.Globalization
+@using Configurator.Browser.Components.Store
 @using Configurator.Core.Definitions
 @using Configurator.Presentation.Store
 @inject BrowserDefinitionRegistry Registry
 @inject DefinitionStoreCatalog Catalog
 @inject NavigationManager Navigation
+@inject IDialogService Dialogs
 
 <PageTitle>@T("CatalogueTitle") · Configurator</PageTitle>
 <div class="catalogue" lang="@Culture.Locale">
@@ -28,101 +31,136 @@
     <div class="catalogue__definitions">
         @foreach (CatalogueProject project in Visible)
         {
-            <article class="catalogue__definition" @key="project.ApplicationId"
+            CatalogueDefinition? primary = project.Primary;
+            CatalogueDefinition lead = primary ?? project.Choices[0];
+            DefinitionStoreProject? resolvedSource = lead.Sources.FirstOrDefault()
+                ?? project.Choices.SelectMany(choice => choice.Sources).FirstOrDefault();
+            StoreProjectCardViewModel? storeCard = resolvedSource is not null
+                ? new StoreProjectCardViewModel(resolvedSource)
+                : null;
+            string monogram = storeCard?.Monogram ?? ComputeLocalMonogram(project.Title, project.ApplicationId);
+            string summary = !string.IsNullOrWhiteSpace(project.Description) ? project.Description! : project.ApplicationId;
+            int fileCount = project.OutputNames.Count;
+            string fileLabel = fileCount == 1
+                ? T("FileCountSingle")
+                : string.Format(CultureInfo.GetCultureInfo(Culture.Locale), T("FileCountPlural"), fileCount);
+            string[] extraSourceNames = project.Choices
+                .SelectMany(choice => choice.Sources)
+                .Select(source => source.Name)
+                .Where(name => !string.IsNullOrWhiteSpace(name) && !string.Equals(name, project.Title, StringComparison.OrdinalIgnoreCase))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            <article class="catalogue__card" @key="project.ApplicationId"
                      data-project="@ProjectIdentifier(project)"
-                     data-project-origin="@(project.Primary?.Local is not null ? "built-in" : "directory")">
-                <div class="catalogue__definition-header">
-                    <h2><bdi>@project.Title</bdi></h2>
-                    @if (project.Primary is { Local: { } local })
+                     data-project-origin="@(primary?.Local is not null ? "built-in" : "directory")">
+                <div class="catalogue__card-media">
+                    @if (storeCard is { HasIcon: true, IconDataUri: { } iconUri })
                     {
-                        <span class="catalogue__badge catalogue__badge--local"><span class="catalogue__badge-dot" aria-hidden="true"></span>@T("AvailableInApp")</span>
+                        <img src="@iconUri" alt="" class="catalogue__card-logo" data-project-logo />
                     }
-                    else if (project.Primary is { })
+                    else
                     {
-                        <span class="catalogue__badge"><span class="catalogue__badge-dot" aria-hidden="true"></span>@T("DirectorySource")</span>
-                    }
-                </div>
-                <div class="catalogue__overview">
-                    <p class="catalogue__application" data-catalogue-application>@T("ApplicationId"): <bdi dir="ltr">@project.ApplicationId</bdi></p>
-                    @if (!string.IsNullOrEmpty(project.Description))
-                    {
-                        <p class="catalogue__description" data-catalogue-description><bdi>@project.Description</bdi></p>
-                    }
-                    @if (project.OutputNames.Count > 0)
-                    {
-                        <p class="catalogue__outputs" data-catalogue-outputs>@T("OutputNames"): <bdi dir="ltr">@string.Join(", ", project.OutputNames)</bdi></p>
+                        <span class="catalogue__card-monogram" data-project-monogram aria-hidden="true">@monogram</span>
                     }
                 </div>
-                <div class="catalogue__card-actions">
-                    @if (project.Primary is { Local: { } localAction })
-                    {
-                        <div class="catalogue__task-pill" data-task-card="fresh">
-                            <AppButton Href="@($"launch/{localAction.FamilyId:D}?digest={localAction.Digest.Value}")"
-                                       aria-label="@string.Format(System.Globalization.CultureInfo.GetCultureInfo(Culture.Locale), T("ConfigureProject"), localAction.Title)">@T("Configure")</AppButton>
-                        </div>
-                        <div class="catalogue__task-pill" data-task-card="import">
-                            <AppButton Variant="Variant.Outlined" data-catalogue-entry="import"
-                                       OnClick='() => OpenLocal(localAction, "import")'>@T("UseExistingConfigurationEntry")</AppButton>
-                        </div>
-                        <div class="catalogue__task-pill" data-task-card="profile">
-                            <AppButton Variant="Variant.Outlined" data-catalogue-entry="profile"
-                                       OnClick='() => OpenLocal(localAction, "profile")'>@T("OpenSavedProfileEntry")</AppButton>
-                        </div>
-                    }
-                    else if (project.Primary is { } directory)
-                    {
-                        <div class="catalogue__task-pill" data-task-card="fresh">
-                            <AppButton data-action="open-directory" OnClick='() => OpenDirectoryAsync(directory, "fresh")' Disabled="@_opening">@T(_opening ? "CheckingSnapshot" : "Configure")</AppButton>
-                        </div>
-                        <div class="catalogue__task-pill" data-task-card="import">
-                            <AppButton Variant="Variant.Outlined" data-catalogue-entry="import" OnClick='() => OpenDirectoryAsync(directory, "import")' Disabled="@_opening">@T("UseExistingConfigurationEntry")</AppButton>
-                        </div>
-                        <div class="catalogue__task-pill" data-task-card="profile">
-                            <AppButton Variant="Variant.Outlined" data-catalogue-entry="profile" OnClick='() => OpenDirectoryAsync(directory, "profile")' Disabled="@_opening">@T("OpenSavedProfileEntry")</AppButton>
-                        </div>
-                    }
-                    @if ((project.Primary ?? project.Choices.FirstOrDefault()) is { } exploreChoice)
-                    {
-                        <a class="button button--secondary" data-action="explore-definition"
-                           href="@($"explore/{exploreChoice.Family:D}?revision={exploreChoice.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)}&digest={exploreChoice.Digest}")">@T("ExploreDefinitionAction")</a>
-                    }
-                </div>
-                <details class="catalogue__details" data-digest-disclosure>
-                    <summary class="catalogue__summary"><span class="catalogue__summary-chevron" aria-hidden="true"></span>@T("SourceDetails")</summary>
-                    <p class="catalogue__trust-note">@T("TrustBoundary")</p>
-                    @foreach (CatalogueDefinition choice in project.Choices)
-                    {
-                        <section class="catalogue__choice" @key="choice">
-                            <h3><bdi>@choice.Title</bdi> <span class="catalogue__choice-source">· @T(choice.Local is null ? "DirectorySource" : "AvailableInApp")</span></h3>
-                            <dl class="catalogue__metadata">
-                                <dt>@T("Family")</dt><dd><bdi dir="ltr">@choice.Family.ToString("D")</bdi></dd>
-                                <dt>@T("Revision")</dt><dd><bdi dir="ltr">@choice.Revision</bdi></dd>
-                                <dt>@T("Digest")</dt><dd><code dir="ltr">@choice.Digest</code></dd>
-                                <dt>@T("Publisher")</dt><dd><bdi>@(choice.Local?.Publisher ?? choice.Directory!.Publisher)</bdi></dd>
-                                <dt>@T("ApplicationId")</dt><dd><bdi dir="ltr">@choice.ApplicationId</bdi></dd>
-                                <dt>@T("OutputNames")</dt><dd><bdi dir="ltr">@string.Join(", ", choice.Local?.Artifacts.Select(artifact => artifact.FileName) ?? choice.Directory!.OutputNames)</bdi></dd>
-                            </dl>
-                            @if (choice != project.Primary)
-                            {
-                                @if (choice.Local is { } alternative)
+
+                <div class="catalogue__card-body">
+                    <div class="catalogue__card-top">
+                        <div class="catalogue__card-heading">
+                            <h2 class="catalogue__card-title"><bdi>@project.Title</bdi></h2>
+                            <div class="catalogue__card-badges">
+                                @if (primary is { Local: not null })
                                 {
-                                    <div class="catalogue__choice-action"><AppButton Href="@($"launch/{alternative.FamilyId:D}?digest={alternative.Digest.Value}")">@T("ConfigureRevision")</AppButton></div>
+                                    <span class="catalogue__badge catalogue__badge--local"><span class="catalogue__badge-dot" aria-hidden="true"></span>@T("AvailableInApp")</span>
                                 }
-                                else
+                                else if (primary is not null)
                                 {
-                                    <div class="catalogue__choice-action"><AppButton OnClick="() => OpenDirectoryAsync(choice)" Disabled="@_opening">@T("ConfigureRevision")</AppButton></div>
+                                    <span class="catalogue__badge"><span class="catalogue__badge-dot" aria-hidden="true"></span>@T("DirectorySource")</span>
                                 }
-                            }
-                            @foreach (DefinitionStoreProject source in choice.Sources)
-                            {
-                                <div class="catalogue__choice-source-link">
-                                    <a href="@($"store/{source.ProjectId}?revision={choice.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)}")">@T("DirectorySource"): <bdi>@source.Name</bdi></a>
-                                    <p><bdi>@source.Description</bdi></p>
-                                </div>
-                            }
-                        </section>
-                    }
-                </details>
+                                @foreach (string sourceName in extraSourceNames)
+                                {
+                                    <span class="catalogue__pill catalogue__pill--source"><bdi>@sourceName</bdi></span>
+                                }
+                                <span class="catalogue__pill" dir="ltr">r@(lead.Revision.ToString(CultureInfo.InvariantCulture))</span>
+                                @if (fileCount > 0)
+                                {
+                                    <span class="catalogue__pill">@fileLabel</span>
+                                }
+                            </div>
+                        </div>
+                        <button type="button"
+                                class="catalogue__info-button"
+                                data-action="open-project-details"
+                                aria-label="@($"{T("ProjectDetailsLabel")}: {project.Title}")"
+                                title="@T("ProjectDetailsLabel")"
+                                @onclick="() => OpenDetailsAsync(project)">
+                            <MudIcon Icon="@Icons.Material.Outlined.Info" Size="Size.Small" aria-hidden="true" />
+                        </button>
+                    </div>
+
+                    <p class="catalogue__card-summary" data-catalogue-description><bdi>@summary</bdi></p>
+
+                    <div class="catalogue__card-actions">
+                        @if ((primary ?? project.Choices.FirstOrDefault()) is { } exploreChoice)
+                        {
+                            <a class="button button--secondary catalogue__action-btn"
+                               data-action="explore-definition"
+                               href="@($"explore/{exploreChoice.Family:D}?revision={exploreChoice.Revision.ToString(CultureInfo.InvariantCulture)}&digest={exploreChoice.Digest}")">@T("ExploreDefinitionAction")</a>
+                        }
+
+                        @if (primary is not null || project.Choices.Any(choice => choice.Sources.Count > 0))
+                        {
+                            <MudMenu AnchorOrigin="Origin.BottomRight"
+                                     TransformOrigin="Origin.TopRight"
+                                     Dense="true"
+                                     Class="catalogue__more-menu">
+                                <ActivatorContent>
+                                    <button type="button"
+                                            class="button button--secondary catalogue__more-button"
+                                            data-action="open-card-menu"
+                                            aria-label="@($"{T("MoreActions")}: {project.Title}")">
+                                        <span aria-hidden="true">⋯</span>
+                                    </button>
+                                </ActivatorContent>
+                                <ChildContent>
+                                    @if (primary is { Local: { } localEntry })
+                                    {
+                                        <MudMenuItem data-catalogue-entry="import" OnClick='() => OpenLocal(localEntry, "import")'>@T("UseExistingConfigurationEntry")</MudMenuItem>
+                                        <MudMenuItem data-catalogue-entry="profile" OnClick='() => OpenLocal(localEntry, "profile")'>@T("OpenSavedProfileEntry")</MudMenuItem>
+                                    }
+                                    else if (primary is { } dirEntry)
+                                    {
+                                        <MudMenuItem data-catalogue-entry="import" Disabled="@_opening" OnClick='() => OpenDirectoryAsync(dirEntry, "import")'>@T("UseExistingConfigurationEntry")</MudMenuItem>
+                                        <MudMenuItem data-catalogue-entry="profile" Disabled="@_opening" OnClick='() => OpenDirectoryAsync(dirEntry, "profile")'>@T("OpenSavedProfileEntry")</MudMenuItem>
+                                    }
+                                    @foreach (CatalogueDefinition choice in project.Choices)
+                                    {
+                                        @foreach (DefinitionStoreProject source in choice.Sources)
+                                        {
+                                            string href = $"store/{source.ProjectId}?revision={choice.Revision.ToString(CultureInfo.InvariantCulture)}";
+                                            <MudMenuItem Href="@href">@T("DirectorySource"): @source.Name (r@(choice.Revision.ToString(CultureInfo.InvariantCulture)))</MudMenuItem>
+                                        }
+                                    }
+                                </ChildContent>
+                            </MudMenu>
+                        }
+
+                        @if (primary is { Local: { } localAction })
+                        {
+                            <div class="catalogue__task-pill" data-task-card="fresh">
+                                <AppButton Href="@($"launch/{localAction.FamilyId:D}?digest={localAction.Digest.Value}")"
+                                           aria-label="@string.Format(CultureInfo.GetCultureInfo(Culture.Locale), T("ConfigureProject"), localAction.Title)">@T("Configure")</AppButton>
+                            </div>
+                        }
+                        else if (primary is { } directory)
+                        {
+                            <div class="catalogue__task-pill" data-task-card="fresh">
+                                <AppButton data-action="open-directory" OnClick='() => OpenDirectoryAsync(directory, "fresh")' Disabled="@_opening">@T(_opening ? "CheckingSnapshot" : "Configure")</AppButton>
+                            </div>
+                        }
+                    </div>
+                </div>
             </article>
         }
     </div>
@@ -192,6 +230,67 @@
 
     private void ClearSearch() => _query = string.Empty;
 
+    private async Task OpenDetailsAsync(CatalogueProject project)
+    {
+        if (_disposed) return;
+
+        CatalogueDefinition lead = project.Primary ?? project.Choices[0];
+        DefinitionStoreProject? resolvedSource = lead.Sources.FirstOrDefault()
+            ?? project.Choices.SelectMany(choice => choice.Sources).FirstOrDefault();
+        StoreProjectCardViewModel? card = resolvedSource is not null
+            ? new StoreProjectCardViewModel(resolvedSource)
+            : null;
+        string monogram = card?.Monogram ?? ComputeLocalMonogram(project.Title, project.ApplicationId);
+
+        StoreProjectDetailsDialog.RevisionDetail[] revisions = project.Choices
+            .Select(choice =>
+            {
+                string publisher = choice.Local?.Publisher ?? choice.Directory?.Publisher ?? string.Empty;
+                IReadOnlyList<string> outputs = choice.Local?.Artifacts.Select(artifact => artifact.FileName).ToArray()
+                    ?? choice.Directory?.OutputNames ?? [];
+                StoreProjectDetailsDialog.SourceLink[] links = choice.Sources
+                    .Select(s => new StoreProjectDetailsDialog.SourceLink(
+                        s.ProjectId,
+                        s.Name,
+                        s.Description,
+                        $"store/{s.ProjectId}?revision={choice.Revision.ToString(CultureInfo.InvariantCulture)}"))
+                    .ToArray();
+                string? configureHref = choice != project.Primary && choice.Local is { } alt
+                    ? $"launch/{alt.FamilyId:D}?digest={alt.Digest.Value}"
+                    : null;
+                return new StoreProjectDetailsDialog.RevisionDetail(
+                    choice.Family,
+                    choice.Revision,
+                    choice.Digest,
+                    choice.Title,
+                    publisher,
+                    choice.Local is not null,
+                    outputs,
+                    links,
+                    configureHref);
+            })
+            .ToArray();
+
+        DialogParameters<StoreProjectDetailsDialog> parameters = new()
+        {
+            { item => item.Title, project.Title },
+            { item => item.ApplicationId, project.ApplicationId },
+            { item => item.Description, project.Description },
+            { item => item.Locale, Culture.Locale },
+            { item => item.IconDataUri, card?.IconDataUri },
+            { item => item.IconLicense, card?.IconLicense },
+            { item => item.IconAttribution, card?.IconAttribution },
+            { item => item.Monogram, monogram },
+            { item => item.OutputNames, project.OutputNames },
+            { item => item.Revisions, revisions }
+        };
+
+        await Dialogs.ShowAsync<StoreProjectDetailsDialog>(
+            T("ProjectDetailsLabel"),
+            parameters,
+            new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true });
+    }
+
     private async Task LoadDirectoryAsync()
     {
         _loading = true;
@@ -212,9 +311,20 @@
         ?? project.Choices.SelectMany(choice => choice.Sources).FirstOrDefault()?.ProjectId
         ?? project.ApplicationId;
 
+    private static string ComputeLocalMonogram(string title, string appId)
+    {
+        string source = string.IsNullOrWhiteSpace(title) ? appId : title.Trim();
+        string[] parts = source.Split([' ', '-', '_', '.'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length >= 2)
+            return $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[1][0])}";
+        return parts.Length == 1 && parts[0].Length >= 2
+            ? $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[0][1])}"
+            : parts.Length == 1 ? char.ToUpperInvariant(parts[0][0]).ToString() : "CF";
+    }
+
     private void BuildChoices()
     {
-        var choices = Registry.Current.Definitions.Select(definition => new CatalogueDefinition(
+        List<CatalogueDefinition> choices = Registry.Current.Definitions.Select(definition => new CatalogueDefinition(
             definition.FamilyId, definition.Revision, definition.Digest.Value, definition.Title, definition, null, [])).ToList();
         foreach (DefinitionStoreProject project in _projects)
         {

@@ -918,3 +918,25 @@ The direct `GenerateSecretAsync` path also accepts validated
 use the same private generation/adoption path. Options change the admitted
 generator input; they do not bypass cancellation, consent, scalar validation or
 the captured input-revision check.
+
+## Shared Theme Engine & Store Card Projections
+
+`Configurator.Presentation.Theming` owns the shared offline theme system
+consumed by both Browser and Desktop adapters:
+
+- `ThemePresetCatalog.All` defines the exact 8 Event presets (`enterprise-blue`
+  default, `emerald-green`, `abyssal-dark`, `pure-white`, `classic-white`,
+  `classic-dark`, `light-hc`, `dark-hc`), each pairing Light, Dark, Light High
+  Contrast, and Dark High Contrast `ThemePalette` tokens.
+- `HslColor` and `ThemePaletteGenerator` deterministically derive Light, Dark,
+  Light HC, and Dark HC palettes from validated `(naturalHex, brandHex)` pairs
+  using culture-invariant formatting and WCAG contrast checks.
+- `ThemePreference` validates bounded (`<= 512` UTF-8 bytes) presentation JSON
+  covering `themeMode`, `themeKey`, `customNaturalHex`, `customBrandHex`,
+  `direction`, `density`, and `namingMode`, accepting legacy 2–4 field payloads
+  and falling back safely on unknown keys or invalid values.
+
+`StoreProjectCardViewModel` and `StoreIconValidator` decode optional curated
+PNG `IconDataUri` (`<= 12 KB` binary PNG, square `IHDR` `16..256`) alongside
+`IconLicense` and `IconAttribution`, computing a deterministic `Monogram`,
+`OutputCount`, and `LatestDigest` without admitting external URLs or SVGs.

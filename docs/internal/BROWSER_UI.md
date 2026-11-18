@@ -4,7 +4,7 @@
 > **Kind:** Living contract
 > **Status:** Current browser adapter ownership; published evidence is separate
 > **Owner:** Browser
-> **Last Verified:** 2026-11-01
+> **Last Verified:** 2026-11-18
 > **Source Anchors:** `src/Configurator.Browser/`, `docs/internal/LAUNCH_CONTRACT.md`, `docs/internal/OPERATIONS.md`
 > **Review basis:** Source-owner reconciliation and scoped published direct-editing evidence; complete qualification remains separate
 
@@ -13,10 +13,9 @@
 `ConfigurationVaultPanel` owns the deliberate upload, unlock, public comparison,
 private download, new-snapshot and exact-copy recovery interactions. It renders
 after the active stage panel and remains mounted across Configure/Review/Files
-stages while `WorkspaceHeader` leads with the definition title, Scope toggle chip (`[data-action="change-scope"]` controlling `#configuration-context`),
-consent chip, and top-level `Configure`, `Review`, and `Files` stage buttons; `ConfigurationConfigurePanel` owns the orthogonal `[data-layout-switcher]` (`SectionBySection` / `AllSections`) and persistent `ConfigurationNavigation` section rail (`aria-current="location"` scrollspy via `IntersectionObserver`), while `[data-returning-entry]` choices and secondary
+stages while `WorkspaceHeader` leads as a single compact primary row with the definition title, tabular progress + `[data-status-slot="reserved"]` (`CLS = 0`) + active secrets indicator, workflow stage buttons (`Configure`, `Review`, `Files`), and a right-aligned **Advanced** progressive-disclosure toggle (`[data-action="toggle-advanced-options"]`, with `FocusAdvancedToggleAsync` fallback when closing the End dock while collapsed). `#workspace-advanced-options` stays `hidden` and `inert` at initial load and reveals the Scope toggle chip (`[data-action="change-scope"]` controlling `#configuration-context`), secret-consent jump chip, **Output task** selector (`#configuration-output`), `[data-configure-ribbon]`, and `[data-digest-disclosure]` source metadata passed from `Launch` (which keeps `<h1 id="launch-heading" class="sr-only">` for `FocusOnNavigate` without stacking a duplicate hero header). `ConfigurationConfigurePanel` owns the sticky, focus-safe `13–16rem` `ConfigurationNavigation` section rail (`aria-label="Sections"`, visible restrained `Reviewed` indicator, tabular-nums progress, and `<= 60rem` wrapped chip collapse) beside `.configuration-configure-panel__main` containing the segmented `[data-layout-switcher]` (`SectionBySection` / `AllSections`, preserving `ActiveScrollspySectionId` back to `SectionBySection`) and `.configuration-configure-panel__fields`, while `[data-returning-entry]` choices and secondary
 editor tools (`details.configuration-editor__view-options`) follow the active
-questions, and `[data-status-slot="reserved"]` keeps live status announcements layout-shift free (`CLS = 0`). Its English/Arabic resource pair
+questions. Its English/Arabic resource pair
 labels modes, the single reviewed algorithm, recipient selection, recovery limits
 and value-free findings; declared paths and protocol identifiers use bidi isolation.
 
@@ -110,12 +109,7 @@ AOT trades a larger public payload/cache for lower managed interaction cost.
 The [public hosting guide](../public/browser.md) gives the build command;
 [Operations](OPERATIONS.md) records exact package costs and runtime evidence.
 
-At desktop widths, application and section navigation share one visible rail.
-On narrow screens, the named Menu button reveals it inline. Escape closes that
-disclosure and restores focus to the button. This disclosure
-does not create a modal or trap focus. Skip navigation focuses the main landmark
-without changing the URL, so it cannot discard a live workspace through a
-fragment navigation.
+Global application navigation (`NavMenu` inside `DockScope.Shell`'s `240–460px`, default `256px` Start dock) and active form section navigation (`ConfigurationNavigation` directly inside `ConfigurationConfigurePanel`) are structurally separate sibling `<nav>` landmarks (`Application navigation` vs `Sections`), eliminating `<nav>` nesting and keeping form sections visible and interactive whenever the global **Menu** collapses. `NavMenu` groups top workspace destinations (`.nav-menu__workspace`) above a bottom-pinned `Local workspace` custody card (`.nav-menu__footer`), scrolls safely on short screens (`overflow-y: auto`), and renders a visible **Close menu** control whenever `StartNav` degrades into `DockOverlayHost` (with Escape, backdrop click, and Close consistently restoring focus to `#nav-menu-toggle` via `MainLayout.OverlayCloseRequested`). Skip navigation focuses `#main-content` without changing the URL, so it cannot discard a live workspace through fragment navigation.
 
 `AppearanceThemeService` owns a separate immutable `AppearanceState`. The dedicated
 `configurator.appearance.v1` storage key accepts only bounded `themeMode` and
@@ -282,9 +276,7 @@ Shared native text controls explicitly opt into `form-control`; MudBlazor
 continues to own its outlined inputs. Control borders use the input palette,
 while decorative card borders use the divider palette. Normal themes use a
 teal action accent; high-contrast themes retain their monochrome palettes.
-The shell uses a header/body/footer grid with one desktop navigation rail spanning
-the body. Application and section navigation share that rail; narrow screens use
-the named Menu surface. The main column has a shrinkable inline track and the
+The shell uses a header/body/footer grid with a collapsible `256px` global navigation drawer (`NavMenu` in `DockScope.Shell`) and an independent sticky `13–16rem` form section rail (`ConfigurationNavigation`) inside `ConfigurationConfigurePanel` that collapses into a wrapped chip bar at `<= 60rem`; mobile full-screen section-index drill-down routing remains cleanly deferred to a follow-up pass. The main column has a shrinkable inline track and the
 footer stays below content without a fixed overlay. Navigation icons are local
 MudBlazor SVGs with decorative semantics.
 
@@ -582,8 +574,7 @@ separate labelled surfaces, not a partial combobox.
 The header establishes its own stacking context at the existing MudBlazor popover
 layer so workspace containment cannot intercept result hit targets. Discovery
 places results before its filter disclosure in DOM order, with English/Arabic
-resources for result controls, facets and status. Section navigation precedes
-global links in the shared rail; local previous/next/review actions reuse the same
+resources for result controls, facets and status. Global workspace links precede the bottom-pinned custody card inside the collapsible `NavMenu` drawer while multi-section forms render `ConfigurationNavigation` persistently inside `ConfigurationConfigurePanel`; local previous/next/review actions reuse the same
 section callbacks. Output/language and editor/detail controls are native disclosures.
 Correction-owned disclosures track summary clicks in component state, so repeated
 corrections reopen them after a user closes them. `RequestFocus` opens the relevant
@@ -719,13 +710,27 @@ while `ConfigurationFilesPanel` renders `data-files-state` (`complete`, `deferre
 or `invalidated`), `[data-files-invalidated]`, `[data-custody-disclosure]`, and
 `[data-download-custody-note]` explaining browser-local transient custody and download limits.
 
-`ConfigurationConfigurePanel` implements both `ConfigureLayoutMode.SectionBySection` and `ConfigureLayoutMode.AllSections` (`ConfigurationSettingRow` for scalars and lazy `ConfigurationField` for complex containers without any legacy `CompactPresentation` branch) through the shared `ConfigurationSectionFields` mount boundary: switching layouts transitions `DefinitionFormModel` between `(ConfigureLayoutMode.SectionBySection, DefinitionEditorVisibilityPolicy.Authored)` and `(ConfigureLayoutMode.AllSections, DefinitionEditorVisibilityPolicy.Continuous)` while preserving `SelectedExperienceId`, `WorkspaceStage.Configure`, and unparsed input drafts across round-trips. In `AllSections` mode it renders all applicable sections in a continuous flow with `[center ± 1]` section windowing (keeping `<section>` landmark headings static across deferred windows while freeing off-window field components), row virtualization via Blazor `<Virtualize ItemSize="72" OverscanCount="2">` above `16` items (`DirectSliceCount = 4`, height-reserved virtual tracks to prevent off-screen sections collapsing into the initial viewport, plus an in-flow `data-pinned-focus-slot` for deep-focused targets), persistent `ConfigurationNavigation` left rail with `IntersectionObserver` scrollspy (`observeScrollspy`/`OnScrollspySectionChangedAsync`) and per-section `SetSectionReviewed` toggles, omits unexpanded groups and non-matching filtered fields from the DOM without `hidden`/`inert` wrappers, renders `[data-empty-matches-state]` with a `[data-action="reset-discovery-filters"]` CTA using `DiscoveryZeroMatchSummary`, and uses `ProgressSummary.IsReadyForExport` so optional validation errors never produce a false green completion state. `ConfigurationSettingRow` marks requirement via minority `Required` pills (and section-header `[data-section-requirement="all-required"]` indicators when every visible section field is required) alongside a 3 px `inline-start` semantic status stripe and `sr-only` `[data-compact-status]` text. `ConfigurationErrorSummary` surfaces invalid/incomplete items when export validation fails or recovery links trigger, while `ConfigurationEditor` routes `F7` (blocking validation error), `F8` (`value-required` / next actionable field), `F9` (next unreviewed section), and `/` (`WorkspaceSearch` outside editable inputs).
+`ConfigurationConfigurePanel` implements both `ConfigureLayoutMode.SectionBySection` and `ConfigureLayoutMode.AllSections` (`ConfigurationSettingRow` for scalars and lazy `ConfigurationField` for complex containers without any legacy `CompactPresentation` branch) through the shared `ConfigurationSectionFields` mount boundary and `ResolveVisibleSections` visibility helper: switching layouts transitions `DefinitionFormModel` between `(ConfigureLayoutMode.SectionBySection, DefinitionEditorVisibilityPolicy.Authored)` and `(ConfigureLayoutMode.AllSections, DefinitionEditorVisibilityPolicy.Continuous)` while preserving `SelectedExperienceId`, `ActiveScrollspySectionId`, `WorkspaceStage.Configure`, and unparsed input drafts across round-trips. In `AllSections` mode it renders all applicable sections in a continuous flow with `[center ± 1]` section windowing (keeping `<section>` landmark headings static across deferred windows while freeing off-window field components), row virtualization via Blazor `<Virtualize ItemSize="72" OverscanCount="2">` above `16` items (`DirectSliceCount = 4`, height-reserved virtual tracks to prevent off-screen sections collapsing into the initial viewport, plus an in-flow `data-pinned-focus-slot` for deep-focused targets), persistent sticky `ConfigurationNavigation` rail (`position: sticky` below `--isl-sticky-top-offset` updated by `.nav-menu__header.navbar` `ResizeObserver`, alignment-safe `observeScrollspy` with bottom-of-page fallback, container-only `syncActiveNavScroll`, and per-section `SetSectionReviewed` toggles surfacing a restrained visible `Reviewed` badge), omits unexpanded groups and non-matching filtered fields from the DOM without `hidden`/`inert` wrappers, renders `[data-empty-matches-state]` with a `[data-action="reset-discovery-filters"]` CTA using `DiscoveryZeroMatchSummary`, and uses `ProgressSummary.IsReadyForExport` so optional validation errors never produce a false green completion state. `ConfigurationSettingRow` marks requirement via minority `Required` pills (and section-header `[data-section-requirement="all-required"]` indicators when every visible section field is required) alongside a 3 px `inline-start` semantic status stripe and `sr-only` `[data-compact-status]` text. `ConfigurationErrorSummary` surfaces invalid/incomplete items when export validation fails or recovery links trigger, while `ConfigurationEditor` routes `F7` (blocking validation error), `F8` (`value-required` / next actionable field), `F9` (next unreviewed section), and `/` (`WorkspaceSearch` outside editable inputs).
 
-Supporting workspace surfaces cover `ConfigurationInspectorPane` (docked `<aside>` inspector at
-`>= 768px` transitioning below `768px` via `watchInspectorViewport` into a dismissible,
-focus-trapped `role="dialog" aria-modal="true"` sheet with `Escape` dismissal and focus restoration), `WorkspaceSearch` / `WorkspaceSearchState` (WAI-ARIA 1.2 `role="combobox"` with `aria-controls`, `aria-expanded`, `aria-activedescendant`, `role="listbox"`/`role="option"`, `ArrowDown`/`ArrowUp`/`Enter`/`Escape`, and `<bdi dir="ltr">` wrapping around technical identifiers), `ConfigurationSecretGeneratorDialog` (modal recipe
-generator keeping revealed plaintext passwords outside prepared output),
-`KeyboardShortcutsDialog` (`?` reference dialog documenting `Ctrl+K`/`/`, `F7`/`F8`/`F9`, `Ctrl+Z`, `Ctrl+Shift+Z`, `Ctrl+Shift+K`, `F2`, and `?`), `ISnackbar` Undo/Redo notifications
+Supporting workspace surfaces cover the Event-aligned `DockLayoutHost` /
+`DockSideHost` / `DockOverlayHost` docking architecture (`DockLayoutState` with
+priority-ordered cross-scope allocation via `ComputeOverlayPanelIds()` and `SetMinimumContentWidth`, backed by `DockLayoutHost` parameter-change tracking (`_lastPublishedScope` / `_lastPublishedMinimumContentWidth`) and `Program.cs` `ResizeOptions.NotifyOnBreakpointOnly = false` for non-breakpoint resize delivery, resizable Start rail `240–460px` default `256px` and Tabbed End dock `Inspector (F2)` |
+`Document (JSON)` `300–620px` default `360px`, density-aware `WorkspaceMinimumContentWidth` protecting `>= 420px` form inputs (`790px` Comfortable / `806px` Spacious / `774px` Compact / `766px` Dense while persistent side form nav renders above `960px`, resetting via `Unregister` / `ClearMinimumContentWidth` to `420px` outside desktop Configure or during in-place Settings),
+auto-overlay below `760px` or constrained widths, synchronous overlay unmount on close,
+RTL-mirrored `DockResizeHandle`, roving-focus `DockTabStrip`, and bounded `<= 1,024` B
+`configurator.dock.v1` layout persistence via `LocalStorageDockLayoutPersistence`),
+collapsible `[data-configure-ribbon]` inside `#workspace-advanced-options`, streamlined 2-line `ConfigurationNavigation` items (wrapping into a compact chip bar at `<= 60rem`; mobile full-screen section drill-down remains deferred),
+`ThemeQuickSwitcher` and in-place `SettingsWorkspace` (rendering all 8 Event presets, 5 modes,
+and Custom `Natural + Brand` HSL builder with top-left **← Return to configuration** over
+`hidden`/`inert` `<main>` so active answers and secret consent survive unchanged),
+2-per-row compact landscape `Catalogue` project cards with offline PNG logos and
+`StoreProjectDetailsDialog` (`ⓘ` modal displaying `CC-BY-4.0` attribution, outputs, and digests),
+`WorkspaceSearch` / `WorkspaceSearchState` (WAI-ARIA 1.2 `role="combobox"` with `aria-controls`,
+`aria-expanded`, `aria-activedescendant`, `role="listbox"`/`role="option"`, `ArrowDown`/`ArrowUp`/`Enter`/`Escape`,
+and `<bdi dir="ltr">` wrapping around technical identifiers), `ConfigurationSecretGeneratorDialog`
+(modal recipe generator keeping revealed plaintext passwords outside prepared output),
+`KeyboardShortcutsDialog` (`?` reference dialog documenting `Ctrl+K`/`/`, `F7`/`F8`/`F9`, `Ctrl+Z`,
+`Ctrl+Shift+Z`, `Ctrl+Shift+K`, `F2`, and `?`), `ISnackbar` Undo/Redo notifications
 (`Ctrl+Z`/`Ctrl+Shift+Z` via `DefinitionFormUndoHistory` with synchronous secret purge on
 consent revocation), collapsible groups auto-expanding on validation errors, and the
 read-only `/explore/{FamilyId}` route (`Pages.Explore`) consuming

@@ -69,7 +69,18 @@ terms, preserving `Copyright (c) 2021 MudBlazor` from the package license.
 Its identity, resolved closure and local asset usage are documented in the
 [UI dependency record](docs/internal/legal/dependencies/configurator-ui.md).
 Published dependency notices retain the package's own terms; no external fonts
-or logos are imported by the browser UI.
+are imported by the browser UI.
+
+## Curated store project icons
+
+The curated `ISLAMU Event` store entry embeds a `128×128` downscaled PNG icon
+inside `store/islamu-event/curation.json` derived from
+`islamu-logo-text-only-v2-square.png`. That draft logo remains licensed under
+the Creative Commons Attribution 4.0 International License (`CC BY 4.0`),
+Copyright © 2026 Amir Akrari: **Draft ISLAMU logo by Amir Akrari, licensed under
+CC BY 4.0.** The root MIT license does not relicense the logo asset or grant
+trademark rights; keep this attribution notice with distributions containing
+the curated `ISLAMU Event` store icon.
 
 git-cliff `2.13.1` is an operator-supplied build-time tool with the MIT option
 selected from `MIT OR Apache-2.0`. No renderer binary or Event production trust

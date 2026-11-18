@@ -1,0 +1,22 @@
+@inject BrowserNavigationState NavigationState
+
+<div class="settings-privacy">
+    <div class="settings-privacy__item">
+        <h3>@T("LocalMemoryCustodyTitle")</h3>
+        <p>@T("LocalMemoryCustodyBody")</p>
+    </div>
+    <div class="settings-privacy__item">
+        <h3>@T("BrowserStorageLimitTitle")</h3>
+        <p>@T("BrowserStorageLimitBody")</p>
+    </div>
+    <div class="settings-privacy__item">
+        <h3>@T("WorkspaceSecretStatusTitle")</h3>
+        <p>@(NavigationState.IsActive ? T("WorkspaceSessionActiveNote") : T("NoActiveWorkspaceSession"))</p>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+}

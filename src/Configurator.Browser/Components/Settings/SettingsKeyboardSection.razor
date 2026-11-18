@@ -1,0 +1,26 @@
+<div class="settings-shortcuts">
+    <dl class="settings-shortcuts__list">
+        <div class="settings-shortcuts__row">
+            <dt><kbd dir="ltr">Ctrl</kbd> + <kbd dir="ltr">K</kbd></dt>
+            <dd>@T("ShortcutSearch")</dd>
+        </div>
+        <div class="settings-shortcuts__row">
+            <dt><kbd dir="ltr">F2</kbd></dt>
+            <dd>@T("ShortcutInspector")</dd>
+        </div>
+        <div class="settings-shortcuts__row">
+            <dt><kbd dir="ltr">Esc</kbd></dt>
+            <dd>@T("ShortcutEscape")</dd>
+        </div>
+        <div class="settings-shortcuts__row">
+            <dt><kbd dir="ltr">←</kbd> / <kbd dir="ltr">→</kbd></dt>
+            <dd>@T("ShortcutDockTabs")</dd>
+        </div>
+    </dl>
+</div>
+
+@code {
+    [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
+
+    private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+}

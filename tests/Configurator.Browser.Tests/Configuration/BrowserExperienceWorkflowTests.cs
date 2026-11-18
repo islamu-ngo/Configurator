@@ -383,14 +383,16 @@ public sealed class BrowserExperienceWorkflowTests
         }
 
         int headerTitleIndex = IndexOf("[data-workspace-title]");
+        int ribbonIndex = IndexOf("[data-configure-ribbon]");
         int sectionHeadingIndex = IndexOf("[data-section-panel='decisions'] h3");
         int firstFieldIndex = IndexOf("[data-field='enabled']");
 
         await Assert.That(headerTitleIndex).IsGreaterThanOrEqualTo(0);
-        await Assert.That(sectionHeadingIndex).IsGreaterThan(headerTitleIndex);
+        await Assert.That(ribbonIndex).IsGreaterThan(headerTitleIndex);
+        await Assert.That(sectionHeadingIndex).IsGreaterThan(ribbonIndex);
         await Assert.That(firstFieldIndex).IsGreaterThan(sectionHeadingIndex);
 
-        foreach (string secondarySelector in new[]
+        foreach (string ribbonSelector in new[]
         {
             "[data-action='toggle-naming-mode']",
             "#configuration-density",
@@ -399,13 +401,22 @@ public sealed class BrowserExperienceWorkflowTests
             "[data-action='undo']",
             "[data-action='redo']",
             "[data-editing-mode='developer']",
-            "#configuration-detail",
+            "#configuration-detail"
+        })
+        {
+            int controlIndex = IndexOf(ribbonSelector);
+            await Assert.That(controlIndex).IsGreaterThan(ribbonIndex);
+            await Assert.That(controlIndex).IsLessThan(firstFieldIndex);
+        }
+
+        foreach (string footerSelector in new[]
+        {
             "[data-profile-panel]",
             "#configuration-locale",
             "[data-secret-consent]"
         })
         {
-            int secondaryIndex = IndexOf(secondarySelector);
+            int secondaryIndex = IndexOf(footerSelector);
             await Assert.That(secondaryIndex).IsGreaterThan(firstFieldIndex);
         }
 
