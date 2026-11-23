@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Integrators | AI agents
 > **Status:** Implemented local packaging; publication authority not activated
 > **Owner:** Packaging/Release
-> **Last Verified:** 2026-11-02
+> **Last Verified:** 2026-11-23
 > **Source Anchors:** `eng/configurator/Configurator.Release.proj`, `src/`, `tests/Configurator.Architecture.Tests/`
 
 The [current development candidate record](OPERATIONS.md#fixed-development-baseline-001-2026-11-02)
@@ -456,7 +456,15 @@ Browser journey.
 The image is deployment-neutral. Its .NET process serves public static files; it
 contains no reverse-proxy upstream, TLS termination, public hostname, host-port
 binding, Docker network or platform-specific routing labels. Coolify or another
-orchestrator owns those settings and forwards traffic to internal port 8080.
+orchestrator owns those settings and forwards traffic to internal port 8080
+(overridable via `ASPNETCORE_HTTP_PORTS`).
+Deploy and roll back production Coolify instances by immutable image digest
+(`@sha256:...`), keep reverse-proxy logs stripped of query strings/referrers and
+cooperate with `Vary: Accept-Encoding` compression, and note that server-side
+rollback cannot recall already-exported artifacts or active/disconnected offline
+PWA tabs until active workspaces close and reload cleanly. See
+[Coolify static deployment and rollback](OPERATIONS.md#coolify-static-deployment-and-rollback)
+and [SECURITY.md](../../SECURITY.md).
 The public guide records Coolify's repository-root context and Dockerfile path;
 the local loopback run example is a smoke-test command, not production wiring.
 

@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Release maintainers | AI agents
 > **Status:** Local validation retained; signed publication not activated
 > **Owner:** Packaging/Release
-> **Last Verified:** 2026-10-08
+> **Last Verified:** 2026-11-23
 > **Source Anchors:** `eng/release/src/Configurator.ReleaseEngineering/`, `eng/release/tests/Configurator.ReleaseEngineering.Tests/`, `eng/release/toolchain.lock.json`, `docs/internal/releases/`
 
 Selected procedures from Event revision
@@ -319,6 +319,19 @@ restricted output or restricted writes, from reserved classification syntax and
 restricted-detail/credential markers. It normalizes marker keys and scalar
 values consistently. This is not a natural-language confidentiality classifier;
 independent secret, embargo and Unicode checks remain required.
+
+### Static Browser container rollback boundary
+
+Production static Browser deployments (such as Coolify) must pin immutable image
+digests (`@sha256:...`) rather than floating tags so rollback is a deterministic
+redeploy of the previous verified digest. Verify container `HEALTHCHECK` and
+`GET /healthz` recovery after rollback as documented in
+[Coolify static deployment and rollback](OPERATIONS.md#coolify-static-deployment-and-rollback).
+
+Rolling back or stopping the static origin only governs new network fetches and
+service-worker revalidation. It cannot recall already-exported files, clipboard
+copies, or live/disconnected offline PWA tabs until active workspaces close and
+the client completes a clean reload against the restored digest.
 
 ## Stop and recovery rules
 

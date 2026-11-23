@@ -21,7 +21,7 @@ While we appreciate all efforts to assist in improving our security, please note
 - Vulnerabilities requiring man-in-the-middle (MITM) attacks or physical access to a user’s device.
 - Content spoofing or text injection issues without a clear attack vector or the ability to modify HTML/CSS.
 - Issues related to email spoofing.
-- Missing DNSSEC, CAA, or CSP headers.
+- Missing DNSSEC or CAA records (Content Security Policy headers served by the static Browser Host are an enforced in-scope security invariant and remain in scope).
 - Absence of secure or HTTP-only flags on non-sensitive cookies.
 
 ## Definition Admission Invariants
@@ -72,15 +72,17 @@ still be confidential. See the [README FAQ](README.md#faq) and
 
 At ISLAMU Configurator, we are committed to maintaining transparent and collaborative communication throughout the vulnerability resolution process. Here's what you can expect from us:
 
-- **Response Time** <br/>
-We will acknowledge receipt of your vulnerability report within an undefined amount of business days as we are Still Students! and provide an estimated timeline for resolution.
+- **Maintainer Capacity & Response Time** <br/>
+ISLAMU Configurator is currently maintained by a single student maintainer prior to ISLAMU ASBL registration; there is no 24x7 staffed response team or backup responder roster. We aim to acknowledge receipt of your report and send an initial email response via [contact@openislamu.org](mailto:contact@openislamu.org) within **7 days** on a best-effort basis.
+- **Remediation & Release Timeline** <br/>
+There is **no guaranteed remediation or resolution timeline**. Triage, fixes, and releases are handled on a best-effort volunteer basis and may pause during academic exam periods, active focus on other ISLAMU solutions, or temporary tooling and subscription limits.
 - **Legal Protection** <br/>
 We will not initiate legal action against you for reporting vulnerabilities, provided you adhere to the reporting guidelines.
 - **Confidentiality** <br/>
 Your report will be treated with confidentiality. We will not disclose your personal information to third parties without your consent.
 - **Recognition** <br/>
 With your permission, we are happy to publicly acknowledge your contribution to improving our security once the issue is resolved.
-- **Timely Resolution** <br/>
-We are committed to working closely with you throughout the resolution process, providing timely updates as necessary. Our goal is to address all reported vulnerabilities swiftly, and we will actively engage with you to coordinate a responsible disclosure once the issue is fully resolved.
+- **Coordinated Disclosure** <br/>
+We will communicate status updates on a best-effort basis as investigation and fixes progress and coordinate responsible public disclosure once a mitigation or fix is ready.
 
 We appreciate your help in ensuring the security of our platform. Your contributions are crucial to protecting our users and maintaining a secure environment. Thank you for working with us to keep ISLAMU Configurator safe.

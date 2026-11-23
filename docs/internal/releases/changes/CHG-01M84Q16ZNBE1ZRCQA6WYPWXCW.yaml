@@ -1,0 +1,28 @@
+Change-Id: CHG-01M84Q16ZNBE1ZRCQA6WYPWXCW
+Title: "Align security disclosure policy and Coolify exact-digest rollback runbooks"
+Type: docs
+Scope: self-hosting
+Summary: "Replace placeholder disclosure timelines in SECURITY.md with Steward-confirmed single-maintainer best-effort acknowledgement terms, restore Browser Host CSP to scope, and document Coolify exact-digest rollback, edge logging and compression, and offline PWA rollback limits."
+Group: browser-launch-ops
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: not-applicable
+  Security:
+    Reference: SECURITY.md
+    Disposition: documented
+    Detail: "Documents Steward-confirmed single-maintainer best-effort 7-day receipt acknowledgement with no guaranteed remediation timeline, restores static Browser Host CSP headers to security scope, and defines edge logging and offline PWA rollback limits."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/packaging.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/internal/OPERATIONS.md
+    Disposition: documented
+    Detail: "Documents Coolify immutable image-digest pinning and rollback, /healthz and ASPNETCORE_HTTP_PORTS wiring, Vary: Accept-Encoding edge compression cooperation, query-stripped edge logging, and the boundary that server rollback cannot recall exported files or active/disconnected offline PWA tabs."

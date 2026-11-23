@@ -272,6 +272,15 @@ over both HTTP and HTTPS (`EnableForHttps = true`, including `application/wasm`
 and `application/manifest+json`) on admitted canonical public bytes and emits
 `Vary: Accept-Encoding` so Coolify/Traefik edge compression cooperates safely.
 
+### Coolify Deployment, Rollback & Edge Operations
+
+When running the static Browser container behind Coolify or another reverse proxy:
+
+- **Pin immutable image digests:** Deploy and roll back by exact image digest (`<image>@sha256:<digest>`), never solely by a mutable tag. Rolling back means redeploying the previous verified digest and waiting for `HEALTHCHECK` (`GET /healthz`, HTTP `200`, `{"status":"ok"}`) on `ASPNETCORE_HTTP_PORTS` (default `8080`).
+- **Reverse-proxy compression and minimal logs:** Forward HTTPS traffic to internal port `8080`. The Host already emits `Vary: Accept-Encoding` and disables HTTP request-access logging inside the container; configure Coolify/Traefik access logs to omit query strings, referrers, and request bodies.
+- **Offline PWA rollback boundary:** Rolling back or stopping the hosted container only affects fresh network fetches and service-worker revalidation. It **cannot** recall already-copied clipboard content, already-downloaded files, or an already-open or disconnected offline PWA tab until the user closes active workspaces and performs a clean reload.
+- **Security reporting:** See [SECURITY.md](../../SECURITY.md) for current single-maintainer best-effort acknowledgement terms and in-scope Browser Host CSP invariants.
+
 ---
 
 ## Where to Go Next

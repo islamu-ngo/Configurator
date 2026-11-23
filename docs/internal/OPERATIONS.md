@@ -3,7 +3,7 @@
 > **Audience:** Contributors | AI agents
 > **Status:** Implemented local engineering procedures; publication not activated
 > **Owner:** Packaging/Release
-> **Last Verified:** 2026-11-18
+> **Last Verified:** 2026-11-23
 > **Source Anchors:** `AGENTS.md`, `PROJECTS.md`, `global.json`, `eng/agent-workflow/`, `eng/release/`
 
 This selective transfer uses the AI-agent operational section from Event
@@ -24,6 +24,7 @@ acceptance from delivery. These indexes add no runtime or publication authority.
 | --- | --- |
 | Select projects and verification commands | [Project map](../../PROJECTS.md), [Testing](TESTING.md) and [Verification Policy](#verification-policy) |
 | Produce native or static packages | [Packaging](PACKAGING.md) and [public packaging guide](../public/packaging.md) |
+| Deploy or roll back the static Browser on Coolify | [Coolify static deployment and rollback](#coolify-static-deployment-and-rollback), [Packaging](PACKAGING.md#browser-container), and [Security policy](../../SECURITY.md) |
 | Inspect a published Browser | [Browser custody and offline verification](#browser-custody-and-offline-verification), using the selected package's identity and current packaging instructions |
 | Handle interrupted CLI publication | [CLI contract](CLI_CONTRACT.md) and [cancellation procedure](#cli-cancellation-and-interrupted-publication) |
 | Save restricted native output | [Protected artifacts](PROTECTED_ARTIFACTS.md) and [native output guide](../public/native-output.md) |
@@ -468,6 +469,60 @@ This is the required evidence scope, **not a claim those checks have run**.
 Non-cancellable native I/O may delay shutdown; forced process loss cannot guarantee
 a receipt. This increment does not qualify additional hosts, harden public-file
 custody or deliver the separate parser/environment migration.
+
+## Coolify static deployment and rollback
+
+The static Browser container built from `src/Configurator.Browser/Dockerfile` is
+deployment-neutral: Coolify (or another reverse-proxy orchestrator) owns public
+TLS termination, hostnames, routing, and deployment promotion while forwarding
+traffic to internal container port `8080` (configurable via
+`ASPNETCORE_HTTP_PORTS`).
+
+- **Exact-digest image pinning and rollback:** Promote and deploy production
+  Coolify releases by immutable container image digest
+  (`<registry>/<image>@sha256:<digest>`), never solely by a mutable tag or
+  branch ref. Rolling back a faulty static Browser release means redeploying the
+  prior verified immutable digest and verifying container `HEALTHCHECK` passes
+  before resuming traffic. Keep each deployed digest mapped to its source commit
+  and qualification record.
+- **Health probes and port contract:** `Configurator.Browser.Host` serves
+  `GET`/`HEAD /healthz` (`200 OK`, `{"status":"ok"}`, `Cache-Control: no-store`)
+  and ships a curl-free Docker `HEALTHCHECK` executing
+  `dotnet Configurator.Browser.Host.dll --healthcheck` against loopback `/healthz`
+  using the first valid port in `ASPNETCORE_HTTP_PORTS` (default `8080`). Point
+  Coolify readiness/liveness probes at `/healthz` on that internal port.
+- **Reverse-proxy compression and minimal logging:** The Host negotiates Brotli
+  and Gzip over HTTP and HTTPS (`EnableForHttps = true`) on admitted public
+  static assets and emits `Vary: Accept-Encoding`, so Coolify/Traefik edge
+  compression cooperates without double-compressing or stripping headers.
+  `Configurator.Browser.Host` disables HTTP request-access logging so user-supplied
+  URLs are not written to container logs; configure the edge reverse proxy to
+  minimize operational metadata logs and omit query strings, referrers, and
+  request bodies.
+- **Offline PWA tab-isolation and rollback limit:** Server-side rollback or
+  stopping the Coolify container affects only new HTTP requests and fresh asset
+  revalidation. It **cannot** recall already-copied clipboard content,
+  already-downloaded files, or an already-open browser tab holding an active
+  workspace (or a disconnected offline device running cached public assets)
+  until the operator closes active workspaces and completes a clean reload
+  against the rolled-back origin.
+
+### Scheduled dependency and license auditing
+
+`.github/workflows/advisory-audit.yml` runs weekly (`cron: '0 7 * * 1'`) and on
+`workflow_dispatch` with read-only `permissions: contents: read` and SHA-pinned
+Actions. It restores every `.csproj` under `src/`, `tests/`, and `eng/` with
+`--locked-mode`, validates transitive NuGet advisories with
+`.ci/scripts/validate-nuget-vulnerabilities.cs`, enforces license provenance via
+`.ci/scripts/validate-dependency-license-policy.cs`, verifies Action pins via
+`.ci/scripts/validate-action-pins.cs`, and uploads value-free per-project JSON
+audit reports.
+
+This workflow audits restored .NET NuGet package closures only. It does **not**
+scan container base-image OS packages (`mcr.microsoft.com/dotnet/aspnet` /
+`sdk`); container OS layers remain tracked separately via pinned base digests in
+`src/Configurator.Browser/Dockerfile` and
+[the container dependency record](legal/dependencies/browser-container.md).
 
 ## Browser custody and offline verification
 
