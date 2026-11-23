@@ -69,7 +69,7 @@ bounded. Use the [status index](../STATUS.md) for executed installed-adoption an
 host evidence; neither delivered tooling nor an open follow-up is enterprise
 certification.
 
-`global.json` pins SDK 10.0.302, the tested WebAssembly workload set and
+`global.json` pins SDK 10.0.404, the tested WebAssembly workload set and
 Microsoft.Testing.Platform. Native-only and public-data CI jobs initialize the
 pinned manifests with `dotnet workload update` before restoring projects; SDK
 installation alone does not supply the selected workload set.

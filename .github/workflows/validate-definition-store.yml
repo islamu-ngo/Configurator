@@ -6,7 +6,7 @@ on:
       - "store/**"
       - "eng/configurator/BuildDefinitionStore.cs"
       - "src/Configurator.Core/**"
-      - "schemas/definition-store-curation-v1.schema.json"
+      - "schemas/definition-store-curation.schema.json"
       - "Directory.Build.*"
       - "Directory.Packages.props"
       - "global.json"
@@ -18,7 +18,7 @@ on:
       - "store/**"
       - "eng/configurator/BuildDefinitionStore.cs"
       - "src/Configurator.Core/**"
-      - "schemas/definition-store-curation-v1.schema.json"
+      - "schemas/definition-store-curation.schema.json"
       - "Directory.Build.*"
       - "Directory.Packages.props"
       - "global.json"
@@ -81,5 +81,5 @@ jobs:
         run: |
           set -euo pipefail
           dotnet run eng/configurator/BuildDefinitionStore.cs -- --source store --output artifacts/definition-store --baseline artifacts/definition-store-baseline --require-baseline --write
-          git diff --exit-code -- schemas/definition-store-curation-v1.schema.json store
+          git diff --exit-code -- schemas/definition-store-curation.schema.json store
           dotnet run eng/configurator/BuildDefinitionStore.cs -- --source store --output artifacts/definition-store --baseline artifacts/definition-store-baseline --require-baseline --check
