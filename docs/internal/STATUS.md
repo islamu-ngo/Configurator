@@ -3,7 +3,7 @@
 > **Audience:** Contributors | Integrators | AI agents
 > **Status:** Mixed; current implementation routes and bounded historical evidence
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-11-18
+> **Last Verified:** 2026-11-23
 > **Source Anchors:** `docs/internal/CLI_CONTRACT.md`, `docs/internal/IMPORT_COMPARISON.md`, `docs/internal/OPERATIONS.md`, `docs/internal/adr/`
 
 This index separates claims that require different evidence. It routes to the
@@ -12,6 +12,17 @@ The date above records the current configuration-experience qualification
 review; historical sections below retain their original evidence boundaries.
 Use the [knowledge map](KNOWLEDGE_MAP.md) for document lifecycle and the
 [current procedure entry](OPERATIONS.md#current-procedure-entry) for execution.
+
+## Browser static launch readiness & qualification (2026-11-23)
+
+Phases 1–6 of `browser-launch-readiness` completed static Host hardening (`/settings`, `/settings/{section}`, `/explore/{id}`, `GET`/`HEAD /healthz`, genuine HTTPS Brotli/Gzip `EnableForHttps = true` with `Vary: Accept-Encoding`, curl-free loopback-fenced `--healthcheck`, repaired `Dockerfile.dockerignore` with zero-Docker & zero-SecretKit `StandaloneArchitectureTests` guards, and unversioned Store CI schema alignment), retryable offline service-worker initialization + clean-entry partial cache-eviction recovery + WCAG 2.2 AA `/open` selective retained deletion & atomic `32 MiB` `BrowserDefinitionRegistry` byte ceiling, all-5-shape schema-safe nested `answer-conflict` locations from Core through shared Presentation `ImportAutofillSchema`/`ExplainImportSchema` into Browser Compare & Autofill alongside `en`/`ar` hosted-code/extension custody disclosure beside `#secret-consent` and `/help#custody`, weekly full-repo NuGet/license/Action-pin auditing (`.github/workflows/advisory-audit.yml`), Steward-confirmed `SECURITY.md` disclosure terms + Browser Host CSP scope restoration + Coolify exact-digest rollback runbooks, and the unified `eng/configurator/Configurator.BrowserQualification` (`Microsoft.Playwright` `1.65.1`, MIT, outside `src/`) runner.
+
+The [static Browser v1 qualification record](releases/browser-v1-qualification.md) and [closure entry](OPERATIONS.md#browser-static-launch-security-ops--qualification-closure-2026-11-23) bind exact container image `sha256:9eb64f06533d3059fab2053b46e92be19ce9ddc42dc98fb7521171a6af3c07d9` (`UID 1654`, hardened read-only, `HEALTHCHECK` healthy & fail-closed stopped), `service-worker-assets.js` `c4e582ccb06faa77602dee527adb06d8d6f841389c0f89971a4397e7caef0288`, containerized `BrowserHostPolicyTests` (`40/40`), `BrowserStorePackageTests` (`2/2`), `StandalonePackageTests/BrowserPackage*` (`1/1`), `ProfileWorkerHostTests.mjs` (`12/12`), live `Q01–Q16` passing **`32/32`** across **Chromium (`16/16`)** and **Firefox (`16/16`)** with `ValidateSupportQualification.cs` exit `0`, and **`36/36`** mandatory core Chromium CDP cohorts + **`4/4`** `1x` `QF01` near-limit preparations passing.
+
+**Explicit open gates (not closed by local Linux execution):**
+- **`4x` throttled near-limit preparation (`QF01`) & 3 extended-scale tail breaches:** Under `4x` CPU throttling, `wide-nested-object` (`214.1ms`) and `large-map-list` (`224.4ms`) exceeded the `200ms` `QF01` prep budget, `few-root-deep-tree` reverse hit `p95=407.1ms` (`> 400ms`), and `compact-600` logged single first-use (`50.5ms` at `1x`) and GC (`214.2ms` at `4x`) feedback outliers — retained honestly for bounded `DefinitionPreparationSession` / tail optimization.
+- **WebKit / Safari on macOS & iOS hardware:** Playwright WebKit failed launch on the Arch Linux host (`libicu74`/`libxml2` absent); real Apple WebKit hardware verification remains open.
+- **Physical screen-reader/braille (`en`/`ar`), manual `200%`/`400%` zoom, and live Coolify HTTPS edge deployment/rollback drill:** Remain human/external release gates (receipt keeps `assistive-technology` explicitly `unexecuted`).
 
 ## Configuration experience qualification (2026-11-16)
 

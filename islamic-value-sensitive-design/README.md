@@ -79,6 +79,7 @@ disposition and replacement evidence.
 | [Encrypted local configuration profiles and Day-2 schema comparison](workstreams/i-vsd-encrypted-local-profiles.md) | exact-input freshness pending; historical R8 assessment and qualification limits retained | 2026-11-14 |
 | [Configuration experience across Browser, Desktop and Terminal](workstreams/i-vsd-configuration-experience.md) | current / plan-aligned for Compact-only r2; implementation awaiting approval; history retained | 2026-11-14 |
 | [Configuration experience unification across Presentation, Browser, Desktop, Terminal, and authoring quality](workstreams/i-vsd-configuration-experience-unification.md) | current / plan-aligned; implementation awaiting approval | 2026-11-16 |
+| [Browser launch readiness, static host operations, and qualification](workstreams/i-vsd-browser-launch-readiness.md) | current / implementation-verified (external release gates open) | 2026-11-23 |
 
 For each assessment, read its reviewed input, claim boundary, validation gaps,
 finding and mitigation IDs, and lifecycle before reusing a conclusion. A

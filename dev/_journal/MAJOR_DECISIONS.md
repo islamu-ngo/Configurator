@@ -1,10 +1,14 @@
 # Major Decisions
 
-Last Updated: 2026-11-16 Europe/Brussels
+Last Updated: 2026-11-23 Europe/Brussels
 
 ## Offline Runtime And Target-Owned Authority
 
 The accepted [runtime boundary ADR](../../docs/internal/adr/ADR-definition-runtime-boundary.md) is authoritative. Core, Artifacts, Presentation and four clients prepare bounded data offline; target validation and apply authority remain target-owned. This index links the decision rather than duplicating its technical contract.
+
+## Static Browser Coolify Container Image (2026-11-23)
+
+The accepted [static Browser Coolify image ADR](../../docs/internal/adr/ADR-browser-coolify-static-image.md) codifies the single unified embedded-Store container (`src/Configurator.Browser/Dockerfile`, non-root UID `1654`, curl-free loopback-fenced `--healthcheck`, allowlist-preserving HTTPS Brotli/Gzip, exact-digest Coolify rollback, and `StandaloneArchitectureTests` guards against `Dockerfile.dockerignore` drift or `SecretKit*`/`Azure.*`/`Microsoft.Playwright` product leakage). It cross-links both SecretKit/ConnectedHost ADRs to keep the static image permanently target-disconnected.
 
 ## Secret-Store Integration Through SecretKit (2026-11-14)
 

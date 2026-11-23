@@ -3,9 +3,9 @@
 > **Audience:** Contributors | Maintainers | AI agents
 > **Status:** Mixed; accepted designs and explicitly proposed records
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-11-16
+> **Last Verified:** 2026-11-23
 > **Source Anchors:** `docs/internal/adr/`, `docs/internal/OPERATIONS.md`, `docs/internal/IMPORT_COMPARISON.md`
-> **Review basis:** Decision-index source review on 2026-11-16; historical execution and qualification dates are unchanged.
+> **Review basis:** Decision-index source review on 2026-11-23; historical execution and qualification dates are unchanged.
 
 An ADR records a design disposition, not an implementation or release receipt.
 The status below follows each record's explicit wording. Use
@@ -23,6 +23,7 @@ for procedures and dated observations. No record is promoted by this index.
 | [Domain vocabulary and workspace ownership](ADR-domain-vocabulary-and-workspace-ownership.md) | Explicit wire maps, pure Core operations and one interactive mutation authority; implementation qualification in progress | [Core](../CORE_DEFINITION_CONTRACT.md), [Presentation](../PRESENTATION_STATE.md), [Operations](../OPERATIONS.md) |
 | [Definition runtime boundary](ADR-definition-runtime-boundary.md) | Bounded data, native protection, canonical identity and target independence; original public-only Browser paragraphs are explicitly superseded by the Browser trust amendment | [Core](../CORE_DEFINITION_CONTRACT.md), [launch](../LAUNCH_CONTRACT.md), [protected artifacts](../PROTECTED_ARTIFACTS.md) |
 | [Browser session trust and export](ADR-browser-session-trust-and-export.md) | Accepted design for static WASM, bounded sources, transient consented custody and deliberate export | [Browser custody procedure/evidence](../OPERATIONS.md#browser-custody-and-offline-verification) |
+| [Static Browser Coolify container image and permanent SecretKit boundary](ADR-browser-coolify-static-image.md) | Accepted and implemented (`2026-11-23`): single unified embedded-Store container, allowlist-preserving HTTPS Brotli/Gzip (`EnableForHttps = true`), curl-free loopback `--healthcheck`, `Dockerfile.dockerignore` & zero-SecretKit architecture guards, exact-digest rollback; permanently excludes SecretKit and connected target APIs | [Browser v1 qualification](../releases/browser-v1-qualification.md), [Coolify rollback](../OPERATIONS.md#coolify-static-deployment-and-rollback), [Packaging](../PACKAGING.md#browser-container) |
 | [Self-hosted connected Browser and public static boundary](ADR-self-hosted-connected-browser-and-public-static-boundary.md) | Accepted 2026-11-16 deployment direction: permanent ISLAMU public/static target exclusion; separate future operator-owned connected host after native pilots. **No connected host, connector API, provider support or target apply implemented** | [Current decision](ADR-self-hosted-connected-browser-and-public-static-boundary.md#decision), [launch contract](../LAUNCH_CONTRACT.md), [packaging](../PACKAGING.md#browser-container) |
 | [Maintainer authoring and distribution](ADR-maintainer-authoring-and-canonical-distribution.md) | Accepted one-source compiler and canonical distribution; historical vocabulary does not create a supported v1 interpreter | [Maintainer contract](../MAINTAINER_AUTHORING.md), [v2 final delivery](../OPERATIONS.md#final-definition-delivery-and-responsibility) |
 | [Optional public Store](ADR-optional-definition-store.md) | Accepted optional in-repository discovery; authoring amendment replaces original metadata input | [Store contract](../DEFINITION_STORE.md), [package status](../STATUS.md#package-admission) |
