@@ -564,10 +564,10 @@ Once answers are validated, choose **Prepare complete configuration** or **Prepa
 > Once the Progressive Web App (PWA) shell and public definition metadata are cached, you can disconnect from the internet and complete configurations entirely offline.
 
 To prepare for offline work:
-1. Open the definition online and verify its details.
+1. Open the definition online and verify its details. If offline app preparation did not finish on initial load (for example, due to a transient network outage or browser cache eviction), use **Retry offline preparation** on `/open` while no workspace is active.
 2. Confirm the prompt stating the definition is safe for public metadata caching, then select **Retain definition for offline use**.
-3. Once cached, the definition appears under **Retained public definitions** on the Open configuration page.
-4. Up to 8 public definitions (up to 4 MiB each) can be retained. Reopening offline creates a clean workspace; answers are never stored in browser caches.
+3. Once cached, the definition appears under **Retained public definitions** on `/open` with the current capacity counter (`X / 8`).
+4. Up to 8 public definitions (up to 4 MiB each, within the registry's `32 MiB` active canonical-byte budget) can be retained. If all 8 slots are occupied, Configurator distinguishes the capacity limit from unavailable browser storage; remove any individual retained definition outside an active workspace to free a slot (keyboard focus moves deterministically to the next item, previous item, or the local file control). Reopening offline creates a clean workspace; answers are never stored in browser caches, and previously admitted revision-conflict pins remain enforced even after removal.
 
 ---
 

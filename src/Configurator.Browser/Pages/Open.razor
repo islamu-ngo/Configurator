@@ -2,9 +2,13 @@
 @implements IAsyncDisposable
 @inject BrowserDefinitionRegistry Registry
 @inject BrowserOfflinePolicy Offline
+@inject AccessibilityFocusService Focus
 @inject Microsoft.JSInterop.IJSRuntime Javascript
 @inject NavigationManager Navigation
 @inject IDialogService Dialogs
+@using System.Globalization
+@using Configurator.Browser.Models
+@using Configurator.Browser.Services.Accessibility
 @using Configurator.Core.Definitions
 @using Microsoft.JSInterop
 
@@ -63,7 +67,7 @@
             <p>@T("RetentionHelp")</p>
             <label><input type="checkbox" @bind="_publicSafeConfirmed" /> @T("ConfirmPublicMetadata")</label>
             <div class="actions">
-                <AppButton Variant="Variant.Outlined" Disabled="@(!_publicSafeConfirmed)" OnClick="RetainAsync">@T("RetainDefinition")</AppButton>
+                <AppButton Variant="Variant.Outlined" data-action="retain-definition" Disabled="@(!_publicSafeConfirmed || _offlineMutationPending)" OnClick="RetainAsync">@T("RetainDefinition")</AppButton>
                 <a class="button button--secondary" data-action="explore-definition" href="@($"explore/{selection.Definition.FamilyId:D}?digest={selection.Definition.Digest.Value}")">@T("ExploreDefinitionAction")</a>
             </div>
         </div>
@@ -77,6 +81,17 @@
 }
 @if (!_workspaceOpen)
 {
+    @if (!Offline.OfflineReady && !Offline.IsWorkspaceActive)
+    {
+        <section class="open-page__offline-banner" data-offline-recovery aria-label="@T("OfflineRecoveryLabel")">
+            <p class="open-page__offline-text">@T("OfflineNotReadyNotice")</p>
+            <AppButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       data-action="retry-offline"
+                       Disabled="@_offlineMutationPending"
+                       OnClick="RetryOfflineAsync">@T("RetryOffline")</AppButton>
+        </section>
+    }
     <div class="open-page__sources">
     <section class="open-page__source" aria-labelledby="local-source-heading">
     <AppCard>
@@ -133,16 +148,43 @@
     </div>
     @if (_retained.Count > 0)
     {
-        <h2>@T("RetainedDefinitions")</h2>
-        <ul>@foreach (Definition definition in _retained)
-        {
-            <li><button type="button" @onclick="() => SelectRetained(definition)"><bdi>@definition.Title</bdi> · @T("Revision") <bdi dir="ltr">@definition.Revision</bdi></button></li>
-        }</ul>
+        <section class="open-page__retained" aria-labelledby="retained-definitions-heading" data-retained-definitions>
+            <div class="open-page__retained-header">
+                <h2 id="retained-definitions-heading">@T("RetainedDefinitions")</h2>
+                <span class="open-page__retained-capacity" data-retained-capacity>@Format("RetainedCapacityCount", _retained.Count, BrowserOfflinePolicy.MaximumRetainedDefinitions)</span>
+            </div>
+            <ul class="open-page__retained-list">
+                @foreach (Definition definition in _retained)
+                {
+                    string removeId = RemoveButtonId(definition);
+                    <li class="open-page__retained-item" @key="definition.Digest.Value" data-retained-digest="@definition.Digest.Value">
+                        <div class="open-page__retained-meta">
+                            <AppButton Variant="Variant.Text"
+                                       data-action="select-retained"
+                                       Disabled="@(_loading || _offlineMutationPending)"
+                                       OnClick="() => SelectRetained(definition)">
+                                <bdi>@definition.Title</bdi> · @T("Revision") <bdi dir="ltr">@definition.Revision</bdi>
+                            </AppButton>
+                        </div>
+                        <div class="open-page__retained-actions">
+                            <AppButton id="@removeId"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Default"
+                                       Size="Size.Small"
+                                       data-action="remove-retained"
+                                       aria-label="@Format("RemoveRetainedNamed", definition.Title)"
+                                       Disabled="@(_loading || _offlineMutationPending)"
+                                       OnClick="() => RemoveRetainedAsync(definition)">@T("RemoveRetained")</AppButton>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </section>
     }
 }
 @if (!_workspaceOpen)
 {
-    <p class="notice" role="status" data-code="@_statusCode">@T(_statusKey)
+    <p class="notice" role="status" data-code="@_statusCode">@(_statusMessage ?? T(_statusKey))
         @if (_statusKey is "SourceRejected" or "DefinitionRejected") { <span>@T("Code"): <bdi dir="ltr">@_statusCode</bdi></span> }
     </p>
     @if (_statusKey is "SourceRejected" or "DefinitionRejected" or "SourceCancelled")
@@ -159,6 +201,8 @@
 @code {
     [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
     private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+    private string Format(string key, params object[] args) => string.Format(CultureInfo.InvariantCulture, T(key), args);
+    private static string RemoveButtonId(Definition definition) => $"remove-retained-{definition.Digest.Value}";
     private BrowserDefinitionSource? _source;
     private BrowserLaunchSelection? _selection;
     private ConfigurationEditor? _editor;
@@ -167,12 +211,14 @@
     private long _generation;
     private long _fileKey;
     private bool _loading;
+    private bool _offlineMutationPending;
     private bool _workspaceOpen;
     private string _initialMode = "fresh";
     private bool _publicSafeConfirmed;
     private bool _disposed;
     private bool _restoreFileFocus;
     private bool _restoreSourceFocus;
+    private string? _pendingFocusId;
     private ElementReference _sourceInput;
     private InputFile? _fileInput;
     private string _sourceUrl = string.Empty;
@@ -185,6 +231,7 @@
     private CancellationTokenSource? _discardConfirmation;
     private string _statusCode = "source-ready";
     private string _statusKey = "SourceReady";
+    private string? _statusMessage;
 
     private string AdmissionState => _loading
         ? "loading"
@@ -224,8 +271,7 @@
         Uri uri = Navigation.ToAbsoluteUri(request);
         if (uri.Query.Length == 0 && uri.Fragment.Length == 0) return;
         _loading = true;
-        _statusKey = "SourceLoading";
-        _statusCode = "source-loading";
+        SetStatus("source-loading", "SourceLoading");
         try
         {
             BrowserDefinitionPointer pointer = BrowserDefinitionPointer.Parse(uri.Fragment, uri.Query);
@@ -239,14 +285,12 @@
             _selection = selection;
             _shareLink = ShareLink(pointer, selection);
             _workspaceOpen = selection.EntryExplicit;
-            _statusKey = "SourceAdmitted";
-            _statusCode = "source-admitted";
+            SetStatus("source-admitted", "SourceAdmitted");
         }
         catch (BrowserLaunchException exception)
         {
             if (_disposed || generation != _generation) return;
-            _statusCode = exception.Code;
-            _statusKey = "SourceRejected";
+            SetStatus(exception.Code, "SourceRejected");
             _restoreSourceFocus = true;
         }
         finally { if (generation == _generation) _loading = false; }
@@ -270,8 +314,7 @@
             if (_disposed || generation != _generation) return;
             _selection = BrowserLaunchSelection.Resolve(new DefinitionRegistry([definition]),
                 definition.FamilyId.ToString("D"), "");
-            _statusCode = "source-admitted";
-            _statusKey = "LocalAdmitted";
+            SetStatus("source-admitted", "LocalAdmitted");
         }
         catch (BrowserLaunchException exception) { if (generation == _generation) Reject(exception.Code); }
         catch (IOException) { if (generation == _generation) Reject("source-unavailable"); }
@@ -285,8 +328,7 @@
     {
         _selection = null;
         _shareLink = null;
-        _statusCode = code;
-        _statusKey = "DefinitionRejected";
+        SetStatus(code, "DefinitionRejected");
     }
 
     private void SelectRetained(Definition definition)
@@ -314,8 +356,7 @@
         _generation++;
         _source?.Invalidate();
         _loading = false;
-        _statusCode = "source-cancelled";
-        _statusKey = "SourceCancelled";
+        SetStatus("source-cancelled", "SourceCancelled");
         _restoreSourceFocus = true;
     }
 
@@ -345,8 +386,7 @@
         _shareLink = null;
         _publicSafeConfirmed = false;
         _loading = true;
-        _statusCode = "source-loading";
-        _statusKey = "SourceLoading";
+        SetStatus("source-loading", "SourceLoading");
         try
         {
             string fragment = "#src=" + Uri.EscapeDataString(_sourceUrl.Trim());
@@ -358,8 +398,7 @@
             if (_disposed || generation != _generation) return;
             _selection = selection;
             _shareLink = ShareLink(pointer, selection);
-            _statusCode = "source-admitted";
-            _statusKey = "SourceAdmitted";
+            SetStatus("source-admitted", "SourceAdmitted");
         }
         catch (BrowserLaunchException exception)
         {
@@ -398,14 +437,14 @@
             if (_disposed || generation != _generation) return;
             bool copied = await _linkModule.InvokeAsync<bool>("copyDefinitionLink", link);
             if (_disposed || generation != _generation) return;
-            _statusCode = copied ? "definition-link-copied" : "definition-link-copy-unavailable";
-            _statusKey = copied ? "LinkCopied" : "LinkCopyUnavailable";
+            SetStatus(
+                copied ? "definition-link-copied" : "definition-link-copy-unavailable",
+                copied ? "LinkCopied" : "LinkCopyUnavailable");
         }
         catch (JSException)
         {
             if (_disposed || generation != _generation) return;
-            _statusCode = "definition-link-copy-unavailable";
-            _statusKey = "LinkCopyUnavailable";
+            SetStatus("definition-link-copy-unavailable", "LinkCopyUnavailable");
         }
     }
 
@@ -434,13 +473,127 @@
         confirmation?.Cancel();
     }
 
+    private void SetStatus(string code, string key, string? message = null)
+    {
+        _statusCode = code;
+        _statusKey = key;
+        _statusMessage = message;
+    }
+
+    private async Task RetryOfflineAsync()
+    {
+        if (_disposed || _workspaceOpen || Offline.IsWorkspaceActive || _offlineMutationPending) return;
+        long generation = _generation;
+        _offlineMutationPending = true;
+        try
+        {
+            bool ready = await Offline.RetryInitializeAsync();
+            if (_disposed || generation != _generation || _workspaceOpen || Offline.IsWorkspaceActive) return;
+            if (ready)
+            {
+                IReadOnlyList<Definition> refreshed = await Offline.ReadRetainedDefinitionsAsync();
+                if (_disposed || generation != _generation || _workspaceOpen || Offline.IsWorkspaceActive) return;
+                _retained = refreshed;
+                SetStatus("offline-ready", "OfflineRetrySucceeded");
+            }
+            else
+            {
+                SetStatus("offline-preparation-unavailable", "OfflineRetryFailed");
+            }
+        }
+        finally
+        {
+            if (!_disposed && generation == _generation) _offlineMutationPending = false;
+        }
+    }
+
     private async Task RetainAsync()
     {
-        if (_selection is null || !_publicSafeConfirmed) return;
-        bool retained = await Offline.PrepareOfflineAsync(_selection.Definition, _publicSafeConfirmed);
-        _statusCode = retained ? "definition-retained" : "offline-preparation-unavailable";
-        _statusKey = retained ? "DefinitionRetained" : "RetentionUnavailable";
-        if (retained) _retained = await Offline.ReadRetainedDefinitionsAsync();
+        if (_disposed || _workspaceOpen || Offline.IsWorkspaceActive || _offlineMutationPending || _selection is null || !_publicSafeConfirmed) return;
+        long generation = _generation;
+        Definition candidate = _selection.Definition;
+        bool confirmed = _publicSafeConfirmed;
+        _offlineMutationPending = true;
+        try
+        {
+            BrowserOfflineRetentionStatus outcome = await Offline.PrepareOfflineAsync(candidate, confirmed);
+            if (_disposed || generation != _generation || _workspaceOpen) return;
+            switch (outcome)
+            {
+                case BrowserOfflineRetentionStatus.Retained:
+                    SetStatus("definition-retained", "DefinitionRetained");
+                    IReadOnlyList<Definition> refreshed = await Offline.ReadRetainedDefinitionsAsync();
+                    if (!_disposed && generation == _generation && !_workspaceOpen) _retained = refreshed;
+                    break;
+                case BrowserOfflineRetentionStatus.CapacityReached:
+                    SetStatus("offline-retention-capacity", "RetentionCapacityReached");
+                    break;
+                case BrowserOfflineRetentionStatus.BusyInWorkspace:
+                    SetStatus("offline-retention-busy", "RetentionBusyInWorkspace");
+                    break;
+                default:
+                    SetStatus("offline-preparation-unavailable", "RetentionUnavailable");
+                    break;
+            }
+        }
+        finally
+        {
+            if (!_disposed && generation == _generation) _offlineMutationPending = false;
+        }
+    }
+
+    private async Task RemoveRetainedAsync(Definition definition)
+    {
+        if (_disposed || _workspaceOpen || Offline.IsWorkspaceActive || _offlineMutationPending) return;
+        long generation = _generation;
+
+        int removedIndex = -1;
+        for (int i = 0; i < _retained.Count; i++)
+        {
+            if (_retained[i].Digest == definition.Digest)
+            {
+                removedIndex = i;
+                break;
+            }
+        }
+
+        string nextFocusId = removedIndex >= 0 && removedIndex + 1 < _retained.Count
+            ? RemoveButtonId(_retained[removedIndex + 1])
+            : removedIndex > 0
+                ? RemoveButtonId(_retained[removedIndex - 1])
+                : "definition-file";
+
+        _offlineMutationPending = true;
+        try
+        {
+            bool removed = await Offline.RemoveRetainedDefinitionAsync(definition.Digest.Value);
+            if (_disposed || generation != _generation || _workspaceOpen || Offline.IsWorkspaceActive) return;
+            if (!removed)
+            {
+                SetStatus("retained-definition-remove-unavailable", "RetainedRemoveUnavailable");
+                return;
+            }
+
+            IReadOnlyList<Definition> refreshed = await Offline.ReadRetainedDefinitionsAsync();
+            if (_disposed || generation != _generation || _workspaceOpen || Offline.IsWorkspaceActive) return;
+            _retained = refreshed;
+
+            if (nextFocusId != "definition-file"
+                && !_retained.Any(item => RemoveButtonId(item) == nextFocusId))
+            {
+                nextFocusId = _retained.Count > 0 ? RemoveButtonId(_retained[0]) : "definition-file";
+            }
+
+            _pendingFocusId = nextFocusId;
+            SetStatus(
+                "retained-definition-removed",
+                "RetainedRemovedStatus",
+                Format("RetainedRemovedStatus", definition.Title));
+        }
+        finally
+        {
+            if (!_disposed && generation == _generation) _offlineMutationPending = false;
+        }
     }
 
     private async Task DiscardAsync()
@@ -457,8 +610,7 @@
         _loading = false;
         _fileKey++;
         _restoreFileFocus = true;
-        _statusCode = "workspace-discarded";
-        _statusKey = "WorkspaceDiscarded";
+        SetStatus("workspace-discarded", "WorkspaceDiscarded");
     }
 
     private void LocationChanged(object? sender, LocationChangedEventArgs args)
@@ -473,6 +625,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_pendingFocusId is { } focusId && !_workspaceOpen && !_disposed)
+        {
+            _pendingFocusId = null;
+            await Focus.FocusByIdAsync(focusId);
+        }
         if (_restoreSourceFocus && !_workspaceOpen && !_disposed)
         {
             _restoreSourceFocus = false;

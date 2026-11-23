@@ -347,6 +347,64 @@ public sealed class BrowserDefinitionStoreTests
         }
     }
 
+    [Test]
+    public async Task BrowserDefinitionRegistryEnforcesAtomicCanonicalByteCeilingWhilePreservingConflictMemory()
+    {
+        await Assert.That(BrowserDefinitionRegistry.MaximumTotalCanonicalBytes).IsEqualTo(32 * 1024 * 1024);
+
+        Definition first = BrowserFixture.Definition;
+        Definition second = WithIdentity(
+            BrowserFixture.Definition,
+            Guid.Parse("8d8e8a4a-5566-4c0f-9a28-72a9c4057b21"),
+            "second.service",
+            1);
+        int tightBudget = first.CanonicalBytes.Length + 16;
+
+        // Oversized constructor rejects atomically with registry-limit.
+        DefinitionException? ctorFailure = null;
+        try { _ = new BrowserDefinitionRegistry([first, second], tightBudget); }
+        catch (DefinitionException caught) { ctorFailure = caught; }
+        await Assert.That(ctorFailure?.Code).IsEqualTo("registry-limit");
+
+        var registry = new BrowserDefinitionRegistry([first], tightBudget);
+
+        // Re-admitting an already-present digest is idempotent and does not double-count bytes.
+        registry.Admit(first);
+        await Assert.That(registry.Current.Definitions).Count().IsEqualTo(1);
+
+        // Oversized Admit fails atomically without mutating Current OR polluting conflict history.
+        DefinitionException? admitFailure = null;
+        try { registry.Admit(second); }
+        catch (DefinitionException caught) { admitFailure = caught; }
+        await Assert.That(admitFailure?.Code).IsEqualTo("registry-limit");
+        await Assert.That(registry.Current.Definitions.Select(d => d.Digest)).IsEquivalentTo([first.Digest]);
+
+        // Oversized Replace fails atomically without mutating Current.
+        DefinitionException? replaceFailure = null;
+        try { registry.Replace([first, second]); }
+        catch (DefinitionException caught) { replaceFailure = caught; }
+        await Assert.That(replaceFailure?.Code).IsEqualTo("registry-limit");
+        await Assert.That(registry.Current.Definitions.Select(d => d.Digest)).IsEquivalentTo([first.Digest]);
+
+        // Clearing Current frees byte budget while keeping previously admitted conflict pins immutable.
+        registry.Replace([]);
+        await Assert.That(registry.Current.Definitions).IsEmpty();
+
+        // Because the failed Admit of 'second' never polluted _history, a different snapshot for second's (Family, Revision) admits cleanly now.
+        Definition secondAlternate = WithTitle(second, "Alternate Second");
+        registry.Admit(secondAlternate);
+        await Assert.That(registry.Current.Definitions.Select(d => d.Digest)).IsEquivalentTo([secondAlternate.Digest]);
+
+        // Meanwhile, 'first' was previously admitted, so a tampered snapshot with first's (Family, Revision) STILL rejects with revision-conflict.
+        registry.Replace([]);
+        Definition tamperedFirst = WithTitle(first, "Tampered First");
+        DefinitionException? conflict = null;
+        try { registry.Admit(tamperedFirst); }
+        catch (DefinitionException caught) { conflict = caught; }
+        await Assert.That(conflict?.Code).IsEqualTo("revision-conflict");
+        await Assert.That(registry.Current.Definitions).IsEmpty();
+    }
+
     private static byte[] CreateSyntheticPng(int width, int height)
     {
         byte[] png = new byte[8 + 4 + 4 + 13 + 4 + 12];

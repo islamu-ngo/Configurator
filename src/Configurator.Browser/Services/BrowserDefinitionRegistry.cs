@@ -1,3 +1,5 @@
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Configurator.Browser.Tests")]
+
 namespace Configurator.Browser.Services;
 
 using Configurator.Core;
@@ -6,12 +8,26 @@ using Configurator.Core.Definitions;
 /// <summary>Admits bundled data without remote discovery or host authority.</summary>
 public sealed class BrowserDefinitionRegistry
 {
+    public const int MaximumTotalCanonicalBytes = 32 * 1024 * 1024;
+    public const int MaximumHistoryEntries = 4096;
+
     private readonly Dictionary<(Guid Family, long Revision), ArtifactDigest> _history = [];
+    private readonly int _maximumTotalCanonicalBytes;
 
     public BrowserDefinitionRegistry(IEnumerable<Definition> definitions)
+        : this(definitions, MaximumTotalCanonicalBytes)
     {
-        Current = new DefinitionRegistry(definitions);
-        AdmitHistory(Current.Definitions);
+    }
+
+    internal BrowserDefinitionRegistry(IEnumerable<Definition> definitions, int maximumTotalCanonicalBytes)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(maximumTotalCanonicalBytes, 0);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(maximumTotalCanonicalBytes, MaximumTotalCanonicalBytes);
+        _maximumTotalCanonicalBytes = maximumTotalCanonicalBytes;
+
+        var initial = new DefinitionRegistry(definitions);
+        Current = new DefinitionRegistry([]);
+        ValidateAndCommit(initial, initial.Definitions);
     }
 
     public DefinitionRegistry Current { get; private set; }
@@ -19,17 +35,15 @@ public sealed class BrowserDefinitionRegistry
     public void Admit(Definition definition)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        var current = new DefinitionRegistry(Current.Definitions.Append(definition).DistinctBy(item => item.Digest));
-        AdmitHistory([definition]);
-        Current = current;
+        var candidate = new DefinitionRegistry(Current.Definitions.Append(definition).DistinctBy(item => item.Digest));
+        ValidateAndCommit(candidate, [definition]);
     }
 
     public void Replace(IEnumerable<Definition> definitions)
     {
         var replacement = new DefinitionRegistry(definitions);
         // A refreshed registry cannot relabel a revision that an active session may have pinned.
-        AdmitHistory(replacement.Definitions);
-        Current = replacement;
+        ValidateAndCommit(replacement, replacement.Definitions);
     }
 
     /// <summary>Shares the catalogue's bounded, removal-resistant revision history with authenticated profile candidates.</summary>
@@ -43,26 +57,42 @@ public sealed class BrowserDefinitionRegistry
             if (prior != digest) throw DefinitionException.RevisionConflict();
             return;
         }
-        if (_history.Count == 4096) throw DefinitionException.RegistryLimit();
+        if (_history.Count == MaximumHistoryEntries) throw DefinitionException.RegistryLimit();
         _history.Add(key, digest);
     }
 
-    private void AdmitHistory(IEnumerable<Definition> definitions)
+    private void ValidateAndCommit(DefinitionRegistry candidate, IEnumerable<Definition> historyCandidates)
     {
-        Definition[] candidates = definitions.ToArray();
+        long totalCanonicalBytes = 0;
+        foreach (Definition active in candidate.Definitions)
+        {
+            totalCanonicalBytes += active.CanonicalBytes.Length;
+            if (totalCanonicalBytes > _maximumTotalCanonicalBytes)
+                throw DefinitionException.RegistryLimit();
+        }
+
+        Definition[] items = historyCandidates.ToArray();
         var additions = new HashSet<(Guid, long)>();
-        foreach (Definition definition in candidates)
+        foreach (Definition definition in items)
         {
             var key = (definition.FamilyId, definition.Revision);
             if (_history.TryGetValue(key, out ArtifactDigest prior))
             {
                 if (prior != definition.Digest) throw DefinitionException.RevisionConflict();
             }
-            else additions.Add(key);
+            else
+            {
+                additions.Add(key);
+            }
         }
-        if (_history.Count + additions.Count > 4096) throw DefinitionException.RegistryLimit();
-        foreach (Definition definition in candidates)
+
+        if (_history.Count + additions.Count > MaximumHistoryEntries)
+            throw DefinitionException.RegistryLimit();
+
+        foreach (Definition definition in items)
             _history.TryAdd((definition.FamilyId, definition.Revision), definition.Digest);
+
+        Current = candidate;
     }
 
     public static BrowserDefinitionRegistry LoadBundled()

@@ -137,6 +137,108 @@ public sealed class BrowserOfflineWorkflowTests
             .IsEqualTo("outside-scope");
     }
 
+    [Test]
+    public async Task OpenPageOffersCleanEntryOfflineRetryAndRecoversReadiness()
+    {
+        await using var context = BrowserFixture.Context();
+        var offline = context.JSInterop.SetupModule("./pwa-lifecycle.js");
+        offline.Setup<BrowserOfflineState>("initialize", _ => true).SetResult(new BrowserOfflineState(false, false, true));
+        offline.Setup<BrowserOfflineState>("retryInitialize", _ => true).SetResult(new BrowserOfflineState(true, true, true));
+        offline.Setup<string[]>("retainedDigests", _ => true).SetResult([]);
+        offline.Setup<long>("subscribeConnectivity", _ => true).SetResult(1L);
+        offline.SetupVoid("unsubscribeConnectivity", _ => true).SetVoidResult();
+
+        var component = context.Render<Open>();
+        await Assert.That(component.FindAll("[data-offline-recovery]")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-action='retry-offline']")).Count().IsEqualTo(1);
+
+        await component.Find("[data-action='retry-offline']").ClickAsync(new MouseEventArgs());
+
+        await Assert.That(component.FindAll("[data-offline-recovery]")).IsEmpty();
+        await Assert.That(component.Find("[role='status']").GetAttribute("data-code")).IsEqualTo("offline-ready");
+        await Assert.That(context.Services.GetRequiredService<BrowserOfflinePolicy>().OfflineReady).IsTrue();
+    }
+
+    [Test]
+    [Arguments("en", "ltr")]
+    [Arguments("ar", "rtl")]
+    public async Task OpenPageRendersRetainedListWithNamedRemoveLabelsAndApgFocusRestoration(string locale, string direction)
+    {
+        Definition alpha = BrowserDefinitionStoreTests.WithTitle(BrowserFixture.Revision(1), "Alpha Service");
+        Definition beta = BrowserDefinitionStoreTests.WithTitle(BrowserFixture.Revision(2), "Beta Service");
+        Definition gamma = BrowserDefinitionStoreTests.WithTitle(BrowserFixture.Revision(3), "Gamma Service");
+
+        var retained = new List<Definition> { alpha, beta, gamma };
+        List<string> focusedIds = [];
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
+        await using var offlineModule = new DynamicOfflineModule(retained);
+        await using var focusModule = new RecordingFocusModule(focusedIds);
+        var javascript = new DynamicOfflineJavascript(offlineModule, focusModule);
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        context.Services.AddSingleton<IJSRuntime>(javascript);
+        context.Services.AddSingleton(policy);
+        context.Services.AddScoped(_ => new Configurator.Browser.Services.Accessibility.AccessibilityFocusService(javascript));
+
+        var component = context.Render<Open>(parameters => parameters
+            .AddCascadingValue((locale, direction)));
+
+        await Assert.That(component.Find("[data-retained-capacity]").TextContent).Contains("3 / 8");
+        var removeButtons = component.FindAll("[data-action='remove-retained']");
+        await Assert.That(removeButtons).Count().IsEqualTo(3);
+        await Assert.That(removeButtons[0].GetAttribute("aria-label")).Contains("Alpha Service");
+        await Assert.That(removeButtons[1].GetAttribute("aria-label")).Contains("Beta Service");
+        await Assert.That(removeButtons[2].GetAttribute("aria-label")).Contains("Gamma Service");
+        await Assert.That(component.FindAll("[data-retained-definitions] bdi").Count).IsGreaterThanOrEqualTo(3);
+
+        // Removing first item focuses next item's remove button (Beta).
+        await component.Find($"#remove-retained-{alpha.Digest.Value}").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-retained-capacity]").TextContent).Contains("2 / 8");
+        await Assert.That(component.Find("[role='status']").GetAttribute("data-code")).IsEqualTo("retained-definition-removed");
+        await Assert.That(component.Find("[role='status']").TextContent).Contains("Alpha Service");
+        await Assert.That(focusedIds.LastOrDefault()).IsEqualTo($"remove-retained-{beta.Digest.Value}");
+
+        // Removing last item (Gamma) focuses previous item's remove button (Beta).
+        await component.Find($"#remove-retained-{gamma.Digest.Value}").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.Find("[data-retained-capacity]").TextContent).Contains("1 / 8");
+        await Assert.That(focusedIds.LastOrDefault()).IsEqualTo($"remove-retained-{beta.Digest.Value}");
+
+        // Removing sole remaining item focuses fallback #definition-file.
+        await component.Find($"#remove-retained-{beta.Digest.Value}").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-retained-definitions]")).IsEmpty();
+        await Assert.That(focusedIds.LastOrDefault()).IsEqualTo("definition-file");
+    }
+
+    [Test]
+    public async Task OpenPageDistinguishesRetentionCapacityReachedFromStorageUnavailable()
+    {
+        Definition candidate = BrowserFixture.Definition;
+        var retained = new List<Definition> { candidate };
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([]));
+        await using var offlineModule = new DynamicOfflineModule(retained) { NextRetainResult = "capacity-reached" };
+        await using var focusModule = new RecordingFocusModule([]);
+        var javascript = new DynamicOfflineJavascript(offlineModule, focusModule);
+        await using var policy = new BrowserOfflinePolicy(javascript);
+        context.Services.AddSingleton<IJSRuntime>(javascript);
+        context.Services.AddSingleton(policy);
+        context.Services.AddScoped(_ => new Configurator.Browser.Services.Accessibility.AccessibilityFocusService(javascript));
+
+        var component = context.Render<Open>();
+        await component.Find("[data-action='select-retained']").ClickAsync(new MouseEventArgs());
+        await component.Find(".open-page__retention input[type='checkbox']").ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = true });
+        await component.Find("[data-action='retain-definition']").ClickAsync(new MouseEventArgs());
+
+        string capacityCode = component.Find("[role='status']").GetAttribute("data-code") ?? string.Empty;
+        string capacityMessage = component.Find("[role='status']").TextContent;
+        await Assert.That(capacityCode).IsEqualTo("offline-retention-capacity");
+
+        offlineModule.NextRetainResult = "storage-unavailable";
+        await component.Find("[data-action='retain-definition']").ClickAsync(new MouseEventArgs());
+        string unavailableCode = component.Find("[role='status']").GetAttribute("data-code") ?? string.Empty;
+        string unavailableMessage = component.Find("[role='status']").TextContent;
+        await Assert.That(unavailableCode).IsEqualTo("offline-preparation-unavailable");
+        await Assert.That(capacityMessage).IsNotEqualTo(unavailableMessage);
+    }
+
     private sealed class GatedOfflineJavascript(GatedOfflineModule policy) : IJSRuntime
     {
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
@@ -188,6 +290,71 @@ public sealed class BrowserOfflineWorkflowTests
         internal static NoOpModule Instance { get; } = new();
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => ValueTask.FromResult<TValue>(default!);
         public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) => ValueTask.FromResult<TValue>(default!);
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class DynamicOfflineJavascript(DynamicOfflineModule offline, RecordingFocusModule focus) : IJSRuntime
+    {
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier == "import")
+            {
+                string? target = args?[0]?.ToString();
+                object module = target switch
+                {
+                    "./pwa-lifecycle.js" => offline,
+                    "./js/accessibility.js" => focus,
+                    _ => NoOpModule.Instance
+                };
+                return ValueTask.FromResult((TValue)module);
+            }
+
+            return ValueTask.FromResult(default(TValue)!);
+        }
+    }
+
+    private sealed class DynamicOfflineModule(List<Definition> retained) : IJSObjectReference
+    {
+        internal string NextRetainResult { get; set; } = "retained";
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            object? result = identifier switch
+            {
+                "initialize" => new BrowserOfflineState(true, true, true),
+                "retryInitialize" => new BrowserOfflineState(true, true, true),
+                "subscribeConnectivity" => 1L,
+                "retainedDigests" => retained.Select(item => item.Digest.Value).ToArray(),
+                "readDefinition" => retained.FirstOrDefault(item => item.Digest.Value == args?[0]?.ToString())?.CanonicalBytes.ToArray(),
+                "deleteDefinition" => retained.RemoveAll(item => item.Digest.Value == args?[0]?.ToString()) > 0,
+                "retainDefinition" => NextRetainResult,
+                _ => default(TValue)
+            };
+            return ValueTask.FromResult(result is null ? default! : (TValue)result);
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class RecordingFocusModule(List<string> focusedIds) : IJSObjectReference
+    {
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier == "setFocusById" && args?.Length > 0 && args[0] is string id)
+                focusedIds.Add(id);
+
+            return ValueTask.FromResult(default(TValue)!);
+        }
+
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

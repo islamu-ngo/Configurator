@@ -77,6 +77,14 @@ and [public trust guidance](../public/browser.md#data-custody--security-architec
 registry. Public distribution includes complete definition metadata, never
 answers or private defaults. The neutral definition is shared with native
 examples; Event remains optional generated data, not a runtime dependency.
+Active `Current` canonical bytes are capped atomically at `32 MiB`
+(`MaximumTotalCanonicalBytes`); constructor, `Admit`, and `Replace` calls whose
+deduplicated active byte sum exceeds that ceiling reject with
+`DefinitionException("registry-limit")` without mutating `Current` or polluting
+history. Re-admitting an already-present digest is idempotent, and immutable
+`(FamilyId, Revision) -> Digest` conflict history (bounded to `4,096` entries)
+remains intact across removals so tampered revisions still reject with
+`revision-conflict`.
 
 `BrowserLaunchSelection` resolves the closed bundled route. Publisher `/open`
 uses `BrowserDefinitionPointer` and `BrowserDefinitionSource` to fetch one
@@ -391,8 +399,23 @@ definition retention, offline state and workspace lifecycle. Published workers
 cache public SDK-manifest app assets and selected public definitions only.
 Answers/output never enter worker messages, storage or requests. Offline fetch
 is cache-only; active answer work blocks source loading. An incomplete cache
-does not imply offline readiness. Definition retention is separately bounded to
-eight canonical documents and re-admits/checks each digest on read. Updates wait for clean lifecycle across tabs
+does not imply offline readiness. Failed initialization clears its cached
+promise in both `pwa-lifecycle.js` and `BrowserOfflinePolicy` so clean-entry
+`RetryInitializeAsync()` can recover without duplicating `updatefound` or
+connectivity listeners; if an active worker's cache suffered partial browser
+eviction (`!appPrepared`), `retryInitialize` unregisters and re-registers that
+worker strictly outside active answer custody so the `install` event repopulates
+`configurator-app-*`. Workspace activation or disposal mid-retry aborts
+publication atomically.
+
+Definition retention is separately bounded to eight canonical documents (`4 MiB`
+each), returns typed `BrowserOfflineRetentionStatus` (`Retained`,
+`CapacityReached`, `StorageUnavailable`, `BusyInWorkspace`, `InvalidDefinition`)
+directly without untyped boolean ambiguity, supports workspace-fenced selective
+deletion (`RemoveRetainedDefinitionAsync` / `deleteDefinition(digest)`) with
+WAI-ARIA APG focus restoration on `/open` (`next -> previous -> #definition-file`)
+and a single polite `role="status"` announcement, and re-admits/checks each
+digest on read. Updates wait for clean lifecycle across tabs
 and cannot reload an active workspace. Browser-managed worker update checks
 remain a platform limitation; physical disconnection provides stronger silence.
 

@@ -9,6 +9,7 @@ let offlineReady = false;
 let updateWaiting = false;
 let generation = 0;
 const appAssets = new Set();
+const observedRegistrations = new WeakSet();
 let abandoned = false;
 const connectivitySubscriptions = new Map();
 let nextConnectivitySubscription = 0;
@@ -143,26 +144,31 @@ function workerRequest(worker, type, active = false) {
 
 async function initializeApp() {
     if (!('serviceWorker' in navigator)) {
+        initialization = null;
         return { appPrepared: false, offlineReady: false, online: navigator.onLine, updateWaiting: false };
     }
     try {
         registration = await navigator.serviceWorker.register(new URL('service-worker.js', document.baseURI),
             { scope: new URL('./', document.baseURI).pathname, updateViaCache: 'none' });
         updateWaiting = Boolean(registration.waiting);
-        registration.addEventListener?.('updatefound', () => {
-            const installing = registration?.installing;
-            if (!installing) {
-                if (registration?.waiting) updateWaiting = true;
-                return;
-            }
-            const trackInstall = () => {
-                if (installing.state === 'installed' && navigator.serviceWorker?.controller) {
-                    updateWaiting = true;
+        if (!observedRegistrations.has(registration)) {
+            observedRegistrations.add(registration);
+            const trackedRegistration = registration;
+            trackedRegistration.addEventListener?.('updatefound', () => {
+                const installing = trackedRegistration.installing;
+                if (!installing) {
+                    if (trackedRegistration.waiting) updateWaiting = true;
+                    return;
                 }
-            };
-            installing.addEventListener?.('statechange', trackInstall);
-            trackInstall();
-        });
+                const trackInstall = () => {
+                    if (installing.state === 'installed' && navigator.serviceWorker?.controller) {
+                        updateWaiting = true;
+                    }
+                };
+                installing.addEventListener?.('statechange', trackInstall);
+                trackInstall();
+            });
+        }
         const worker = registration.active ?? registration.installing;
         if (worker && worker.state !== 'activated') {
             await new Promise((resolve, reject) => {
@@ -182,10 +188,15 @@ async function initializeApp() {
         appPrepared = state?.appPrepared === true;
         offlineReady = state?.offlineReady === true;
         updateWaiting = updateWaiting || Boolean(registration.waiting);
-        if (appPrepared) for (const url of state.assets ?? []) appAssets.add(url);
+        if (appPrepared) {
+            for (const url of state.assets ?? []) appAssets.add(url);
+        } else {
+            initialization = null;
+        }
     } catch {
         appPrepared = false;
         offlineReady = false;
+        initialization = null;
     }
     return { appPrepared, offlineReady, online: navigator.onLine, updateWaiting };
 }
@@ -193,6 +204,43 @@ async function initializeApp() {
 export function initialize() {
     initialization ??= initializeApp();
     return initialization;
+}
+
+export async function retryInitialize() {
+    if (abandoned || workspaceActive) {
+        return { appPrepared, offlineReady, online: navigator.onLine, updateWaiting };
+    }
+    if ('serviceWorker' in navigator && !appPrepared) {
+        let current = registration;
+        if (!current) {
+            try {
+                current = await navigator.serviceWorker.getRegistration(new URL('./', document.baseURI).pathname);
+            } catch {
+                current = undefined;
+            }
+        }
+        if (abandoned || workspaceActive) {
+            return { appPrepared, offlineReady, online: navigator.onLine, updateWaiting };
+        }
+        if (current?.active) {
+            const state = await workerRequest(current.active, 'status');
+            if (abandoned || workspaceActive) {
+                return { appPrepared, offlineReady, online: navigator.onLine, updateWaiting };
+            }
+            if (state?.appPrepared !== true) {
+                // Partial CacheStorage eviction leaves an active worker whose install event
+                // will not re-run until replaced cleanly outside active answer custody.
+                try { await current.unregister(); } catch { }
+                registration = undefined;
+                appAssets.clear();
+            }
+        }
+    }
+    if (abandoned || workspaceActive) {
+        return { appPrepared, offlineReady, online: navigator.onLine, updateWaiting };
+    }
+    initialization = null;
+    return await initialize();
 }
 
 export async function beginWorkspace(operation) {
@@ -216,17 +264,31 @@ export async function endWorkspace(operation) {
 }
 
 export async function retainDefinition(digest, bytes) {
-    if (abandoned || workspaceActive || !offlineReady || !digestPattern.test(digest) || bytes.length > 4194304) return false;
+    if (abandoned || workspaceActive) return 'workspace-active';
+    if (!digestPattern.test(digest) || bytes.length > 4194304) return 'invalid';
+    if (!offlineReady) return 'storage-unavailable';
     const actualDigest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
         value => value.toString(16).padStart(2, '0')).join('');
-    if (actualDigest !== digest || abandoned || workspaceActive) return false;
+    if (actualDigest !== digest) return 'invalid';
+    if (abandoned || workspaceActive) return 'workspace-active';
     try {
         const cache = await caches.open(definitionCacheName);
         const key = new URL(`_retained-definitions/${digest}`, document.baseURI);
         const keys = await cache.keys();
-        if (abandoned || workspaceActive || keys.length >= 8 && !keys.some(item => item.url === key.href)) return false;
+        if (abandoned || workspaceActive) return 'workspace-active';
+        if (keys.length >= 8 && !keys.some(item => item.url === key.href)) return 'capacity-reached';
         await cache.put(key.href, new Response(bytes, { headers: { 'Content-Type': 'application/json' } }));
-        return true;
+        return 'retained';
+    } catch { return 'storage-unavailable'; }
+}
+
+export async function deleteDefinition(digest) {
+    if (abandoned || workspaceActive || !digestPattern.test(digest)) return false;
+    try {
+        const cache = await caches.open(definitionCacheName);
+        if (abandoned || workspaceActive) return false;
+        const key = new URL(`_retained-definitions/${digest}`, document.baseURI);
+        return await cache.delete(key.href);
     } catch { return false; }
 }
 

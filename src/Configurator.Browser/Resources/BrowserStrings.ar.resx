@@ -855,4 +855,16 @@
   <data name="IconAttributionLabel" xml:space="preserve"><value>ترخيص الشعار ونسبته</value></data>
   <data name="AdvancedWorkspaceOptions" xml:space="preserve"><value>خيارات مساحة العمل المتقدمة</value></data>
   <data name="AdvancedOptionsActive" xml:space="preserve"><value>{0} نشط</value></data>
+  <data name="OfflineRecoveryLabel" xml:space="preserve"><value>استعادة جاهزية العمل دون اتصال</value></data>
+  <data name="OfflineNotReadyNotice" xml:space="preserve"><value>لم يكتمل تجهيز التطبيق للعمل دون اتصال. أعد المحاولة خارج مساحة عمل نشطة لتجهيز ملفات التطبيق العامة.</value></data>
+  <data name="RetryOffline" xml:space="preserve"><value>إعادة محاولة التجهيز دون اتصال</value></data>
+  <data name="OfflineRetrySucceeded" xml:space="preserve"><value>اكتمل تجهيز التطبيق للعمل دون اتصال. ملفات التطبيق العامة جاهزة الآن.</value></data>
+  <data name="OfflineRetryFailed" xml:space="preserve"><value>لا يزال التجهيز للعمل دون اتصال غير متاح. تحقّق من الاتصال وحاول مجددًا.</value></data>
+  <data name="RetainedCapacityCount" xml:space="preserve"><value>{0} / {1}</value></data>
+  <data name="RemoveRetained" xml:space="preserve"><value>إزالة</value></data>
+  <data name="RemoveRetainedNamed" xml:space="preserve"><value>إزالة التعريف المحفوظ {0}</value></data>
+  <data name="RetainedRemovedStatus" xml:space="preserve"><value>أُزيل التعريف {0} من التعريفات المحفوظة للعمل دون اتصال.</value></data>
+  <data name="RetainedRemoveUnavailable" xml:space="preserve"><value>تعذّرت إزالة التعريف المحفوظ بينما التخزين دون اتصال غير متاح أو هناك مساحة عمل نشطة.</value></data>
+  <data name="RetentionCapacityReached" xml:space="preserve"><value>تم بلوغ حد الحفظ دون اتصال (8 / 8). أزل تعريفًا محفوظًا قبل إضافة تعريف آخر.</value></data>
+  <data name="RetentionBusyInWorkspace" xml:space="preserve"><value>أنهِ مساحة العمل النشطة أو تخلّص منها قبل تعديل التعريفات المحفوظة دون اتصال.</value></data>
 </root>
