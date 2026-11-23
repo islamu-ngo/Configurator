@@ -131,8 +131,22 @@ public partial class ConfigurationEditor
             ? _generation != generation + 1 || form.InputRevision != revision + 1
             : _generation != generation || cancellationToken.IsCancellationRequested) return;
         _statusCode = result.Succeeded ? "imported" : result.Code;
-        SetStatus(result.Succeeded ? "ImportedStatus" : "AutofillRefusedStatus", result.Code);
-        if (result.Succeeded) { ++_fileKey; RequestFocus(FocusTarget.Import); }
+        if (result.Succeeded)
+        {
+            SetStatus("ImportedStatus", result.Code);
+            ++_fileKey;
+            RequestFocus(FocusTarget.Import);
+        }
+        else if (form.ExplainImportSchema(result.Schema) is { } conflict)
+        {
+            string conflictLabel = form.GetEditorPresentation(conflict.Path)?.Title ?? conflict.Title;
+            string conflictLocation = $"{conflictLabel} ({string.Join(" / ", conflict.Path)})";
+            SetStatus("AutofillRefusedWithLocationStatus", result.Code, conflictLocation);
+        }
+        else
+        {
+            SetStatus("AutofillRefusedStatus", result.Code);
+        }
     }
     private async ValueTask YieldComparisonAsync(CancellationToken cancellationToken)
     {

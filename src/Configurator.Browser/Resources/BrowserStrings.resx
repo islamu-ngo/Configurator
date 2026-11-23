@@ -867,4 +867,9 @@
   <data name="RetainedRemoveUnavailable" xml:space="preserve"><value>Could not remove the retained definition while offline storage is unavailable or a workspace is active.</value></data>
   <data name="RetentionCapacityReached" xml:space="preserve"><value>Offline retention limit reached (8 / 8). Remove an existing retained definition before adding another.</value></data>
   <data name="RetentionBusyInWorkspace" xml:space="preserve"><value>Finish or discard the active workspace before changing offline retained definitions.</value></data>
+  <data name="ImportConflictLocation" xml:space="preserve"><value>Conflicting setting: {0}</value></data>
+  <data name="AutofillRefusedWithLocationStatus" xml:space="preserve"><value>Autofill refused ({0}) at {1}. No answers changed. Review the comparison and repair a separate copy or deliberately clear conflicting workspace inputs, then re-import.</value></data>
+  <data name="WorkspaceHostedCodeCustodyHelp" xml:space="preserve"><value>Hosted web code and browser extensions can still observe secrets entered in this tab; static Browser never connects to SecretKit, vaults, or target hosts. Leave this unchecked to export a secret-deferred draft, or use the native Desktop, Terminal, or CLI client for high-value secrets.</value></data>
+  <data name="WorkspaceCustodyGuideLink" xml:space="preserve"><value>Review browser custody and native client options</value></data>
+  <data name="HelpHostedCodeCustodyBody" xml:space="preserve"><value>Although WebAssembly runs locally and static Browser performs zero SecretKit, vault, or target-host calls, the hosting origin, delivered web code, and installed browser extensions can still inspect active browser memory. Keep secret entry disabled to prepare a secret-deferred draft and fill secrets locally, or use the native Desktop, Terminal, or CLI client on a trusted machine for production credentials.</value></data>
 </root>

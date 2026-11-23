@@ -294,6 +294,129 @@ public sealed class DefinitionImportTests
     }
 
     [Test]
+    public async Task NestedAnswerConflictsReportAllowlistedSchemaPathAcrossAllFiveShapesWithoutLeakingPrivateKeys()
+    {
+        // Shape 1 & 4: leaf-projected conflict & omitted ancestor under leaf import
+        Definition leafDefinition = NestedDefinition("json");
+        AnswerSnapshot leafCurrent = new(1, new Dictionary<string, JsonElement>
+        {
+            ["options"] = JsonSerializer.SerializeToElement(new Dictionary<string, object?>
+            {
+                ["db/host"] = "existing-canary-host"
+            })
+        });
+        DefinitionImportResult leafConflict = DefinitionImport.Assess(
+            leafDefinition,
+            "nested",
+            """{"out":{"literal/name":"synthetic-canary-secret"}}"""u8.ToArray(),
+            leafCurrent);
+        await Assert.That(leafConflict.Succeeded).IsFalse();
+        await Assert.That(leafConflict.Code).IsEqualTo("answer-conflict");
+        await Assert.That(leafConflict.Diagnostic!.FieldId).IsEqualTo("options");
+        await Assert.That(leafConflict.Diagnostic.Location).IsNull();
+        await Assert.That(leafConflict.Schema!.FieldId).IsEqualTo("options");
+        await Assert.That(leafConflict.Schema.RelativePath).IsEquivalentTo(["db/host"]);
+        await Assert.That(leafConflict.ToString()).DoesNotContain("synthetic-canary-secret");
+
+        AnswerSnapshot omittedAncestor = new(1, new Dictionary<string, JsonElement>(), [DefinitionPath.Parse("/options")]);
+        DefinitionImportResult omittedAncestorConflict = DefinitionImport.Assess(
+            leafDefinition,
+            "nested",
+            """{"out":{"literal/name":"synthetic-canary-secret"}}"""u8.ToArray(),
+            omittedAncestor);
+        await Assert.That(omittedAncestorConflict.Succeeded).IsFalse();
+        await Assert.That(omittedAncestorConflict.Code).IsEqualTo("answer-conflict");
+        await Assert.That(omittedAncestorConflict.Diagnostic!.Location).IsNull();
+        await Assert.That(omittedAncestorConflict.Schema!.FieldId).IsEqualTo("options");
+        await Assert.That(omittedAncestorConflict.Schema.RelativePath).IsEquivalentTo(["db/host"]);
+
+        // Shapes 2, 3, 5 & dynamic map privacy boundary
+        JsonNode deepSource = JsonNode.Parse(Source)!;
+        deepSource["configuration"]!["properties"]!["options"] = JsonNode.Parse("""
+            {"type":"object","title":"Options","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
+             "properties":{
+               "db":{"type":"object","title":"Database","additionalProperties":false,"x-configurator":{"sensitivity":"public"},
+                 "properties":{
+                   "host":{"type":"string","title":"Database host","x-configurator":{"sensitivity":"public"}},
+                   "port":{"type":"integer","title":"Database port","x-configurator":{"sensitivity":"public"}}}},
+               "labels":{"type":"object","title":"Labels","additionalProperties":{"type":"string","x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public"}}}}
+            """);
+        deepSource["outputs"] = JsonNode.Parse("""
+            {"whole.json":{"id":"whole","format":"json",
+               "projection":{"op":"object","members":{"options":{"op":"copy","reference":{"scope":"root","path":"/options"}}}}},
+             "deep.json":{"id":"deep","format":"json",
+               "projection":{"op":"object","members":{"host":{"op":"copy","reference":{"scope":"root","path":"/options/db/host"}}}}}}
+            """);
+        Definition deepDefinition = DefinitionFixture.Parse(deepSource.ToJsonString());
+
+        // Shape 2: whole-object conflict differing on declared inner property options.db.host
+        AnswerSnapshot wholeCurrent = new(1, new Dictionary<string, JsonElement>
+        {
+            ["options"] = JsonDocument.Parse("""{"db":{"host":"old.example","port":5432}}""").RootElement.Clone()
+        });
+        DefinitionImportResult wholeConflict = DefinitionImport.Assess(
+            deepDefinition,
+            "whole",
+            """{"options":{"db":{"host":"synthetic-canary-secret","port":5432}}}"""u8.ToArray(),
+            wholeCurrent);
+        await Assert.That(wholeConflict.Succeeded).IsFalse();
+        await Assert.That(wholeConflict.Code).IsEqualTo("answer-conflict");
+        await Assert.That(wholeConflict.Diagnostic!.Location).IsNull();
+        await Assert.That(wholeConflict.Schema!.FieldId).IsEqualTo("options");
+        await Assert.That(wholeConflict.Schema.RelativePath).IsEquivalentTo(["db", "host"]);
+        await Assert.That(wholeConflict.ToString()).DoesNotContain("synthetic-canary-secret");
+
+        // Shape 3: omitted child under whole-object import
+        AnswerSnapshot omittedChild = new(1, new Dictionary<string, JsonElement>(), [DefinitionPath.Parse("/options/db/host")]);
+        DefinitionImportResult omittedChildConflict = DefinitionImport.Assess(
+            deepDefinition,
+            "whole",
+            """{"options":{"db":{"host":"synthetic-canary-secret"}}}"""u8.ToArray(),
+            omittedChild);
+        await Assert.That(omittedChildConflict.Succeeded).IsFalse();
+        await Assert.That(omittedChildConflict.Code).IsEqualTo("answer-conflict");
+        await Assert.That(omittedChildConflict.Diagnostic!.Location).IsNull();
+        await Assert.That(omittedChildConflict.Schema!.FieldId).IsEqualTo("options");
+        await Assert.That(omittedChildConflict.Schema.RelativePath).IsEquivalentTo(["db", "host"]);
+
+        // Shape 5: intermediate scalar-vs-object collision at options.db
+        AnswerSnapshot scalarIntermediate = new(1, new Dictionary<string, JsonElement>
+        {
+            ["options"] = JsonDocument.Parse("""{"db":"scalar-existing-canary"}""").RootElement.Clone()
+        });
+        DefinitionImportResult intermediateConflict = DefinitionImport.Assess(
+            deepDefinition,
+            "deep",
+            """{"host":"synthetic-canary-secret"}"""u8.ToArray(),
+            scalarIntermediate);
+        await Assert.That(intermediateConflict.Succeeded).IsFalse();
+        await Assert.That(intermediateConflict.Code).IsEqualTo("answer-conflict");
+        await Assert.That(intermediateConflict.Diagnostic!.Location).IsNull();
+        await Assert.That(intermediateConflict.Schema!.FieldId).IsEqualTo("options");
+        await Assert.That(intermediateConflict.Schema.RelativePath).IsEquivalentTo(["db"]);
+        await Assert.That(intermediateConflict.ToString()).DoesNotContain("scalar-existing-canary");
+
+        // Privacy worst break: conflict inside dynamic map (additionalProperties) must stop before private map key.
+        AnswerSnapshot mapCurrent = new(1, new Dictionary<string, JsonElement>
+        {
+            ["options"] = JsonDocument.Parse("""{"labels":{"synthetic-private-map-key":"old"}}""").RootElement.Clone()
+        });
+        DefinitionImportResult mapConflict = DefinitionImport.Assess(
+            deepDefinition,
+            "whole",
+            """{"options":{"labels":{"synthetic-private-map-key":"synthetic-canary-secret"}}}"""u8.ToArray(),
+            mapCurrent);
+        await Assert.That(mapConflict.Succeeded).IsFalse();
+        await Assert.That(mapConflict.Code).IsEqualTo("answer-conflict");
+        await Assert.That(mapConflict.Diagnostic!.Location).IsNull();
+        await Assert.That(mapConflict.Schema!.FieldId).IsEqualTo("options");
+        await Assert.That(mapConflict.Schema.RelativePath).IsEquivalentTo(["labels"]);
+        await Assert.That(mapConflict.Schema.RelativePath).DoesNotContain("synthetic-private-map-key");
+        await Assert.That(mapConflict.ToString()).DoesNotContain("synthetic-private-map-key");
+        await Assert.That(mapConflict.ToString()).DoesNotContain("synthetic-canary-secret");
+    }
+
+    [Test]
     public async Task DirectCopyPrefillsWithoutRevealingValuesInResultText()
     {
         Definition definition = Definition();

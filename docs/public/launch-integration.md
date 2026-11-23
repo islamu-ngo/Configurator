@@ -56,7 +56,13 @@ sequenceDiagram
 3. **Definition Pinning:** Configurator fetches the public canonical definition and pins its revision and SHA-256 digest inside a collapsed **Source details** disclosure, letting the operator inspect settings read-only (`/explore/{FamilyId}`) or pick from three task cards (**Start fresh**, **Use an existing configuration**, or **Open a saved profile**).
 4. **Interactive Setup & In-Place Settings:** The operator acknowledges workspace custody and
    completes questions. Secret entry starts disabled; enabling it is a separate
-   per-workspace action. Opening **Settings** during active configuration displays
+   per-workspace action. Concise localized guidance (`en`/`ar`) directly beside the
+   secret-consent checkbox (`#secret-consent`) and on `/help#custody` reminds
+   direct-launch operators that hosted web code and browser extensions can still
+   observe active browser secrets, confirms that the static Browser performs zero
+   SecretKit, vault, or target-host connections, and points directly to
+   secret-deferred draft export and native Desktop, Terminal, or CLI clients for
+   high-value credentials. Opening **Settings** during active configuration displays
    settings in place with a **← Return to configuration** action while keeping answers,
    drafts, and secret consent intact; leaving the launch route still triggers discard confirmation and invalidates workspace state.
 5. **Deliberate Export:** The operator copies or downloads restricted output.

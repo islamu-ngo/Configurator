@@ -867,4 +867,9 @@
   <data name="RetainedRemoveUnavailable" xml:space="preserve"><value>تعذّرت إزالة التعريف المحفوظ بينما التخزين دون اتصال غير متاح أو هناك مساحة عمل نشطة.</value></data>
   <data name="RetentionCapacityReached" xml:space="preserve"><value>تم بلوغ حد الحفظ دون اتصال (8 / 8). أزل تعريفًا محفوظًا قبل إضافة تعريف آخر.</value></data>
   <data name="RetentionBusyInWorkspace" xml:space="preserve"><value>أنهِ مساحة العمل النشطة أو تخلّص منها قبل تعديل التعريفات المحفوظة دون اتصال.</value></data>
+  <data name="ImportConflictLocation" xml:space="preserve"><value>الإعداد المتعارض: {0}</value></data>
+  <data name="AutofillRefusedWithLocationStatus" xml:space="preserve"><value>رُفضت التعبئة التلقائية ({0}) عند {1}. لم تتغير الإجابات. راجع المقارنة وأصلح نسخة منفصلة، أو امسح عمدًا المدخلات المتعارضة في مساحة العمل، ثم أعد الاستيراد.</value></data>
+  <data name="WorkspaceHostedCodeCustodyHelp" xml:space="preserve"><value>يمكن لشيفرة الويب المستضافة وإضافات المتصفح الاطلاع على الأسرار المدخلة في علامة التبويب هذه؛ ولا يتصل المتصفح الثابت مطلقًا بـ SecretKit أو خزائن الأسرار أو المضيفات المستهدفة. اترك هذا الخيار غير محدد لتصدير مسودة مؤجَّلة الأسرار، أو استخدم تطبيقات سطح المكتب أو الطرفية أو سطر الأوامر الأصلية للأسرار الحساسة.</value></data>
+  <data name="WorkspaceCustodyGuideLink" xml:space="preserve"><value>راجع تفاصيل الحفظ في المتصفح وخيارات العملاء الأصليين</value></data>
+  <data name="HelpHostedCodeCustodyBody" xml:space="preserve"><value>مع أن WebAssembly يعمل محليًا ولا يُجري المتصفح الثابت أي اتصالات بـ SecretKit أو خزائن الأسرار أو المضيف المستهدف، يظل بإمكان جهة الاستضافة وشيفرة الويب وإضافات المتصفح فحص ذاكرة المتصفح النشطة. أبقِ إدخال الأسرار معطلًا لتحضير مسودة مؤجَّلة الأسرار وإكمالها محليًا، أو استخدم عميل سطح المكتب أو الطرفية أو سطر الأوامر الأصلي على جهاز موثوق لبيانات الاعتماد الإنتاجية.</value></data>
 </root>

@@ -79,6 +79,13 @@
         else if (!Form.CanAdoptImportComparison)
         {
             <p>@Text("ImportConflictHelp")</p>
+            @if (Form.ExplainImportSchema(Form.ImportAutofillSchema) is { } conflict)
+            {
+                string conflictLabel = Form.GetEditorPresentation(conflict.Path)?.Title ?? conflict.Title;
+                <p class="configuration-import-review__conflict-location" data-import-conflict-location>
+                    @Format("ImportConflictLocation", conflictLabel) <code dir="ltr">@string.Join(" / ", conflict.Path)</code>
+                </p>
+            }
         }
         <div class="actions">
             <AppButton data-action="adopt-import-comparison" Disabled="@(!Form.CanAdoptImportComparison)"

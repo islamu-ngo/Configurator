@@ -22,6 +22,7 @@ public sealed partial class DefinitionFormModel
     private long _importGeneration;
     private long _importComparisonRevision;
     private string? _importAutofillCode;
+    private DefinitionImportSchemaLocation? _importAutofillSchema;
 
     public event EventHandler? ImportComparisonChanged;
 
@@ -33,6 +34,11 @@ public sealed partial class DefinitionFormModel
     public string? ImportAutofillCode
     {
         get { lock (_gate) return _importAutofillCode; }
+    }
+
+    public DefinitionImportSchemaLocation? ImportAutofillSchema
+    {
+        get { lock (_gate) return _importAutofillSchema; }
     }
 
     public bool CanAdoptImportComparison
@@ -91,7 +97,9 @@ public sealed partial class DefinitionFormModel
                 DefinitionImportReport report = assessment.Report;
                 if (!report.ExecutionCompleted)
                     return new(false, report.Code, report);
-                _importAutofillCode = CheckAutofillStorage(autofill!).Code;
+                DefinitionImportResult checkedAutofill = CheckAutofillStorage(autofill!);
+                _importAutofillCode = checkedAutofill.Code;
+                _importAutofillSchema = checkedAutofill.Succeeded ? null : checkedAutofill.Schema;
                 _importComparisonRevision = revision;
                 _importComparison = assessment;
                 assessment = null;
@@ -140,6 +148,7 @@ public sealed partial class DefinitionFormModel
             if (!result.Succeeded)
             {
                 _importAutofillCode = result.Code;
+                _importAutofillSchema = result.Schema;
                 NotifyImportComparison();
                 return result;
             }
@@ -187,6 +196,7 @@ public sealed partial class DefinitionFormModel
             if (!result.Succeeded)
             {
                 _importAutofillCode = result.Code;
+                _importAutofillSchema = result.Schema;
                 NotifyImportComparison();
                 return result;
             }
@@ -211,18 +221,34 @@ public sealed partial class DefinitionFormModel
             if (_disposed || _importComparison is null ||
                 !_importComparison.Report.Findings.Any(current => ReferenceEquals(current, finding)) ||
                 finding.Schema is not { } location) return null;
-            FieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == location.FieldId);
-            if (field is null) return null;
-            DefinitionNode schema = field.Node;
-            var path = new List<string> { field.Id };
-            foreach (string name in location.RelativePath)
-            {
-                if (!schema.Properties.TryGetValue(name, out DefinitionNode? child)) break;
-                path.Add(name);
-                schema = child;
-            }
-            return new(field.Id, field.Title, field.Help, path.AsReadOnly());
+            return ExplainImportSchemaCore(location);
         }
+    }
+
+    /// <summary>Projects a Core schema-safe import location into declared localized metadata, stopping strictly before dynamic map entries.</summary>
+    public DefinitionImportSchemaExplanation? ExplainImportSchema(DefinitionImportSchemaLocation? location)
+    {
+        if (location is null) return null;
+        lock (_gate)
+        {
+            return _disposed ? null : ExplainImportSchemaCore(location);
+        }
+    }
+
+    private DefinitionImportSchemaExplanation? ExplainImportSchemaCore(DefinitionImportSchemaLocation location)
+    {
+        FieldDefinition? field = Definition.Fields.FirstOrDefault(item => item.Id == location.FieldId);
+        if (field is null) return null;
+        DefinitionNode schema = field.Node;
+        var path = new List<string> { field.Id };
+        foreach (string name in location.RelativePath)
+        {
+            if (schema.Type != DefinitionNodeType.Mapping || !schema.Properties.TryGetValue(name, out DefinitionNode? child))
+                break;
+            path.Add(name);
+            schema = child;
+        }
+        return new(field.Id, field.Title, field.Help, path.AsReadOnly());
     }
 
     private DefinitionImportResult AssessCurrentAutofill(DefinitionImportAssessment assessment)
@@ -240,10 +266,12 @@ public sealed partial class DefinitionFormModel
             return new(false, null, "answer-conflict") { Diagnostic = new("answer-conflict", "") };
         DefinitionFieldInput? pending = Fields.FirstOrDefault(field =>
             result.ProvidedFields.Contains(field.Definition.Id) && field.InputDiagnosticCode is not null);
-        return pending is null ? result : new(false, null, "answer-conflict")
-        {
-            Diagnostic = new("answer-conflict", pending.Definition.Id)
-        };
+        if (pending is null) return result;
+        DefinitionDiagnostic? firstDiagnostic = pending.InputDiagnostics.FirstOrDefault();
+        DefinitionPath conflictPath = firstDiagnostic is { RelativePath.Count: > 0 }
+            ? DefinitionPath.FromSegments([pending.Definition.Name, .. firstDiagnostic.RelativePath])
+            : DefinitionPath.FromSegments([pending.Definition.Name]);
+        return DefinitionImport.Conflict(Definition, conflictPath, InputRevision);
     }
 
     private HashSet<string> ReplaceableImportDefaults() =>
@@ -273,6 +301,7 @@ public sealed partial class DefinitionFormModel
         DefinitionImportAssessment? previous = _importComparison;
         _importComparison = null;
         _importAutofillCode = null;
+        _importAutofillSchema = null;
         previous?.Dispose();
         if (previous is not null) NotifyImportComparison();
     }
@@ -281,6 +310,7 @@ public sealed partial class DefinitionFormModel
     {
         OnPropertyChanged(nameof(ImportComparison));
         OnPropertyChanged(nameof(ImportAutofillCode));
+        OnPropertyChanged(nameof(ImportAutofillSchema));
         OnPropertyChanged(nameof(CanAdoptImportComparison));
         Notify(() => ImportComparisonChanged?.Invoke(this, EventArgs.Empty));
     }

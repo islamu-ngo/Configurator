@@ -566,18 +566,27 @@ operation retains its private evidence. Cancellation or replacement stops the
 superseded operation at its next checkpoint without granting it adoption
 authority. The final strict merge remains separate from the file-only report.
 
-`ImportAutofillCode` and `CanAdoptImportComparison` describe current workspace
-eligibility separately from the file report's `AutofillEligible`.
+`ImportAutofillCode`, `ImportAutofillSchema` and `CanAdoptImportComparison`
+describe current workspace eligibility separately from the file report's
+`AutofillEligible`. When comparison assessment, adoption, or pending invalid-draft
+checks refuse with `answer-conflict` (or `import-field-invalid`), Presentation
+retains the Core-projected `ImportAutofillSchema`, notifies observers through
+`ImportComparisonChanged`, and clears it in `RetireImportComparison`.
 `AdoptImportComparison` rechecks strict merge, consent, revision and pending drafts,
 then uses the same atomic adoption transaction as direct import. Comparison grants
 no overwrite permission. Failure retains existing work and exposes a value-free
 reason; recovery is separate-copy repair/reimport, never partial adoption.
 
-`ExplainImportFinding` returns declared schema metadata and a static enclosing
-path only for a finding in the current report. It stops before array rows,
-dynamic map names and unresolved branches. It neither focuses a current entity
-nor mints `DefinitionCorrectionLocation` from imported ordinals. After adoption,
-normal current validation supplies fresh revision-bound correction tokens.
+`ExplainImportFinding` and `ExplainImportSchema` share one private declared-schema
+walker returning declared schema metadata and a static enclosing path.
+`ExplainImportFinding` applies only to a finding in the current report, while
+`ExplainImportSchema` projects a Core `DefinitionImportSchemaLocation` (such as
+`ImportAutofillSchema` or an adoption refusal's `Schema`) for both Compare and
+Autofill views without walking schemas in client adapters. Both stop strictly
+before array rows, dynamic map names (`additionalProperties`) and unresolved
+branches, and neither focuses a current entity nor mints
+`DefinitionCorrectionLocation` from imported ordinals. After adoption, normal
+current validation supplies fresh revision-bound correction tokens.
 
 Edits, raw private clearing, replacement, cancellation, purpose/artifact change,
 navigation and disposal retire pending/current comparison authority through

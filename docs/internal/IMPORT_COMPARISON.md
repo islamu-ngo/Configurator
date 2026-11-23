@@ -225,8 +225,17 @@ workspace. Before adoption, clients offer schema explanations or safe enclosing
 editors without committing drafts or creating rows. After successful adoption,
 ordinary current validation produces fresh workspace correction authority.
 Strict prefill refusals keep admitted literal properties in a separate `Schema`
-address and return no future-workspace correction token. Typed-map source
-entries retain distinct safe ordinals, including mixed declared/dynamic maps.
+address (`DefinitionImportResult.Schema`) while keeping `Diagnostic.Location == null`
+so no future-workspace correction token is minted. `DefinitionImport.MergeAsync`
+and `DefinitionImport.Conflict` populate that allowlisted `Schema` path across all
+five nested `answer-conflict` shapes (leaf-projected conflict, whole-object
+conflict via deterministic ordinal walk over declared `schema.Properties`, omitted
+child under whole-object import, omitted ancestor under leaf import, and
+intermediate scalar-vs-object collision) as well as `import-field-invalid`,
+stopping strictly before dynamic map keys (`additionalProperties`) so private map
+keys and answer values never enter diagnostics, schema paths, or UI status text.
+Typed-map source entries retain distinct safe ordinals, including mixed
+declared/dynamic maps.
 
 Disposal clears owned byte storage and releases managed private trees. It does
 not promise physical erasure of every managed string or runtime copy.

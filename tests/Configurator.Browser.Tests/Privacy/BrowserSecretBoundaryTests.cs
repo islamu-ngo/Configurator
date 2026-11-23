@@ -105,6 +105,49 @@ public sealed class BrowserSecretBoundaryTests
     }
 
     [Test]
+    [Arguments("en", "ltr")]
+    [Arguments("ar", "rtl")]
+    public async Task SecretConsentAndHelpSurfaceHostedCodeCustodyRiskAndAlternativesInEnglishAndArabic(string locale, string direction)
+    {
+        Definition bilingual = DefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"88c4268a-1f9f-4e64-a3ea-4c4b3fb2d0a1","revision":1},
+             "project":{"id":"bilingual-custody","name":"Bilingual Custody"},"applicationVersions":["1"],
+             "configuration":{"type":"object","additionalProperties":false,"required":["token"],
+               "x-configurator":{"sensitivity":"public"},"properties":{
+                 "token":{"type":"string","title":"API Token","x-configurator":{"sensitivity":"secret"}}}},
+             "localization":{"defaultLocale":"en","translations":{"ar":{"direction":"rtl","overrides":{}}}},
+             "outputs":{"config.json":{"id":"config","format":"json"}}}
+            """u8.ToArray());
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([bilingual]));
+        var editor = context.Render<ConfigurationEditor>(parameters => parameters
+            .Add(item => item.Definition, bilingual)
+            .Add(item => item.InitialLocale, locale));
+
+        await Assert.That(editor.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+        var consentDisclosure = editor.Find("[data-secret-consent] [data-hosted-code-custody]");
+        await Assert.That(string.IsNullOrWhiteSpace(consentDisclosure.TextContent)).IsFalse();
+        var helpLink = editor.Find("[data-secret-consent] a[href='help#custody']");
+        await Assert.That(string.IsNullOrWhiteSpace(helpLink.TextContent)).IsFalse();
+
+        var help = context.Render<Pages.Help>(parameters => parameters.AddCascadingValue((locale, direction)));
+        await Assert.That(help.FindAll("section#custody")).Count().IsEqualTo(1);
+        var helpDisclosure = help.Find("section#custody [data-hosted-code-custody]");
+        await Assert.That(string.IsNullOrWhiteSpace(helpDisclosure.TextContent)).IsFalse();
+
+        if (locale == "ar")
+        {
+            await Assert.That(consentDisclosure.TextContent.Any(ch => ch is >= '\u0600' and <= '\u06ff')).IsTrue();
+            await Assert.That(helpDisclosure.TextContent.Any(ch => ch is >= '\u0600' and <= '\u06ff')).IsTrue();
+        }
+        else
+        {
+            await Assert.That(consentDisclosure.TextContent).Contains("extensions");
+            await Assert.That(helpDisclosure.TextContent).Contains("SecretKit");
+        }
+    }
+
+    [Test]
     [Arguments("""{"unknown":"private-canary"}""")]
     [Arguments("""{"mode":"private-canary"}""")]
     [Arguments("""{"mode":{"secret":"private-canary"}}""")]

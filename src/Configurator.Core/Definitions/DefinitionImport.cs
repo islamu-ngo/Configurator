@@ -200,19 +200,27 @@ public static class DefinitionImport
                 string field = path.Segments[0];
                 imported.Add(field);
                 FieldDefinition? descriptor = definition.Fields.FirstOrDefault(item => item.Name == field);
-                DefinitionDiagnostic? conflict = descriptor is null ? null : new("answer-conflict", descriptor.Id);
                 foreach (DefinitionPath omitted in current.Omitted)
                 {
                     await work.VisitAsync();
-                    if (DefinitionImportProjection.IsPrefix(omitted, path) ||
-                        DefinitionImportProjection.IsPrefix(path, omitted) && TrySelect(answer, omitted, path.Segments.Count, out _))
-                        return Failed("answer-conflict", conflict);
+                    if (DefinitionImportProjection.IsPrefix(omitted, path))
+                        return Failed("answer-conflict", ConflictDiagnostic(definition, "answer-conflict", descriptor, path, current.InputRevision));
+                    if (DefinitionImportProjection.IsPrefix(path, omitted) && TrySelect(answer, omitted, path.Segments.Count, out _))
+                        return Failed("answer-conflict", ConflictDiagnostic(definition, "answer-conflict", descriptor, omitted, current.InputRevision));
                 }
                 bool replaceable = descriptor is not null && replaceableDefaults?.Contains(descriptor.Id) == true;
                 if (path.Segments.Count == 1)
                 {
                     if (values.TryGetValue(field, out JsonElement previous) &&
-                        !JsonElement.DeepEquals(previous, answer) && !replaceable) return Failed("answer-conflict", conflict);
+                        !JsonElement.DeepEquals(previous, answer) && !replaceable)
+                    {
+                        DefinitionPath conflictPath = descriptor is not null
+                            && previous.ValueKind == JsonValueKind.Object
+                            && answer.ValueKind == JsonValueKind.Object
+                            ? FirstDifferingDeclaredPath(descriptor.Node, path, previous, answer)
+                            : path;
+                        return Failed("answer-conflict", ConflictDiagnostic(definition, "answer-conflict", descriptor, conflictPath, current.InputRevision));
+                    }
                     values[field] = answer;
                     continue;
                 }
@@ -220,7 +228,7 @@ public static class DefinitionImport
                 if (!values.TryGetValue(field, out JsonElement existing)) root = new();
                 else if (existing.ValueKind == JsonValueKind.Object) root = JsonNode.Parse(existing.GetRawText())!.AsObject();
                 else if (replaceable) root = new();
-                else return Failed("answer-conflict", conflict);
+                else return Failed("answer-conflict", ConflictDiagnostic(definition, "answer-conflict", descriptor, DefinitionPath.FromSegments([field]), current.InputRevision));
                 JsonObject container = root;
                 for (int index = 1; index < path.Segments.Count - 1; index++)
                 {
@@ -228,7 +236,11 @@ public static class DefinitionImport
                     if (container.TryGetPropertyValue(segment, out JsonNode? child))
                     {
                         if (child is JsonObject mapping) { container = mapping; continue; }
-                        if (!replaceable) return Failed("answer-conflict", conflict);
+                        if (!replaceable)
+                        {
+                            DefinitionPath intermediatePath = DefinitionPath.FromSegments(path.Segments.Take(index + 1));
+                            return Failed("answer-conflict", ConflictDiagnostic(definition, "answer-conflict", descriptor, intermediatePath, current.InputRevision));
+                        }
                     }
                     var created = new JsonObject();
                     container[segment] = created;
@@ -237,7 +249,21 @@ public static class DefinitionImport
                 string leaf = path.Segments[^1];
                 if (container.TryGetPropertyValue(leaf, out JsonNode? prior) &&
                     !JsonElement.DeepEquals(JsonSerializer.SerializeToElement(prior), answer) && !replaceable)
-                    return Failed("answer-conflict", conflict);
+                {
+                    DefinitionPath leafConflictPath = path;
+                    if (descriptor is not null
+                        && prior is JsonObject
+                        && answer.ValueKind == JsonValueKind.Object
+                        && DefinitionImportProjection.SourceNode(definition.Configuration, path, out _, out _) is { } leafSchema)
+                    {
+                        leafConflictPath = FirstDifferingDeclaredPath(
+                            leafSchema,
+                            path,
+                            JsonSerializer.SerializeToElement(prior),
+                            answer);
+                    }
+                    return Failed("answer-conflict", ConflictDiagnostic(definition, "answer-conflict", descriptor, leafConflictPath, current.InputRevision));
+                }
                 container[leaf] = JsonNode.Parse(answer.GetRawText());
                 values[field] = JsonSerializer.SerializeToElement(root);
             }
@@ -255,7 +281,7 @@ public static class DefinitionImport
                 if (!validation.TryGetEffectiveValue(path, out JsonElement effective) || !await RetainsMembersAsync(value, effective, work))
                 {
                     FieldDefinition? descriptor = definition.Fields.FirstOrDefault(field => field.Name == path.Segments[0]);
-                    return Failed("import-field-invalid", descriptor is null ? null : new("import-field-invalid", descriptor.Id));
+                    return Failed("import-field-invalid", ConflictDiagnostic(definition, "import-field-invalid", descriptor, path, candidate.InputRevision));
                 }
             }
             cancellationToken.ThrowIfCancellationRequested();
@@ -378,6 +404,69 @@ public static class DefinitionImport
             return document.RootElement.Clone();
         }
         finally { CryptographicOperations.ZeroMemory(normalized); }
+    }
+
+    /// <summary>Creates a schema-safe answer-conflict result bounded strictly to declared schema properties.</summary>
+    public static DefinitionImportResult Conflict(Definition definition, DefinitionPath path, long inputRevision = 0)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        ArgumentNullException.ThrowIfNull(path);
+        FieldDefinition? descriptor = path.Segments.Count == 0
+            ? null
+            : definition.Fields.FirstOrDefault(field => field.Name == path.Segments[0] || field.Id == path.Segments[0]);
+        DefinitionPath normalized = descriptor is not null && path.Segments.Count > 0 && path.Segments[0] != descriptor.Name
+            ? DefinitionPath.FromSegments([descriptor.Name, .. path.Segments.Skip(1)])
+            : path;
+        return Failed("answer-conflict", ConflictDiagnostic(definition, "answer-conflict", descriptor, normalized, inputRevision));
+    }
+
+    private static DefinitionDiagnostic? ConflictDiagnostic(
+        Definition definition,
+        string code,
+        FieldDefinition? descriptor,
+        DefinitionPath path,
+        long inputRevision)
+    {
+        if (descriptor is null) return null;
+        DefinitionImportSchemaLocation? schema = DefinitionImportProjection.SchemaLocation(definition, path);
+        if (schema is null || schema.RelativePath.Count == 0)
+            return new(code, descriptor.Id);
+        DefinitionLocationSegment[] segments = schema.RelativePath
+            .Select(DefinitionLocationSegment.Property)
+            .ToArray();
+        return new(code, descriptor.Id, new DefinitionCorrectionLocation(Math.Max(0, inputRevision), segments));
+    }
+
+    private static DefinitionPath FirstDifferingDeclaredPath(
+        DefinitionNode schema,
+        DefinitionPath currentPath,
+        JsonElement previous,
+        JsonElement answer)
+    {
+        if (schema.Type != DefinitionNodeType.Mapping
+            || previous.ValueKind != JsonValueKind.Object
+            || answer.ValueKind != JsonValueKind.Object
+            || schema.Properties.Count == 0)
+        {
+            return currentPath;
+        }
+
+        foreach (KeyValuePair<string, DefinitionNode> property in schema.Properties.OrderBy(item => item.Key, StringComparer.Ordinal))
+        {
+            bool hasPrevious = previous.TryGetProperty(property.Key, out JsonElement prevChild);
+            bool hasAnswer = answer.TryGetProperty(property.Key, out JsonElement ansChild);
+            if (!hasPrevious && !hasAnswer) continue;
+
+            DefinitionPath childPath = DefinitionPath.FromSegments([.. currentPath.Segments, property.Key]);
+            if (hasPrevious != hasAnswer)
+                return childPath;
+
+            if (!JsonElement.DeepEquals(prevChild, ansChild))
+                return FirstDifferingDeclaredPath(property.Value, childPath, prevChild, ansChild);
+        }
+
+        // Differences inside dynamic maps (additionalProperties) stop strictly at the declared container.
+        return currentPath;
     }
 
     private static DefinitionImportResult Failed(string code, DefinitionDiagnostic? diagnostic = null) =>

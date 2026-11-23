@@ -497,10 +497,14 @@ else
             <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _consentOpen = !_consentOpen; }" @onclick:preventDefault>@UiText("ReviewSecretConsent")</summary>
             <div class="configuration-editor__consent">
                 <input @ref="_consentControl" id="secret-consent" type="checkbox" data-workspace-lifetime="@_workspaceLifetime" checked="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
-                       aria-describedby="session-boundary secret-consent-help" @onchange="args => IsCurrentView(actionForm, actionView) ? ConsentAsync(args) : Task.CompletedTask" />
+                       aria-describedby="session-boundary secret-consent-help secret-consent-hosted-help" @onchange="args => IsCurrentView(actionForm, actionView) ? ConsentAsync(args) : Task.CompletedTask" />
                 <div>
                     <label for="secret-consent">@UiText("EnableWorkspaceSecrets")</label>
                     <p id="secret-consent-help" class="form-help">@UiText("WorkspaceSecretHelp") @UiText("CredentialCustodyHelp")</p>
+                    <p id="secret-consent-hosted-help" class="form-help" data-hosted-code-custody>
+                        @UiText("WorkspaceHostedCodeCustodyHelp")
+                        <a href="help#custody" data-action="custody-guidance">@UiText("WorkspaceCustodyGuideLink")</a>
+                    </p>
                 </div>
             </div>
         </details>

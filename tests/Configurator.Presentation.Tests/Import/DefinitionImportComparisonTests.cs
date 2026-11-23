@@ -76,6 +76,73 @@ public sealed class DefinitionImportComparisonTests
     }
 
     [Test]
+    public async Task ImportAutofillSchemaAndExplainImportSchemaSurfaceDeclaredNestedConflictWithoutPrivateKeys()
+    {
+        Definition nested = DefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"51cb4b24-1b7e-48db-9aa8-88f4d416a9f0","revision":1},
+             "project":{"id":"nested-conflict","name":"Nested conflict"},"applicationVersions":["1"],
+             "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+               "count":{"type":"integer","title":"Count","x-configurator":{"sensitivity":"public"}},
+               "options":{"type":"object","title":"Options","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+                 "db":{"type":"object","title":"Database","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+                   "host":{"type":"string","title":"Database host","x-configurator":{"sensitivity":"public"}}}},
+                 "labels":{"type":"object","title":"Labels","additionalProperties":{"type":"string","x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public"}}}}}},
+             "outputs":{"config.json":{"id":"config","format":"json",
+               "projection":{"op":"object","members":{
+                 "count":{"op":"copy","reference":{"scope":"root","path":"/count"}},
+                 "options":{"op":"copy","reference":{"scope":"root","path":"/options"}}}}}}}
+            """u8.ToArray());
+
+        using var form = new DefinitionFormModel(nested);
+        form.SetValue(["options", "db", "host"], JsonSerializer.SerializeToElement("existing.example"));
+
+        DefinitionImportComparisonResult compared = await form.CompareAsync(
+            "config",
+            _ => Task.FromResult<ReadOnlyMemory<byte>>("""{"options":{"db":{"host":"synthetic-canary-secret"}}}"""u8.ToArray()));
+        await Assert.That(compared.Succeeded).IsTrue();
+        await Assert.That(form.ImportAutofillCode).IsEqualTo("answer-conflict");
+        await Assert.That(form.ImportAutofillSchema).IsNotNull();
+        await Assert.That(form.ImportAutofillSchema!.FieldId).IsEqualTo("options");
+        await Assert.That(form.ImportAutofillSchema.RelativePath).IsEquivalentTo(["db", "host"]);
+
+        DefinitionImportSchemaExplanation? explained = form.ExplainImportSchema(form.ImportAutofillSchema);
+        await Assert.That(explained).IsNotNull();
+        await Assert.That(explained!.Path).IsEquivalentTo(["options", "db", "host"]);
+
+        DefinitionImportResult adopted = form.AdoptImportComparison();
+        await Assert.That(adopted.Succeeded).IsFalse();
+        await Assert.That(adopted.Schema).IsEqualTo(form.ImportAutofillSchema);
+
+        // Dynamic map segments must stop strictly at the declared container.
+        form.ResetValue(["options"]);
+        form.SetValue(["options", "labels", "synthetic-private-map-key"], JsonSerializer.SerializeToElement("old"));
+        await form.CompareAsync(
+            "config",
+            _ => Task.FromResult<ReadOnlyMemory<byte>>("""{"options":{"labels":{"synthetic-private-map-key":"synthetic-canary-secret"}}}"""u8.ToArray()));
+        await Assert.That(form.ImportAutofillCode).IsEqualTo("answer-conflict");
+        await Assert.That(form.ImportAutofillSchema).IsNotNull();
+        DefinitionImportSchemaExplanation? mapExplained = form.ExplainImportSchema(form.ImportAutofillSchema);
+        await Assert.That(mapExplained).IsNotNull();
+        await Assert.That(mapExplained!.Path).IsEquivalentTo(["options", "labels"]);
+        await Assert.That(mapExplained.Path).DoesNotContain("synthetic-private-map-key");
+
+        form.ClearImportComparison();
+        await Assert.That(form.ImportAutofillSchema).IsNull();
+
+        // Pending invalid draft in CheckAutofillStorage must also populate ImportAutofillSchema.
+        form.ResetValue(["options"]);
+        form.SetValue(["count"], JsonSerializer.SerializeToElement(4));
+        form.EditValue(["count"], "not-an-integer");
+        await form.CompareAsync(
+            "config",
+            _ => Task.FromResult<ReadOnlyMemory<byte>>("""{"count":4}"""u8.ToArray()));
+        await Assert.That(form.ImportAutofillCode).IsEqualTo("answer-conflict");
+        await Assert.That(form.ImportAutofillSchema).IsNotNull();
+        await Assert.That(form.ImportAutofillSchema!.FieldId).IsEqualTo("count");
+    }
+
+    [Test]
     public async Task BrowserComparisonDeniesAcquisitionWithoutConsent()
     {
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserNoSecrets);

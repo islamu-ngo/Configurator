@@ -137,6 +137,70 @@ public sealed class BrowserImportComparisonTests
     }
 
     [Test]
+    public async Task NestedImportConflictSurfacesLocalizedDeclaredPathInCompareAndAutofillWithoutPrivateLeakage()
+    {
+        Definition nested = DefinitionSourceCodec.ParseJson("""
+            {"$schema":"urn:islamu:configurator:authoring:v0.0.1",
+             "identity":{"familyId":"5f240342-9eb6-441f-a9c4-3fa6b0fd2694","revision":1},
+             "project":{"id":"nested-browser-import","name":"Nested browser import"},"applicationVersions":["1"],
+             "configuration":{"type":"object","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+               "options":{"type":"object","title":"Options","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+                 "db":{"type":"object","title":"Database","additionalProperties":false,"x-configurator":{"sensitivity":"public"},"properties":{
+                   "host":{"type":"string","title":"Database host","x-configurator":{"sensitivity":"public"}}}},
+                 "labels":{"type":"object","title":"Labels","additionalProperties":{"type":"string","x-configurator":{"sensitivity":"public"}},"x-configurator":{"sensitivity":"public"}}}}}},
+             "outputs":{"config.json":{"id":"config","format":"json",
+               "projection":{"op":"object","members":{"options":{"op":"copy","reference":{"scope":"root","path":"/options"}}}}}}}
+            """u8.ToArray());
+
+        await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([nested]));
+        var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, nested));
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await component.InvokeAsync(() => form.SetValue(["options", "db", "host"], JsonSerializer.SerializeToElement("existing.test")));
+
+        // Compare mode surfaces declared nested conflict location in ConfigurationImportReview.
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
+        using (var compareStream = new MemoryStream("""{"options":{"db":{"host":"synthetic-canary-secret"}}}"""u8.ToArray()))
+            await component.InvokeAsync(() => component.Instance.LoadAsync(compareStream));
+
+        string compareLocation = component.Find("[data-import-conflict-location]").TextContent;
+        await Assert.That(compareLocation).Contains("Database host");
+        await Assert.That(compareLocation).Contains("options / db / host");
+        await Assert.That(component.Markup).DoesNotContain("synthetic-canary-secret");
+
+        // Autofill mode surfaces the same declared nested conflict path in status without echoing values.
+        await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "fill" });
+        using (var fillStream = new MemoryStream("""{"options":{"db":{"host":"synthetic-canary-secret"}}}"""u8.ToArray()))
+            await component.InvokeAsync(() => component.Instance.LoadAsync(fillStream));
+
+        string fillStatus = component.Find("[role=status]").TextContent;
+        await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("answer-conflict");
+        await Assert.That(fillStatus).Contains("Database host");
+        await Assert.That(fillStatus).Contains("options / db / host");
+        await Assert.That(component.Markup).DoesNotContain("synthetic-canary-secret");
+
+        // Dynamic map conflict stops before private map key and leaks zero private keys or values.
+        await component.InvokeAsync(() =>
+        {
+            form.ResetValue(["options"]);
+            form.SetValue(["options", "labels", "workspace-existing-key"], JsonSerializer.SerializeToElement("old"));
+        });
+        using (var mapStream = new MemoryStream("""{"options":{"labels":{"synthetic-private-map-key":"synthetic-canary-secret"}}}"""u8.ToArray()))
+            await component.InvokeAsync(() => component.Instance.LoadAsync(mapStream));
+
+        string mapStatus = component.Find("[role=status]").TextContent;
+        string mapReview = component.Find("[data-import-comparison]").TextContent;
+        await Assert.That(mapStatus).Contains("options / labels");
+        await Assert.That(mapStatus).DoesNotContain("workspace-existing-key");
+        await Assert.That(mapStatus).DoesNotContain("synthetic-private-map-key");
+        await Assert.That(mapReview).Contains("options / labels");
+        await Assert.That(mapReview).DoesNotContain("workspace-existing-key");
+        await Assert.That(mapReview).DoesNotContain("synthetic-private-map-key");
+        await Assert.That(component.Markup).DoesNotContain("synthetic-private-map-key");
+        await Assert.That(component.Markup).DoesNotContain("synthetic-canary-secret");
+    }
+
+    [Test]
     public async Task ComparisonPublicationAndRetirementUseOnlyDedicatedNotifications()
     {
         await using var context = BrowserFixture.Context();

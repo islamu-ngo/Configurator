@@ -1,0 +1,28 @@
+Change-Id: CHG-01M84PQCD72QG5CE1AZWZCXX8S
+Title: "Disclose hosted-code custody at consent and surface safe nested conflict paths"
+Type: fix
+Scope: privacy
+Summary: "Explain hosted-code and browser-extension exposure with deferred-draft and native alternatives beside secret consent, and project schema-safe nested conflict locations through Presentation into Compare and Autofill views."
+Group: browser-launch-custody
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/IMPORT_COMPARISON.md
+    Disposition: documented
+    Detail: "Nested answer-conflict and pending invalid-draft refusals keep Diagnostic.Location null and emit only allowlisted declared Schema paths stopping before dynamic map keys; secret consent discloses hosted-code and extension observation alongside static zero-SecretKit boundaries."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/launch-integration.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/internal/PRESENTATION_STATE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/launch-integration.md
+    Disposition: documented
+    Detail: "Direct-launch operators see hosted-code and browser-extension custody risks with deferred-draft and native client links beside #secret-consent and /help#custody; Compare and Autofill views display localized declared nested conflict locations."
