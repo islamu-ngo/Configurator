@@ -254,12 +254,23 @@ packaging. Adding a file to `wwwroot` does not publish it over HTTP. Files with
 unknown MIME types are refused, including inventory entries with unknown types.
 The extensionless root `LICENSE` is explicitly served as plain text.
 
-Navigation fallback is limited to `/`, `/open`, `/help`, `/store/{slug}` and
-`/launch/{id}` (one extensionless segment). Missing assets and unknown routes
-return 404; other methods return 405. Public responses require revalidation.
-The curated Store ships embedded inside Presentation WebAssembly assets, so no runtime `definition-store/` tree or `browser-store.js` loader is exposed over HTTP. Dependency notice trees remain in the distributed
-package but are not exposed by this Host. Compressed sidecars remain packaging
-outputs; the Host compresses admitted canonical assets during transport.
+Navigation fallback is limited to `/`, `/open`, `/help`, `/settings`,
+`/settings/{section}`, `/store/{slug}`, `/launch/{id}` and `/explore/{id}` (each
+parameterized segment is extensionless). `GET` and `HEAD /healthz` return `200 OK`
+JSON (`{"status":"ok"}`) with `Cache-Control: no-store`, and the container's
+shell-free `HEALTHCHECK` runs `dotnet Configurator.Browser.Host.dll --healthcheck`
+against loopback `/healthz` (respecting `ASPNETCORE_HTTP_PORTS`, default `8080`)
+without adding `curl` or opening non-loopback targets. Missing assets and unknown
+routes return 404; other methods return 405. Public asset responses require
+revalidation (`Cache-Control: no-cache`).
+The curated Store ships embedded inside Presentation WebAssembly assets, so one
+unified static container image serves the application with no runtime
+`definition-store/` tree or `browser-store.js` loader exposed over HTTP. Dependency
+notice trees remain in the distributed package but are not exposed by this Host.
+Compressed sidecars remain packaging outputs; the Host negotiates Brotli and Gzip
+over both HTTP and HTTPS (`EnableForHttps = true`, including `application/wasm`
+and `application/manifest+json`) on admitted canonical public bytes and emits
+`Vary: Accept-Encoding` so Coolify/Traefik edge compression cooperates safely.
 
 ---
 

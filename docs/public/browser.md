@@ -573,10 +573,19 @@ To prepare for offline work:
 
 ## Self-Hosting & Deployment
 
-The optional .NET static Host denies framing and serves only its admitted public
-asset inventory with known content types. Adding a file to the webroot does not
-make it HTTP-accessible. It accepts GET/HEAD on intended assets and navigation
-routes; other methods and unknown assets/routes reject. The
+The optional .NET static Host denies framing (`frame-ancestors 'none'`) and serves
+only its admitted public asset inventory with known content types. Adding a file
+to the webroot does not make it HTTP-accessible. It accepts `GET`/`HEAD` on
+admitted assets, `/healthz` (`200 OK`, `application/json`, `Cache-Control: no-store`),
+and the eight SPA navigation routes (`/`, `/open`, `/help`, `/settings`,
+`/settings/{section}`, `/store/{slug}`, `/launch/{id}`, and `/explore/{id}`, each
+requiring extensionless segments so missing `.js`/`.wasm` requests return `404`);
+other methods return `405`. The Host enables Brotli and Gzip response compression
+for both HTTP and HTTPS (`EnableForHttps = true`) across admitted public MIME
+types including `application/wasm` and `application/manifest+json` — safe against
+BREACH because every response is identical public static content with zero
+cookies, authentication, or reflected user input — and emits `Vary: Accept-Encoding`
+to cooperate cleanly with reverse proxies such as Coolify/Traefik. The
 [packaging contract](../internal/PACKAGING.md#browser-container) describes the
 container and qualification limits.
 
@@ -621,7 +630,7 @@ docker run --rm --read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   -p 127.0.0.1:8080:8080 islamu-configurator-browser
 ```
 
-The container builds and serves one static Browser distribution with the bundled Definition Store already embedded. **This image does not include the planned connected host.** A future connected image will be separately named and qualified; setting an environment variable or deploying this static image with Coolify will not enable SecretKit, vault or Coolify target operations. Its local WebAssembly editor will remain the same, while an operator-owned connector API will require explicit authentication, target allowlists and additional security qualification. See the [connected-host decision](../internal/adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md).
+The container builds and serves one static Browser distribution with the bundled Definition Store already embedded, and ships a shell-free Docker `HEALTHCHECK` (`dotnet Configurator.Browser.Host.dll --healthcheck`) that probes only loopback `/healthz` (respecting `ASPNETCORE_HTTP_PORTS`, default `8080`) without installing `curl` or `wget`. **This image does not include the planned connected host.** A future connected image will be separately named and qualified; setting an environment variable or deploying this static image with Coolify will not enable SecretKit, vault or Coolify target operations. Its local WebAssembly editor will remain the same, while an operator-owned connector API will require explicit authentication, target allowlists and additional security qualification. See the [connected-host decision](../internal/adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md).
 
 ### Deploying with Coolify
 
@@ -634,6 +643,7 @@ Deploy Configurator Browser as a Docker service in Coolify with these settings:
 | **Dockerfile Location** | `/src/Configurator.Browser/Dockerfile` |
 | **Docker Build Stage** | *(Leave empty to use final runtime stage)* |
 | **Exposed Ports** | `8080` |
+| **Healthcheck Path** | `/healthz` (or rely on the built-in `HEALTHCHECK`) |
 | **Port Mappings** | *(Leave empty for automatic Coolify reverse proxy)* |
 | **Domain & HTTPS** | Configure your custom domain in Coolify |
 

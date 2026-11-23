@@ -3,6 +3,7 @@ using System.Reflection.Emit;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Configurator.Artifacts;
 using Configurator.Cli;
 using Configurator.Core;
@@ -91,6 +92,183 @@ public sealed class StandaloneArchitectureTests
             await Assert.That(references.Any(name => name.StartsWith("Avalonia", StringComparison.Ordinal)
                 || name is "Terminal.Gui" or "Spectre.Console")).IsFalse();
         }
+        if (owner is "Browser" or "Browser.Worker" or "Browser.Host")
+        {
+            await Assert.That(references.Where(name =>
+                name.Contains("SecretKit", StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith("Azure.Identity", StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith("Azure.Security.", StringComparison.OrdinalIgnoreCase)
+                || name.StartsWith("Microsoft.Playwright", StringComparison.OrdinalIgnoreCase)))
+                .IsEmpty().Because("Static Browser assemblies permanently exclude SecretKit, vault SDKs, and Playwright.");
+        }
+    }
+
+    [Test]
+    public async Task DockerfileDockerignoreAdmitsEveryBrowserBuildGraphSourceFile()
+    {
+        string dockerignorePath = Path.Combine(ReleaseTestPaths.Root, "src/Configurator.Browser/Dockerfile.dockerignore");
+        (bool IsNegation, Regex Pattern)[] rules = ParseDockerignoreRules(await File.ReadAllLinesAsync(dockerignorePath));
+
+        string[] projectRoots =
+        [
+            "src/Configurator.Core",
+            "src/Configurator.Presentation",
+            "src/Configurator.Browser",
+            "src/Configurator.Browser.Worker",
+            "src/Configurator.Browser.Host"
+        ];
+        HashSet<string> requiredExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".cs",
+            ".razor",
+            ".resx"
+        };
+
+        List<string> excludedFiles = [];
+        foreach (string projectRoot in projectRoots)
+        {
+            string fullRoot = Path.Combine(ReleaseTestPaths.Root, projectRoot);
+            foreach (string fullFile in Directory.EnumerateFiles(fullRoot, "*", SearchOption.AllDirectories))
+            {
+                string relative = Path.GetRelativePath(ReleaseTestPaths.Root, fullFile).Replace('\\', '/');
+                string[] segments = relative.Split('/');
+                if (segments.Any(segment => segment is "bin" or "obj"))
+                    continue;
+
+                bool isSource = requiredExtensions.Contains(Path.GetExtension(relative))
+                    || relative.EndsWith(".razor.css", StringComparison.OrdinalIgnoreCase);
+                if (!isSource)
+                    continue;
+
+                if (!IsAdmittedByDockerignore(rules, relative, out string? blockedAt))
+                    excludedFiles.Add($"{relative} (blocked at '{blockedAt}')");
+            }
+        }
+
+        await Assert.That(excludedFiles)
+            .IsEmpty()
+            .Because("Every Browser build-graph source file and its ancestor directories must be admitted by src/Configurator.Browser/Dockerfile.dockerignore.");
+
+        string[] mustRemainDenied =
+        [
+            ".git/HEAD",
+            "dev/active/browser-launch-readiness/browser-launch-readiness-plan.md",
+            "tests/Configurator.Core.Tests/Configurator.Core.Tests.csproj",
+            "src/Configurator.Browser/bin/Release/net10.0/Configurator.Browser.dll",
+            "src/Configurator.Browser/obj/Release/net10.0/temp.cs",
+            "artifacts/configurator/browser/wwwroot/index.html",
+            ".env",
+            "src/Configurator.Browser/.env.local",
+            "src/Configurator.Browser/secrets.json",
+            "src/Configurator.Browser/private.key",
+            "src/Configurator.Browser/cert.pem",
+            "src/Configurator.Browser/bundle.pfx",
+            "src/Configurator.Browser/bundle.p12"
+        ];
+        foreach (string deniedPath in mustRemainDenied)
+        {
+            await Assert.That(IsAdmittedByDockerignore(rules, deniedPath, out _))
+                .IsFalse()
+                .Because($"Sensitive or non-build path must stay excluded by Dockerfile.dockerignore: {deniedPath}");
+        }
+    }
+
+    private static (bool IsNegation, Regex Pattern)[] ParseDockerignoreRules(string[] lines)
+    {
+        List<(bool IsNegation, Regex Pattern)> parsed = [];
+        foreach (string rawLine in lines)
+        {
+            string line = rawLine.Trim();
+            if (line.Length == 0 || line.StartsWith('#'))
+                continue;
+
+            bool isNegation = line.StartsWith('!');
+            if (isNegation)
+                line = line[1..].TrimStart();
+
+            line = line.TrimStart('/');
+            if (line.Length > 1 && line.EndsWith('/'))
+                line = line[..^1];
+            if (line.Length == 0)
+                continue;
+
+            parsed.Add((isNegation, CompileDockerignoreGlob(line)));
+        }
+
+        return [.. parsed];
+    }
+
+    private static Regex CompileDockerignoreGlob(string pattern)
+    {
+        var regex = new System.Text.StringBuilder("^");
+        int i = 0;
+        while (i < pattern.Length)
+        {
+            if (pattern[i] == '*' && i + 1 < pattern.Length && pattern[i + 1] == '*')
+            {
+                if (i + 2 < pattern.Length && pattern[i + 2] == '/')
+                {
+                    regex.Append("(?:.*/)?");
+                    i += 3;
+                }
+                else
+                {
+                    regex.Append(".*");
+                    i += 2;
+                }
+            }
+            else if (pattern[i] == '*')
+            {
+                regex.Append("[^/]*");
+                i++;
+            }
+            else if (pattern[i] == '?')
+            {
+                regex.Append("[^/]");
+                i++;
+            }
+            else
+            {
+                regex.Append(Regex.Escape(pattern[i].ToString()));
+                i++;
+            }
+        }
+
+        regex.Append('$');
+        return new Regex(regex.ToString(), RegexOptions.CultureInvariant);
+    }
+
+    private static bool IsAdmittedByDockerignore(
+        (bool IsNegation, Regex Pattern)[] rules,
+        string relativePath,
+        out string? blockedAt)
+    {
+        string[] segments = relativePath.Split('/');
+        string current = string.Empty;
+        for (int i = 0; i < segments.Length; i++)
+        {
+            current = i == 0 ? segments[0] : $"{current}/{segments[i]}";
+            if (IsPathIgnored(rules, current))
+            {
+                blockedAt = current;
+                return false;
+            }
+        }
+
+        blockedAt = null;
+        return true;
+    }
+
+    private static bool IsPathIgnored((bool IsNegation, Regex Pattern)[] rules, string path)
+    {
+        bool ignored = false;
+        foreach ((bool isNegation, Regex pattern) in rules)
+        {
+            if (pattern.IsMatch(path))
+                ignored = !isNegation;
+        }
+
+        return ignored;
     }
 
     [Test]

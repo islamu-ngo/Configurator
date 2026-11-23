@@ -378,14 +378,36 @@ one static Browser container image embedding `store/` via `Configurator.Presenta
 Container packaging never revises Store sources or retained revisions, authenticates a
 publisher or repairs same-family/revision content conflicts.
 
-`src/Configurator.Browser.Host/Program.cs` owns origin-root public-file hosting:
-current application navigation, real missing-asset errors, WASM/JSON/JavaScript
-MIME handling, response compression and revalidation of update assets. Responses
-retain the shipped first-party CSP and add nosniff/no-referrer policy. The host
-has no product project references, answer model, upload endpoint or persistence.
+`src/Configurator.Browser.Host/{Program.cs,BrowserHostApplication.cs,HealthCheckProbe.cs}`
+owns origin-root public-file hosting and self-probing:
+current application navigation, real missing-asset errors, WASM/JSON/JavaScript/webmanifest
+MIME handling, Brotli/Gzip response compression over HTTP and HTTPS (`EnableForHttps = true`,
+`CompressionLevel.Fastest`, including `application/wasm` and `application/manifest+json`),
+`/healthz` liveness, and revalidation of update assets. HTTPS compression is safe
+against BREACH on this host because every served byte is identical public static
+content with zero authentication, cookies, or reflected user input; responses carry
+`Vary: Accept-Encoding` so upstream reverse proxies such as Coolify/Traefik can
+serve or negotiate compression cleanly. Responses retain the shipped first-party CSP
+and add nosniff/no-referrer policy. The host has no product project references,
+SecretKit/vault SDK references (enforced mechanically by `StandaloneArchitectureTests`),
+answer model, upload endpoint or persistence.
 Request-access logging is disabled; ordinary missing/rejected requests must not
 write user-supplied URL text to logs. There is no upload handler, proxy, target
 API or private persistence. Only `/tmp` needs runtime write access.
+
+`Program.cs` short-circuits `args is ["--healthcheck"]` before
+`WebApplication.CreateBuilder` and delegates to `HealthCheckProbe`. The probe
+validates `CONFIGURATOR_HEALTHCHECK_URL` fail-closed (requiring `http://`,
+`IsLoopback`, exact path `/healthz`, valid port `1..65535`, and empty userinfo,
+query, and fragment — exiting `1` without opening a socket on any violation) or
+resolves the first valid port in `ASPNETCORE_HTTP_PORTS` (default `8080`),
+disables redirects, proxies, and cookies, enforces a 2-second timeout and 256-byte
+response cap, and exits `0` only on HTTP `200` `{"status":"ok"}`. The Dockerfile
+final stage wires `HEALTHCHECK ... CMD ["dotnet", "Configurator.Browser.Host.dll", "--healthcheck"]`
+without installing `curl` or `wget`. `StandaloneArchitectureTests` also verifies
+that `src/Configurator.Browser/Dockerfile.dockerignore` admits every source file
+and ancestor directory in the Browser build graph while keeping `.git`, `dev`,
+`tests`, `bin`, `obj`, `artifacts`, `.env`, and key/certificate files excluded.
 
 All behavior above describes the **current static Host and image**. The accepted
 [connected Browser decision](adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md)
@@ -411,17 +433,25 @@ Dependency-notice trees remain distributed attribution, outside HTTP admission.
 SDK compression sidecars are not separate admitted URLs; response compression
 operates on canonical admitted bytes.
 
-GET/HEAD preserve the five existing navigation patterns: `/`, `/open`, `/help`,
-`/store/{slug:nonfile}`, `/launch/{id:nonfile}`. Unknown routes/assets return 404
-and other methods return 405. All responses retain `Cache-Control: no-cache`.
+GET/HEAD serve the eight application navigation fallbacks: `/`, `/open`, `/help`,
+`/settings`, `/settings/{section:nonfile}`, `/store/{slug:nonfile}`,
+`/launch/{id:nonfile}`, and `/explore/{id:nonfile}`, plus `GET`/`HEAD /healthz`
+(`application/json; charset=utf-8`, zero-reflection `{"status":"ok"}`,
+`Cache-Control: no-store`). Unknown routes/assets (including extension probes
+such as `/settings/evil.js` or `/explore/missing.wasm`) return 404 and other
+methods (including `POST /healthz`) return 405. Public asset responses retain
+`Cache-Control: no-cache`.
 This transport revalidation policy does not broaden the Browser worker's cache
 allowlist or authorize storing answers, drafts or prepared artifacts.
-`BrowserHostPolicyTests` exercises a running Host at `CONFIGURATOR_HOST_URL`;
-qualification must first copy the public package into an isolated tree and add
-synthetic `host-attack.json`, `host-attack.unknown` and `host-attack` files.
-Run its nonempty filtered cohort against both Store modes and separately record
-actual nonroot/read-only container execution; an ordinary HTTP test run does
-not qualify container restrictions or a complete Browser journey.
+`BrowserHostPolicyTests` exercises a running Host at `CONFIGURATOR_HOST_URL`
+(plus an ephemeral TLS loopback Host for genuine HTTPS compression and child
+`--healthcheck` SSRF tests); qualification must first copy the public package
+into an isolated tree and add synthetic `host-attack.json`, `host-attack.unknown`
+and `host-attack` files.
+Run its nonempty filtered cohort against the single unified embedded-Store
+container image and separately record actual nonroot/read-only container execution;
+an ordinary HTTP test run does not qualify container restrictions or a complete
+Browser journey.
 
 The image is deployment-neutral. Its .NET process serves public static files; it
 contains no reverse-proxy upstream, TLS termination, public hostname, host-port
@@ -430,14 +460,16 @@ orchestrator owns those settings and forwards traffic to internal port 8080.
 The public guide records Coolify's repository-root context and Dockerfile path;
 the local loopback run example is a smoke-test command, not production wiring.
 
-Verify actual image behavior, not Dockerfile text: build both Store modes,
-inspect the runtime user and package closure, run read-only with dropped
-capabilities, exercise routes/assets/MIME/cache/security headers and rejected
-methods, and boot the served app in a real browser. Apply the existing Browser
-package tests to the extracted static tree. A local rootless Linux image check
-does not qualify Docker Desktop, another architecture, a production TLS proxy
-or the complete browser/assistive-technology matrix. The
-[public guide](../public/browser.md#docker-container) owns operator commands.
+Verify actual image behavior, not Dockerfile text: build the unified embedded-Store
+container image, inspect the runtime user (`1654`) and package closure, run
+read-only with dropped capabilities and `no-new-privileges`, verify `HEALTHCHECK`
+and `--healthcheck` loopback behavior, exercise routes/assets/MIME/cache/security
+headers/HTTPS compression and rejected methods, and boot the served app in a real
+browser. Apply the existing Browser package and store tests to the extracted static
+tree. A local rootless Linux image check does not qualify Docker Desktop, another
+architecture, a production TLS proxy or the complete browser/assistive-technology
+matrix. The [public guide](../public/browser.md#docker-container) owns operator
+commands.
 
 ### Verified .NET image (2026-10-20)
 

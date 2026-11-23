@@ -2,7 +2,7 @@
 
 > **Audience:** Maintainers and release reviewers
 > **Owner:** Platform/Ops
-> **Reviewed:** 2026-10-20
+> **Reviewed:** 2026-11-23
 > **Scope:** Optional standalone Browser image; no image publication or signer activation
 
 ## Exact inputs
@@ -31,10 +31,14 @@ The implementation does not patch or rebuild upstream components. It preserves
 the base filesystem, package records and original notices; the existing release
 owner independently includes the Browser's actual restored NuGet/runtime notices.
 Only the first-party `Configurator.Browser.Host` executable and published static
-application assets are added. No external web-server configuration is restored,
+application assets (with the curated Definition Store embedded in
+`Configurator.Presentation`) are added. Container health supervision uses the
+built-in loopback-fenced `dotnet Configurator.Browser.Host.dll --healthcheck`
+self-probe in the final stage rather than installing `curl`, `wget`, or any
+additional OS package. No external web-server configuration is restored,
 generated or copied. The host uses the ASP.NET Core shared framework, with no
-additional NuGet package or product project references. The SDK filesystem is not
-copied into the runtime image.
+additional NuGet package, product project, SecretKit, or vault SDK references.
+The SDK filesystem is not copied into the runtime image.
 
 This decision admits these pinned inputs for local build and runtime
 verification. It does not authorize registry publication. Before conveying an

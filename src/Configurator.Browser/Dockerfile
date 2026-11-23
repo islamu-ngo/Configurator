@@ -44,4 +44,6 @@ RUN dotnet msbuild eng/configurator/Configurator.Release.proj \
 FROM base AS final
 COPY --from=publish /publish/host/ .
 COPY --from=publish /publish/browser/wwwroot/ ./wwwroot/
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD ["dotnet", "Configurator.Browser.Host.dll", "--healthcheck"]
 ENTRYPOINT ["dotnet", "Configurator.Browser.Host.dll"]
