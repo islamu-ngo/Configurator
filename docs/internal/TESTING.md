@@ -3,7 +3,7 @@
 > **Audience:** Contributors | AI agents
 > **Status:** Implemented testing policy
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-10-08
+> **Last Verified:** 2026-11-23
 > **Source Anchors:** `PROJECTS.md`, `global.json`, `tests/`, `eng/release/tests/`, `.agents/rules/tests.md`
 
 Selected reusable sections from Event revision
@@ -142,6 +142,38 @@ Its focused `SupportQualificationTests` use synthetic receipts; their pass is
 not a native-host, Browser, participant or AT qualification. Pre-package owner
 reports stay payload-unbound. Exact-payload qualification requires the actual
 frozen artifact and independently retained observation evidence.
+
+#### Published-browser Playwright and CDP qualification harness
+
+`eng/configurator/Configurator.BrowserQualification/Configurator.BrowserQualification.csproj`
+pins `Microsoft.Playwright` (`1.65.1`, MIT) exclusively inside `eng/` (never in
+`src/` or product packages, guarded mechanically by `StandaloneArchitectureTests`).
+It serves three deterministic workflows:
+
+1. **Fail-closed contract self-test (`--self-test`):** Runs in CI without browser
+   binaries and verifies missing checks (`< 16`), skipped or unlaunched engines,
+   digest mismatches, malformed receipts, false automated assistive-technology
+   claims, `< 36` cohorts, `< 46` samples, untrusted samples, and unordered
+   clocks all exit non-zero.
+2. **Multi-engine published-browser checks (`--base-url ... --engines chromium,firefox,webkit`):**
+   Runs canonical checks `Q01–Q16` against a live static host or container using
+   event-driven DOM/network waits (zero timing sleeps) and emits a
+   `configurator-support-qualification-0.0.1` receipt validated by
+   `eng/configurator/ValidateSupportQualification.cs`. Human screen-reader and
+   braille assistive-technology rows stay explicitly `unexecuted`.
+3. **Trusted-input Chromium CDP benchmarks (`--measure-interactive`):** Captures
+   exact 46-sample (`1 first + 5 warmups + 40 measured`) cohorts across both
+   directions and `1x`/`4x` CPU throttling (`Emulation.setCPUThrottlingRate`) for
+   all 9 required core journeys plus extended compound-root/compact fixtures from
+   `BuildInteractiveWorkFixtures.cs`, emitting `synthetic-interaction-0.0.1` JSON
+   verified by `eng/configurator/MeasureInteractiveWork.cs` alongside `QF01`
+   near-limit preparation timings (`<= 100ms` 1x / `<= 200ms` 4x).
+
+```bash
+export TMPDIR="$HOME/.cache/agent-tmp"
+dotnet build eng/configurator/Configurator.BrowserQualification/Configurator.BrowserQualification.csproj --configuration Release --verbosity quiet
+dotnet run --project eng/configurator/Configurator.BrowserQualification/Configurator.BrowserQualification.csproj --configuration Release --no-build -- --self-test
+```
 
 ### Local safe evidence archive
 

@@ -133,6 +133,7 @@ jobs:
             tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj \
             eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj \
             eng/release/tests/Configurator.ReleaseEngineering.Tests/Configurator.ReleaseEngineering.Tests.csproj \
+            eng/configurator/Configurator.BrowserQualification/Configurator.BrowserQualification.csproj \
             eng/configurator/Configurator.BuildCapture/Configurator.BuildCapture.csproj \
             eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj \
             eng/configurator/Configurator.CommandSchemaGenerator/Configurator.CommandSchemaGenerator.csproj
@@ -156,6 +157,7 @@ jobs:
           dotnet run --file eng/configurator/ValidateConfiguratorSkill.cs -- .agents/skills/configurator-integrate/SKILL.md
           dotnet run --file eng/configurator/ValidateConfiguratorSkill.cs -- --portable skills/configurator-integrate/SKILL.md
           dotnet run --file eng/configurator/ValidateConfiguratorSkill.cs -- --self-test
+          dotnet run --project eng/configurator/Configurator.BrowserQualification/Configurator.BrowserQualification.csproj --configuration Release --no-build -- --self-test
           dotnet run --project eng/configurator/Configurator.CommandSchemaGenerator --configuration Release --no-build -- --check
           dotnet run eng/configurator/GenerateConfiguratorRatchets.cs -- --check
       - name: Audit restored dependency closure
@@ -201,6 +203,8 @@ jobs:
             sleep 0.1
           done
           if [[ "$ready" -ne 1 ]]; then printf 'HOST_READINESS_FAILED\n'; exit 1; fi
+          CONFIGURATOR_HEALTHCHECK_URL="$CONFIGURATOR_HOST_URL/healthz" \
+            dotnet src/Configurator.Browser.Host/bin/Release/net10.0/Configurator.Browser.Host.dll --healthcheck
           overall=0
           for project in tests/Configurator.*.Tests/*.csproj \
             eng/agent-workflow/tests/Configurator.AgentWorkflow.Tests/Configurator.AgentWorkflow.Tests.csproj \

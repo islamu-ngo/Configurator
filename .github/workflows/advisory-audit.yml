@@ -44,10 +44,11 @@ jobs:
           shopt -s nullglob
 
           # Scope boundary: NuGet auditing covers every restored .NET project closure
-          # under src/, tests/, and eng/ (including transitive packages). It does NOT
-          # audit container base-image OS packages (for example Debian/Ubuntu layers in
-          # mcr.microsoft.com/dotnet/*); container OS layers remain tracked separately
-          # via pinned digests in src/Configurator.Browser/Dockerfile and
+          # under src/, tests/, and eng/ (including transitive packages such as
+          # Microsoft.Playwright in eng/configurator/Configurator.BrowserQualification).
+          # It does NOT audit container base-image OS packages (for example Debian/Ubuntu
+          # layers in mcr.microsoft.com/dotnet/*); container OS layers remain tracked
+          # separately via pinned digests in src/Configurator.Browser/Dockerfile and
           # docs/internal/legal/dependencies/browser-container.md.
           projects=(
             src/Configurator.*/*.csproj

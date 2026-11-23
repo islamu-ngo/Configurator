@@ -22,6 +22,7 @@
     <Project Path="tests/Configurator.Architecture.Tests/Configurator.Architecture.Tests.csproj" />
   </Folder>
   <Folder Name="/eng/">
+    <Project Path="eng/configurator/Configurator.BrowserQualification/Configurator.BrowserQualification.csproj" />
     <Project Path="eng/configurator/Configurator.BuildCapture/Configurator.BuildCapture.csproj" />
     <Project Path="eng/configurator/Configurator.DefinitionSchemaGenerator/Configurator.DefinitionSchemaGenerator.csproj" />
     <Project Path="eng/configurator/Configurator.CommandSchemaGenerator/Configurator.CommandSchemaGenerator.csproj" />
