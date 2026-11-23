@@ -1,0 +1,92 @@
+name: Configurator scheduled dependency and license audit
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: configurator-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_NOLOGO: "1"
+  TESTINGPLATFORM_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  advisory-audit:
+    name: Full-repository NuGet, license, and Action-pin audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout only Configurator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - name: Install pinned WebAssembly build tools
+        run: dotnet workload install wasm-tools
+      - name: Validate external Action pins
+        run: dotnet run .ci/scripts/validate-action-pins.cs -- .github/workflows
+      - name: Restore and audit full NuGet dependency closure
+        shell: bash
+        env:
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          # Scope boundary: NuGet auditing covers every restored .NET project closure
+          # under src/, tests/, and eng/ (including transitive packages). It does NOT
+          # audit container base-image OS packages (for example Debian/Ubuntu layers in
+          # mcr.microsoft.com/dotnet/*); container OS layers remain tracked separately
+          # via pinned digests in src/Configurator.Browser/Dockerfile and
+          # docs/internal/legal/dependencies/browser-container.md.
+          projects=(
+            src/Configurator.*/*.csproj
+            tests/Configurator.*/*.csproj
+            eng/configurator/*/*.csproj
+            eng/configurator/probes/*/*.csproj
+            eng/agent-workflow/*/*/*.csproj
+            eng/release/*/*/*.csproj
+          )
+
+          if [[ "${#projects[@]}" -eq 0 ]]; then
+            printf 'ADVISORY_AUDIT_ERROR: no projects matched audit globs\n' >&2
+            exit 1
+          fi
+
+          mkdir -p artifacts/advisory-audit
+          overall=0
+          audited=0
+          for project in "${projects[@]}"; do
+            audited=$((audited + 1))
+            name=$(basename "$project" .csproj)
+            report="artifacts/advisory-audit/${name}.json"
+            printf 'Restoring and auditing %s\n' "$project"
+            dotnet restore "$project" --locked-mode
+            dotnet list "$project" package --vulnerable --include-transitive --format json --no-restore > "$report"
+            if ! dotnet run .ci/scripts/validate-nuget-vulnerabilities.cs -- "$report"; then
+              overall=1
+            fi
+          done
+
+          printf 'Audited %d projects.\n' "$audited"
+          exit "$overall"
+      - name: Validate dependency license policy
+        run: dotnet run .ci/scripts/validate-dependency-license-policy.cs -- .
+      - name: Retain value-free NuGet advisory JSON reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: advisory-audit-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/advisory-audit/
+          if-no-files-found: error
+          retention-days: 14
