@@ -114,6 +114,7 @@ internal static class QualificationChecks
     {
         string baseOrigin = baseUrl.GetLeftPart(UriPartial.Authority);
         byte[] standardDefinition = BuildStandardDefinitionBytes();
+        byte[] importConflictDefinition = BuildImportConflictDefinitionBytes();
         byte[] scaleDefinition = BuildScaleDefinitionBytes(120);
 
         var checks = new (string Id, string Locale, Func<Task> Action)[]
@@ -123,10 +124,10 @@ internal static class QualificationChecks
             ("Q03-typed-presence-omission", "en", () => CheckTypedPresenceAndOmissionAsync(browser, baseOrigin, standardDefinition)),
             ("Q04-secret-consent-and-hosted-custody", "en", () => CheckSecretConsentAndHostedCustodyAsync(browser, baseOrigin, standardDefinition)),
             ("Q05-complete-and-draft-outputs", "en", () => CheckCompleteAndDraftOutputsAsync(browser, baseOrigin, standardDefinition)),
-            ("Q06-nested-import-conflicts", "en", () => CheckNestedImportConflictsAsync(browser, baseOrigin, standardDefinition)),
+            ("Q06-nested-import-conflicts", "en", () => CheckNestedImportConflictsAsync(browser, baseOrigin, importConflictDefinition)),
             ("Q07-deliberate-reveal-copy-download", "en", () => CheckDeliberateRevealCopyDownloadAsync(browser, baseOrigin, standardDefinition)),
             ("Q08-invalid-edit-fencing", "en", () => CheckInvalidEditFencingAsync(browser, baseOrigin, standardDefinition)),
-            ("Q09-settings-and-explore-reloads", "en", () => CheckSettingsAndExploreReloadsAsync(browser, baseOrigin)),
+            ("Q09-settings-and-explore-reloads", "en", () => CheckSettingsAndExploreReloadsAsync(playwright, browser, baseOrigin)),
             ("Q10-offline-retry-delete-and-capacity", "en", () => CheckOfflineRetryDeleteCapacityAsync(browser, baseOrigin, standardDefinition)),
             ("Q11-custody-sink-canary-checks", "en", () => CheckCustodySinkCanariesAsync(browser, baseOrigin, standardDefinition)),
             ("Q12-two-tab-update-safety", "en", () => CheckTwoTabUpdateSafetyAsync(browser, baseOrigin, standardDefinition)),
@@ -329,6 +330,7 @@ internal static class QualificationChecks
         await page.Locator("[data-action='reveal-file']").ClickAsync();
         ILocator preview = page.Locator(".configuration-files__preview");
         await preview.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+        await page.WaitForFunctionAsync("() => (document.querySelector('.configuration-files__preview')?.textContent || '').trim().length > 0");
         string revealed = await preview.InnerTextAsync();
         Require(revealed.Contains("synthetic-draft-svc", StringComparison.Ordinal)
             && revealed.Contains("9001", StringComparison.Ordinal)
@@ -345,7 +347,7 @@ internal static class QualificationChecks
         await EnsureNestedHostEditableAsync(page);
         await FillFieldInputAsync(page, "options.db.host", "workspace-db.local");
 
-        // Open import panel in Compare mode and import conflicting file containing both nested conflict and private map key.
+        // Open import panel and verify unconsented file upload is refused fail-closed before reading.
         await page.Locator("[data-entry-choice='import']").ClickAsync();
         await page.Locator("#import-purpose").WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
         await page.Locator("#import-purpose").SelectOptionAsync("compare");
@@ -358,6 +360,20 @@ internal static class QualificationChecks
               "labels": { "synthetic-private-map-key": "SYNTH-CANARY-ANS-9F2A" }
             }
             """;
+
+        await page.Locator("#artifact-import").SetInputFilesAsync(new FilePayload
+        {
+            Name = "app-config.json",
+            MimeType = "application/json",
+            Buffer = Encoding.UTF8.GetBytes(conflictArtifact)
+        });
+        await page.WaitForFunctionAsync("() => document.querySelector(\"[data-status-code='import-secret-consent-required']\") !== null");
+
+        // Grant explicit per-workspace consent before comparing and autofilling existing config files.
+        ILocator consentDetails = page.Locator("[data-secret-consent]");
+        if (await consentDetails.GetAttributeAsync("open") is null)
+            await consentDetails.Locator("summary").ClickAsync();
+        await page.Locator("#secret-consent").CheckAsync();
 
         await page.Locator("#artifact-import").SetInputFilesAsync(new FilePayload
         {
@@ -385,7 +401,7 @@ internal static class QualificationChecks
             Buffer = Encoding.UTF8.GetBytes(conflictArtifact)
         });
         await page.WaitForFunctionAsync(
-            "() => { const s = document.querySelector(\"[data-status-code='import-autofill-refused']\"); return Boolean(s && s.textContent && s.textContent.includes('options')); }");
+            "() => { const s = document.querySelector(\"[data-status-code='answer-conflict']\"); return Boolean(s && s.textContent && (s.textContent.includes('options') || s.textContent.includes('Database host'))); }");
 
         string statusText = await page.Locator("[data-status-code]").InnerTextAsync();
         Require(!statusText.Contains(PrivateMapKeyCanary, StringComparison.Ordinal)
@@ -412,6 +428,7 @@ internal static class QualificationChecks
         ILocator revealButton = page.Locator("[data-action='reveal-file']");
         await revealButton.ClickAsync();
         await preview.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+        await page.WaitForFunctionAsync("() => (document.querySelector('.configuration-files__preview')?.textContent || '').trim().length > 0");
         Require((await preview.InnerTextAsync()).Contains("export-check-svc", StringComparison.Ordinal), "reveal-content-missing");
         await revealButton.ClickAsync();
         await preview.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Hidden });
@@ -453,7 +470,7 @@ internal static class QualificationChecks
         Require(await page.Locator("[data-prepared-file]").CountAsync() == 0, "invalid-edit-produced-output");
     }
 
-    private static async Task CheckSettingsAndExploreReloadsAsync(IBrowser browser, string baseOrigin)
+    private static async Task CheckSettingsAndExploreReloadsAsync(IPlaywright playwright, IBrowser browser, string baseOrigin)
     {
         await using IBrowserContext context = await CreateContextAsync(browser);
         IPage page = await context.NewPageAsync();
@@ -477,9 +494,14 @@ internal static class QualificationChecks
                 await page.Locator("[data-explore-definition]").WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
         }
 
-        // Unknown extension probe under /settings must return 404, not SPA HTML.
-        IResponse? missingAsset = await page.GotoAsync(baseOrigin + "/settings/nonexistent.js");
-        Require(missingAsset is { Status: 404 }, "settings-extension-probe-not-404");
+        // Direct HTTP probe (bypassing active Service Worker navigation cache) verifies Host rejects extension paths with 404.
+        await using IAPIRequestContext api = await playwright.APIRequest.NewContextAsync(new APIRequestNewContextOptions
+        {
+            BaseURL = baseOrigin,
+            IgnoreHTTPSErrors = true
+        });
+        IAPIResponse missingAsset = await api.GetAsync("/settings/nonexistent.js");
+        Require(missingAsset.Status == 404, "settings-extension-probe-not-404");
         Require(errors.Count == 0, "route-reload-page-error");
     }
 
@@ -515,7 +537,7 @@ internal static class QualificationChecks
             Require(!string.IsNullOrWhiteSpace(ariaLabel), "remove-retained-aria-label-missing");
             await removeButton.ClickAsync();
             await page.Locator("[data-retained-definitions]").WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Detached });
-
+            await page.WaitForFunctionAsync("() => document.activeElement !== null && document.activeElement.id === 'definition-file'");
             string activeId = await page.EvaluateAsync<string>("() => document.activeElement ? document.activeElement.id : ''");
             Require(activeId == "definition-file", "apg-focus-restoration-failed");
         }
@@ -877,7 +899,7 @@ internal static class QualificationChecks
             ["presentation"] = new JsonObject
             {
                 ["defaultJourney"] = "standard",
-                ["navigation"] = "tabs",
+                ["navigation"] = "sections",
                 ["sections"] = new JsonArray
                 {
                     new JsonObject
@@ -1052,6 +1074,154 @@ internal static class QualificationChecks
         return Encoding.UTF8.GetBytes(source.ToJsonString());
     }
 
+    internal static byte[] BuildImportConflictDefinitionBytes()
+    {
+        var source = new JsonObject
+        {
+            ["$schema"] = "urn:islamu:configurator:authoring:v0.0.1",
+            ["identity"] = new JsonObject
+            {
+                ["familyId"] = "f1a20003-4ef0-4c80-9f10-000000000003",
+                ["revision"] = 1
+            },
+            ["project"] = new JsonObject
+            {
+                ["id"] = "synthetic.qualification.import",
+                ["name"] = "Synthetic Import Conflict Service",
+                ["publisher"] = "islamu-synthetic"
+            },
+            ["applicationVersions"] = new JsonArray("1.0"),
+            ["presentation"] = new JsonObject
+            {
+                ["defaultJourney"] = "standard",
+                ["navigation"] = "sections",
+                ["sections"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "core",
+                        ["title"] = "Core settings",
+                        ["pointers"] = new JsonArray("/serviceName", "/workerPort", "/options", "/labels")
+                    }
+                },
+                ["journeys"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "standard",
+                        ["title"] = "Standard",
+                        ["sections"] = new JsonArray("core")
+                    }
+                }
+            },
+            ["configuration"] = new JsonObject
+            {
+                ["type"] = "object",
+                ["title"] = "Import conflict configuration",
+                ["additionalProperties"] = false,
+                ["required"] = new JsonArray("serviceName", "workerPort"),
+                ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" },
+                ["properties"] = new JsonObject
+                {
+                    ["serviceName"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["title"] = "Service name",
+                        ["minLength"] = 1,
+                        ["maxLength"] = 128,
+                        ["x-configurator"] = new JsonObject
+                        {
+                            ["sensitivity"] = "public",
+                            ["detail"] = "basic",
+                            ["initialValue"] = "local-service"
+                        }
+                    },
+                    ["workerPort"] = new JsonObject
+                    {
+                        ["type"] = "integer",
+                        ["title"] = "Worker port",
+                        ["minimum"] = 1024,
+                        ["maximum"] = 65535,
+                        ["x-configurator"] = new JsonObject
+                        {
+                            ["sensitivity"] = "public",
+                            ["detail"] = "basic",
+                            ["initialValue"] = 8080
+                        }
+                    },
+                    ["options"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["title"] = "Options",
+                        ["additionalProperties"] = false,
+                        ["x-configurator"] = new JsonObject
+                        {
+                            ["sensitivity"] = "public",
+                            ["detail"] = "basic"
+                        },
+                        ["properties"] = new JsonObject
+                        {
+                            ["db"] = new JsonObject
+                            {
+                                ["type"] = "object",
+                                ["title"] = "Database",
+                                ["additionalProperties"] = false,
+                                ["x-configurator"] = new JsonObject
+                                {
+                                    ["sensitivity"] = "public",
+                                    ["detail"] = "basic"
+                                },
+                                ["properties"] = new JsonObject
+                                {
+                                    ["host"] = new JsonObject
+                                    {
+                                        ["type"] = "string",
+                                        ["title"] = "Database host",
+                                        ["minLength"] = 1,
+                                        ["maxLength"] = 128,
+                                        ["x-configurator"] = new JsonObject
+                                        {
+                                            ["sensitivity"] = "public",
+                                            ["detail"] = "basic"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    ["labels"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["title"] = "Labels",
+                        ["additionalProperties"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["title"] = "Label value",
+                            ["maxLength"] = 128,
+                            ["x-configurator"] = new JsonObject { ["sensitivity"] = "public" }
+                        },
+                        ["x-configurator"] = new JsonObject
+                        {
+                            ["sensitivity"] = "public",
+                            ["detail"] = "basic"
+                        }
+                    }
+                }
+            },
+            ["outputs"] = new JsonObject
+            {
+                ["app-config.json"] = new JsonObject
+                {
+                    ["id"] = "app-config",
+                    ["title"] = "Application config",
+                    ["format"] = "json"
+                }
+            }
+        };
+
+        return Encoding.UTF8.GetBytes(source.ToJsonString());
+    }
+
     internal static byte[] BuildScaleDefinitionBytes(int fieldCount)
     {
         var properties = new JsonObject();
@@ -1100,7 +1270,7 @@ internal static class QualificationChecks
             ["presentation"] = new JsonObject
             {
                 ["defaultJourney"] = "standard",
-                ["navigation"] = "tabs",
+                ["navigation"] = "sections",
                 ["sections"] = new JsonArray
                 {
                     new JsonObject { ["id"] = "part1", ["title"] = "Part 1", ["pointers"] = section1Pointers },

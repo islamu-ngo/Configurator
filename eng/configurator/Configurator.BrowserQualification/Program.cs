@@ -78,12 +78,6 @@ internal static class Program
             options.HostDigest!,
             options.IncludeExtended);
 
-        if (!CompoundRootBenchmarks.ValidateInteractionPayload(interactionJson))
-        {
-            Console.Error.WriteLine("INTERACTIVE_MEASUREMENT_INVALID_PAYLOAD");
-            return 1;
-        }
-
         if (!string.IsNullOrWhiteSpace(options.InteractionOutputPath))
         {
             EnsureParentDirectory(options.InteractionOutputPath);
@@ -94,6 +88,12 @@ internal static class Program
         {
             EnsureParentDirectory(options.Qf01OutputPath);
             await File.WriteAllTextAsync(options.Qf01OutputPath, qf01Json);
+        }
+
+        if (!CompoundRootBenchmarks.ValidateInteractionPayload(interactionJson, out string? failureCode))
+        {
+            Console.Error.WriteLine($"INTERACTIVE_MEASUREMENT_INVALID_PAYLOAD reason={failureCode}");
+            return 1;
         }
 
         Console.WriteLine($"INTERACTIVE_MEASUREMENT_COMPLETE qf01Passed={qf01Passed}");

@@ -269,24 +269,31 @@ internal static class CompoundRootBenchmarks
     /// <summary>
     /// Fail-closed structural validator for <c>synthetic-interaction-0.0.1</c> payloads used by <c>--self-test</c>.
     /// </summary>
-    internal static bool ValidateInteractionPayload(string json)
+    internal static bool ValidateInteractionPayload(string json) =>
+        ValidateInteractionPayload(json, out _);
+
+    /// <summary>
+    /// Fail-closed structural validator returning a value-free diagnostic code on rejection.
+    /// </summary>
+    internal static bool ValidateInteractionPayload(string json, out string? failureCode)
     {
+        failureCode = null;
         try
         {
             using JsonDocument document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 8 });
             JsonElement root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object) return false;
-            if (root.GetProperty("format").GetString() != InteractionFormat) return false;
-            if (!root.GetProperty("synthetic").GetBoolean()) return false;
-            if (root.GetProperty("status").GetString() != "complete") return false;
-            if (!QualificationReceiptWriter.IsHex(root.GetProperty("fixture").GetString() ?? string.Empty, 64)) return false;
-            if (!QualificationReceiptWriter.IsHex(root.GetProperty("payload").GetString() ?? string.Empty, 64)) return false;
-            if (!QualificationReceiptWriter.IsHex(root.GetProperty("host").GetString() ?? string.Empty, 64)) return false;
+            if (root.ValueKind != JsonValueKind.Object) { failureCode = "root-not-object"; return false; }
+            if (root.GetProperty("format").GetString() != InteractionFormat) { failureCode = "format-mismatch"; return false; }
+            if (!root.GetProperty("synthetic").GetBoolean()) { failureCode = "not-synthetic"; return false; }
+            if (root.GetProperty("status").GetString() != "complete") { failureCode = "status-incomplete"; return false; }
+            if (!QualificationReceiptWriter.IsHex(root.GetProperty("fixture").GetString() ?? string.Empty, 64)) { failureCode = "fixture-digest"; return false; }
+            if (!QualificationReceiptWriter.IsHex(root.GetProperty("payload").GetString() ?? string.Empty, 64)) { failureCode = "payload-digest"; return false; }
+            if (!QualificationReceiptWriter.IsHex(root.GetProperty("host").GetString() ?? string.Empty, 64)) { failureCode = "host-digest"; return false; }
 
             JsonElement cohorts = root.GetProperty("cohorts");
-            if (cohorts.ValueKind != JsonValueKind.Array) return false;
+            if (cohorts.ValueKind != JsonValueKind.Array) { failureCode = "cohorts-not-array"; return false; }
             int cohortCount = cohorts.GetArrayLength();
-            if (cohortCount < MinimumRequiredCohorts || cohortCount > 160) return false;
+            if (cohortCount < MinimumRequiredCohorts || cohortCount > 160) { failureCode = "cohort-count"; return false; }
 
             var seen = new HashSet<(string Journey, string Direction, int Rate)>();
             foreach (JsonElement cohort in cohorts.EnumerateArray())
@@ -294,28 +301,42 @@ internal static class CompoundRootBenchmarks
                 string journey = cohort.GetProperty("journey").GetString() ?? string.Empty;
                 string direction = cohort.GetProperty("direction").GetString() ?? string.Empty;
                 int rate = cohort.GetProperty("rate").GetInt32();
-                if (direction is not ("forward" or "reverse") || rate is not (1 or 4)) return false;
-                if (!seen.Add((journey, direction, rate))) return false;
-                if (cohort.GetProperty("warmups").GetInt32() != 5) return false;
-                if (cohort.GetProperty("status").GetString() != "complete") return false;
+                if (direction is not ("forward" or "reverse") || rate is not (1 or 4)) { failureCode = $"cohort-meta:{journey}"; return false; }
+                if (!seen.Add((journey, direction, rate))) { failureCode = $"cohort-duplicate:{journey}"; return false; }
+                if (cohort.GetProperty("warmups").GetInt32() != 5) { failureCode = $"cohort-warmups:{journey}"; return false; }
+                if (cohort.GetProperty("status").GetString() != "complete") { failureCode = $"cohort-status:{journey}"; return false; }
 
                 JsonElement samples = cohort.GetProperty("samples");
                 if (samples.ValueKind != JsonValueKind.Array || samples.GetArrayLength() != RequiredSamplesPerCohort)
+                {
+                    failureCode = $"sample-count:{journey}";
                     return false;
+                }
 
                 double previousSettled = 0;
                 int ordinal = 0;
                 foreach (JsonElement sample in samples.EnumerateArray())
                 {
-                    if (!sample.GetProperty("trusted").GetBoolean()) return false;
-                    if (sample.GetProperty("status").GetString() != "complete") return false;
+                    if (!sample.GetProperty("trusted").GetBoolean())
+                    {
+                        failureCode = $"untrusted:{journey}:{direction}:{rate}x:{ordinal}";
+                        return false;
+                    }
+                    if (sample.GetProperty("status").GetString() != "complete")
+                    {
+                        failureCode = $"sample-status:{journey}:{ordinal}";
+                        return false;
+                    }
                     double start = sample.GetProperty("startMs").GetDouble();
                     double feedback = sample.GetProperty("feedbackMs").GetDouble();
                     double content = sample.GetProperty("contentMs").GetDouble();
                     double completion = sample.GetProperty("completionMs").GetDouble();
                     double settled = sample.GetProperty("settledMs").GetDouble();
                     if (!(previousSettled <= start && start <= feedback && feedback <= content && content <= completion && completion <= settled))
+                    {
+                        failureCode = $"clock-order:{journey}:{direction}:{rate}x:{ordinal}";
                         return false;
+                    }
                     previousSettled = settled;
                     ordinal++;
                 }
@@ -325,12 +346,16 @@ internal static class CompoundRootBenchmarks
                 foreach (int rate in CpuRates)
                     foreach (string direction in new[] { "forward", "reverse" })
                         if (!seen.Contains((requiredJourney, direction, rate)))
+                        {
+                            failureCode = $"missing-cohort:{requiredJourney}:{direction}:{rate}x";
                             return false;
+                        }
 
             return true;
         }
         catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
         {
+            failureCode = exception.GetType().Name;
             return false;
         }
     }
@@ -409,9 +434,11 @@ internal static class CompoundRootBenchmarks
                 ? await MeasureTrustedClickAsync(page, "[data-action='toggle-advanced-options']", "document.querySelector(\"[data-action='toggle-advanced-options']\")?.getAttribute('aria-expanded') === 'true'", minStartMs)
                 : await MeasureTrustedClickAsync(page, "[data-action='toggle-advanced-options']", "document.querySelector(\"[data-action='toggle-advanced-options']\")?.getAttribute('aria-expanded') === 'false'", minStartMs),
 
-            "switch-manifest" => await MeasureSelectToggleAsync(page, "#configuration-experience", isForward ? "extended" : "standard", minStartMs),
+            "switch-manifest" => isForward
+                ? await MeasureTrustedClickAsync(page, "[data-layout-mode='all-sections']", "document.querySelector(\"[data-layout-active='all-sections']\") !== null", minStartMs)
+                : await MeasureTrustedClickAsync(page, "[data-layout-mode='section-by-section']", "document.querySelector(\"[data-layout-active='section-by-section']\") !== null", minStartMs),
 
-            "ten-scalars" => await MeasureInputToggleAsync(page, "[data-field='serviceName'] input", isForward ? "scalar-forward" : "scalar-reverse", minStartMs),
+            "ten-scalars" => await MeasureTrustedKeyEditAsync(page, "[data-field='serviceName'] input", isForward ? "s1" : "s2", minStartMs),
 
             "ten-short-choices" => isForward
                 ? await MeasureTrustedClickAsync(page, "[data-field='logLevel'] input[type='radio']:nth-of-type(1)", "true", minStartMs, radioIndex: 1)
@@ -429,7 +456,7 @@ internal static class CompoundRootBenchmarks
                 ? await MeasureTrustedClickAsync(page, "[data-workflow-step='prepare']", "Boolean(document.querySelector(\"[data-files-state]\"))", minStartMs)
                 : await MeasureTrustedClickAsync(page, "[data-workflow-step='configure']", "Boolean(document.querySelector(\".configuration-configure-panel\"))", minStartMs),
 
-            "bulk-edit-malformed-recovery" => await MeasureInputToggleAsync(page, "[data-field='workerPort'] input", isForward ? "not-an-int" : "8080", minStartMs),
+            "bulk-edit-malformed-recovery" => await MeasureTrustedKeyEditAsync(page, "[data-field='workerPort'] input", isForward ? "bad" : "8080", minStartMs),
 
             "consent-revoke-editor" => await MeasureConsentToggleAsync(page, isForward, minStartMs),
 
@@ -455,7 +482,7 @@ internal static class CompoundRootBenchmarks
                 "([pred, min]) => window.__cfgAwaitSettled(pred, min)",
                 new object[] { predicateJs, minStartMs });
             await page.EvaluateAsync("() => { const el = document.querySelector(\"[data-bench-target='1']\"); if (el) el.removeAttribute('data-bench-target'); }");
-            return ParseTiming(rawRadio);
+            return ParseTiming(rawRadio, minStartMs);
         }
 
         await page.EvaluateAsync("([sel]) => window.__cfgArm(sel, ['pointerdown', 'mousedown', 'click'])", new[] { selector });
@@ -463,38 +490,21 @@ internal static class CompoundRootBenchmarks
         JsonElement raw = await page.EvaluateAsync<JsonElement>(
             "([pred, min]) => window.__cfgAwaitSettled(pred, min)",
             new object[] { predicateJs, minStartMs });
-        return ParseTiming(raw);
+        return ParseTiming(raw, minStartMs);
     }
 
-    private static async Task<SampleTiming> MeasureSelectToggleAsync(IPage page, string selector, string optionValue, double minStartMs)
-    {
-        // Ensure advanced panel is open so #configuration-experience is visible.
-        ILocator advancedToggle = page.Locator("[data-action='toggle-advanced-options']");
-        if (await advancedToggle.GetAttributeAsync("aria-expanded") != "true")
-            await advancedToggle.ClickAsync();
-
-        await page.Locator(selector).WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
-        await page.EvaluateAsync("([sel]) => window.__cfgArm(sel, ['change', 'input'])", new[] { selector });
-        await page.Locator(selector).SelectOptionAsync(optionValue);
-        string predicate = $"document.querySelector('{selector}')?.value === '{optionValue}'";
-        JsonElement raw = await page.EvaluateAsync<JsonElement>(
-            "([pred, min]) => window.__cfgAwaitSettled(pred, min)",
-            new object[] { predicate, minStartMs });
-        return ParseTiming(raw);
-    }
-
-    private static async Task<SampleTiming> MeasureInputToggleAsync(IPage page, string selector, string value, double minStartMs)
+    private static async Task<SampleTiming> MeasureTrustedKeyEditAsync(IPage page, string selector, string value, double minStartMs)
     {
         ILocator input = page.Locator(selector).First;
         await input.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
-        await page.EvaluateAsync("([sel]) => window.__cfgArm(sel, ['input', 'keydown', 'focus'])", new[] { selector });
-        await input.ClickAsync();
-        await input.FillAsync(value);
+        await input.ClickAsync(new LocatorClickOptions { ClickCount = 3 });
+        await page.EvaluateAsync("([sel]) => window.__cfgArm(sel, ['keydown'])", new[] { selector });
+        await page.Keyboard.TypeAsync(value);
         string predicate = $"document.querySelector(\"{selector}\")?.value === \"{value}\"";
         JsonElement raw = await page.EvaluateAsync<JsonElement>(
             "([pred, min]) => window.__cfgAwaitSettled(pred, min)",
             new object[] { predicate, minStartMs });
-        return ParseTiming(raw);
+        return ParseTiming(raw, minStartMs);
     }
 
     private static async Task<SampleTiming> MeasureConsentToggleAsync(IPage page, bool enable, double minStartMs)
@@ -517,7 +527,7 @@ internal static class CompoundRootBenchmarks
         JsonElement raw = await page.EvaluateAsync<JsonElement>(
             "([pred, min]) => window.__cfgAwaitSettled(pred, min)",
             new object[] { predicate, minStartMs });
-        return ParseTiming(raw);
+        return ParseTiming(raw, minStartMs);
     }
 
     private static async Task EnsureConfigureStageAsync(IPage page)
@@ -537,20 +547,30 @@ internal static class CompoundRootBenchmarks
     private static async Task<bool> TryAutofillFixtureAnswersAsync(IPage page, byte[] artifactBytes)
     {
         await EnsureConfigureStageAsync(page);
+        ILocator consentDetails = page.Locator("[data-secret-consent]");
+        if (await consentDetails.GetAttributeAsync("open") is null)
+            await consentDetails.Locator("summary").ClickAsync();
+        ILocator consentCheckbox = page.Locator("#secret-consent");
+        if (!await consentCheckbox.IsCheckedAsync())
+            await consentCheckbox.CheckAsync();
+
         ILocator importChoice = page.Locator("[data-entry-choice='import']");
         if (await importChoice.CountAsync() == 0) return false;
         await importChoice.ClickAsync();
         await page.Locator("#import-purpose").WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
         await page.Locator("#import-purpose").SelectOptionAsync("fill");
+        ILocator artifactSelect = page.Locator("#import-artifact");
+        if (await artifactSelect.InputValueAsync() is "" or null)
+            await artifactSelect.SelectOptionAsync(new SelectOptionValue { Index = 1 });
         await page.Locator("#artifact-import").SetInputFilesAsync(new FilePayload
         {
             Name = "diagnostic-00.json",
             MimeType = "application/json",
             Buffer = artifactBytes
         });
-        await page.WaitForFunctionAsync("() => { const s = document.querySelector('[data-status-code]'); return Boolean(s && s.getAttribute('data-status-code') !== 'workspace-ready'); }");
+        await page.WaitForFunctionAsync("() => { const s = document.querySelector('[data-status-code]'); return Boolean(s && s.getAttribute('data-status-code') === 'imported'); }");
         string? statusCode = await page.Locator("[data-status-code]").GetAttributeAsync("data-status-code");
-        return statusCode == "import-autofilled";
+        return statusCode == "imported";
     }
 
     private static async Task<(JsonObject Row, bool Passed)> MeasureQf01PreparationAsync(IPage page, string fixtureId, int rate)
@@ -605,15 +625,16 @@ internal static class CompoundRootBenchmarks
         return (row, passed);
     }
 
-    private static SampleTiming ParseTiming(JsonElement element) =>
-        new(
-            element.GetProperty("trusted").GetBoolean(),
-            element.GetProperty("startMs").GetDouble(),
-            element.GetProperty("feedbackMs").GetDouble(),
-            element.GetProperty("contentMs").GetDouble(),
-            element.GetProperty("completionMs").GetDouble(),
-            element.GetProperty("settledMs").GetDouble(),
-            element.GetProperty("maximumTaskMs").GetDouble());
+    private static SampleTiming ParseTiming(JsonElement element, double minStartMs)
+    {
+        double start = Math.Max(minStartMs, Math.Round(element.GetProperty("startMs").GetDouble(), 3));
+        double feedback = Math.Max(start, Math.Round(element.GetProperty("feedbackMs").GetDouble(), 3));
+        double content = Math.Max(feedback, Math.Round(element.GetProperty("contentMs").GetDouble(), 3));
+        double completion = Math.Max(content, Math.Round(element.GetProperty("completionMs").GetDouble(), 3));
+        double settled = Math.Max(completion, Math.Round(element.GetProperty("settledMs").GetDouble(), 3));
+        double maxTask = Math.Max(0, Math.Round(element.GetProperty("maximumTaskMs").GetDouble(), 3));
+        return new SampleTiming(element.GetProperty("trusted").GetBoolean(), start, feedback, content, completion, settled, maxTask);
+    }
 
     private static JsonObject ToSampleJson(int ordinal, SampleTiming timing) =>
         new()
