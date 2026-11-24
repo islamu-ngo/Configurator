@@ -13,10 +13,19 @@ output order and the distinction between complete and secret-deferred output.
 ## Decision
 
 Core creates one internal validated composition for a definition, answer snapshot
-and mode. Only Core can create that validation authority. Each emitted artifact
-uses it once; public single-artifact composition remains available and validates
-normally. Cancellation is checked at meaningful validation/projection and transfer
-boundaries, with invocation/physical-operation tokens forwarded by existing callers.
+and mode. Only Core can create that validation authority. `DefinitionPreparationSession`
+exposes both synchronous and cooperative async single-pass preparation
+(`PrepareAsync`, `PrepareActiveAsync`, `PrepareActiveDraftAsync`), returning the
+single `DefinitionValidationResult` together with the composed complete or draft
+artifacts so clients never validate twice before preparation. Projection streams
+directly into canonical UTF-8 JSON bytes via `Utf8JsonWriter` and a
+`ZeroingByteBufferWriter` (zeroing resized and disposed backing arrays) rather
+than building and reparsing intermediate `JsonNode` trees. Each emitted artifact
+uses the validated composition once; public single-artifact composition remains
+available and validates normally. Cancellation and optional cooperative yield
+callbacks (every 256 validation or projection nodes and between stages/artifacts)
+are observed throughout validation, projection and transfer boundaries, with
+invocation/physical-operation tokens forwarded by callers.
 
 Presentation exposes a disposable prepared-adoption operation. It copies admitted
 artifact bytes and matching completion locations, retaining no answers. The
@@ -47,9 +56,10 @@ work and semantic ownership, not the separate main-thread responsiveness budget.
 
 Source anchors:
 
+- [Core preparation session](../../../src/Configurator.Core/Artifacts/DefinitionPreparationSession.cs)
 - [Core bundle composition](../../../src/Configurator.Core/Artifacts/DefinitionBundleComposer.cs)
 - [Core artifact composition](../../../src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs)
 - [Prepared adoption](../../../src/Configurator.Presentation/Workspace/DefinitionPresentationOperation.cs)
-- [Browser preparation](../../../src/Configurator.Browser/Components/Configuration/ConfigurationEditor.razor.cs)
+- [Browser preparation](../../../src/Configurator.Browser/Components/Configuration/ConfigurationEditor.Publication.cs)
 - [Core contract](../CORE_DEFINITION_CONTRACT.md)
 - [Presentation contract](../PRESENTATION_STATE.md)

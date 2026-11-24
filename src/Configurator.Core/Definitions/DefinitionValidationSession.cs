@@ -1,5 +1,6 @@
 namespace Configurator.Core.Definitions;
 
+using System.Collections;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -17,26 +18,30 @@ internal sealed record DefinitionEvaluationInput(long InputRevision,
     IReadOnlyDictionary<string, JsonElement> Values, IReadOnlySet<DefinitionPath> Omitted)
 {
     internal DefinitionEvaluationInput(AnswerSnapshot answers) : this(
-        answers.InputRevision, answers.Values, answers.Omitted) { }
+        answers.InputRevision, answers.Values, answers.Omitted)
+    { }
 }
 
 internal static class DefinitionValidationSession
 {
     private static readonly IReadOnlySet<string> EmptyUnknownSet = new HashSet<string>(0, StringComparer.Ordinal);
+
     internal static ValueTask<DefinitionValidationResult> RunAsync(Definition definition, AnswerSnapshot answers,
         bool draft, CancellationToken cancellationToken, DefinitionImportEvidence? observations = null,
         DefinitionImportWork? work = null, Func<DefinitionDiagnostic, ValueTask>? diagnosticObserved = null,
-        DefinitionConfigurationContext? scopeObservation = null, CompositionBudget? sharedBudget = null)
+        DefinitionConfigurationContext? scopeObservation = null, CompositionBudget? sharedBudget = null,
+        CooperativeYieldGate? yieldGate = null)
     {
         ArgumentNullException.ThrowIfNull(answers);
         return RunAsync(definition, new DefinitionEvaluationInput(answers), draft, cancellationToken,
-            observations, work, diagnosticObserved, scopeObservation, sharedBudget);
+            observations, work, diagnosticObserved, scopeObservation, sharedBudget, yieldGate);
     }
 
     internal static async ValueTask<DefinitionValidationResult> RunAsync(Definition definition, DefinitionEvaluationInput answers,
         bool draft, CancellationToken cancellationToken, DefinitionImportEvidence? observations = null,
         DefinitionImportWork? work = null, Func<DefinitionDiagnostic, ValueTask>? diagnosticObserved = null,
-        DefinitionConfigurationContext? scopeObservation = null, CompositionBudget? sharedBudget = null)
+        DefinitionConfigurationContext? scopeObservation = null, CompositionBudget? sharedBudget = null,
+        CooperativeYieldGate? yieldGate = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(answers);
@@ -61,7 +66,7 @@ internal static class DefinitionValidationSession
             (int)FieldDefinition.SensitivityOf(definition.Configuration), (int)FieldDefinition.SensitivityOf(rootSchema));
         IReadOnlyList<FieldDefinition> rootFields = ReferenceEquals(rootSchema, definition.Configuration) ? definition.Fields
             : Array.AsReadOnly(rootSchema.Properties.Select(property => new FieldDefinition(property.Key, property.Value,
-                rootSchema.Required.Contains(property.Key, StringComparer.Ordinal), rootSensitivity)).ToArray());
+                rootSchema.RequiredSet.Contains(property.Key), rootSensitivity)).ToArray());
         var effective = new Dictionary<string, JsonElement>(rootFields.Count, StringComparer.Ordinal);
         var diagnostics = new List<DefinitionDiagnostic>(Math.Min(rootFields.Count, 64));
         var states = new Dictionary<string, FieldState>(rootFields.Count, StringComparer.Ordinal);
@@ -83,6 +88,7 @@ internal static class DefinitionValidationSession
             fields.Add(rootField.Name, rootField);
         var visiting = new HashSet<string>(StringComparer.Ordinal);
         (string Name, JsonObject Value)? currentRoot = null;
+        (string Name, MappingState Value)? currentRootState = null;
         CompositionBudget budget = sharedBudget ?? new(CompositionLimits.Default);
         var missing = new List<(string Root, string Id, string[] Path, DefinitionLocationSegment[] Correction)>(Math.Min(rootFields.Count, 64));
         DefinitionConfigurationContext? configurationContext = null;
@@ -118,10 +124,20 @@ internal static class DefinitionValidationSession
                 foreach ((string name, JsonElement supplied) in answers.Values)
                 {
                     if (fields.ContainsKey(name)) continue;
-                    var resolved = await Resolve(rootMap, JsonNode.Parse(supplied.GetRawText()), true, [name], "",
-                        ["@entry", entry.ToString(CultureInfo.InvariantCulture)], true, true, rootSensitivity,
-                        correction: [DefinitionLocationSegment.MapEntry(entry)]);
-                    if (resolved.Present) effective.Add(name, await ElementAsync(resolved.Value, work));
+                    if (observations is null && work is null)
+                    {
+                        var resolved = await ResolveElementAsync(rootMap, supplied, true, [name], "",
+                            ["@entry", entry.ToString(CultureInfo.InvariantCulture)], true, true, rootSensitivity,
+                            correction: [DefinitionLocationSegment.MapEntry(entry)]);
+                        if (resolved.Present) effective.Add(name, resolved.Modified ? resolved.Value : resolved.Value.Clone());
+                    }
+                    else
+                    {
+                        var resolved = await Resolve(rootMap, JsonNode.Parse(supplied.GetRawText()), true, [name], "",
+                            ["@entry", entry.ToString(CultureInfo.InvariantCulture)], true, true, rootSensitivity,
+                            correction: [DefinitionLocationSegment.MapEntry(entry)]);
+                        if (resolved.Present) effective.Add(name, await ElementAsync(resolved.Value, work));
+                    }
                     entry++;
                 }
             }
@@ -177,7 +193,16 @@ internal static class DefinitionValidationSession
                 field.Node.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence) &&
                 field.Node.Variants.Count == 0)
             {
+                if (yieldGate is not null) await yieldGate.StepAsync();
                 ResolveRootScalar(field, source, supplied, active, active && field.Required);
+            }
+            else if (observations is null && work is null)
+            {
+                var resolved = await ResolveElementAsync(field.Node, supplied ? source : null, supplied, [field.Name],
+                    field.Id, [], active, active && field.Required, rootSensitivity);
+                currentRootState = null;
+                if (active && resolved.Present) effective.Add(field.Name, resolved.Modified ? resolved.Value : resolved.Value.Clone());
+                states.Add(field.Name, new(field, active, active && field.Required, active && resolved.Present, diagnostics.Count != before));
             }
             else
             {
@@ -249,6 +274,372 @@ internal static class DefinitionValidationSession
                 obligation, obligationReady, !present, FieldDefinition.EffectiveSensitivity(schema, rootSensitivity),
                 emptyRootLocation));
             states.Add(field.Name, new(field, active, required, active && present, !valid));
+        }
+
+        async ValueTask<(bool Present, JsonElement Value, bool Modified, bool Valid)> ResolveElementAsync(
+            DefinitionNode schema, JsonElement? value, bool present, string[] location, string fieldId,
+            string[] safePath, bool active, bool required, FieldSensitivity inherited,
+            MappingState? row = null, HashSet<string>? rowUnknown = null,
+            DefinitionLocationSegment[]? correction = null, DefinitionPath? rowLocation = null)
+        {
+            correction ??= [];
+            active &= InScope(location);
+            required &= active;
+            cancellationToken.ThrowIfCancellationRequested();
+            if (work is not null) await work.ValidationAsync();
+            if (yieldGate is not null) await yieldGate.StepAsync();
+            budget.Node(location.Length);
+            DefinitionPath observedPath = DefinitionPath.FromSegments(location);
+            int diagnosticsBefore = diagnostics.Count;
+            var sensitivity = (FieldSensitivity)Math.Max((int)inherited, (int)FieldDefinition.SensitivityOf(schema));
+            bool modified = false;
+            if (!active || (answers.Omitted.Count > 0 && answers.Omitted.Contains(observedPath)))
+            {
+                if (present) modified = true;
+                present = false;
+            }
+            else if (!present && schema.Keywords.TryGetProperty("x-configurator", out JsonElement metadata)
+                && metadata.TryGetProperty("initialValue", out JsonElement initial))
+            {
+                value = initial;
+                present = true;
+                modified = true;
+            }
+            if (active && present && value is { ValueKind: not JsonValueKind.Null } variantCandidate && schema.Variants.Count > 0)
+            {
+                DefinitionNode? branch = SelectVariant(schema, variantCandidate);
+                if (branch is null)
+                {
+                    invalidLocations.Add(observedPath);
+                    await Emit(new("value-variant", fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
+                    nodes.Add(new(fieldId, safePath, true, required, true, false, required, false, false,
+                        FieldDefinition.EffectiveSensitivity(schema, inherited),
+                        new DefinitionCorrectionLocation(answers.InputRevision, correction)));
+                    return (true, variantCandidate, modified, false);
+                }
+                var resolvedBranch = await ResolveElementAsync(branch, variantCandidate, true, location, fieldId, safePath,
+                    true, required, sensitivity, row, rowUnknown, correction, rowLocation);
+                if (resolvedBranch.Valid && !await LocalValueValidAsync(schema, resolvedBranch.Value, true, work))
+                {
+                    await Emit(new("value-invalid", fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
+                    return (resolvedBranch.Present, resolvedBranch.Value, modified || resolvedBranch.Modified, false);
+                }
+                return (resolvedBranch.Present, resolvedBranch.Value, modified || resolvedBranch.Modified, resolvedBranch.Valid);
+            }
+            int start = nodes.Count;
+            nodes.Add(default!);
+            bool missingSecret = active && !present && draft && sensitivity == FieldSensitivity.Secret
+                && schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence);
+            if (missingSecret)
+            {
+                deferred.Add(location[0]);
+                if (location.Length == 1) rootDeferred.Add(location[0]);
+                else nestedDeferred.Add(observedPath);
+                deferredLocations.Add(observedPath);
+            }
+            bool valid = !active || !present;
+            if (active && !present && required && !missingSecret)
+            {
+                uncertainLocations.Add(observedPath);
+                missing.Add((location[0], fieldId, safePath, correction));
+            }
+            JsonElement resolvedElement = default;
+            bool containerPresent = active && present && value is { ValueKind: JsonValueKind.Object };
+            if (schema.Type == DefinitionNodeType.Mapping)
+            {
+                MappingState? mapping = containerPresent
+                    ? (row is not null && rowLocation is not null && rowLocation.Equals(observedPath) ? row : new MappingState(value!.Value))
+                    : null;
+                if (row is null && location.Length == 1 && containerPresent) currentRootState = (location[0], mapping!);
+                bool childrenValid = true;
+                if (containerPresent && schema.AdditionalProperties is null)
+                {
+                    foreach (JsonProperty member in value!.Value.EnumerateObject())
+                    {
+                        if (!schema.Properties.ContainsKey(member.Name))
+                        {
+                            await Emit(new("value-invalid", fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
+                            childrenValid = false;
+                            break;
+                        }
+                    }
+                }
+                if (schema.Properties.Count > 0)
+                {
+                    var resolvedNames = new HashSet<string>(schema.Properties.Count, StringComparer.Ordinal);
+                    bool needsLocalUnknown = ReferenceEquals(row, mapping) && rowUnknown is not null
+                        || schema.Keywords.TryGetProperty("if", out _)
+                        || schema.Keywords.TryGetProperty("dependentRequired", out _);
+                    HashSet<string>? localUnknown = ReferenceEquals(row, mapping) && rowUnknown is not null
+                        ? rowUnknown : needsLocalUnknown ? new HashSet<string>(StringComparer.Ordinal) : null;
+                    foreach (string name in schema.Properties.Keys) await ResolveElementPropertyAsync(name);
+
+                    async ValueTask ResolveElementPropertyAsync(string name)
+                    {
+                        if (!resolvedNames.Add(name)) return;
+                        DefinitionNode childSchema = schema.Properties[name];
+                        JsonElement? condition = childSchema.Keywords.TryGetProperty("x-configurator", out var extension)
+                            && extension.TryGetProperty("applicableWhen", out var predicate) ? predicate : null;
+                        if (row is null)
+                        {
+                            IReadOnlyList<DefinitionPath> referencePaths = await SchemaReferencePathsAsync(childSchema, work);
+                            if (referencePaths.Count > 0)
+                            {
+                                foreach (string dependency in SiblingDependencies(referencePaths, location, name, schema))
+                                    await ResolveElementPropertyAsync(dependency);
+                            }
+                        }
+                        else
+                        {
+                            foreach (string dependency in await SchemaReferencesAsync(childSchema, "item", work))
+                                if (dependency != name && schema.Properties.ContainsKey(dependency))
+                                    await ResolveElementPropertyAsync(dependency);
+                        }
+                        bool? applicable = condition is { } test ? await Evaluate(test, Unknown(),
+                            row?.Materialize(), rowUnknown, rowLocation) : true;
+                        if (applicable is null && active && InScope(location.Append(name)))
+                        {
+                            DefinitionPath childPath = DefinitionPath.FromSegments([.. location, name]);
+                            uncertainLocations.Add(childPath);
+                            localUnknown?.Add(name);
+                            unresolvedLocations.Add(childPath);
+                        }
+                        bool? conditionallyRequired = false;
+                        if (containerPresent && applicable == true && extension.ValueKind == JsonValueKind.Object
+                            && extension.TryGetProperty("requiredWhen", out JsonElement requirement))
+                        {
+                            conditionallyRequired = await Evaluate(requirement, Unknown(),
+                                row?.Materialize(), rowUnknown, rowLocation);
+                            if (conditionallyRequired is null && active && InScope(location.Append(name)))
+                            {
+                                DefinitionPath childPath = DefinitionPath.FromSegments([.. location, name]);
+                                uncertainLocations.Add(childPath);
+                                localUnknown?.Add(name);
+                                unresolvedLocations.Add(childPath);
+                            }
+                        }
+                        JsonElement childVal = default;
+                        bool childPresent = containerPresent && mapping!.TryGet(name, out childVal);
+                        bool childRequired = containerPresent && (schema.RequiredSet.Contains(name)
+                            || conditionallyRequired == true);
+                        var child = await ResolveElementAsync(childSchema, childPresent ? childVal : null, childPresent,
+                            [.. location, name], fieldId, [.. safePath, name], containerPresent && applicable == true,
+                            childRequired, sensitivity, row, rowUnknown,
+                            [.. correction, DefinitionLocationSegment.Property(name)], rowLocation);
+                        childrenValid &= child.Valid;
+                        if (localUnknown is not null && applicable == true && InScope([.. location, name])
+                            && (!child.Valid || childRequired && !child.Present || draft && !child.Present &&
+                                FieldDefinition.EffectiveSensitivity(childSchema, sensitivity) == FieldSensitivity.Secret))
+                            localUnknown.Add(name);
+                        if (containerPresent)
+                        {
+                            if (!child.Present)
+                            {
+                                if (childPresent)
+                                {
+                                    mapping!.Remove(name);
+                                    modified = true;
+                                }
+                            }
+                            else if (!childPresent || child.Modified)
+                            {
+                                mapping!.Set(name, child.Value);
+                                modified = true;
+                            }
+                        }
+                    }
+
+                    if (containerPresent && (schema.Keywords.TryGetProperty("if", out _) || schema.Keywords.TryGetProperty("dependentRequired", out _)))
+                    {
+                        var requiredNames = new HashSet<string>(StringComparer.Ordinal);
+                        JsonElement keywords = schema.Keywords;
+                        HashSet<string> unknownSet = localUnknown ?? [];
+                        if (keywords.TryGetProperty("if", out var guard) && GuardRelevant(keywords, location))
+                        {
+                            bool? holds = await EvaluateGuardAsync(guard, mapping!.AsDictionary(), unknownSet, null, work, observedPath, invalidLocations);
+                            if (holds == true) RequireLocal(keywords.GetProperty("then").GetProperty("required"));
+                            else if (holds == false && keywords.TryGetProperty("else", out var alternative))
+                                RequireLocal(alternative.GetProperty("required"));
+                            else if (holds is null)
+                                unresolvedLocations.Add(observedPath);
+                        }
+                        if (keywords.TryGetProperty("dependentRequired", out var relationships))
+                            foreach (JsonProperty dependency in relationships.EnumerateObject())
+                                if (unknownSet.Contains(dependency.Name)) unresolvedLocations.Add(observedPath);
+                                else if (mapping!.ContainsKey(dependency.Name)) RequireLocal(dependency.Value);
+                        foreach (string name in requiredNames)
+                        {
+                            string[] requiredPath = [.. safePath, name];
+                            int nodeIndex = -1;
+                            for (int candidate = start + 1; candidate < nodes.Count; candidate++)
+                            {
+                                if (work is not null) await work.VisitAsync();
+                                DefinitionNodeState node = nodes[candidate];
+                                if (node.FieldId != fieldId ||
+                                    !node.RelativePath.SequenceEqual(requiredPath, StringComparer.Ordinal)) continue;
+                                nodeIndex = candidate;
+                                break;
+                            }
+                            if (nodeIndex >= 0)
+                            {
+                                DefinitionNodeState node = nodes[nodeIndex];
+                                if (!node.IsActive) continue;
+                                bool hasChildObligation = false;
+                                for (int descendantIndex = start + 1; descendantIndex < nodes.Count; descendantIndex++)
+                                {
+                                    if (work is not null) await work.VisitAsync();
+                                    DefinitionNodeState descendant = nodes[descendantIndex];
+                                    if (descendant.FieldId == fieldId && descendant.IsObligation &&
+                                        descendant.RelativePath.Count > requiredPath.Length &&
+                                        descendant.RelativePath.Take(requiredPath.Length).SequenceEqual(requiredPath, StringComparer.Ordinal))
+                                    {
+                                        hasChildObligation = true;
+                                        break;
+                                    }
+                                }
+                                nodes[nodeIndex] = new(node.FieldId, node.RelativePath, node.IsActive, true, node.IsProvided,
+                                    node.IsReady, !hasChildObligation, node.IsProvided && node.IsReady, node.IsMissing, node.Sensitivity, node.Location);
+                            }
+                            if (unknownSet.Contains(name)) continue;
+                            if (mapping!.ContainsKey(name)) continue;
+                            DefinitionPath childPath = DefinitionPath.FromSegments([.. location, name]);
+                            uncertainLocations.Add(childPath);
+                            DefinitionNode child = schema.Properties[name];
+                            if (draft && FieldDefinition.EffectiveSensitivity(child, sensitivity) == FieldSensitivity.Secret)
+                            {
+                                deferred.Add(location[0]);
+                                nestedDeferred.Add(childPath);
+                                deferredLocations.Add(childPath);
+                            }
+                            else missing.Add((location[0], fieldId, [.. safePath, name],
+                                [.. correction, DefinitionLocationSegment.Property(name)]));
+                        }
+                        void RequireLocal(JsonElement names)
+                        {
+                            foreach (JsonElement name in names.EnumerateArray())
+                                if (InScope([.. location, name.GetString()!])) requiredNames.Add(name.GetString()!);
+                        }
+                    }
+                }
+                if (containerPresent && schema.AdditionalProperties is { } mapSchema)
+                {
+                    int entry = 0;
+                    foreach (JsonProperty entryProperty in value!.Value.EnumerateObject())
+                    {
+                        string name = entryProperty.Name;
+                        if (schema.Properties.ContainsKey(name)) continue;
+                        budget.Scalar(name);
+                        var child = await ResolveElementAsync(mapSchema, entryProperty.Value, true, [.. location, name], fieldId,
+                            [.. safePath, "@entry", entry.ToString(CultureInfo.InvariantCulture)], true, true, sensitivity,
+                            row, rowUnknown, [.. correction, DefinitionLocationSegment.MapEntry(entry)], rowLocation);
+                        childrenValid &= child.Valid;
+                        if (!child.Present)
+                        {
+                            mapping!.Remove(name);
+                            modified = true;
+                        }
+                        else if (child.Modified)
+                        {
+                            mapping!.Set(name, child.Value);
+                            modified = true;
+                        }
+                        entry++;
+                    }
+                }
+                if (active && present)
+                {
+                    resolvedElement = containerPresent ? mapping!.Materialize() : value!.Value;
+                    valid = childrenValid && await LocalValueValidAsync(schema, resolvedElement, true, work);
+                }
+            }
+            else if (schema.Type == DefinitionNodeType.Sequence && active && present
+                && value is { ValueKind: JsonValueKind.Array } arrayValue)
+            {
+                valid = true;
+                int length = arrayValue.GetArrayLength();
+                List<(bool Present, JsonElement Value)>? updatedItems = null;
+                int index = 0;
+                foreach (JsonElement itemElement in arrayValue.EnumerateArray())
+                {
+                    string ordinal = index.ToString(CultureInfo.InvariantCulture);
+                    DefinitionPath itemPath = DefinitionPath.FromSegments([.. location, ordinal]);
+                    MappingState? itemRow = itemElement.ValueKind == JsonValueKind.Object ? new MappingState(itemElement) : null;
+                    var child = await ResolveElementAsync(schema.Items!, itemElement, true, [.. location, ordinal], fieldId,
+                        [.. safePath, ordinal], true, true, sensitivity, itemRow,
+                        new(StringComparer.Ordinal), [.. correction, DefinitionLocationSegment.ArrayRow(index)],
+                        itemPath);
+                    valid &= child.Valid;
+                    bool itemChanged = !child.Present || child.Modified;
+                    if (itemChanged && updatedItems is null)
+                    {
+                        updatedItems = new List<(bool Present, JsonElement Value)>(length);
+                        int copy = 0;
+                        foreach (JsonElement prior in arrayValue.EnumerateArray())
+                        {
+                            if (copy++ == index) break;
+                            updatedItems.Add((true, prior));
+                        }
+                    }
+                    if (updatedItems is not null)
+                    {
+                        updatedItems.Add((child.Present, child.Present ? child.Value : default));
+                    }
+                    index++;
+                }
+                if (updatedItems is not null)
+                {
+                    modified = true;
+                    resolvedElement = MaterializeArray(updatedItems);
+                }
+                else
+                {
+                    resolvedElement = arrayValue;
+                }
+                valid &= await LocalValueValidAsync(schema, resolvedElement, true, work);
+                int duplicate = await DuplicateIndexAsync(schema, resolvedElement, work);
+                if (duplicate >= 0)
+                {
+                    JsonElement uniqueBy = schema.Keywords.GetProperty("x-configurator").GetProperty("uniqueBy");
+                    await Emit(new("value-duplicate", fieldId, new DefinitionCorrectionLocation(answers.InputRevision,
+                        [.. correction, DefinitionLocationSegment.ArrayRow(duplicate),
+                         .. DefinitionUniqueKey.Paths(uniqueBy)[0].Segments.Select(DefinitionLocationSegment.Property)])));
+                }
+            }
+            else if (active && present)
+            {
+                resolvedElement = value!.Value;
+                valid = work is null
+                    ? LocalScalarValueValid(schema, resolvedElement)
+                    : await LocalValueValidAsync(schema, resolvedElement, true, work);
+            }
+            if (active && present && !valid && !(work is null && schema.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence)
+                ? LocalScalarValueValid(schema, resolvedElement)
+                : await LocalValueValidAsync(schema, resolvedElement, true, work)))
+                invalidLocations.Add(observedPath);
+            if (active && present && !valid && diagnostics.Count == diagnosticsBefore)
+            {
+                IReadOnlyList<string> secretFailures = schema.Secret is { } secret && resolvedElement.ValueKind == JsonValueKind.String
+                    ? SecretValueValidator.Validate(secret, resolvedElement.GetString()!) : [];
+                IReadOnlyList<string> codes = secretFailures.Count != 0 ? secretFailures
+                    : FormatInvalid(schema, resolvedElement) ? ["format-invalid"] : ["value-invalid"];
+                foreach (string code in codes)
+                    await Emit(new(code, fieldId, new DefinitionCorrectionLocation(answers.InputRevision, correction)));
+            }
+            bool childObligation = false;
+            for (int nodeIndex = start + 1; nodeIndex < nodes.Count; nodeIndex++)
+            {
+                if (work is not null) await work.VisitAsync();
+                if (!nodes[nodeIndex].IsObligation) continue;
+                childObligation = true;
+                break;
+            }
+            bool obligation = active && required && (schema.Type != DefinitionNodeType.Mapping || !childObligation);
+            bool obligationReady = present && (schema.Type is DefinitionNodeType.Mapping or DefinitionNodeType.Sequence
+                ? await LocalValueValidAsync(schema, resolvedElement, true, work) : valid);
+            nodes[start] = new(fieldId, safePath, active, required, active && present, valid,
+                obligation, obligationReady, !present, FieldDefinition.EffectiveSensitivity(schema, inherited),
+                new DefinitionCorrectionLocation(answers.InputRevision, correction));
+            return (active && present, resolvedElement, modified, valid);
         }
 
         async ValueTask<(bool Present, JsonNode? Value, bool Valid)> Resolve(DefinitionNode schema,
@@ -386,7 +777,7 @@ internal static class DefinitionValidationSession
                     }
                     bool childPresent = containerPresent && mapping!.ContainsKey(name);
                     JsonNode? childValue = childPresent ? mapping![name] : null;
-                    bool childRequired = containerPresent && (schema.Required.Contains(name, StringComparer.Ordinal)
+                    bool childRequired = containerPresent && (schema.RequiredSet.Contains(name)
                         || conditionallyRequired == true);
                     var child = await Resolve(childSchema, childValue, childPresent, [.. location, name], fieldId,
                         [.. safePath, name], containerPresent && applicable == true, childRequired, sensitivity,
@@ -556,7 +947,6 @@ internal static class DefinitionValidationSession
                 obligation, obligationReady, !present, FieldDefinition.EffectiveSensitivity(schema, inherited),
                 new DefinitionCorrectionLocation(answers.InputRevision, correction)));
             return (active && present, value, valid);
-
         }
 
         async ValueTask SettleRequirements()
@@ -757,16 +1147,136 @@ internal static class DefinitionValidationSession
             IReadOnlySet<string>? itemUnknown = null, DefinitionPath? itemLocation = null)
         {
             IReadOnlyDictionary<string, JsonElement> values = effective;
-            if (currentRoot is { } owner && !effective.ContainsKey(owner.Name)
+            if (currentRootState is { } ownerState && !effective.ContainsKey(ownerState.Name)
+                && ScopedReferences(condition, "root").Contains(ownerState.Name, StringComparer.Ordinal))
+            {
+                values = new Dictionary<string, JsonElement>(effective, StringComparer.Ordinal)
+                {
+                    [ownerState.Name] = ownerState.Value.Materialize()
+                };
+            }
+            else if (currentRoot is { } owner && !effective.ContainsKey(owner.Name)
                 && ScopedReferences(condition, "root").Contains(owner.Name, StringComparer.Ordinal))
+            {
                 values = new Dictionary<string, JsonElement>(effective, StringComparer.Ordinal)
                 {
                     [owner.Name] = await ElementAsync(owner.Value, work)
                 };
+            }
             IReadOnlySet<DefinitionPath> undecided = nestedDeferred.Count == 0 ? unresolvedLocations
                 : unresolvedLocations.Concat(nestedDeferred).ToHashSet();
             return await EvaluateConditionAsync(condition, values, unknown, item, itemUnknown, itemLocation: itemLocation,
                 observations: observations, work: work, invalidLocations: invalidLocations, unresolvedLocations: undecided);
         }
+    }
+
+    private static JsonElement MaterializeArray(List<(bool Present, JsonElement Value)> items)
+    {
+        using var buffer = new ZeroingByteBufferWriter();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartArray();
+            for (int index = 0; index < items.Count; index++)
+            {
+                if (items[index].Present) items[index].Value.WriteTo(writer);
+                else writer.WriteNullValue();
+            }
+            writer.WriteEndArray();
+        }
+        using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
+    }
+
+    private sealed class MappingState(JsonElement original)
+    {
+        private Dictionary<string, (bool Present, JsonElement Value)>? _changes;
+        private JsonElement? _materialized;
+
+        internal bool TryGet(string name, out JsonElement value)
+        {
+            if (_changes is not null && _changes.TryGetValue(name, out (bool Present, JsonElement Value) changed))
+            {
+                value = changed.Value;
+                return changed.Present;
+            }
+            return original.TryGetProperty(name, out value);
+        }
+
+        internal bool ContainsKey(string name) => TryGet(name, out _);
+
+        internal void Remove(string name)
+        {
+            if (!TryGet(name, out _)) return;
+            (_changes ??= new Dictionary<string, (bool Present, JsonElement Value)>(StringComparer.Ordinal))[name] = (false, default);
+            _materialized = null;
+        }
+
+        internal void Set(string name, JsonElement value)
+        {
+            (_changes ??= new Dictionary<string, (bool Present, JsonElement Value)>(StringComparer.Ordinal))[name] = (true, value);
+            _materialized = null;
+        }
+
+        internal JsonElement Materialize()
+        {
+            if (_changes is null) return original;
+            if (_materialized is { } cached) return cached;
+            using var buffer = new ZeroingByteBufferWriter();
+            using (var writer = new Utf8JsonWriter(buffer))
+            {
+                writer.WriteStartObject();
+                var written = new HashSet<string>(StringComparer.Ordinal);
+                foreach (JsonProperty property in original.EnumerateObject())
+                {
+                    if (_changes.TryGetValue(property.Name, out (bool Present, JsonElement Value) changed))
+                    {
+                        written.Add(property.Name);
+                        if (!changed.Present) continue;
+                        writer.WritePropertyName(property.Name);
+                        changed.Value.WriteTo(writer);
+                    }
+                    else
+                    {
+                        writer.WritePropertyName(property.Name);
+                        property.Value.WriteTo(writer);
+                    }
+                }
+                foreach ((string name, (bool Present, JsonElement Value) changed) in _changes)
+                {
+                    if (!changed.Present || !written.Add(name)) continue;
+                    writer.WritePropertyName(name);
+                    changed.Value.WriteTo(writer);
+                }
+                writer.WriteEndObject();
+            }
+            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            JsonElement cloned = document.RootElement.Clone();
+            _materialized = cloned;
+            return cloned;
+        }
+
+        internal JsonElementMappingView AsDictionary() => new(this);
+
+        internal List<KeyValuePair<string, JsonElement>> EnumerateEntries()
+        {
+            JsonElement current = Materialize();
+            var entries = new List<KeyValuePair<string, JsonElement>>();
+            foreach (JsonProperty property in current.EnumerateObject())
+                entries.Add(new KeyValuePair<string, JsonElement>(property.Name, property.Value));
+            return entries;
+        }
+    }
+
+    private sealed class JsonElementMappingView(MappingState state) : IReadOnlyDictionary<string, JsonElement>
+    {
+        public JsonElement this[string key] => state.TryGet(key, out JsonElement value)
+            ? value : throw new KeyNotFoundException();
+        public IEnumerable<string> Keys => state.EnumerateEntries().Select(entry => entry.Key);
+        public IEnumerable<JsonElement> Values => state.EnumerateEntries().Select(entry => entry.Value);
+        public int Count => state.EnumerateEntries().Count;
+        public bool ContainsKey(string key) => state.ContainsKey(key);
+        public bool TryGetValue(string key, out JsonElement value) => state.TryGet(key, out value);
+        public IEnumerator<KeyValuePair<string, JsonElement>> GetEnumerator() => state.EnumerateEntries().GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

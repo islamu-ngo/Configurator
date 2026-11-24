@@ -1,5 +1,6 @@
 namespace Configurator.Core.Definitions;
 
+using System.Collections.Frozen;
 using System.Collections.ObjectModel;
 using System.Text;
 using System.Text.Json;
@@ -14,6 +15,7 @@ public sealed record DefinitionNode
     private readonly string _keywordIdentity;
     private string[]? _cachedRootReferences;
     private string[]? _cachedItemReferences;
+    private DefinitionPath[]? _cachedRootReferencePaths;
 
     public DefinitionNode(DefinitionNodeType type, bool nullable = false,
         IEnumerable<KeyValuePair<string, DefinitionNode>>? properties = null,
@@ -65,6 +67,21 @@ public sealed record DefinitionNode
         OptionMetadata = DefinitionChoice.From(Keywords);
         PresentationMetadata = new DefinitionFieldPresentationMetadata(Keywords);
         Required = Array.AsReadOnly(requiredSnapshot.ToArray());
+        RequiredSet = requiredSnapshot.ToFrozenSet(StringComparer.Ordinal);
+        bool hasOptionalDescendant = false;
+        foreach ((string name, DefinitionNode child) in propertySnapshot)
+        {
+            bool isBasic = child.Keywords.TryGetProperty("x-configurator", out JsonElement childExtension)
+                && childExtension.TryGetProperty("detail", out JsonElement detail)
+                && detail.ValueKind == JsonValueKind.String
+                && string.Equals(detail.GetString(), "basic", StringComparison.Ordinal);
+            if ((!RequiredSet.Contains(name) && !isBasic) || child.HasOptionalDescendant)
+            {
+                hasOptionalDescendant = true;
+                break;
+            }
+        }
+        HasOptionalDescendant = hasOptionalDescendant;
         Items = items;
         AdditionalProperties = additionalProperties;
         Variants = variantSnapshot.AsReadOnly();
@@ -137,6 +154,10 @@ public sealed record DefinitionNode
     /// <summary>Item-relative composite key paths declared by <c>x-configurator.uniqueBy</c>, or none.</summary>
     public IReadOnlyList<DefinitionPath> UniqueBy => DefinitionUniqueKey.Of(this);
     public IReadOnlyList<string> Required { get; }
+    /// <summary>Ordinal set of declared required property names on this node, precomputed at admission.</summary>
+    public IReadOnlySet<string> RequiredSet { get; }
+    /// <summary>True when this mapping or any descendant mapping declares a non-basic optional property.</summary>
+    public bool HasOptionalDescendant { get; }
     public DefinitionNode? Items { get; }
     public DefinitionNode? AdditionalProperties { get; }
     public IReadOnlyList<DefinitionNode> Variants { get; }
@@ -157,6 +178,10 @@ public sealed record DefinitionNode
         if (scope == "root") Volatile.Write(ref _cachedRootReferences, references);
         else if (scope == "item") Volatile.Write(ref _cachedItemReferences, references);
     }
+
+    internal DefinitionPath[]? GetCachedRootReferencePaths() => Volatile.Read(ref _cachedRootReferencePaths);
+
+    internal void CacheRootReferencePaths(DefinitionPath[] paths) => Volatile.Write(ref _cachedRootReferencePaths, paths);
 
     public bool Equals(DefinitionNode? other) => other is not null
         && Type == other.Type && IsNullable == other.IsNullable

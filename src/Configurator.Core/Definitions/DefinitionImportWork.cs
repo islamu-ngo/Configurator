@@ -49,3 +49,28 @@ internal sealed class DefinitionImportWork(CancellationToken cancellationToken,
         }
     }
 }
+
+/// <summary>Cooperative scheduling gate for preparation stages; never imposes import-specific limit exceptions.</summary>
+internal sealed class CooperativeYieldGate(
+    Func<CancellationToken, ValueTask> cooperativeYield,
+    int quantum = 256,
+    CancellationToken cancellationToken = default)
+{
+    private int _steps;
+
+    internal CancellationToken CancellationToken => cancellationToken;
+
+    internal ValueTask StepAsync()
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (++_steps % quantum != 0) return ValueTask.CompletedTask;
+        return YieldStageAsync();
+    }
+
+    internal async ValueTask YieldStageAsync()
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await cooperativeYield(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+}

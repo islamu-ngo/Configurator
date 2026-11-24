@@ -2,12 +2,84 @@ namespace Configurator.Core.Definitions;
 
 using System.Buffers;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Configurator.Core.Composition;
 
+/// <summary>
+/// Owned byte buffer writer that cryptographically zeros superseded backing arrays on growth and on disposal.
+/// </summary>
+internal sealed class ZeroingByteBufferWriter : IBufferWriter<byte>, IDisposable
+{
+    private byte[] _buffer;
+    private int _index;
+    private bool _disposed;
+
+    internal ZeroingByteBufferWriter(int initialCapacity = 1024)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(initialCapacity);
+        _buffer = new byte[initialCapacity];
+    }
+
+    internal int WrittenCount => _index;
+    internal ReadOnlySpan<byte> WrittenSpan => _buffer.AsSpan(0, _index);
+    internal ReadOnlyMemory<byte> WrittenMemory => _buffer.AsMemory(0, _index);
+
+    public void Advance(int count)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (count < 0 || _index + count > _buffer.Length)
+            throw new ArgumentOutOfRangeException(nameof(count));
+        _index += count;
+    }
+
+    public Memory<byte> GetMemory(int sizeHint = 0)
+    {
+        EnsureCapacity(sizeHint);
+        return _buffer.AsMemory(_index);
+    }
+
+    public Span<byte> GetSpan(int sizeHint = 0)
+    {
+        EnsureCapacity(sizeHint);
+        return _buffer.AsSpan(_index);
+    }
+
+    private void EnsureCapacity(int sizeHint)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentOutOfRangeException.ThrowIfNegative(sizeHint);
+        if (sizeHint == 0) sizeHint = 1;
+        int available = _buffer.Length - _index;
+        if (sizeHint <= available) return;
+
+        int required = checked(_index + sizeHint);
+        int nextSize = _buffer.Length;
+        while (nextSize < required)
+        {
+            nextSize = nextSize > int.MaxValue / 2 ? required : nextSize * 2;
+        }
+
+        byte[] next = new byte[nextSize];
+        _buffer.AsSpan(0, _index).CopyTo(next);
+        CryptographicOperations.ZeroMemory(_buffer.AsSpan(0, _index));
+        _buffer = next;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        CryptographicOperations.ZeroMemory(_buffer.AsSpan(0, _index));
+        _index = 0;
+        _disposed = true;
+    }
+}
+
 internal static class DefinitionJson
 {
+    private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+
     internal static byte[] Canonicalize(JsonElement value, CompositionBudget? budget = null,
         CompositionKeyPolicy keyPolicy = CompositionKeyPolicy.CollisionSafe, int initialDepth = 1)
     {
@@ -31,18 +103,14 @@ internal static class DefinitionJson
     {
         budget ??= new CompositionBudget(CompositionLimits.Default);
         int normalizedNodes = 0;
-        var buffer = new ArrayBufferWriter<byte>();
-        try
-        {
-            using (var writer = new Utf8JsonWriter(buffer))
-                await WriteAsync(writer, value, initialDepth);
-            if (buffer.WrittenCount > CompositionLimits.DefaultAggregateSourceBytes)
-                throw new DefinitionException("document-limit");
-            return buffer.WrittenSpan.ToArray();
-        }
-        finally { buffer.Clear(); }
+        using var buffer = new ZeroingByteBufferWriter();
+        using (var writer = new Utf8JsonWriter(buffer))
+            await WriteAsync(writer, value, initialDepth);
+        if (buffer.WrittenCount > CompositionLimits.DefaultAggregateSourceBytes)
+            throw new DefinitionException("document-limit");
+        return buffer.WrittenSpan.ToArray();
 
-        async ValueTask WriteAsync(Utf8JsonWriter writer, JsonElement value, int depth)
+        async ValueTask WriteAsync(Utf8JsonWriter writer, JsonElement element, int depth)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try { budget.Node(depth); }
@@ -52,10 +120,24 @@ internal static class DefinitionJson
                 await cooperativeYield(cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
             }
-            switch (value.ValueKind)
+            switch (element.ValueKind)
             {
                 case JsonValueKind.Object:
-                    JsonProperty[] properties = value.EnumerateObject().OrderBy(p => p.Name, StringComparer.Ordinal).ToArray();
+                    if (keyPolicy == CompositionKeyPolicy.Exact && IsStrictlyOrdinalSorted(element, out int propertyCount))
+                    {
+                        if (propertyCount > CompositionLimits.DefaultMappingEntries)
+                            throw new DefinitionException("document-limit");
+                        writer.WriteStartObject();
+                        foreach (JsonProperty property in element.EnumerateObject())
+                        {
+                            Scalar(property.Name, budget);
+                            writer.WritePropertyName(property.Name);
+                            await WriteAsync(writer, property.Value, depth + 1);
+                        }
+                        writer.WriteEndObject();
+                        break;
+                    }
+                    JsonProperty[] properties = element.EnumerateObject().OrderBy(p => p.Name, StringComparer.Ordinal).ToArray();
                     if (properties.Length > CompositionLimits.DefaultMappingEntries)
                         throw new DefinitionException("document-limit");
                     var keys = new HashSet<string>(keyPolicy == CompositionKeyPolicy.Exact
@@ -73,19 +155,19 @@ internal static class DefinitionJson
                     writer.WriteEndObject();
                     break;
                 case JsonValueKind.Array:
-                    if (value.GetArrayLength() > CompositionLimits.DefaultSequenceEntries)
+                    if (element.GetArrayLength() > CompositionLimits.DefaultSequenceEntries)
                         throw new DefinitionException("document-limit");
                     writer.WriteStartArray();
-                    foreach (JsonElement item in value.EnumerateArray()) await WriteAsync(writer, item, depth + 1);
+                    foreach (JsonElement item in element.EnumerateArray()) await WriteAsync(writer, item, depth + 1);
                     writer.WriteEndArray();
                     break;
                 case JsonValueKind.String:
-                    string text = value.GetString()!;
+                    string text = element.GetString()!;
                     Scalar(text, budget);
                     writer.WriteStringValue(text);
                     break;
                 case JsonValueKind.Number:
-                    writer.WriteRawValue(Number(value, keyPolicy));
+                    writer.WriteRawValue(CanonicalizeNumber(element, keyPolicy));
                     break;
                 case JsonValueKind.True: writer.WriteBooleanValue(true); break;
                 case JsonValueKind.False: writer.WriteBooleanValue(false); break;
@@ -95,7 +177,21 @@ internal static class DefinitionJson
         }
     }
 
-    private static string Number(JsonElement value, CompositionKeyPolicy keyPolicy)
+    internal static bool IsStrictlyOrdinalSorted(JsonElement objectElement, out int count)
+    {
+        count = 0;
+        string? previous = null;
+        foreach (JsonProperty property in objectElement.EnumerateObject())
+        {
+            count++;
+            if (previous is not null && string.CompareOrdinal(previous, property.Name) >= 0)
+                return false;
+            previous = property.Name;
+        }
+        return true;
+    }
+
+    internal static string CanonicalizeNumber(JsonElement value, CompositionKeyPolicy keyPolicy)
     {
         string text = value.GetRawText();
         string[] parts = text.Split(['e', 'E']);
@@ -115,11 +211,23 @@ internal static class DefinitionJson
             ? "0.############################" : "G29", CultureInfo.InvariantCulture);
     }
 
+    internal static void ValidateUtf8Scalar(string text)
+    {
+        try
+        {
+            _ = StrictUtf8.GetByteCount(text);
+        }
+        catch (EncoderFallbackException)
+        {
+            throw new DefinitionException("scalar-invalid");
+        }
+    }
+
     private static void Scalar(string text, CompositionBudget budget)
     {
         try
         {
-            _ = new UTF8Encoding(false, true).GetByteCount(text);
+            _ = StrictUtf8.GetByteCount(text);
             budget.Scalar(text);
         }
         catch (Exception exception) when (exception is EncoderFallbackException or CompositionException)

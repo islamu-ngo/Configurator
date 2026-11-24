@@ -597,8 +597,17 @@ snapshot, skips intentional artifact omission and rejects an empty active set.
 Explicit single-artifact composition remains strict about omitted selection.
 Bundle composition owns one internal `ValidatedComposition`; it validates once
 and composes each emitted artifact once. Callers cannot supply trusted validation.
-Fatal/aggregate-budget failures dispose staged output. Cancellation is observed at
-validation/projection boundaries and before output transfer.
+`DefinitionPreparationSession` (`PrepareAsync`, `PrepareActiveAsync`,
+`PrepareActiveDraftAsync`) exposes the same Core-owned single-pass validation and
+streaming canonical `Utf8JsonWriter` projection directly into `ZeroingByteBufferWriter`
+(eliminating intermediate `JsonNode` reparsing and per-scalar `UTF8Encoding`
+allocations) with an optional caller-owned cooperative yield callback every 256
+validation or projection nodes and at stage/artifact boundaries. Read-only
+unmodified subtrees validate directly over `JsonElement`, and `DefinitionNode`
+precomputes `RequiredSet` and `HasOptionalDescendant` at admission time.
+Fatal/aggregate-budget failures and mid-yield cancellations zero owned staging
+buffers and dispose staged output before returning or throwing. Cancellation is
+observed at validation/projection boundaries and before output transfer.
 
 The local `Configurator.Core.Preparation` diagnostic listener exposes public
 artifact IDs and a draft-mode Boolean, never answers or retained measurements.
@@ -922,6 +931,19 @@ and requires an active locally generatable leaf. Replacement preserves unrelated
 answers and omissions. Presentation still owns consent, stable editor identity,
 operation generations and the final guarded mutation; Core grants no workspace
 or publication authority.
+
+`DefinitionRevisionComparison` and `DefinitionFixtureRunner` remain pure Core
+authoring verification primitives with zero ambient file I/O, process launch, or
+network access. `DefinitionRevisionComparison.Compare` partitions exact-identity
+differences between two admitted definitions into `Behavioral` and `DisplayOnly`
+categories without inferring renames or accessing private answers.
+`DefinitionFixtureDocument` and `DefinitionFixtureRunner` enforce closed
+data-only vocabulary (at most 64 cases, non-empty suites, rejecting unknown or
+executable fields fail-closed with `fixture-member`), execute standard offline
+preparation/draft/import paths while disposing all composed artifacts, and bind
+results to `(DefinitionDigest, FixtureDigest, EngineVersion, Scope)` without
+claiming target runtime acceptance. `DefinitionFixtureSchema` owns generation of
+the unversioned `schemas/configurator-fixtures.schema.json` contract.
 
 Archived `SetupCompositionInvariantTests` inventory checks are not parser-attack
 proof. Production boundary tests and actual target acceptance must be recorded

@@ -10,8 +10,14 @@ public sealed class DefinitionArtifact : IDisposable
     private bool _disposed;
     internal DefinitionArtifact(Definition definition, ArtifactDefinition artifact,
         long inputRevision, byte[] bytes)
+        : this(definition, artifact, inputRevision, bytes.AsSpan())
     {
-        _bytes = (byte[])bytes.Clone();
+    }
+
+    internal DefinitionArtifact(Definition definition, ArtifactDefinition artifact,
+        long inputRevision, ReadOnlySpan<byte> bytes)
+    {
+        _bytes = bytes.ToArray();
         Digest = ArtifactDigest.Compute(bytes);
         DefinitionDigest = definition.Digest;
         DefinitionRevision = definition.Revision;

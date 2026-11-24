@@ -1,6 +1,5 @@
 namespace Configurator.Core.Definitions;
 
-using System.Buffers;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -32,6 +31,10 @@ public static class DefinitionValidator
         DefinitionImportWork work, CancellationToken cancellationToken) =>
         DefinitionValidationSession.RunAsync(definition, answers, false, cancellationToken, work: work);
 
+    internal static ValueTask<DefinitionValidationResult> ValidateCooperativeAsync(Definition definition, AnswerSnapshot answers,
+        bool draft, CooperativeYieldGate? yieldGate, CancellationToken cancellationToken) =>
+        DefinitionValidationSession.RunAsync(definition, answers, draft, cancellationToken, yieldGate: yieldGate);
+
     /// <summary>Resolves only scope-control observations through the ordinary effective-value kernel and shared operation budget.</summary>
     internal static DefinitionValidationResult ObserveScope(Definition definition, DefinitionEvaluationInput answers,
         IEnumerable<DefinitionPath> locations, CompositionBudget budget, CancellationToken cancellationToken)
@@ -53,15 +56,11 @@ public static class DefinitionValidator
         if (value is not (JsonObject or JsonArray)) return Element(value);
         Func<CancellationToken, ValueTask>? cooperativeYield = work.CooperativeYield;
         int materializedNodes = 0;
-        var buffer = new ArrayBufferWriter<byte>();
-        try
-        {
-            using (var writer = new Utf8JsonWriter(buffer))
-                await WriteAsync(writer, value);
-            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
-            return document.RootElement.Clone();
-        }
-        finally { buffer.Clear(); }
+        using var buffer = new ZeroingByteBufferWriter();
+        using (var writer = new Utf8JsonWriter(buffer))
+            await WriteAsync(writer, value);
+        using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
 
         async ValueTask WriteAsync(Utf8JsonWriter writer, JsonNode? node)
         {
@@ -119,7 +118,7 @@ public static class DefinitionValidator
             foreach ((string name, DefinitionNode child) in schema.Properties)
             {
                 bool present = value.TryGetProperty(name, out JsonElement supplied);
-                if (!present && requireMembers && schema.Required.Contains(name, StringComparer.Ordinal)
+                if (!present && requireMembers && schema.RequiredSet.Contains(name)
                     || present && !ValueValid(child, supplied, requireMembers)) return false;
             }
             if (schema.AdditionalProperties is { } map)
@@ -460,6 +459,7 @@ public static class DefinitionValidator
     internal static async ValueTask<IReadOnlyList<DefinitionPath>> SchemaReferencePathsAsync(DefinitionNode schema,
         DefinitionImportWork? work = null)
     {
+        if (work is null && schema.GetCachedRootReferencePaths() is { } cached) return cached;
         var paths = new List<DefinitionPath>();
         var pending = new Stack<DefinitionNode>();
         pending.Push(schema);
@@ -468,11 +468,14 @@ public static class DefinitionValidator
             if (work is not null) await work.VisitAsync();
             foreach (JsonElement condition in NodeConditions(node))
                 paths.AddRange(ConditionReferencePaths(condition, "root"));
-            foreach (DefinitionNode child in node.Properties.Values.Concat(node.Variants)) pending.Push(child);
+            foreach (DefinitionNode child in node.Properties.Values) pending.Push(child);
+            foreach (DefinitionNode variant in node.Variants) pending.Push(variant);
             if (node.Items is not null) pending.Push(node.Items);
             if (node.AdditionalProperties is not null) pending.Push(node.AdditionalProperties);
         }
-        return paths;
+        DefinitionPath[] result = paths.Count == 0 ? [] : paths.ToArray();
+        if (work is null) schema.CacheRootReferencePaths(result);
+        return result;
     }
 
     /// <summary>Names of mapping members at <paramref name="location"/> that a member's subtree depends on.</summary>
