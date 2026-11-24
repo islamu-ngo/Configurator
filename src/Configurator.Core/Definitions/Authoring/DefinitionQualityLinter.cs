@@ -39,26 +39,35 @@ public static class DefinitionQualityLinter
         ArgumentNullException.ThrowIfNull(definition);
         var advisories = new List<DefinitionQualityAdvisory>();
         var requiredLeaves = new HashSet<string>(StringComparer.Ordinal);
-        var pending = new Stack<(DefinitionNode Node, string? Name, string Path, string DataPointer, bool Required, FieldSensitivity Inherited)>();
-        pending.Push((definition.Configuration, null, "/configuration", "", true, FieldSensitivity.Public));
+        var pending = new Stack<(DefinitionNode Node, string? Name, string Path, string DataPointer, bool StaticallyRequired, bool RequiresGuidance, FieldSensitivity Inherited)>();
+        pending.Push((definition.Configuration, null, "/configuration", "", true, true, FieldSensitivity.Public));
         while (pending.TryPop(out var current))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Node(current.Node, current.Name, current.Path, current.Required, current.Inherited, advisories);
+            Node(current.Node, current.Name, current.Path, current.RequiresGuidance, current.Inherited, advisories);
             bool leaf = current.Node.Type is not (DefinitionNodeType.Mapping or DefinitionNodeType.Sequence);
-            if (leaf && current.Required && current.DataPointer.Length > 0)
+            if (leaf && current.StaticallyRequired && current.DataPointer.Length > 0)
                 requiredLeaves.Add(current.DataPointer);
             var sensitivity = (FieldSensitivity)Math.Max((int)current.Inherited, (int)FieldDefinition.SensitivityOf(current.Node));
+            HashSet<string>? conditionalTargets = CollectConditionalRequiredTargets(current.Node.Keywords);
             foreach (string name in current.Node.OrderedPropertyNames.Reverse())
-                pending.Push((current.Node.Properties[name], name, current.Path + "/properties/" + Escape(name),
-                    current.DataPointer + "/" + Escape(name),
-                    current.Required && current.Node.Required.Contains(name, StringComparer.Ordinal), sensitivity));
-            if (current.Node.Items is { } items) pending.Push((items, null, current.Path + "/items", current.DataPointer, false, sensitivity));
+            {
+                DefinitionNode child = current.Node.Properties[name];
+                bool locallyRequired = current.Node.RequiredSet.Contains(name);
+                bool staticallyRequired = current.StaticallyRequired && locallyRequired;
+                bool requiresGuidance = locallyRequired
+                    || (conditionalTargets is not null && conditionalTargets.Contains(name))
+                    || HasRequiredWhen(child.Keywords);
+                pending.Push((child, name, current.Path + "/properties/" + Escape(name),
+                    current.DataPointer + "/" + Escape(name), staticallyRequired, requiresGuidance, sensitivity));
+            }
+            if (current.Node.Items is { } items)
+                pending.Push((items, null, current.Path + "/items", current.DataPointer, false, false, sensitivity));
             if (current.Node.AdditionalProperties is { } map)
-                pending.Push((map, null, current.Path + "/additionalProperties", current.DataPointer, false, sensitivity));
+                pending.Push((map, null, current.Path + "/additionalProperties", current.DataPointer, false, false, sensitivity));
             for (int index = current.Node.Variants.Count - 1; index >= 0; index--)
                 pending.Push((current.Node.Variants[index], null,
-                    current.Path + "/oneOf/" + index.ToString(CultureInfo.InvariantCulture), current.DataPointer, false, sensitivity));
+                    current.Path + "/oneOf/" + index.ToString(CultureInfo.InvariantCulture), current.DataPointer, false, false, sensitivity));
         }
         if (definition.Presentation is { } presentation)
         {
@@ -104,9 +113,15 @@ public static class DefinitionQualityLinter
             && node.PresentationMetadata.DeprecationGuidance is null)
             advisories.Add(new("missing-deprecation-message", path));
         var seenExplanations = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        foreach (DefinitionChoice choice in node.OptionMetadata)
+        for (int enumIndex = 0; enumIndex < node.OptionMetadata.Count; enumIndex++)
         {
-            if (choice.MetadataIndex is not { } index) continue;
+            DefinitionChoice choice = node.OptionMetadata[enumIndex];
+            if (choice.MetadataIndex is not { } index)
+            {
+                advisories.Add(new("choice-missing-guidance",
+                    path + "/enum/" + enumIndex.ToString(CultureInfo.InvariantCulture)));
+                continue;
+            }
             string choicePath = path + "/x-configurator/choices/" + index.ToString(CultureInfo.InvariantCulture);
             if (choice.HasExplicitLabel && choice.Value.ValueKind == JsonValueKind.String && choice.DisplayLabel == choice.WireToken
                 && DefinitionDisplayText.Humanize(choice.WireToken) != choice.WireToken)
@@ -129,6 +144,45 @@ public static class DefinitionQualityLinter
         if (leaf && Text(keywords, "format") is not null && !HasFormatHint(keywords))
             advisories.Add(new("description-missing-format-hint", path));
     }
+
+    private static HashSet<string>? CollectConditionalRequiredTargets(JsonElement keywords)
+    {
+        HashSet<string>? targets = null;
+        if (keywords.TryGetProperty("if", out _))
+        {
+            AddRequiredFromBranch(keywords, "then", ref targets);
+            AddRequiredFromBranch(keywords, "else", ref targets);
+        }
+        if (keywords.TryGetProperty("dependentRequired", out JsonElement dependencies)
+            && dependencies.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty dependency in dependencies.EnumerateObject())
+            {
+                if (dependency.Value.ValueKind != JsonValueKind.Array) continue;
+                foreach (JsonElement target in dependency.Value.EnumerateArray())
+                    if (target.ValueKind == JsonValueKind.String && target.GetString() is { } name)
+                        (targets ??= new HashSet<string>(StringComparer.Ordinal)).Add(name);
+            }
+        }
+        return targets;
+
+        static void AddRequiredFromBranch(JsonElement parent, string branchName, ref HashSet<string>? targets)
+        {
+            if (!parent.TryGetProperty(branchName, out JsonElement branch)
+                || branch.ValueKind != JsonValueKind.Object
+                || !branch.TryGetProperty("required", out JsonElement required)
+                || required.ValueKind != JsonValueKind.Array)
+                return;
+            foreach (JsonElement item in required.EnumerateArray())
+                if (item.ValueKind == JsonValueKind.String && item.GetString() is { } name)
+                    (targets ??= new HashSet<string>(StringComparer.Ordinal)).Add(name);
+        }
+    }
+
+    private static bool HasRequiredWhen(JsonElement keywords) =>
+        keywords.TryGetProperty("x-configurator", out JsonElement extension)
+        && extension.ValueKind == JsonValueKind.Object
+        && extension.TryGetProperty("requiredWhen", out _);
 
     private static bool HasGuidance(JsonElement keywords) =>
         Text(keywords, "description") is not null || HasInstructions(keywords);

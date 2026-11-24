@@ -23,6 +23,8 @@ public sealed class DefinitionQualityGuidanceTests
 
         await Assert.That(guidance).IsEquivalentTo(new[]
         {
+            new DefinitionQualityAdvisory("choice-missing-guidance", "/configuration/properties/required/enum/0"),
+            new DefinitionQualityAdvisory("choice-missing-guidance", "/configuration/properties/required/enum/1"),
             new DefinitionQualityAdvisory("required-setting-missing-guidance", "/configuration/properties/required"),
             new DefinitionQualityAdvisory("choice-missing-guidance", "/configuration/properties/choice/x-configurator/choices/0")
         });
@@ -30,23 +32,135 @@ public sealed class DefinitionQualityGuidanceTests
     }
 
     [Test]
-    public async Task OptionalAncestorDoesNotTurnNestedRequiredLeafIntoRequiredWork()
+    public async Task RequiredLeafInsideOptionalContainerFlagsMissingGuidanceWithoutInflatingRequiredDensity()
     {
         JsonObject source = DefinitionPresentationAdmissionTests.OutputSelectorSource("selector");
         JsonObject configuration = source["configuration"]!.AsObject();
         JsonObject properties = configuration["properties"]!.AsObject();
-        JsonNode group = JsonNode.Parse("""{"type":"object","additionalProperties":false,"required":["leaf"],"x-configurator":{"sensitivity":"public"},"properties":{"leaf":{"type":"string","x-configurator":{"sensitivity":"public"}}}}""")!;
+        JsonNode group = JsonNode.Parse("""
+            {"type":"object","additionalProperties":false,"required":["leaf","token"],
+             "x-configurator":{"sensitivity":"public"},
+             "properties":{
+               "leaf":{"type":"string","x-configurator":{"sensitivity":"public"}},
+               "token":{"type":"string","x-configurator":{"sensitivity":"secret","secret":{"kind":"password","acquisition":"local","generation":{"length":32}}}}
+             }}
+            """)!;
         properties["optionalGroup"] = group.DeepClone();
         properties["requiredGroup"] = group;
         configuration["required"]!.AsArray().Add("requiredGroup");
 
         Definition admitted = DefinitionAuthoringTests.Compile(source.ToJsonString());
-        string[] paths = DefinitionQualityLinter.Lint(admitted)
+        DefinitionQualityAdvisory[] findings = DefinitionQualityLinter.Lint(admitted).ToArray();
+        string[] settingPaths = findings
             .Where(item => item.Code == "required-setting-missing-guidance")
             .Select(item => item.SchemaPath).ToArray();
+        string[] secretPaths = findings
+            .Where(item => item.Code == "required-secret-missing-guidance")
+            .Select(item => item.SchemaPath).ToArray();
 
-        await Assert.That(paths).Contains("/configuration/properties/requiredGroup/properties/leaf");
-        await Assert.That(paths).DoesNotContain("/configuration/properties/optionalGroup/properties/leaf");
+        await Assert.That(settingPaths).Contains("/configuration/properties/requiredGroup/properties/leaf");
+        await Assert.That(settingPaths).Contains("/configuration/properties/optionalGroup/properties/leaf");
+        await Assert.That(secretPaths).Contains("/configuration/properties/requiredGroup/properties/token");
+        await Assert.That(secretPaths).Contains("/configuration/properties/optionalGroup/properties/token");
+    }
+
+    [Test]
+    public async Task RequiredWhenLeafFlagsMissingGuidanceForPublicAndSecretLeaves()
+    {
+        JsonObject source = DefinitionPresentationAdmissionTests.OutputSelectorSource("selector");
+        JsonObject configuration = source["configuration"]!.AsObject();
+        JsonObject properties = configuration["properties"]!.AsObject();
+        properties["enabled"] = JsonNode.Parse("""{"type":"boolean","description":"Toggle feature.","x-configurator":{"sensitivity":"public","initialValue":false}}""");
+        properties["conditionalHost"] = JsonNode.Parse("""
+            {"type":"string","x-configurator":{"sensitivity":"public",
+              "requiredWhen":{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}}}
+            """);
+        properties["conditionalSecret"] = JsonNode.Parse("""
+            {"type":"string","x-configurator":{"sensitivity":"secret",
+              "secret":{"kind":"opaque-token","acquisition":"local","encoding":"base64url","generation":{"bytes":32}},
+              "requiredWhen":{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}}}
+            """);
+        properties["guidedConditional"] = JsonNode.Parse("""
+            {"type":"string","description":"Documented conditional setting.",
+             "x-configurator":{"sensitivity":"public",
+               "requiredWhen":{"op":"equals","reference":{"scope":"root","path":"/enabled"},"value":true}}}
+            """);
+
+        Definition admitted = DefinitionAuthoringTests.Compile(source.ToJsonString());
+        DefinitionQualityAdvisory[] findings = DefinitionQualityLinter.Lint(admitted).ToArray();
+
+        await Assert.That(findings).Contains(
+            new DefinitionQualityAdvisory("required-setting-missing-guidance", "/configuration/properties/conditionalHost"));
+        await Assert.That(findings).Contains(
+            new DefinitionQualityAdvisory("required-secret-missing-guidance", "/configuration/properties/conditionalSecret"));
+        await Assert.That(findings.Any(item => item.SchemaPath == "/configuration/properties/guidedConditional")).IsFalse();
+    }
+
+    [Test]
+    public async Task ConditionalIfThenElseAndDependentRequiredTargetsFlagMissingGuidance()
+    {
+        JsonObject source = DefinitionPresentationAdmissionTests.OutputSelectorSource("selector");
+        JsonObject configuration = source["configuration"]!.AsObject();
+        JsonObject properties = configuration["properties"]!.AsObject();
+        properties["trigger"] = JsonNode.Parse("""
+            {"type":"string","description":"Mode trigger.","enum":["remote","local"],
+             "x-configurator":{"sensitivity":"public","choices":[
+               {"value":"remote","label":"Remote","explanation":"Connects to a remote host."},
+               {"value":"local","label":"Local","explanation":"Runs locally."}
+             ]}}
+            """);
+        properties["thenTarget"] = JsonNode.Parse("""{"type":"string","x-configurator":{"sensitivity":"public"}}""");
+        properties["elseTarget"] = JsonNode.Parse("""{"type":"string","x-configurator":{"sensitivity":"secret","secret":{"kind":"password","acquisition":"local","generation":{"length":32}}}}""");
+        properties["depTrigger"] = JsonNode.Parse("""{"type":"string","description":"Dependency trigger.","x-configurator":{"sensitivity":"public"}}""");
+        properties["depTarget"] = JsonNode.Parse("""{"type":"string","x-configurator":{"sensitivity":"public"}}""");
+        configuration["if"] = JsonNode.Parse("""{"required":["trigger"],"properties":{"trigger":{"const":"remote"}}}""");
+        configuration["then"] = JsonNode.Parse("""{"required":["thenTarget"]}""");
+        configuration["else"] = JsonNode.Parse("""{"required":["elseTarget"]}""");
+        configuration["dependentRequired"] = JsonNode.Parse("""{"depTrigger":["depTarget"]}""");
+
+        Definition admitted = DefinitionAuthoringTests.Compile(source.ToJsonString());
+        DefinitionQualityAdvisory[] findings = DefinitionQualityLinter.Lint(admitted).ToArray();
+
+        await Assert.That(findings).Contains(
+            new DefinitionQualityAdvisory("required-setting-missing-guidance", "/configuration/properties/thenTarget"));
+        await Assert.That(findings).Contains(
+            new DefinitionQualityAdvisory("required-secret-missing-guidance", "/configuration/properties/elseTarget"));
+        await Assert.That(findings).Contains(
+            new DefinitionQualityAdvisory("required-setting-missing-guidance", "/configuration/properties/depTarget"));
+    }
+
+    [Test]
+    public async Task EnumLeafWithZeroOrPartialChoicesFlagsChoiceMissingGuidance()
+    {
+        JsonObject source = DefinitionPresentationAdmissionTests.OutputSelectorSource("selector");
+        JsonObject properties = source["configuration"]!["properties"]!.AsObject();
+        properties["bareEnum"] = JsonNode.Parse("""
+            {"type":"string","description":"Unannotated enum.","enum":["alpha","beta"],
+             "x-configurator":{"sensitivity":"public"}}
+            """);
+        properties["partialEnum"] = JsonNode.Parse("""
+            {"type":"string","description":"Partially annotated enum.","enum":["fast","safe"],
+             "x-configurator":{"sensitivity":"public","choices":[
+               {"value":"fast","label":"Fast","explanation":"Prioritizes speed."}
+             ]}}
+            """);
+        properties["completeEnum"] = JsonNode.Parse("""
+            {"type":"string","description":"Fully annotated enum.","enum":["one","two"],
+             "x-configurator":{"sensitivity":"public","choices":[
+               {"value":"one","label":"One","explanation":"First mode."},
+               {"value":"two","label":"Two","explanation":"Second mode."}
+             ]}}
+            """);
+
+        Definition admitted = DefinitionAuthoringTests.Compile(source.ToJsonString());
+        string[] choicePaths = DefinitionQualityLinter.Lint(admitted)
+            .Where(item => item.Code == "choice-missing-guidance")
+            .Select(item => item.SchemaPath).ToArray();
+
+        await Assert.That(choicePaths).Contains("/configuration/properties/bareEnum/enum/0");
+        await Assert.That(choicePaths).Contains("/configuration/properties/bareEnum/enum/1");
+        await Assert.That(choicePaths).Contains("/configuration/properties/partialEnum/enum/1");
+        await Assert.That(choicePaths.Any(path => path.StartsWith("/configuration/properties/completeEnum/", StringComparison.Ordinal))).IsFalse();
     }
 
     [Test]
