@@ -2,7 +2,7 @@
 
 ## Contracts and lifecycle
 
-Use `schemas/configurator-authoring.schema.json` for structural editor assistance and `definition schema --kind authoring --text` for built-in discovery. Semantic admission remains `definition check`; `definition lint` adds advisories. The installed command help owns options. Keep these contracts separate:
+Use `islamu-configurator schema export --kind authoring --text` (or `schemas/configurator-authoring.schema.json` when inside a repository checkout) for structural editor assistance and `islamu-configurator schema list --machine` for built-in schema discovery (`authoring`, `runtime`, `answers`, `command`, `fixtures`, `store-curation`). Semantic admission remains `definition check`; `definition lint --quality --strict` adds quality advisories, `definition describe` pages public declared fields/artifacts, `definition diff` separates behavioral from display-only revision impacts, and `definition test` executes data-only synthetic conformance suites. The installed command help owns options. Keep these contracts separate:
 
 | Document | Contract |
 |---|---|
@@ -10,6 +10,7 @@ Use `schemas/configurator-authoring.schema.json` for structural editor assistanc
 | Compiled canonical public JSON | `schemaVersion: "0.0.1"`, `profile: bounded-v0.0.1`, computed sorted `requiredCapabilities`; no `$schema` |
 | Machine receipt | Command `0.0.1`; authoring/runtime handshake string `0.0.1` |
 | Separate private answers | `answerContractVersion: "0.0.1"`, object `values`, concrete pointer array `omitted` |
+| Synthetic conformance fixtures | `fixtureContractVersion: "0.0.1"`, data-only `cases` (1..64); no executable or network keywords |
 
 Declare `identity`, project ID/name, exact `applicationVersions`, recursive `configuration` and filename-keyed `outputs`. Repository and explicit definition license are needed for optional Store redistribution, not invented for local use. Application version and family revision are independent of contract versions. Native `definition init` allocates identity; `init --fork-from` creates a new family from admitted source without converting its format. Never copy fixture UUIDs. Within a family, retain the current canonical anchor, edit the source without manually advancing revision, use `definition revise`, review/adopt its next-revision candidate, then build. Unchanged canonical content does not advance revision; retain release history.
 

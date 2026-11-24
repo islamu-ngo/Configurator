@@ -22,7 +22,14 @@ target acceptance.
 2. **Author:** Describe the configuration schema, guidance, journeys and outputs.
 3. **Check:** Admit bounded syntax, references, privacy and constraints.
 4. **Build:** Produce canonical `dist/configurator/revisions/1.json`.
-5. **Revise:** Create a reviewed candidate for changed canonical content without
+5. **Verify Delivery Receipt (Unsigned):** Run `eng/configurator/DefinitionDelivery.cs`
+   with `--source`, `--definition`, `--receipt`, a credential-free public HTTPS `--source-url`,
+   and declared `--app-version`, `--entry`, and `--locale` selectors (`--write` to record,
+   `--check` in CI). The emitted `release.json` explicitly declares
+   `trustBoundary: "unsigned-local-verification-only"` and `signatureStatus: "unsigned"`;
+   it records local canonical source/runtime agreement and a pinned Browser launch fragment,
+   never publisher authentication, cryptographic signatures, or target apply authority.
+6. **Revise:** Create a reviewed candidate for changed canonical content without
    overwriting the source or reusing an admitted family/revision.
 
 Revision 1/2 are family revisions, not authoring or runtime contract versions.
@@ -30,10 +37,17 @@ Successful check/build reports the independent authoring/runtime handshake as
 the string `0.0.1` in both fields. See the [version reference](definition-reference.md#which-document-are-you-editing)
 for the separate current command envelope and answer contracts.
 
-Run `definition lint --source configurator.yaml --machine` for advisory authoring
-feedback after admission. Use `definition schema --kind authoring --text` for the
-built-in editor schema or `--kind command --machine` for the current receipt
-contract. Discovery never reads private answers or arbitrary schema locations.
+Run `islamu-configurator info --machine` to inspect the installed binary's build
+version, `0.0.1` contract versions, and host capabilities. Run
+`definition lint --source configurator.yaml --quality --strict --machine` for
+advisory quality feedback after admission, `definition describe --source configurator.yaml --machine`
+to page declared fields and artifacts, `definition diff --against <prior> --source <candidate> --machine`
+to separate behavioral changes from display-only edits, and
+`definition test --source configurator.yaml --fixtures fixtures.json --machine`
+to execute bounded data-only synthetic conformance fixtures. Use
+`schema list --machine` or `schema export --kind authoring --text` for the
+built-in editor schemas (`authoring`, `runtime`, `answers`, `command`, `fixtures`,
+`store-curation`). Discovery never reads private answers or arbitrary schema locations.
 
 ## Complete Minimal `configurator.yaml` Example
 

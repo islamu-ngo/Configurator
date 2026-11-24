@@ -1,0 +1,29 @@
+Change-Id: CHG-01M873YWGPPD9CNJ3PECHRFVHN
+Title: "Add bundle-create --draft, definition diff, definition test, and installed adoption workflow"
+Type: feat
+Scope: cli
+Summary: "Expose explicit secret-deferred draft bundles (artifact bundle-create --draft), semantic revision comparison (definition diff), and bounded synthetic fixture execution (definition test) in the standalone CLI; update the portable configurator-integrate skill and docs; regenerate CLI schema, reference, and ratchets; and verify installed end-to-end adoption outside the checkout."
+Group: cli-authoring-workflow
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Strict bundle-create refuses omitted required secrets; explicit --draft marks preparation incomplete with per-artifact completeness/deferredFieldCount and warning secret-deferred diagnostics; definition test enforces data-only fixture admission with zero external process execution."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Adds artifact bundle-create --draft, definition diff, and definition test; regenerates schemas/configurator-cli.schema.json, docs/public/cli-command-reference.md, and eng/configurator/generated/frozen-contract-baseline.json; updates skills/configurator-integrate for installed 0.0.1 CLI usage."
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: documented
+    Detail: "Maintainers and operators can diff revisions semantically, execute data-only conformance fixtures, and prepare explicitly incomplete secret-deferred draft bundles using only the installed standalone CLI."
