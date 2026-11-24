@@ -113,6 +113,15 @@
   <data name="SourceRepository" xml:space="preserve"><value>مستودع المصدر</value></data>
   <data name="License" xml:space="preserve"><value>الترخيص المعلَن</value></data>
   <data name="TrustBoundary" xml:space="preserve"><value>لا تثبت أسماء الناشرين والمشاريع هوية الناشر. لا يمنح التحضير صلاحية إدارة التطبيق الهدف أو تطبيق الإعدادات؛ يتحقق التطبيق الهدف من ملفاتك ويقرر قبولها.</value></data>
+  <data name="ConformanceEvidenceLabel" xml:space="preserve"><value>دليل المطابقة</value></data>
+  <data name="EvidenceFormatOnly" xml:space="preserve"><value>قبول الصيغة فقط</value></data>
+  <data name="EvidenceFixtureVerified" xml:space="preserve"><value>مُتحقّق باختبارات اصطناعية</value></data>
+  <data name="EvidenceTargetRuntimeVerified" xml:space="preserve"><value>مُتحقّق في بيئة التشغيل الهدف</value></data>
+  <data name="ConformanceBoundaryDisclaimer" xml:space="preserve"><value>يسجّل إدراج المتجر نطاق التحقق المحلي فقط؛ ولا يمنح توقيعات تشفيرية أو مصادقة للناشر أو صلاحية تطبيق على التطبيق الهدف.</value></data>
+  <data name="ConformanceRecordedAt" xml:space="preserve"><value>تاريخ التسجيل</value></data>
+  <data name="ConformanceEngineVersion" xml:space="preserve"><value>المحرك</value></data>
+  <data name="ConformanceFixtureDigest" xml:space="preserve"><value>بصمة الاختبارات</value></data>
+  <data name="ConformanceClaimBoundary" xml:space="preserve"><value>حدود الإثبات</value></data>
   <data name="OtherSources" xml:space="preserve"><value>هل لديك تعريف خاص بك؟</value></data>
   <data name="OpenFileOrLink" xml:space="preserve"><value>افتح ملفًا محليًا أو رابطًا عامًا</value></data>
   <data name="BackToCatalogue" xml:space="preserve"><value>جميع المشاريع</value></data>

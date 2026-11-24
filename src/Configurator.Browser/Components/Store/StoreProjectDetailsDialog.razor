@@ -29,6 +29,26 @@
                 <ChildContent>
                     <p class="store-details__trust">@T("TrustBoundary")</p>
 
+                    <div class="store-details__section" data-conformance-evidence>
+                        <h3 class="store-details__subheading">@T("ConformanceEvidenceLabel")</h3>
+                        <p>
+                            <span class="store-details__evidence-badge" data-conformance-kind="@EvidenceKind">@T(EvidenceLabelKey(EvidenceKind))</span>
+                        </p>
+                        @if (Conformance is { } conformance)
+                        {
+                            <dl class="store-details__metadata">
+                                <dt>@T("ConformanceRecordedAt")</dt><dd><bdi dir="ltr">@conformance.RecordedAt</bdi></dd>
+                                <dt>@T("ConformanceEngineVersion")</dt><dd><bdi dir="ltr">@conformance.EngineVersion</bdi></dd>
+                                @if (!string.IsNullOrEmpty(conformance.FixtureDigest))
+                                {
+                                    <dt>@T("ConformanceFixtureDigest")</dt><dd><code dir="ltr">@conformance.FixtureDigest</code></dd>
+                                }
+                                <dt>@T("ConformanceClaimBoundary")</dt><dd><bdi>@conformance.ClaimBoundary</bdi></dd>
+                            </dl>
+                        }
+                        <p class="store-details__disclaimer" data-conformance-disclaimer>@T("ConformanceBoundaryDisclaimer")</p>
+                    </div>
+
                     @if (OutputNames.Count > 0)
                     {
                         <div class="store-details__section">
@@ -117,12 +137,20 @@
     [Parameter] public string? IconLicense { get; set; }
     [Parameter] public string? IconAttribution { get; set; }
     [Parameter] public string Monogram { get; set; } = string.Empty;
+    [Parameter] public DefinitionStoreConformance? Conformance { get; set; }
     [Parameter] public IReadOnlyList<string> OutputNames { get; set; } = [];
     [Parameter] public IReadOnlyList<RevisionDetail> Revisions { get; set; } = [];
 
+    private string EvidenceKind => Conformance?.EvidenceKind ?? "format-only";
     private string Direction => Locale == "ar" ? "rtl" : "ltr";
 
     private string T(string key) => BrowserStrings.Get(key, Locale);
+    private static string EvidenceLabelKey(string evidenceKind) => evidenceKind switch
+    {
+        "fixture-verified" => "EvidenceFixtureVerified",
+        "target-runtime-verified" => "EvidenceTargetRuntimeVerified",
+        _ => "EvidenceFormatOnly"
+    };
 
     private void Close() => Dialog.Close();
 

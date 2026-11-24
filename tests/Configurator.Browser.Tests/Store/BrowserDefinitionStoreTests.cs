@@ -8,6 +8,7 @@ using Configurator.Browser.Services;
 using Configurator.Core;
 using Configurator.Core.Definitions;
 using Configurator.Presentation.Store;
+using Microsoft.Extensions.DependencyInjection;
 
 public sealed class BrowserDefinitionStoreTests
 {
@@ -213,7 +214,12 @@ public sealed class BrowserDefinitionStoreTests
 
         IReadOnlyList<DefinitionStoreProject> projects = await catalog.LoadAsync();
 
-        await Assert.That(projects.Any(project => project.ProjectId == "islamu-event")).IsTrue();
+        await Assert.That(projects.Select(project => project.ProjectId).Order(StringComparer.Ordinal).ToArray())
+            .IsEquivalentTo(["grafana-oss", "islamu-event", "minimal-self-hosted"]);
+        DefinitionStoreProject grafana = projects.Single(project => project.ProjectId == "grafana-oss");
+        await Assert.That(grafana.IconDataUri).IsNull();
+        await Assert.That(grafana.Conformance).IsNotNull();
+        await Assert.That(grafana.Conformance!.EvidenceKind).IsEqualTo("target-runtime-verified");
         DefinitionStoreProject minimal = projects.Single(project => project.ProjectId == "minimal-self-hosted");
         Definition opened = await catalog.OpenAsync(minimal.ProjectId, minimal.Revisions[0].Revision);
         await Assert.That(opened.FamilyId).IsEqualTo(minimal.FamilyId);
@@ -508,6 +514,122 @@ public sealed class BrowserDefinitionStoreTests
         JsonNode node = JsonNode.Parse(source.CanonicalBytes.Span)!;
         node["project"]!["name"] = title;
         return DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(node.ToJsonString()));
+    }
+
+    [Test]
+    public async Task StoreIndexParserAdmitsBoundedConformanceMetadata()
+    {
+        JsonObject project = CreateProjectJson("demo", "Demo", BrowserFixture.Definition);
+        project["conformance"] = new JsonObject
+        {
+            ["evidenceKind"] = "fixture-verified",
+            ["definitionDigest"] = BrowserFixture.Definition.Digest.Value,
+            ["fixtureDigest"] = new string('a', 64),
+            ["engineVersion"] = ConfiguratorVersion.Current,
+            ["recordedAt"] = "2026-11-24",
+            ["claimBoundary"] = "Exercises synthetic fixture cases offline only; grants no signature or apply authority."
+        };
+        IReadOnlyList<DefinitionStoreProject> parsedWithConformance = DefinitionStoreIndexParser.ParseIndex(
+            Encoding.UTF8.GetBytes(CreateIndexJson(project).ToJsonString()));
+        await Assert.That(parsedWithConformance.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    [Arguments("en", "format-only", "Format admission only")]
+    [Arguments("ar", "format-only", "قبول الصيغة فقط")]
+    [Arguments("en", "fixture-verified", "Synthetic fixtures verified")]
+    [Arguments("ar", "fixture-verified", "مُتحقّق باختبارات اصطناعية")]
+    [Arguments("en", "target-runtime-verified", "Target runtime verified")]
+    [Arguments("ar", "target-runtime-verified", "مُتحقّق في بيئة التشغيل الهدف")]
+    public async Task StoreProjectAndDetailsDialogSurfaceConformanceEvidenceAndDisclaimerInEnglishAndArabic(
+        string locale, string evidenceKind, string expectedLabel)
+    {
+        JsonObject projectJson = CreateProjectJson("demo", "Demo Service", BrowserFixture.Definition);
+        var conformance = new JsonObject
+        {
+            ["evidenceKind"] = evidenceKind,
+            ["definitionDigest"] = BrowserFixture.Definition.Digest.Value,
+            ["engineVersion"] = ConfiguratorVersion.Current,
+            ["recordedAt"] = "2026-11-24",
+            ["claimBoundary"] = "Local bounded verification only; grants no cryptographic signature or target apply authority."
+        };
+        if (evidenceKind != "format-only")
+            conformance["fixtureDigest"] = new string('b', 64);
+        projectJson["conformance"] = conformance;
+
+        DefinitionStoreProject project = DefinitionStoreIndexParser.ParseIndex(
+            Encoding.UTF8.GetBytes(CreateIndexJson(projectJson).ToJsonString()))[0];
+        var provider = TestDefinitionStoreProvider.FromIndex([project], ("demo", BrowserFixture.Definition.Revision, BrowserFixture.Definition));
+        var registry = new BrowserDefinitionRegistry([]);
+        await using var context = BrowserFixture.Context(registry);
+        context.Services.AddSingleton<IDefinitionStoreProvider>(provider);
+
+        var page = context.Render<Pages.StoreProject>(parameters => parameters
+            .Add(p => p.ProjectId, "demo")
+            .AddCascadingValue((locale, locale == "ar" ? "rtl" : "ltr")));
+
+        string evidenceText = page.Find("[data-conformance-evidence]").TextContent;
+        await Assert.That(evidenceText).Contains(expectedLabel);
+        await Assert.That(page.Find("[data-conformance-kind]").GetAttribute("data-conformance-kind")).IsEqualTo(evidenceKind);
+        await Assert.That(page.Find("[data-conformance-disclaimer]").TextContent).IsNotEmpty();
+    }
+
+    [Test]
+    public async Task StoreIndexParserRejectsTamperedOrForgedConformanceEvidence()
+    {
+        string validDigest = BrowserFixture.Definition.Digest.Value;
+        JsonObject[] invalidCases =
+        [
+            new JsonObject
+            {
+                ["evidenceKind"] = "signed-official",
+                ["definitionDigest"] = validDigest,
+                ["engineVersion"] = "0.0.1",
+                ["recordedAt"] = "2026-11-24",
+                ["claimBoundary"] = "Invalid evidence kind test boundary."
+            },
+            new JsonObject
+            {
+                ["evidenceKind"] = "format-only",
+                ["definitionDigest"] = new string('0', 64),
+                ["engineVersion"] = "0.0.1",
+                ["recordedAt"] = "2026-11-24",
+                ["claimBoundary"] = "Digest mismatch test boundary."
+            },
+            new JsonObject
+            {
+                ["evidenceKind"] = "fixture-verified",
+                ["definitionDigest"] = validDigest,
+                ["engineVersion"] = "0.0.1",
+                ["recordedAt"] = "2026-11-24",
+                ["claimBoundary"] = "Missing fixture digest test boundary."
+            },
+            new JsonObject
+            {
+                ["evidenceKind"] = "format-only",
+                ["definitionDigest"] = validDigest,
+                ["engineVersion"] = "0.0.1",
+                ["recordedAt"] = "2026-11-24",
+                ["claimBoundary"] = "Format admission only with extra forbidden field.",
+                ["signature"] = "forged"
+            },
+            new JsonObject
+            {
+                ["evidenceKind"] = "format-only",
+                ["definitionDigest"] = validDigest,
+                ["engineVersion"] = "0.0.1",
+                ["recordedAt"] = "2026-11-24",
+                ["claimBoundary"] = "This definition is cryptographically signed and grants apply permission."
+            }
+        ];
+
+        foreach (JsonObject badConformance in invalidCases)
+        {
+            JsonObject projectJson = CreateProjectJson("demo", "Demo Service", BrowserFixture.Definition);
+            projectJson["conformance"] = badConformance;
+            byte[] indexBytes = Encoding.UTF8.GetBytes(CreateIndexJson(projectJson).ToJsonString());
+            await Assert.That(() => DefinitionStoreIndexParser.ParseIndex(indexBytes)).Throws<DefinitionStoreException>();
+        }
     }
 
     internal static Definition WithIdentity(Definition source, Guid familyId, string applicationId, long revision)

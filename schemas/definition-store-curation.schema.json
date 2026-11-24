@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:islamu:configurator:store-curation:v0.0.1",
   "title": "Definition store optional curation",
   "type": "object",
   "additionalProperties": false,
@@ -72,6 +73,73 @@
       "minLength": 1,
       "maxLength": 512,
       "pattern": "^\\S(?:[^\\x00-\\x1f\\x7f]*\\S)?$"
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidenceKind",
+        "definitionDigest",
+        "engineVersion",
+        "recordedAt",
+        "claimBoundary"
+      ],
+      "properties": {
+        "evidenceKind": {
+          "type": "string",
+          "enum": [
+            "format-only",
+            "fixture-verified",
+            "target-runtime-verified"
+          ]
+        },
+        "definitionDigest": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "fixtureDigest": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "engineVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^\\S(?:[^\\x00-\\x1f\\x7f]*\\S)?$"
+        },
+        "recordedAt": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 32,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2}:\\d{2}Z)?$"
+        },
+        "claimBoundary": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 512,
+          "pattern": "^\\S(?:[^\\x00-\\x1f\\x7f]*\\S)?$"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "evidenceKind": {
+                "const": "fixture-verified"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "fixtureDigest"
+            ]
+          }
+        }
+      ]
     }
   }
 }

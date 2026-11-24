@@ -42,6 +42,9 @@ public sealed class StoreProjectCardViewModel
     public bool HasIcon => _iconBytes.Length > 0;
     public ReadOnlyMemory<byte> IconBytes => _iconBytes;
     public string Monogram { get; }
+    public DefinitionStoreConformance? Conformance => Project.Conformance;
+    public string EvidenceKind => Project.Conformance?.EvidenceKind ?? "format-only";
+    public bool HasConformance => Project.Conformance is not null;
 
     /// <summary>Returns true when all whitespace-separated query terms match project discovery metadata.</summary>
     public bool MatchesQueryTerm(string term) =>

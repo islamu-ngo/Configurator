@@ -113,6 +113,15 @@
   <data name="SourceRepository" xml:space="preserve"><value>Source repository</value></data>
   <data name="License" xml:space="preserve"><value>Declared license</value></data>
   <data name="TrustBoundary" xml:space="preserve"><value>Publisher and project labels do not authenticate a publisher. Preparation grants no target administration or apply permission; the target validates and accepts your files.</value></data>
+  <data name="ConformanceEvidenceLabel" xml:space="preserve"><value>Conformance evidence</value></data>
+  <data name="EvidenceFormatOnly" xml:space="preserve"><value>Format admission only</value></data>
+  <data name="EvidenceFixtureVerified" xml:space="preserve"><value>Synthetic fixtures verified</value></data>
+  <data name="EvidenceTargetRuntimeVerified" xml:space="preserve"><value>Target runtime verified</value></data>
+  <data name="ConformanceBoundaryDisclaimer" xml:space="preserve"><value>Store listing records local verification scope only; it grants no cryptographic signatures, publisher authentication, or target apply permission.</value></data>
+  <data name="ConformanceRecordedAt" xml:space="preserve"><value>Recorded</value></data>
+  <data name="ConformanceEngineVersion" xml:space="preserve"><value>Engine</value></data>
+  <data name="ConformanceFixtureDigest" xml:space="preserve"><value>Fixture digest</value></data>
+  <data name="ConformanceClaimBoundary" xml:space="preserve"><value>Claim boundary</value></data>
   <data name="OtherSources" xml:space="preserve"><value>Have your own definition?</value></data>
   <data name="OpenFileOrLink" xml:space="preserve"><value>Open a local file or public link</value></data>
   <data name="BackToCatalogue" xml:space="preserve"><value>All projects</value></data>

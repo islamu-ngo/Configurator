@@ -15,6 +15,15 @@ public static class DefinitionStoreIndexParser
     private const int MaximumProjects = 1024;
     private const int MaximumTotalRevisions = 4096;
     private const int MaximumProjectRevisions = 64;
+    private static readonly string[] ForgedAuthorityPhrases =
+    [
+        "cryptographically signed",
+        "signed release",
+        "grants apply",
+        "grants target apply",
+        "publisher authenticated",
+        "authenticates the publisher"
+    ];
 
     /// <summary>
     /// Verifies that an admitted <see cref="Definition"/> matches the index metadata
@@ -90,7 +99,7 @@ public static class DefinitionStoreIndexParser
         RequireMembers(project,
             requiredNames: ["projectId", "name", "description", "sourceRepository", "license",
                 "tags", "applicationId", "familyId", "revisions"],
-            optionalNames: ["iconDataUri", "iconLicense", "iconAttribution"]);
+            optionalNames: ["iconDataUri", "iconLicense", "iconAttribution", "conformance"]);
 
         string projectId = ReadStringProperty(project, "projectId", 64);
         if (!IsSlug(projectId) || !projectIds.Add(projectId))
@@ -99,6 +108,7 @@ public static class DefinitionStoreIndexParser
         Guid family = ParseCanonicalGuid(ReadStringProperty(project, "familyId", 36));
         string repository = ValidateRepositoryUri(ReadStringProperty(project, "sourceRepository", 2048));
         var projectRevisions = ParseRevisions(project, projectId, family, revisions, ref totalRevisions);
+        DefinitionStoreRevision[] orderedRevisions = projectRevisions.OrderByDescending(item => item.Revision).ToArray();
 
         ReadOnlyCollection<string> tags = ReadStringArray(project, "tags", 16, 32, allowEmpty: true, trimmed: true);
         if (tags.Any(tag => !IsSlug(tag)))
@@ -122,6 +132,10 @@ public static class DefinitionStoreIndexParser
                 throw InvalidIndex();
         }
 
+        DefinitionStoreConformance? conformance = null;
+        if (project.TryGetProperty("conformance", out JsonElement conformanceElement))
+            conformance = ParseConformance(conformanceElement, orderedRevisions[0].Digest);
+
         return new DefinitionStoreProject
         {
             ProjectId = projectId,
@@ -132,10 +146,64 @@ public static class DefinitionStoreIndexParser
             Tags = tags,
             ApplicationId = ReadStringProperty(project, "applicationId", 256, trimmed: false),
             FamilyId = family,
-            Revisions = Array.AsReadOnly(projectRevisions.OrderByDescending(item => item.Revision).ToArray()),
+            Revisions = Array.AsReadOnly(orderedRevisions),
             IconDataUri = iconDataUri,
             IconLicense = iconLicense,
-            IconAttribution = iconAttribution
+            IconAttribution = iconAttribution,
+            Conformance = conformance
+        };
+    }
+
+    private static DefinitionStoreConformance ParseConformance(JsonElement element, string latestRevisionDigest)
+    {
+        RequireMembers(element,
+            requiredNames: ["evidenceKind", "definitionDigest", "engineVersion", "recordedAt", "claimBoundary"],
+            optionalNames: ["fixtureDigest"]);
+
+        string evidenceKind = ReadStringProperty(element, "evidenceKind", 32, trimmed: true);
+        if (evidenceKind is not ("format-only" or "fixture-verified" or "target-runtime-verified"))
+            throw InvalidIndex();
+
+        string definitionDigest = ReadStringProperty(element, "definitionDigest", 64, trimmed: true);
+        if (!ArtifactDigest.TryParse(definitionDigest, out ArtifactDigest parsedDefDigest)
+            || parsedDefDigest.Value != definitionDigest
+            || !string.Equals(definitionDigest, latestRevisionDigest, StringComparison.Ordinal))
+            throw InvalidIndex();
+
+        string? fixtureDigest = null;
+        if (element.TryGetProperty("fixtureDigest", out JsonElement fixtureElement))
+        {
+            fixtureDigest = ReadString(fixtureElement, 64, trimmed: true);
+            if (!ArtifactDigest.TryParse(fixtureDigest, out ArtifactDigest parsedFixtureDigest)
+                || parsedFixtureDigest.Value != fixtureDigest)
+                throw InvalidIndex();
+        }
+        else if (evidenceKind == "fixture-verified")
+        {
+            throw InvalidIndex();
+        }
+
+        string engineVersion = ReadStringProperty(element, "engineVersion", 64, trimmed: true);
+        string recordedAt = ReadStringProperty(element, "recordedAt", 32, trimmed: true);
+        if (!DateOnly.TryParseExact(recordedAt, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)
+            && !DateTimeOffset.TryParseExact(recordedAt, "yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out _))
+            throw InvalidIndex();
+
+        string claimBoundary = ReadStringProperty(element, "claimBoundary", 512, trimmed: true);
+        if (claimBoundary.Length < 16)
+            throw InvalidIndex();
+        foreach (string phrase in ForgedAuthorityPhrases)
+            if (claimBoundary.Contains(phrase, StringComparison.OrdinalIgnoreCase))
+                throw InvalidIndex();
+
+        return new DefinitionStoreConformance
+        {
+            EvidenceKind = evidenceKind,
+            DefinitionDigest = definitionDigest,
+            FixtureDigest = fixtureDigest,
+            EngineVersion = engineVersion,
+            RecordedAt = recordedAt,
+            ClaimBoundary = claimBoundary
         };
     }
 

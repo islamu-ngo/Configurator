@@ -1,0 +1,29 @@
+Change-Id: CHG-01M874YVKE8CP0PVCGDG4407G1
+Title: "Surface auditable Store conformance evidence without implying trust"
+Type: feat
+Scope: definitions
+Summary: "Extend BuildDefinitionStore.cs, regenerated schemas/definition-store-curation.schema.json, Presentation store models, and Browser Store detail pages to validate and display explicit conformance categories (format-only, fixture-verified, target-runtime-verified) bound to canonical digests while explicitly disclaiming signatures, publisher authentication, and target apply permission."
+Group: store-conformance-evidence
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/DEFINITION_STORE.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DEFINITION_STORE.md
+    Disposition: documented
+    Detail: "Enforces closed conformance evidence vocabulary bound to exact latest definitionDigest, rejects unknown fields and forged signature/apply claims fail-closed in both BuildDefinitionStore and DefinitionStoreIndexParser, and surfaces an explicit en/ar non-authority disclaimer."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/definition-store.md
+    Disposition: documented
+    Detail: "Extends optional curation.json schema (schemas/definition-store-curation.schema.json) with bounded conformance evidence (format-only, fixture-verified, target-runtime-verified) surfaced in StoreProject.razor and StoreProjectDetailsDialog.razor."
+  OpenAPI:
+    Reference: docs/internal/DEFINITION_STORE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definition-store.md
+    Disposition: documented
+    Detail: "Operators inspecting Store entries in Browser see the exact local conformance scope (format admission, synthetic fixtures, or target runtime verification) alongside an explicit non-authority disclaimer."

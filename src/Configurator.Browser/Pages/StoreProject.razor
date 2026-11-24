@@ -46,6 +46,25 @@
         <div class="actions">
             <a class="button button--secondary" data-action="explore-definition" href="@($"explore/{_project.FamilyId:D}")">@T("ExploreDefinitionAction")</a>
         </div>
+        <section class="store-project__conformance" data-conformance-evidence>
+            <h2>@T("ConformanceEvidenceLabel")</h2>
+            <p>
+                <span class="store-project__evidence-badge" data-conformance-kind="@storeCard.EvidenceKind">@T(EvidenceLabelKey(storeCard.EvidenceKind))</span>
+            </p>
+            @if (storeCard.Conformance is { } conformance)
+            {
+                <dl class="store-project__metadata">
+                    <dt>@T("ConformanceRecordedAt")</dt><dd><bdi dir="ltr">@conformance.RecordedAt</bdi></dd>
+                    <dt>@T("ConformanceEngineVersion")</dt><dd><bdi dir="ltr">@conformance.EngineVersion</bdi></dd>
+                    @if (!string.IsNullOrEmpty(conformance.FixtureDigest))
+                    {
+                        <dt>@T("ConformanceFixtureDigest")</dt><dd><code dir="ltr">@conformance.FixtureDigest</code></dd>
+                    }
+                    <dt>@T("ConformanceClaimBoundary")</dt><dd><bdi>@conformance.ClaimBoundary</bdi></dd>
+                </dl>
+            }
+            <p class="store-project__disclaimer" data-conformance-disclaimer>@T("ConformanceBoundaryDisclaimer")</p>
+        </section>
         <details data-digest-disclosure>
         <summary>@T("SourceDetails")</summary>
         <dl class="store-project__metadata">
@@ -97,6 +116,12 @@
     [Parameter, SupplyParameterFromQuery(Name = "revision")] public string? RequestedRevision { get; set; }
     [CascadingParameter] public (string Locale, string Direction) Culture { get; set; } = ("en", "ltr");
     private string T(string key) => BrowserStrings.Get(key, Culture.Locale);
+    private static string EvidenceLabelKey(string evidenceKind) => evidenceKind switch
+    {
+        "fixture-verified" => "EvidenceFixtureVerified",
+        "target-runtime-verified" => "EvidenceTargetRuntimeVerified",
+        _ => "EvidenceFormatOnly"
+    };
     private CancellationTokenSource? _lifetime;
     private DefinitionStoreProject? _project;
     private string _revision = string.Empty;

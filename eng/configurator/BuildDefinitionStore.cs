@@ -31,7 +31,18 @@ internal static class DefinitionStoreBuilder
     private const int MaximumIconDataUriLength = 22 + ((MaximumIconDecodedBytes + 2) / 3 * 4);
     private const string PngDataUriPrefix = "data:image/png;base64,";
     private static ReadOnlySpan<byte> PngSignature => [0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A];
-    private static readonly string[] CurationMembers = ["schemaVersion", "tags", "slug", "slugReason", "iconDataUri", "iconLicense", "iconAttribution"];
+    private static readonly string[] CurationMembers = ["schemaVersion", "tags", "slug", "slugReason", "iconDataUri", "iconLicense", "iconAttribution", "conformance"];
+    private static readonly string[] ConformanceMembers = ["evidenceKind", "definitionDigest", "fixtureDigest", "engineVersion", "recordedAt", "claimBoundary"];
+    private static readonly string[] ConformanceKinds = ["format-only", "fixture-verified", "target-runtime-verified"];
+    private static readonly string[] ForgedAuthorityPhrases =
+    [
+        "cryptographically signed",
+        "signed release",
+        "grants apply",
+        "grants target apply",
+        "publisher authenticated",
+        "authenticates the publisher"
+    ];
 
     internal static int Run(string[] arguments)
     {
@@ -160,6 +171,8 @@ internal static class DefinitionStoreBuilder
                 projectJson["iconLicense"] = iconLicense.DeepClone();
                 projectJson["iconAttribution"] = iconAttribution.DeepClone();
             }
+            if (metadata["conformance"] is JsonNode conformanceNode)
+                projectJson["conformance"] = conformanceNode.DeepClone();
             projects.Add((JsonNode)projectJson);
         }
         byte[] index = Encoding.UTF8.GetBytes(new JsonObject { ["schemaVersion"] = ConfiguratorVersion.Current, ["projects"] = projects }.ToJsonString(JsonOptions) + "\n");
@@ -216,6 +229,13 @@ internal static class DefinitionStoreBuilder
         }
         Definition definition = DefinitionAuthoringCompiler.Compile(source);
         CheckPublicNode(definition.Configuration, FieldSensitivity.Public);
+        if (curation["conformance"] is JsonObject conformanceObj)
+        {
+            string claimedDigest = conformanceObj["definitionDigest"]!.GetValue<string>();
+            if (!string.Equals(claimedDigest, definition.Digest.Value, StringComparison.Ordinal))
+                throw new StoreException("store-conformance-digest-mismatch");
+            metadata["conformance"] = conformanceObj.DeepClone();
+        }
         return (metadata, definition);
     }
 
@@ -261,11 +281,66 @@ internal static class DefinitionStoreBuilder
                 _ = ReadText(root.GetProperty("iconAttribution"), 512);
                 if (!IsValidPngDataUri(iconDataUri)) throw new StoreException("store-metadata-invalid");
             }
+            if (root.TryGetProperty("conformance", out JsonElement conformance))
+                ValidateConformance(conformance);
             return JsonNode.Parse(bytes)!.AsObject();
         }
         catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException or FormatException)
         { throw new StoreException("store-metadata-invalid"); }
     }
+
+    private static void ValidateConformance(JsonElement conformance)
+    {
+        if (conformance.ValueKind != JsonValueKind.Object)
+            throw new StoreException("store-metadata-invalid");
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonProperty property in conformance.EnumerateObject())
+            if (!names.Add(property.Name) || !ConformanceMembers.Contains(property.Name, StringComparer.Ordinal))
+                throw new StoreException("store-metadata-invalid");
+
+        if (!names.Contains("evidenceKind") || !names.Contains("definitionDigest")
+            || !names.Contains("engineVersion") || !names.Contains("recordedAt")
+            || !names.Contains("claimBoundary"))
+            throw new StoreException("store-metadata-invalid");
+
+        string kind = ReadText(conformance.GetProperty("evidenceKind"), 32);
+        if (!ConformanceKinds.Contains(kind, StringComparer.Ordinal))
+            throw new StoreException("store-metadata-invalid");
+
+        string defDigest = ReadText(conformance.GetProperty("definitionDigest"), 64);
+        if (!IsLowerHexSha256(defDigest))
+            throw new StoreException("store-metadata-invalid");
+
+        if (conformance.TryGetProperty("fixtureDigest", out JsonElement fixtureElement))
+        {
+            string fixtureDigest = ReadText(fixtureElement, 64);
+            if (!IsLowerHexSha256(fixtureDigest))
+                throw new StoreException("store-metadata-invalid");
+        }
+        else if (kind == "fixture-verified")
+        {
+            throw new StoreException("store-metadata-invalid");
+        }
+
+        _ = ReadText(conformance.GetProperty("engineVersion"), 64);
+        string recordedAt = ReadText(conformance.GetProperty("recordedAt"), 32);
+        if (!IsValidRecordedAt(recordedAt))
+            throw new StoreException("store-metadata-invalid");
+
+        string claimBoundary = ReadText(conformance.GetProperty("claimBoundary"), 512);
+        if (claimBoundary.Length < 16)
+            throw new StoreException("store-metadata-invalid");
+        foreach (string phrase in ForgedAuthorityPhrases)
+            if (claimBoundary.Contains(phrase, StringComparison.OrdinalIgnoreCase))
+                throw new StoreException("store-conformance-authority-forged");
+    }
+
+    private static bool IsLowerHexSha256(string value) =>
+        value.Length == 64 && value.All(static c => c is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
+
+    private static bool IsValidRecordedAt(string value) =>
+        DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)
+        || DateTimeOffset.TryParseExact(value, "yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out _);
 
     private static string ReadText(JsonElement value, int maximum)
     {
@@ -526,9 +601,13 @@ internal static class DefinitionStoreBuilder
         { ["type"] = "array", ["minItems"] = minimum, ["maxItems"] = maximum, ["uniqueItems"] = true, ["items"] = items };
         JsonObject reason = Text(512);
         reason["minLength"] = 16;
+        JsonObject claimBoundary = Text(512);
+        claimBoundary["minLength"] = 16;
         return new JsonObject
         {
-            ["$schema"] = "https://json-schema.org/draft/2020-12/schema", ["title"] = "Definition store optional curation",
+            ["$schema"] = "https://json-schema.org/draft/2020-12/schema",
+            ["$id"] = "urn:islamu:configurator:store-curation:v" + ConfiguratorVersion.Current,
+            ["title"] = "Definition store optional curation",
             ["type"] = "object", ["additionalProperties"] = false, ["required"] = Strings(["schemaVersion"]),
             ["dependentRequired"] = new JsonObject
             {
@@ -550,7 +629,27 @@ internal static class DefinitionStoreBuilder
                     ["pattern"] = "^data:image/png;base64,[A-Za-z0-9+/]+={0,2}$"
                 },
                 ["iconLicense"] = Text(128),
-                ["iconAttribution"] = Text(512)
+                ["iconAttribution"] = Text(512),
+                ["conformance"] = new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = Strings(["evidenceKind", "definitionDigest", "engineVersion", "recordedAt", "claimBoundary"]),
+                    ["properties"] = new JsonObject
+                    {
+                        ["evidenceKind"] = new JsonObject { ["type"] = "string", ["enum"] = Strings(ConformanceKinds) },
+                        ["definitionDigest"] = new JsonObject { ["type"] = "string", ["minLength"] = 64, ["maxLength"] = 64, ["pattern"] = "^[0-9a-f]{64}$" },
+                        ["fixtureDigest"] = new JsonObject { ["type"] = "string", ["minLength"] = 64, ["maxLength"] = 64, ["pattern"] = "^[0-9a-f]{64}$" },
+                        ["engineVersion"] = Text(64),
+                        ["recordedAt"] = new JsonObject { ["type"] = "string", ["minLength"] = 10, ["maxLength"] = 32, ["pattern"] = "^\\d{4}-\\d{2}-\\d{2}(?:T\\d{2}:\\d{2}:\\d{2}Z)?$" },
+                        ["claimBoundary"] = claimBoundary
+                    },
+                    ["allOf"] = new JsonArray(new JsonObject
+                    {
+                        ["if"] = new JsonObject { ["properties"] = new JsonObject { ["evidenceKind"] = new JsonObject { ["const"] = "fixture-verified" } } },
+                        ["then"] = new JsonObject { ["required"] = Strings(["fixtureDigest"]) }
+                    })
+                }
             }
         };
     }
@@ -923,6 +1022,100 @@ internal static class DefinitionStoreBuilder
             {
                 data["iconDataUri"] = "data:image/png;base64," + Convert.ToBase64String(SyntheticPng(32, 32));
             }));
+            Check("conformance-accepted", source =>
+            {
+                Definition current = DefinitionCodec.ParseJson(File.ReadAllBytes(Path.Combine(source, "alpha/releases/2.json")));
+                string fixtureDigest = new string('a', 64);
+                Metadata(source, data => data["conformance"] = new JsonObject
+                {
+                    ["evidenceKind"] = "fixture-verified",
+                    ["definitionDigest"] = current.Digest.Value,
+                    ["fixtureDigest"] = fixtureDigest,
+                    ["engineVersion"] = ConfiguratorVersion.Current,
+                    ["recordedAt"] = "2026-11-24",
+                    ["claimBoundary"] = "Exercises declared synthetic fixture cases offline only; grants no signature or target apply authority."
+                });
+                SortedDictionary<string, byte[]> outputs = Build(source);
+                using JsonDocument index = JsonDocument.Parse(outputs["index.json"]);
+                JsonElement conf = index.RootElement.GetProperty("projects")[0].GetProperty("conformance");
+                if (conf.GetProperty("evidenceKind").GetString() != "fixture-verified"
+                    || conf.GetProperty("definitionDigest").GetString() != current.Digest.Value
+                    || conf.GetProperty("fixtureDigest").GetString() != fixtureDigest)
+                    throw new InvalidOperationException("conformance-missing-from-index");
+            });
+            Reject("conformance-invalid-kind", "store-metadata-invalid", source =>
+            {
+                Definition current = DefinitionCodec.ParseJson(File.ReadAllBytes(Path.Combine(source, "alpha/releases/2.json")));
+                Metadata(source, data => data["conformance"] = new JsonObject
+                {
+                    ["evidenceKind"] = "signed-verified",
+                    ["definitionDigest"] = current.Digest.Value,
+                    ["engineVersion"] = ConfiguratorVersion.Current,
+                    ["recordedAt"] = "2026-11-24",
+                    ["claimBoundary"] = "Invalid evidence category."
+                });
+            });
+            Reject("conformance-digest-mismatch", "store-conformance-digest-mismatch", source =>
+            {
+                Metadata(source, data => data["conformance"] = new JsonObject
+                {
+                    ["evidenceKind"] = "format-only",
+                    ["definitionDigest"] = new string('0', 64),
+                    ["engineVersion"] = ConfiguratorVersion.Current,
+                    ["recordedAt"] = "2026-11-24",
+                    ["claimBoundary"] = "Format admission only; grants no target runtime acceptance or apply permission."
+                });
+            });
+            Reject("conformance-fixture-digest-invalid", "store-metadata-invalid", source =>
+            {
+                Definition current = DefinitionCodec.ParseJson(File.ReadAllBytes(Path.Combine(source, "alpha/releases/2.json")));
+                Metadata(source, data => data["conformance"] = new JsonObject
+                {
+                    ["evidenceKind"] = "fixture-verified",
+                    ["definitionDigest"] = current.Digest.Value,
+                    ["fixtureDigest"] = "NOT-HEX",
+                    ["engineVersion"] = ConfiguratorVersion.Current,
+                    ["recordedAt"] = "2026-11-24",
+                    ["claimBoundary"] = "Fixture conformance only; grants no target apply authority."
+                });
+            });
+            Reject("conformance-fixture-required", "store-metadata-invalid", source =>
+            {
+                Definition current = DefinitionCodec.ParseJson(File.ReadAllBytes(Path.Combine(source, "alpha/releases/2.json")));
+                Metadata(source, data => data["conformance"] = new JsonObject
+                {
+                    ["evidenceKind"] = "fixture-verified",
+                    ["definitionDigest"] = current.Digest.Value,
+                    ["engineVersion"] = ConfiguratorVersion.Current,
+                    ["recordedAt"] = "2026-11-24",
+                    ["claimBoundary"] = "Fixture conformance only; grants no target apply authority."
+                });
+            });
+            Reject("conformance-forged-authority-member", "store-metadata-invalid", source =>
+            {
+                Definition current = DefinitionCodec.ParseJson(File.ReadAllBytes(Path.Combine(source, "alpha/releases/2.json")));
+                Metadata(source, data => data["conformance"] = new JsonObject
+                {
+                    ["evidenceKind"] = "format-only",
+                    ["definitionDigest"] = current.Digest.Value,
+                    ["engineVersion"] = ConfiguratorVersion.Current,
+                    ["recordedAt"] = "2026-11-24",
+                    ["claimBoundary"] = "Format admission only; grants no apply authority.",
+                    ["signature"] = "forged"
+                });
+            });
+            Reject("conformance-forged-authority-claim", "store-conformance-authority-forged", source =>
+            {
+                Definition current = DefinitionCodec.ParseJson(File.ReadAllBytes(Path.Combine(source, "alpha/releases/2.json")));
+                Metadata(source, data => data["conformance"] = new JsonObject
+                {
+                    ["evidenceKind"] = "format-only",
+                    ["definitionDigest"] = current.Digest.Value,
+                    ["engineVersion"] = ConfiguratorVersion.Current,
+                    ["recordedAt"] = "2026-11-24",
+                    ["claimBoundary"] = "This listing is cryptographically signed and grants apply permission."
+                });
+            });
             Console.WriteLine($"Definition store self-test: {passed} passed, {failed} failed.");
             return failed == 0 ? 0 : 1;
         }
