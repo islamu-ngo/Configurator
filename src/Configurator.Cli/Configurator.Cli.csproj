@@ -13,6 +13,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\..\schemas\definition-store-curation.schema.json"
+                      LogicalName="Configurator.Cli.Schemas.definition-store-curation.schema.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Spectre.Console" />
     <PackageReference Include="Spectre.Console.Cli" />
   </ItemGroup>

@@ -19,8 +19,9 @@ internal static class CliDefinitionHandlers
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (command.Operation == "init") return await InitializeAsync(command, invocation, ledger, cancellationToken).ConfigureAwait(false);
-            if (command.Operation == "schema") return Schema(command.SchemaKind);
             if (command.Operation == "answer-schema") return await AnswerSchemaAsync(command, invocation, ledger, cancellationToken).ConfigureAwait(false);
+            if (command.Operation == "diff") return await DiffAsync(command, invocation, cancellationToken).ConfigureAwait(false);
+            if (command.Operation == "test") return await TestAsync(command, invocation, cancellationToken).ConfigureAwait(false);
             ICliAuthoringFiles files = invocation.Io.AuthoringFiles;
             int maximumBytes = invocation.Io.MaximumBytes;
             string source = await files.DiscoverSourceAsync(command.Root ?? ".", command.Source, cancellationToken).ConfigureAwait(false);
@@ -32,6 +33,8 @@ internal static class CliDefinitionHandlers
             cancellationToken.ThrowIfCancellationRequested();
             if (command.Operation == "inspect")
                 return Inspect(definition, command, invocation, cancellationToken);
+            if (command.Operation == "describe")
+                return Describe(definition, command, invocation, cancellationToken);
             string anchor = Anchor(source, definition.Revision);
             if (command.Operation == "revise")
             {
@@ -102,11 +105,21 @@ internal static class CliDefinitionHandlers
         }
         catch (DefinitionException exception)
         {
-            CliMachineSourceLocation? source = exception.SourceSpan is { } span && exception.SchemaPath is { } path
+            DefinitionAuthoringDiagnostic diagnostic = exception.ToAuthoringDiagnostic();
+            CliMachineSourceLocation? source = diagnostic.SourceSpan is { } span && diagnostic.SchemaPath is { } path
                 ? new(path, span.DocumentIndex, span.StartLine, span.StartColumn, span.EndLine, span.EndColumn) : null;
-            return CliResults.Failure(CliExitCode.Data, exception.Code, "/source") with
+            return CliResults.Failure(CliExitCode.Data, diagnostic.Code, "/source") with
             {
-                Diagnostics = [new(exception.Code, "/source", "error") { Source = source }]
+                Diagnostics =
+                [
+                    new(diagnostic.Code, "/source", "error")
+                    {
+                        Line = diagnostic.Line,
+                        Column = diagnostic.Column,
+                        ByteOffset = diagnostic.ByteOffset,
+                        Source = source
+                    }
+                ]
             };
         }
         catch (DecoderFallbackException) { return CliResults.Failure(CliExitCode.Data, "definition-source-invalid", "/source"); }
@@ -207,27 +220,89 @@ internal static class CliDefinitionHandlers
             + string.Concat(path.Segments.Select(segment => "/properties/" + Escape(segment)));
     }
 
-    private static CliCommandResult Schema(string kind)
+    private static CliCommandResult Describe(Definition definition, CliCommand command, CliInvocation invocation,
+        CancellationToken cancellationToken)
     {
-        string schema = kind switch
+        var fields = new List<CliMachineFieldDescription>(definition.Fields.Count);
+        foreach (FieldDefinition field in definition.Fields)
         {
-            "authoring" => DefinitionAuthoringSchema.Generate(),
-            "runtime" => DefinitionSchema.Generate(),
-            "answers" => DefinitionSchema.GenerateAnswers(),
-            "command" => Encoding.UTF8.GetString(CliCommandSchemaMetadata.GenerateSchema()),
-            _ => throw new InvalidOperationException("definition-schema-kind")
-        };
-        byte[] canonical = DefinitionProfile.CanonicalizeJson(Encoding.UTF8.GetBytes(schema));
-        using JsonDocument document = JsonDocument.Parse(canonical);
-        string digest = ArtifactDigest.Compute(canonical).Value;
-        return CliResults.Success() with
+            cancellationToken.ThrowIfCancellationRequested();
+            DefinitionNode node = definition.Configuration.Properties[field.Name];
+            string pointer = "/configuration/properties/" + field.Name.Replace("~", "~0", StringComparison.Ordinal)
+                .Replace("/", "~1", StringComparison.Ordinal);
+            bool conditionalActivation = node.Keywords.TryGetProperty("x-configurator", out JsonElement ext)
+                && ext.ValueKind == JsonValueKind.Object && ext.TryGetProperty("applicableWhen", out _);
+            bool conditionalRequirement = (ext.ValueKind == JsonValueKind.Object && ext.TryGetProperty("requiredWhen", out _))
+                || definition.Configuration.Keywords.TryGetProperty("if", out _)
+                || definition.Configuration.Keywords.TryGetProperty("dependentRequired", out _);
+            string? acquisition = node.Secret is { } secret
+                ? secret.Acquisition switch
+                {
+                    DefinitionSecretAcquisition.Local => "local",
+                    DefinitionSecretAcquisition.Existing => "existing",
+                    DefinitionSecretAcquisition.Issuer => "issuer",
+                    _ => null
+                }
+                : null;
+            fields.Add(new CliMachineFieldDescription(
+                field.Id,
+                pointer,
+                node.JsonType,
+                node.IsNullable,
+                field.Required,
+                CliResults.Lower(field.Sensitivity),
+                CliResults.Lower(field.Disclosure),
+                node.Secret is not null,
+                conditionalActivation,
+                conditionalRequirement,
+                node.OptionMetadata.Count > 0)
+            {
+                Acquisition = acquisition
+            });
+        }
+
+        string digest = ArtifactDigest.Compute(Encoding.UTF8.GetBytes("describe\0" + definition.Digest.Value)).Value;
+        if (command.Offset > 0 && command.ExpectedDetailDigest != digest
+            || command.ExpectedDetailDigest is not null && command.ExpectedDetailDigest != digest)
+            return CliResults.Failure(CliExitCode.Data, "describe-digest-mismatch", "/source");
+        if (command.Offset > fields.Count)
+            return CliResults.Failure(CliExitCode.Data, "describe-offset-invalid", "/source");
+
+        int limit = Math.Clamp(command.Limit, 1, 16);
+        string[] artifactIds = definition.Artifacts.Select(static item => item.Id).ToArray();
+        var page = new CliMachineDefinitionDescription(
+            definition.FamilyId.ToString("D"),
+            definition.Revision,
+            definition.Digest.Value,
+            definition.ApplicationId,
+            DefinitionProfile.Id,
+            definition.RequiredCapabilities,
+            artifactIds,
+            definition.Locales,
+            definition.ApplicationVersions,
+            definition.EntryPoints,
+            command.Offset,
+            limit,
+            fields.Count,
+            digest,
+            fields.Skip(command.Offset).Take(limit).ToArray());
+
+        while (true)
         {
-            Schema = new(kind, document.RootElement.GetProperty("$id").GetString()!, digest, DefinitionProfile.Id,
-                DefinitionProfile.RuntimeSchemaVersion, DefinitionProfile.RuntimeSchemaVersion,
-                AnswerSnapshotCodec.ContractVersion, DefinitionProfile.Capabilities, document.RootElement.Clone()),
-            DefinitionDigest = digest,
-            Preparation = "ready"
-        };
+            cancellationToken.ThrowIfCancellationRequested();
+            CliCommandResult result = CliResults.Success() with
+            {
+                DefinitionDigest = definition.Digest.Value,
+                Preparation = "ready",
+                DefinitionDescription = page
+            };
+            if (JsonSerializer.SerializeToUtf8Bytes(page, CliJsonContext.Default.CliMachineDefinitionDescription).Length <= 8192
+                && CliMachineOutput.Serialize(command, result, int.MaxValue).Length <= invocation.Io.MaximumOutputBytes)
+                return result;
+            if (page.ReturnedCount <= 1)
+                return CliResults.Failure(CliExitCode.Data, "describe-item-unencodable", "/source");
+            page = page with { Fields = page.Fields.SkipLast(1).ToArray() };
+        }
     }
 
     /// <summary>
@@ -532,6 +607,159 @@ internal static class CliDefinitionHandlers
         if (path.Equals(Path.GetFullPath(source), comparison)
             || rejectDiscoveryCandidates && SourceNames.Any(name => name.Equals(Path.GetFileName(path), comparison)))
             throw new DefinitionFileException("definition-output-source-conflict");
+    }
+
+    private static async Task<CliCommandResult> DiffAsync(CliCommand command, CliInvocation invocation,
+        CancellationToken cancellationToken)
+    {
+        ICliAuthoringFiles files = invocation.Io.AuthoringFiles;
+        int maximumBytes = invocation.Io.MaximumBytes;
+        Definition baseline = await LoadDefinitionAsync(files, maximumBytes, command.Against!, cancellationToken).ConfigureAwait(false);
+        string candidatePath = await files.DiscoverSourceAsync(command.Root ?? ".", command.Source, cancellationToken).ConfigureAwait(false);
+        Definition candidate = await LoadDefinitionAsync(files, maximumBytes, candidatePath, cancellationToken).ConfigureAwait(false);
+
+        DefinitionRevisionComparisonReport report = DefinitionRevisionComparison.Compare(baseline, candidate, cancellationToken);
+        int behavioralCount = 0;
+        int displayOnlyCount = 0;
+        foreach (DefinitionRevisionChange item in report.Changes)
+        {
+            if (item.Impact == DefinitionRevisionImpactKind.Behavioral) behavioralCount++;
+            else displayOnlyCount++;
+        }
+
+        const int maxItems = 256;
+        CliMachineRevisionChange[] changes = report.Changes
+            .Take(maxItems)
+            .Select(change => new CliMachineRevisionChange(
+                change.Impact == DefinitionRevisionImpactKind.Behavioral ? "behavioral" : "display-only",
+                change.Category,
+                change.Path.Length <= 256 ? change.Path : change.Path[..256],
+                change.Detail is { Length: > 0 } detail
+                    ? detail.Length <= 96 ? detail : detail[..96]
+                    : null))
+            .ToArray();
+
+        var machineDiff = new CliMachineRevisionDiff(
+            report.BaselineFamilyId.ToString("D"),
+            report.BaselineRevision,
+            report.BaselineDigest,
+            report.CandidateFamilyId.ToString("D"),
+            report.CandidateRevision,
+            report.CandidateDigest,
+            report.SameFamily,
+            report.CanonicalIdentical,
+            report.HasBehavioralChanges,
+            report.HasDisplayOnlyChanges,
+            behavioralCount,
+            displayOnlyCount,
+            report.Changes.Count,
+            report.Changes.Count > maxItems,
+            changes);
+
+        return CliResults.Success() with
+        {
+            DefinitionDigest = candidate.Digest.Value,
+            Preparation = "not-evaluated",
+            RevisionDiff = machineDiff
+        };
+    }
+
+    private static async Task<CliCommandResult> TestAsync(CliCommand command, CliInvocation invocation,
+        CancellationToken cancellationToken)
+    {
+        ICliAuthoringFiles files = invocation.Io.AuthoringFiles;
+        int maximumBytes = invocation.Io.MaximumBytes;
+        string sourcePath = await files.DiscoverSourceAsync(command.Root ?? ".", command.Source, cancellationToken).ConfigureAwait(false);
+        Definition definition = await LoadDefinitionAsync(files, maximumBytes, sourcePath, cancellationToken).ConfigureAwait(false);
+
+        using CliInputBuffer fixtureInput = await files.ReadAsync(command.Fixtures!, maximumBytes, cancellationToken).ConfigureAwait(false);
+        DefinitionFixtureDocument suite = DefinitionFixtureDocument.ParseJson(fixtureInput.Bytes);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        DefinitionFixtureRunReport report = DefinitionFixtureRunner.Run(definition, suite, cancellationToken);
+        CliMachineFixtureCase[] cases = report.Results
+            .Select(result => new CliMachineFixtureCase(
+                result.CaseId,
+                result.Kind,
+                result.Outcome switch
+                {
+                    DefinitionFixtureCaseOutcome.Passed => "passed",
+                    DefinitionFixtureCaseOutcome.PassedExpectedRefusal => "passed-expected-refusal",
+                    _ => "failed"
+                },
+                result.ExpectedRefusal,
+                result.FailureCode,
+                result.ObservedDiagnosticCodes.Take(32).ToArray(),
+                result.ObservedArtifactIds.Take(64).ToArray()))
+            .ToArray();
+
+        var machineReport = new CliMachineFixtureReport(
+            report.DefinitionDigest,
+            report.FixtureDigest,
+            report.EngineVersion,
+            report.Scope,
+            report.ClaimBoundary,
+            report.Passed,
+            report.TotalCases,
+            report.PassedCases,
+            report.FailedCases,
+            report.ExpectedRefusalCases,
+            cases);
+
+        if (report.Passed)
+        {
+            return CliResults.Success() with
+            {
+                DefinitionDigest = definition.Digest.Value,
+                Preparation = "not-evaluated",
+                FixtureReport = machineReport
+            };
+        }
+
+        CliMachineDiagnostic[] diagnostics = report.Results
+            .Select((item, index) => (item, index))
+            .Where(pair => pair.item.Outcome == DefinitionFixtureCaseOutcome.Failed)
+            .Select(pair => new CliMachineDiagnostic(
+                pair.item.FailureCode ?? "fixture-case-failed",
+                "/cases/" + pair.index.ToString(CultureInfo.InvariantCulture),
+                "error"))
+            .ToArray();
+
+        return new(CliExitCode.Validation, diagnostics, [], CliResults.EmptyCoverage(),
+            new("incomplete", ["fixture-failed"], []))
+        {
+            DefinitionDigest = definition.Digest.Value,
+            Preparation = "not-evaluated",
+            FixtureReport = machineReport
+        };
+    }
+
+    private static async Task<Definition> LoadDefinitionAsync(ICliAuthoringFiles files, int maximumBytes,
+        string path, CancellationToken cancellationToken)
+    {
+        using CliInputBuffer input = await files.ReadAsync(path, maximumBytes, cancellationToken).ConfigureAwait(false);
+        if (IsYaml(path))
+            return DefinitionAuthoringCompiler.Compile(Parse(input.Bytes, true, cancellationToken));
+
+        if (IsCompiledRuntimeDefinition(input.Bytes))
+            return DefinitionCodec.ParseJson(input.Bytes);
+
+        return DefinitionAuthoringCompiler.Compile(Parse(input.Bytes, false, cancellationToken));
+    }
+
+    private static bool IsCompiledRuntimeDefinition(ReadOnlyMemory<byte> bytes)
+    {
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 64 });
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("schemaVersion", out _)
+                && !document.RootElement.TryGetProperty("outputs", out _);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private static string Anchor(string source, long revision) => Path.Combine(Path.GetDirectoryName(Path.GetFullPath(source))!,

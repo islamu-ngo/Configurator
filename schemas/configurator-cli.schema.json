@@ -25,11 +25,13 @@
       "--detail",
       "--device",
       "--device-recipient-id",
+      "--draft",
       "--dry-run",
       "--environment-context",
       "--expected-detail-digest",
       "--expected-digest",
       "--expected-revision",
+      "--fixtures",
       "--fork-from",
       "--format",
       "--from-env-example",
@@ -57,6 +59,7 @@
       "--project-id",
       "--quality",
       "--recipient",
+      "--require",
       "--revision-field",
       "--root",
       "--secret-input-file",
@@ -69,12 +72,63 @@
       "--text"
     ],
     "repeatableOptions": [
-      "--artifact"
+      "--artifact",
+      "--require"
     ],
     "maximumArtifactSelections": 64,
     "maximumOutputBytes": 65536,
     "maximumDetailBytes": 8192,
     "commands": [
+      {
+        "name": "info",
+        "operations": [
+          {
+            "name": "info",
+            "options": [
+              "--help",
+              "--machine",
+              "--text"
+            ]
+          }
+        ],
+        "options": [
+          "--help",
+          "--machine",
+          "--text"
+        ]
+      },
+      {
+        "name": "schema",
+        "operations": [
+          {
+            "name": "list",
+            "options": [
+              "--help",
+              "--machine",
+              "--text"
+            ]
+          },
+          {
+            "name": "export",
+            "options": [
+              "--dry-run",
+              "--help",
+              "--kind",
+              "--machine",
+              "--output",
+              "--text"
+            ]
+          }
+        ],
+        "options": [
+          "--dry-run",
+          "--help",
+          "--kind",
+          "--machine",
+          "--output",
+          "--text"
+        ]
+      },
       {
         "name": "catalogue",
         "operations": [
@@ -86,22 +140,6 @@
               "--dry-run",
               "--expected-detail-digest",
               "--help",
-              "--limit",
-              "--machine",
-              "--offset",
-              "--output",
-              "--text"
-            ]
-          },
-          {
-            "name": "show",
-            "options": [
-              "--definition",
-              "--detail",
-              "--dry-run",
-              "--expected-detail-digest",
-              "--help",
-              "--key",
               "--limit",
               "--machine",
               "--offset",
@@ -164,47 +202,12 @@
             ]
           },
           {
-            "name": "open",
-            "options": [
-              "--answers",
-              "--artifact",
-              "--definition",
-              "--detail",
-              "--expected-detail-digest",
-              "--help",
-              "--input",
-              "--input-revision",
-              "--limit",
-              "--machine",
-              "--offset",
-              "--text"
-            ]
-          },
-          {
             "name": "validate",
             "options": [
               "--answers",
               "--artifact",
               "--definition",
               "--detail",
-              "--expected-detail-digest",
-              "--help",
-              "--input",
-              "--input-revision",
-              "--limit",
-              "--machine",
-              "--offset",
-              "--text"
-            ]
-          },
-          {
-            "name": "format",
-            "options": [
-              "--answers",
-              "--artifact",
-              "--definition",
-              "--detail",
-              "--dry-run",
               "--expected-detail-digest",
               "--format",
               "--help",
@@ -213,7 +216,6 @@
               "--limit",
               "--machine",
               "--offset",
-              "--output",
               "--text"
             ]
           },
@@ -226,6 +228,7 @@
               "--definition",
               "--detail",
               "--expected-detail-digest",
+              "--format",
               "--help",
               "--input",
               "--input-revision",
@@ -243,24 +246,6 @@
               "--definition",
               "--detail",
               "--expected-detail-digest",
-              "--help",
-              "--input",
-              "--input-revision",
-              "--limit",
-              "--machine",
-              "--offset",
-              "--text"
-            ]
-          },
-          {
-            "name": "export",
-            "options": [
-              "--answers",
-              "--artifact",
-              "--definition",
-              "--detail",
-              "--dry-run",
-              "--expected-detail-digest",
               "--format",
               "--help",
               "--input",
@@ -268,7 +253,6 @@
               "--limit",
               "--machine",
               "--offset",
-              "--output",
               "--text"
             ]
           },
@@ -302,6 +286,7 @@
               "--definition",
               "--detail",
               "--expected-detail-digest",
+              "--format",
               "--help",
               "--input",
               "--input-revision",
@@ -369,28 +354,9 @@
               "--artifact",
               "--definition",
               "--detail",
+              "--draft",
               "--dry-run",
               "--expected-detail-digest",
-              "--help",
-              "--input",
-              "--input-revision",
-              "--limit",
-              "--machine",
-              "--offset",
-              "--output",
-              "--text"
-            ]
-          },
-          {
-            "name": "preview",
-            "options": [
-              "--answers",
-              "--artifact",
-              "--definition",
-              "--detail",
-              "--dry-run",
-              "--expected-detail-digest",
-              "--format",
               "--help",
               "--input",
               "--input-revision",
@@ -408,6 +374,7 @@
           "--baseline",
           "--definition",
           "--detail",
+          "--draft",
           "--dry-run",
           "--expected-detail-digest",
           "--expected-revision",
@@ -420,65 +387,6 @@
           "--offset",
           "--output",
           "--revision-field",
-          "--text"
-        ]
-      },
-      {
-        "name": "env",
-        "operations": [
-          {
-            "name": "render",
-            "options": [
-              "--answers",
-              "--artifact",
-              "--definition",
-              "--detail",
-              "--dry-run",
-              "--expected-detail-digest",
-              "--format",
-              "--help",
-              "--input",
-              "--input-revision",
-              "--limit",
-              "--machine",
-              "--offset",
-              "--output",
-              "--text"
-            ]
-          },
-          {
-            "name": "validate",
-            "options": [
-              "--answers",
-              "--artifact",
-              "--definition",
-              "--detail",
-              "--expected-detail-digest",
-              "--help",
-              "--input",
-              "--input-revision",
-              "--limit",
-              "--machine",
-              "--offset",
-              "--text"
-            ]
-          }
-        ],
-        "options": [
-          "--answers",
-          "--artifact",
-          "--definition",
-          "--detail",
-          "--dry-run",
-          "--expected-detail-digest",
-          "--format",
-          "--help",
-          "--input",
-          "--input-revision",
-          "--limit",
-          "--machine",
-          "--offset",
-          "--output",
           "--text"
         ]
       },
@@ -549,11 +457,37 @@
             ]
           },
           {
-            "name": "schema",
+            "name": "describe",
             "options": [
+              "--expected-detail-digest",
               "--help",
-              "--kind",
+              "--limit",
               "--machine",
+              "--offset",
+              "--root",
+              "--source",
+              "--text"
+            ]
+          },
+          {
+            "name": "diff",
+            "options": [
+              "--against",
+              "--help",
+              "--machine",
+              "--root",
+              "--source",
+              "--text"
+            ]
+          },
+          {
+            "name": "test",
+            "options": [
+              "--fixtures",
+              "--help",
+              "--machine",
+              "--root",
+              "--source",
               "--text"
             ]
           },
@@ -614,13 +548,13 @@
           "--detail",
           "--dry-run",
           "--expected-detail-digest",
+          "--fixtures",
           "--fork-from",
           "--format",
           "--from-env-example",
           "--from-schema",
           "--help",
           "--id-map",
-          "--kind",
           "--limit",
           "--machine",
           "--name",
@@ -894,6 +828,7 @@
             "options": [
               "--help",
               "--machine",
+              "--require",
               "--text"
             ]
           }
@@ -901,6 +836,7 @@
         "options": [
           "--help",
           "--machine",
+          "--require",
           "--text"
         ]
       }
@@ -1038,6 +974,21 @@
     "schema": {
       "$ref": "#/$defs/schema"
     },
+    "schemaCatalog": {
+      "$ref": "#/$defs/schemaCatalog"
+    },
+    "info": {
+      "$ref": "#/$defs/info"
+    },
+    "definitionDescription": {
+      "$ref": "#/$defs/definitionDescription"
+    },
+    "revisionDiff": {
+      "$ref": "#/$defs/revisionDiff"
+    },
+    "fixtureReport": {
+      "$ref": "#/$defs/fixtureReport"
+    },
     "diagnostics": {
       "type": "array",
       "maxItems": 16,
@@ -1077,9 +1028,10 @@
       "properties": {
         "commandFamily": {
           "enum": [
+            "info",
+            "schema",
             "catalogue",
             "artifact",
-            "env",
             "definition",
             "secret",
             "profile",
@@ -1104,27 +1056,24 @@
             "diff",
             "doctor",
             "export",
-            "format",
             "generate",
+            "help",
             "import",
+            "info",
             "init",
             "inspect",
             "lint",
             "list",
-            "open",
             "prefill",
-            "preview",
             "recovery-check",
-            "render",
             "revise",
             "save",
-            "schema",
-            "show",
             "slots",
+            "test",
             "unlock",
             "upgrade-plan",
             "validate",
-            "help"
+            "version"
           ]
         },
         "mode": {
@@ -1414,18 +1363,22 @@
       "properties": {
         "kind": {
           "enum": [
-            "authoring",
-            "runtime",
             "answers",
-            "command"
+            "authoring",
+            "command",
+            "fixtures",
+            "runtime",
+            "store-curation"
           ]
         },
         "id": {
           "enum": [
-            "urn:islamu:configurator:authoring:v0.0.1",
-            "urn:islamu:configurator:setup-definition:v0.0.1",
             "urn:islamu:configurator:answers:v0.0.1",
-            "urn:islamu:configurator:cli:v0.0.1"
+            "urn:islamu:configurator:authoring:v0.0.1",
+            "urn:islamu:configurator:cli:v0.0.1",
+            "urn:islamu:configurator:fixtures:v0.0.1",
+            "urn:islamu:configurator:setup-definition:v0.0.1",
+            "urn:islamu:configurator:store-curation:v0.0.1"
           ]
         },
         "digest": {
@@ -1497,10 +1450,40 @@
         {
           "properties": {
             "kind": {
+              "const": "answers"
+            },
+            "id": {
+              "const": "urn:islamu:configurator:answers:v0.0.1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "kind": {
               "const": "authoring"
             },
             "id": {
               "const": "urn:islamu:configurator:authoring:v0.0.1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "command"
+            },
+            "id": {
+              "const": "urn:islamu:configurator:cli:v0.0.1"
+            }
+          }
+        },
+        {
+          "properties": {
+            "kind": {
+              "const": "fixtures"
+            },
+            "id": {
+              "const": "urn:islamu:configurator:fixtures:v0.0.1"
             }
           }
         },
@@ -1517,20 +1500,463 @@
         {
           "properties": {
             "kind": {
-              "const": "answers"
+              "const": "store-curation"
             },
             "id": {
-              "const": "urn:islamu:configurator:answers:v0.0.1"
+              "const": "urn:islamu:configurator:store-curation:v0.0.1"
+            }
+          }
+        }
+      ]
+    },
+    "schemaDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id",
+        "fileName",
+        "digest"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "answers",
+            "authoring",
+            "command",
+            "fixtures",
+            "runtime",
+            "store-curation"
+          ]
+        },
+        "id": {
+          "enum": [
+            "urn:islamu:configurator:answers:v0.0.1",
+            "urn:islamu:configurator:authoring:v0.0.1",
+            "urn:islamu:configurator:cli:v0.0.1",
+            "urn:islamu:configurator:fixtures:v0.0.1",
+            "urn:islamu:configurator:setup-definition:v0.0.1",
+            "urn:islamu:configurator:store-curation:v0.0.1"
+          ]
+        },
+        "fileName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z0-9][a-z0-9.-]*\\.schema\\.json$"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "schemaCatalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemas"
+      ],
+      "properties": {
+        "schemas": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/schemaDescriptor"
+          }
+        }
+      }
+    },
+    "info": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "application",
+        "version",
+        "profile",
+        "authoringContractVersion",
+        "runtimeSchemaVersion",
+        "answerContractVersion",
+        "fixtureContractVersion",
+        "commandEnvelopeVersion",
+        "protectedWriteAvailable",
+        "schemas",
+        "capabilities"
+      ],
+      "properties": {
+        "application": {
+          "const": "islamu-configurator"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[^\\s\\x00-\\x1F\\x7F]\u002B$"
+        },
+        "profile": {
+          "const": "bounded-v0.0.1"
+        },
+        "authoringContractVersion": {
+          "const": "0.0.1"
+        },
+        "runtimeSchemaVersion": {
+          "const": "0.0.1"
+        },
+        "answerContractVersion": {
+          "const": "0.0.1"
+        },
+        "fixtureContractVersion": {
+          "const": "0.0.1"
+        },
+        "commandEnvelopeVersion": {
+          "const": "islamu-configurator-command/v0.0.1"
+        },
+        "protectedWriteAvailable": {
+          "type": "boolean"
+        },
+        "schemas": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/schemaDescriptor"
+          }
+        },
+        "capabilities": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "deployment.scope",
+              "environment.docker-run",
+              "environment.compose",
+              "predicate.item",
+              "predicate.root",
+              "presentation.next-actions",
+              "projection.copy",
+              "projection.index",
+              "projection.list",
+              "projection.literal",
+              "projection.object",
+              "projection.omit",
+              "projection.repeat",
+              "relationship.presence",
+              "schema.array",
+              "schema.boolean",
+              "schema.bounds",
+              "schema.const",
+              "schema.enum",
+              "schema.integer",
+              "schema.notBlank",
+              "schema.nullable",
+              "schema.number",
+              "schema.object",
+              "schema.secret",
+              "schema.string",
+              "schema.uniqueBy",
+              "schema.map",
+              "schema.variant",
+              "schema.localRef",
+              "schema.multipleOf",
+              "schema.uniqueItems",
+              "values.initial",
+              "values.suggested",
+              "values.suggested-from"
+            ]
+          }
+        }
+      }
+    },
+    "fieldDescription": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "schemaPointer",
+        "kind",
+        "nullable",
+        "required",
+        "sensitivity",
+        "detail",
+        "policyDeclared",
+        "conditionalActivation",
+        "conditionalRequirement",
+        "hasChoices"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+        },
+        "schemaPointer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^(?:/(?:[^~/\\x00-\\x1F\\x7F]|~[01])*)\u002B$"
+        },
+        "kind": {
+          "enum": [
+            "string",
+            "boolean",
+            "integer",
+            "number",
+            "object",
+            "array"
+          ]
+        },
+        "nullable": {
+          "type": "boolean"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "sensitivity": {
+          "enum": [
+            "public",
+            "sensitive",
+            "secret"
+          ]
+        },
+        "detail": {
+          "enum": [
+            "basic",
+            "standard",
+            "advanced"
+          ]
+        },
+        "policyDeclared": {
+          "type": "boolean"
+        },
+        "acquisition": {
+          "enum": [
+            "local",
+            "existing",
+            "issuer"
+          ]
+        },
+        "conditionalActivation": {
+          "type": "boolean"
+        },
+        "conditionalRequirement": {
+          "type": "boolean"
+        },
+        "hasChoices": {
+          "type": "boolean"
+        }
+      }
+    },
+    "definitionDescription": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "familyId",
+        "revision",
+        "definitionDigest",
+        "applicationId",
+        "profile",
+        "requiredCapabilities",
+        "artifactIds",
+        "locales",
+        "applicationVersions",
+        "entryPoints",
+        "offset",
+        "limit",
+        "total",
+        "retainedCount",
+        "returnedCount",
+        "terminal",
+        "nextOffset",
+        "digest",
+        "fields"
+      ],
+      "properties": {
+        "familyId": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "definitionDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "applicationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\x00-\\x1F\\x7F]\u002B$"
+        },
+        "profile": {
+          "const": "bounded-v0.0.1"
+        },
+        "requiredCapabilities": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "deployment.scope",
+              "environment.docker-run",
+              "environment.compose",
+              "predicate.item",
+              "predicate.root",
+              "presentation.next-actions",
+              "projection.copy",
+              "projection.index",
+              "projection.list",
+              "projection.literal",
+              "projection.object",
+              "projection.omit",
+              "projection.repeat",
+              "relationship.presence",
+              "schema.array",
+              "schema.boolean",
+              "schema.bounds",
+              "schema.const",
+              "schema.enum",
+              "schema.integer",
+              "schema.notBlank",
+              "schema.nullable",
+              "schema.number",
+              "schema.object",
+              "schema.secret",
+              "schema.string",
+              "schema.uniqueBy",
+              "schema.map",
+              "schema.variant",
+              "schema.localRef",
+              "schema.multipleOf",
+              "schema.uniqueItems",
+              "values.initial",
+              "values.suggested",
+              "values.suggested-from"
+            ]
+          }
+        },
+        "artifactIds": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._-]\u002B$"
+          }
+        },
+        "locales": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[^\\x00-\\x1F\\x7F]\u002B$"
+          }
+        },
+        "applicationVersions": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[^\\x00-\\x1F\\x7F]\u002B$"
+          }
+        },
+        "entryPoints": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[^\\x00-\\x1F\\x7F]\u002B$"
+          }
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "retainedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "returnedCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16
+        },
+        "terminal": {
+          "type": "boolean"
+        },
+        "nextOffset": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "fields": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/fieldDescription"
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "terminal": {
+              "const": true
+            },
+            "nextOffset": {
+              "type": "null"
             }
           }
         },
         {
           "properties": {
-            "kind": {
-              "const": "command"
+            "terminal": {
+              "const": false
             },
-            "id": {
-              "const": "urn:islamu:configurator:cli:v0.0.1"
+            "nextOffset": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "returnedCount": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16
             }
           }
         }
@@ -1567,6 +1993,7 @@
             "compiled-definition",
             "logical-id-map",
             "answer-schema",
+            "schema-document",
             "encrypted-profile",
             "comparison-profile"
           ]
@@ -1624,6 +2051,279 @@
             "failed",
             "unknown"
           ]
+        },
+        "completeness": {
+          "enum": [
+            "complete",
+            "deferred"
+          ]
+        },
+        "deferredFieldCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        }
+      }
+    },
+    "revisionChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "impact",
+        "category",
+        "schemaPath"
+      ],
+      "properties": {
+        "impact": {
+          "enum": [
+            "behavioral",
+            "display-only"
+          ]
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]\u002B)*$"
+        },
+        "schemaPath": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 256,
+          "pattern": "^(?:/(?:[^~/\\x00-\\x1F\\x7F]|~[01])*)*$"
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[^\\x00-\\x1F\\x7F]\u002B$"
+        }
+      }
+    },
+    "revisionDiff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "baselineFamilyId",
+        "baselineRevision",
+        "baselineDigest",
+        "candidateFamilyId",
+        "candidateRevision",
+        "candidateDigest",
+        "sameFamily",
+        "canonicalIdentical",
+        "hasBehavioralChanges",
+        "hasDisplayOnlyChanges",
+        "behavioralCount",
+        "displayOnlyCount",
+        "totalChanges",
+        "truncated",
+        "changes"
+      ],
+      "properties": {
+        "baselineFamilyId": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "baselineRevision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "baselineDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidateFamilyId": {
+          "type": "string",
+          "minLength": 36,
+          "maxLength": 36,
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "candidateRevision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "candidateDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sameFamily": {
+          "type": "boolean"
+        },
+        "canonicalIdentical": {
+          "type": "boolean"
+        },
+        "hasBehavioralChanges": {
+          "type": "boolean"
+        },
+        "hasDisplayOnlyChanges": {
+          "type": "boolean"
+        },
+        "behavioralCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "displayOnlyCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "totalChanges": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "changes": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/revisionChange"
+          }
+        }
+      }
+    },
+    "fixtureCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caseId",
+        "kind",
+        "outcome",
+        "expectedRefusal",
+        "observedDiagnosticCodes",
+        "observedArtifactIds"
+      ],
+      "properties": {
+        "caseId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._-]\u002B$"
+        },
+        "kind": {
+          "enum": [
+            "prepare",
+            "import"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "passed",
+            "passed-expected-refusal",
+            "failed"
+          ]
+        },
+        "expectedRefusal": {
+          "type": "boolean"
+        },
+        "failureCode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]\u002B)*$"
+        },
+        "observedDiagnosticCodes": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]\u002B)*$"
+          }
+        },
+        "observedArtifactIds": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z][A-Za-z0-9._-]*$"
+          }
+        }
+      }
+    },
+    "fixtureReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "definitionDigest",
+        "fixtureDigest",
+        "engineVersion",
+        "scope",
+        "claimBoundary",
+        "passed",
+        "totalCases",
+        "passedCases",
+        "failedCases",
+        "expectedRefusalCases",
+        "cases"
+      ],
+      "properties": {
+        "definitionDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "fixtureDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "engineVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[^\\x00-\\x1F\\x7F]\u002B$"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]\u002B)*$"
+        },
+        "claimBoundary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\x00-\\x1F\\x7F]\u002B$"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "totalCases": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "passedCases": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "failedCases": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "expectedRefusalCases": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64
+        },
+        "cases": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/fixtureCase"
+          }
         }
       }
     },
@@ -2335,7 +3035,7 @@
     {
       "if": {
         "required": [
-          "schema"
+          "definitionDescription"
         ]
       },
       "then": {
@@ -2346,7 +3046,7 @@
                 "const": "definition"
               },
               "operation": {
-                "const": "schema"
+                "const": "describe"
               }
             }
           },
@@ -2370,7 +3070,149 @@
                 "const": "definition"
               },
               "operation": {
+                "const": "describe"
+              }
+            }
+          },
+          "exitCode": {
+            "const": 0
+          }
+        },
+        "not": {
+          "required": [
+            "help"
+          ]
+        }
+      },
+      "then": {
+        "required": [
+          "definitionDescription"
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "revisionDiff"
+        ]
+      },
+      "then": {
+        "properties": {
+          "invocation": {
+            "properties": {
+              "commandFamily": {
+                "const": "definition"
+              },
+              "operation": {
+                "const": "diff"
+              }
+            }
+          },
+          "exitCode": {
+            "const": 0
+          }
+        },
+        "not": {
+          "required": [
+            "help"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "invocation": {
+            "properties": {
+              "commandFamily": {
+                "const": "definition"
+              },
+              "operation": {
+                "const": "diff"
+              }
+            }
+          },
+          "exitCode": {
+            "const": 0
+          }
+        },
+        "not": {
+          "required": [
+            "help"
+          ]
+        }
+      },
+      "then": {
+        "required": [
+          "revisionDiff"
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "fixtureReport"
+        ]
+      },
+      "then": {
+        "properties": {
+          "invocation": {
+            "properties": {
+              "commandFamily": {
+                "const": "definition"
+              },
+              "operation": {
+                "const": "test"
+              }
+            }
+          }
+        },
+        "not": {
+          "required": [
+            "help"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "schema"
+        ]
+      },
+      "then": {
+        "properties": {
+          "invocation": {
+            "properties": {
+              "commandFamily": {
                 "const": "schema"
+              },
+              "operation": {
+                "const": "export"
+              }
+            }
+          },
+          "exitCode": {
+            "const": 0
+          }
+        },
+        "not": {
+          "required": [
+            "help"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "invocation": {
+            "properties": {
+              "commandFamily": {
+                "const": "schema"
+              },
+              "operation": {
+                "const": "export"
               }
             }
           },
@@ -2387,6 +3229,64 @@
       "then": {
         "required": [
           "schema"
+        ]
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "schemaCatalog"
+        ]
+      },
+      "then": {
+        "properties": {
+          "invocation": {
+            "properties": {
+              "commandFamily": {
+                "const": "schema"
+              },
+              "operation": {
+                "const": "list"
+              }
+            }
+          },
+          "exitCode": {
+            "const": 0
+          }
+        },
+        "not": {
+          "required": [
+            "help"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "invocation": {
+            "properties": {
+              "commandFamily": {
+                "const": "schema"
+              },
+              "operation": {
+                "const": "list"
+              }
+            }
+          },
+          "exitCode": {
+            "const": 0
+          }
+        },
+        "not": {
+          "required": [
+            "help"
+          ]
+        }
+      },
+      "then": {
+        "required": [
+          "schemaCatalog"
         ]
       }
     },

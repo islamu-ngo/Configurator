@@ -66,21 +66,34 @@ internal static class CliPackageValidation
             await Cohort("doctor", async () =>
             {
                 var result = await ExecuteAsync(directory, executable, ["doctor", "--machine"]);
-                using JsonDocument document = Envelope(result, schema.RootElement, "doctor", "doctor", OperatingSystem.IsLinux() ? 0 : 4);
+                using JsonDocument document = Envelope(result, schema.RootElement, "doctor", "doctor", 0);
                 JsonElement response = document.RootElement;
+                JsonElement info = response.GetProperty("info");
+                Require(info.GetProperty("protectedWriteAvailable").GetBoolean() == OperatingSystem.IsLinux());
+                Require(info.GetProperty("schemas").EnumerateArray().Select(item => item.GetProperty("kind").GetString())
+                    .ToHashSet(StringComparer.Ordinal).SetEquals(["answers", "authoring", "command", "fixtures", "runtime", "store-curation"]));
+                Require(response.GetProperty("artifacts").GetArrayLength() == 1);
+                JsonElement report = response.GetProperty("artifacts")[0];
+                Require(report.GetProperty("kind").GetString() == "doctor-report");
+                Require(report.GetProperty("sensitivity").GetString() == "public");
+                Require(report.GetProperty("digest").GetString() == Hash(Encoding.UTF8.GetBytes(info.GetRawText())));
+                Require(report.GetProperty("writeStatus").GetString() == "none");
                 if (OperatingSystem.IsLinux())
                 {
-                    Require(response.GetProperty("artifacts").GetArrayLength() == 1);
-                    JsonElement report = response.GetProperty("artifacts")[0];
-                    Require(report.GetProperty("kind").GetString() == "doctor-report");
-                    Require(report.GetProperty("sensitivity").GetString() == "public");
-                    Require(report.GetProperty("digest").GetString() == Hash(schemaBytes));
-                    Require(report.GetProperty("writeStatus").GetString() == "none");
+                    Require(response.GetProperty("diagnosticsTotal").GetInt32() == 0);
                 }
                 else
                 {
-                    Require(response.GetProperty("artifacts").GetArrayLength() == 0);
                     Require(response.GetProperty("diagnostics").EnumerateArray()
+                        .Any(item => item.GetProperty("code").GetString() == "protected-writer-unavailable"));
+                }
+
+                var required = await ExecuteAsync(directory, executable, ["doctor", "--require", "protected-write", "--machine"]);
+                using JsonDocument requiredDoc = Envelope(required, schema.RootElement, "doctor", "doctor", OperatingSystem.IsLinux() ? 0 : 4);
+                if (!OperatingSystem.IsLinux())
+                {
+                    Require(requiredDoc.RootElement.GetProperty("artifacts").GetArrayLength() == 0);
+                    Require(requiredDoc.RootElement.GetProperty("diagnostics").EnumerateArray()
                         .Any(item => item.GetProperty("code").GetString() == "protected-writer-unavailable"));
                 }
             });
@@ -92,7 +105,7 @@ internal static class CliPackageValidation
                 Require(help.GetProperty("scope").GetString() == "root");
                 Require(help.GetProperty("commandPath").GetArrayLength() == 0);
                 Require(help.GetProperty("commands").EnumerateArray().Select(item => item.GetString())
-                    .ToHashSet(StringComparer.Ordinal).SetEquals(["artifact", "catalogue", "definition", "doctor", "env", "secret", "profile"]));
+                    .ToHashSet(StringComparer.Ordinal).SetEquals(["artifact", "catalogue", "definition", "doctor", "info", "profile", "schema", "secret"]));
                 Require(document.RootElement.GetProperty("artifacts").GetArrayLength() == 0);
             });
 
@@ -296,8 +309,15 @@ internal static class CliPackageValidation
             Require(root.TryGetProperty("help", out _) == (operation == "help"));
             Require(root.GetProperty("diagnosticsTotal").GetInt32() == root.GetProperty("diagnostics").GetArrayLength()
                 + root.GetProperty("diagnosticsOmitted").GetInt32());
-            if (expectedExit == 0 && family != "profile") Require(root.GetProperty("diagnosticsTotal").GetInt32() == 0);
-            else if (operation != "compare") Require(root.GetProperty("diagnosticsTotal").GetInt32() > 0);
+            if (expectedExit == 0)
+            {
+                if (family is not "profile" and not "doctor")
+                    Require(root.GetProperty("diagnosticsTotal").GetInt32() == 0);
+            }
+            else if (operation != "compare")
+            {
+                Require(root.GetProperty("diagnosticsTotal").GetInt32() > 0);
+            }
             if (root.TryGetProperty("assessment", out JsonElement assessment))
             {
                 Require(operation == "compare" && family == "artifact");

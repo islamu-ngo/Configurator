@@ -30,7 +30,7 @@ public sealed class CliParsingTests
         io.Files["token-fixture.yaml"] = Encoding.UTF8.GetBytes(CliFixture.Definition.Replace(
             "service.name", "SERVICE_TOKEN", StringComparison.Ordinal));
 
-        await Assert.That(await io.RunAsync("catalogue", "show", "--definition", "token-fixture.yaml",
+        await Assert.That(await io.RunAsync("catalogue", "describe", "--definition", "token-fixture.yaml",
             "--key", "SERVICE_TOKEN", "--dry-run", "--machine")).IsEqualTo(CliExitCode.Success);
         await Assert.That(io.MaximumRead).IsGreaterThan(0);
         await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
@@ -232,11 +232,11 @@ public sealed class CliParsingTests
     [Test]
     public async Task SchemaDiscoveryUsesClosedKindsWithoutFileAuthorityOrInputReads()
     {
-        foreach (string? kind in new string?[] { null, "authoring", "runtime", "answers", "command" })
+        foreach (string? kind in new string?[] { null, "authoring", "runtime", "answers", "command", "fixtures", "store-curation" })
         {
             var io = new CliFixture();
-            string[] arguments = kind is null ? ["definition", "schema", "--machine"]
-                : ["definition", "schema", "--kind", kind, "--machine"];
+            string[] arguments = kind is null ? ["schema", "export", "--machine"]
+                : ["schema", "export", "--kind", kind, "--machine"];
             await Assert.That(await io.RunAsync(arguments)).IsEqualTo(CliExitCode.Success);
             await Assert.That(io.MaximumRead).IsEqualTo(0);
             await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
@@ -246,16 +246,15 @@ public sealed class CliParsingTests
         }
         string[][] rejected =
         [
-            ["definition", "schema", "--kind", "capabilities", "--machine"],
-            ["definition", "schema", "--kind", "Authoring", "--machine"],
-            ["definition", "schema", "--kind", "--machine"],
-            ["definition", "schema", "--kind=runtime", "--kind", "answers", "--machine"],
-            ["definition", "schema", "--source", "synthetic-private-marker", "--machine"],
-            ["definition", "schema", "--output", "synthetic-private-marker", "--machine"],
-            ["definition", "schema", "--definition", "synthetic-private-marker", "--machine"],
-            ["definition", "schema", "--root", "synthetic-private-marker", "--machine"],
-            ["definition", "schema", "--against", "synthetic-private-marker", "--machine"],
-            ["definition", "schema", "--dry-run", "--machine"],
+            ["schema", "export", "--kind", "capabilities", "--machine"],
+            ["schema", "export", "--kind", "Authoring", "--machine"],
+            ["schema", "export", "--kind", "--machine"],
+            ["schema", "export", "--kind=runtime", "--kind", "answers", "--machine"],
+            ["schema", "export", "--source", "synthetic-private-marker", "--machine"],
+            ["schema", "export", "--output", "-", "--machine"],
+            ["schema", "export", "--definition", "synthetic-private-marker", "--machine"],
+            ["schema", "export", "--root", "synthetic-private-marker", "--machine"],
+            ["schema", "export", "--against", "synthetic-private-marker", "--machine"],
             ["definition", "lint", "--source", "synthetic-private-marker", "--kind", "authoring", "--machine"]
         ];
         foreach (string[] arguments in rejected) await AssertRejectedBeforeInput(arguments);

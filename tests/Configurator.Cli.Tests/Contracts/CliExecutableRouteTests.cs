@@ -9,30 +9,26 @@ public sealed class CliExecutableRouteTests
     // Literal public-contract cases. Registry enumeration below detects omissions only.
     private static readonly Route[] Routes =
     [
+        new("info", "", "", null, null, null),
+        new("schema list", "", "", null, null, null),
+        new("schema export", "--kind command", "", null, null, null),
         new("catalogue list", "--definition definition.json --output result.json", "definition output", "catalogue", "output", "written"),
-        new("catalogue show", "--definition definition.json --key service.name --output result.json", "definition key output", "catalogue", "output", "written"),
         new("catalogue describe", "--definition definition.json --key service.name --output result.json", "definition key output", "catalogue", "output", "written"),
-        new("env render", "--definition definition.json --artifact environment --input answers.json --output result.json", "definition artifact input output", "definition-artifact", "output", "written"),
-        new("env validate", "--definition definition.json --artifact environment --input answers.json", "definition artifact input", "definition-artifact", "input", "none"),
         new("artifact create", "--definition definition.json --artifact config --input answers.json --output result.json", "definition artifact input output", "definition-artifact", "output", "written"),
-        new("artifact open", "--definition definition.json --artifact config --input answers.json", "definition artifact input", "definition-artifact", "input", "none"),
         new("artifact validate", "--definition definition.json --artifact config --input answers.json", "definition artifact input", "definition-artifact", "input", "none"),
-        new("artifact format", "--definition definition.json --artifact config --input existing.json --answers answers.json --output result.json", "definition artifact input output", "definition-artifact", "output", "written"),
         new("artifact diff", "--definition definition.json --artifact config --input answers.json --baseline baseline.json", "definition artifact input baseline", null, null, null),
         new("artifact coverage", "--definition definition.json --artifact config --input answers.json", "definition artifact input", null, null, null),
-        new("artifact export", "--definition definition.json --artifact config --input answers.json --output result.json", "definition artifact input output", "definition-artifact", "output", "written"),
         new("artifact import", "--definition definition.json --artifact request --input answers.json --output result.json --expected-revision absent --revision-field expectedRevision", "definition artifact input output expected-revision revision-field", "definition-artifact", "output", "written"),
         new("artifact check-existing", "--definition definition.json --artifact config --input existing.json", "definition artifact input", null, null, null),
         new("artifact compare", "--definition definition.json --artifact config --input existing.json", "definition artifact input", null, null, null),
         new("artifact prefill", "--definition definition.json --artifact config --input existing.json --output result.json", "definition artifact input output", "answer-snapshot", "output", "written"),
         new("artifact bundle-check", "--definition definition.json --artifact config --artifact yaml --input answers.json", "definition artifact input", "definition-artifact", "none", "none", 2),
         new("artifact bundle-create", "--definition definition.json --artifact config --artifact yaml --input answers.json --output bundle", "definition artifact input output", "definition-artifact", "output", "written", 2),
-        new("artifact preview", "--definition definition.json --artifact config --input answers.json --output result.json", "definition artifact input output", "definition-artifact", "output", "written"),
         new("doctor", "", "", "doctor-report", "none", "none"),
         new("definition init", "--root {root} --project-id example.route --name Route --application-version 1", "project-id name application-version", "authoring-source", "output", "written"),
         new("definition check", "--source {source}", "", "compiled-definition", "input", "none"),
         new("definition lint", "--source {source} --detail diagnostics", "", "compiled-definition", "input", "none"),
-        new("definition schema", "--kind command", "", null, null, null),
+        new("definition describe", "--source {source}", "", null, null, null),
         new("definition build", "--source {source}", "", "compiled-definition", "output", "written"),
         new("definition revise", "--source {source} --output {candidate}", "", "authoring-source", "output", "written"),
         new("secret generate", "--definition definition.json --pointer /password --input answers.json --output result.json", "definition pointer input output", "answer-snapshot", "output", "written"),
@@ -45,6 +41,7 @@ public sealed class CliExecutableRouteTests
     private static readonly string[] DedicatedRoutes =
     [
         "definition inspect", // DefinitionWorkflowInspectionTests
+        "definition diff", "definition test", // CliDefinitionTests & CliInstalledAdoptionTests
         "profile adopt", "profile diff", "profile inspect", "profile list",
         "profile recovery-check", "profile save", "profile slots", "profile unlock",
         "profile upgrade-plan" // CliProfileCommandTests
@@ -54,7 +51,7 @@ public sealed class CliExecutableRouteTests
     public async Task EveryExecutableRegistrationHasAnIndependentBehavioralCase()
     {
         string[] actual = CliCommandRegistry.Families.SelectMany(family => family.Operations.Select(operation =>
-            family.Name == "doctor" ? "doctor" : family.Name + " " + operation.Name)).Order(StringComparer.Ordinal).ToArray();
+            family.Name is "doctor" or "info" ? family.Name : family.Name + " " + operation.Name)).Order(StringComparer.Ordinal).ToArray();
         await Assert.That(actual).IsEquivalentTo(Routes.Select(route => route.Path)
             .Concat(DedicatedRoutes).Order(StringComparer.Ordinal).ToArray());
     }
@@ -85,10 +82,6 @@ public sealed class CliExecutableRouteTests
     [Arguments(22)]
     [Arguments(23)]
     [Arguments(24)]
-    [Arguments(25)]
-    [Arguments(26)]
-    [Arguments(27)]
-    [Arguments(28)]
     public async Task ExecutableRouteHonorsIndependentInputEffectAndReceiptContract(int index)
     {
         Route route = Routes[index];
@@ -106,7 +99,7 @@ public sealed class CliExecutableRouteTests
             {
                 JsonObject definition = JsonNode.Parse(CliFixture.Definition)!.AsObject();
                 definition["configuration"]!["properties"]!["password"] = JsonNode.Parse(
-                    index == 26
+                    route.Path == "secret generate"
                         ? """{"type":"string","x-configurator":{"sensitivity":"secret","secret":{"kind":"password","acquisition":"local","generation":{"length":32}}}}"""
                         : """{"type":"string","x-configurator":{"sensitivity":"secret","secret":{"kind":"digest","acquisition":"local","algorithm":"SHA256","encoding":"hex","generation":{"input":"entered"}}}}""");
                 fixture.Files["definition.json"] = Encoding.UTF8.GetBytes(definition.ToJsonString());
@@ -144,8 +137,12 @@ public sealed class CliExecutableRouteTests
                         .IsEqualTo(route.Path.StartsWith("catalogue ", StringComparison.Ordinal)
                             || route.Path.StartsWith("definition ", StringComparison.Ordinal) || route.Path == "doctor" ? "public" : "restricted");
                 }
-                if (route.Path == "definition schema")
+                if (route.Path == "schema export")
                     await Assert.That(root.GetProperty("schema").GetProperty("id").GetString()).IsEqualTo("urn:islamu:configurator:cli:v0.0.1");
+                if (route.Path == "schema list")
+                    await Assert.That(root.GetProperty("schemaCatalog").GetProperty("schemas").GetArrayLength()).IsEqualTo(6);
+                if (route.Path == "definition describe")
+                    await Assert.That(root.GetProperty("definitionDescription").GetProperty("fields").GetArrayLength()).IsGreaterThan(0);
                 if (route.Path == "artifact compare")
                 {
                     await Assert.That(root.GetProperty("assessment").GetProperty("compatibility").GetString()).IsEqualTo("compatible");
@@ -162,7 +159,7 @@ public sealed class CliExecutableRouteTests
                 ? new[] { Path.Combine("bundle", "service.json"), Path.Combine("bundle", "service.yaml") }
                 : route.Status == "written" && (!route.Path.StartsWith("definition ", StringComparison.Ordinal)
                     || route.Path == "definition answer-schema") ? ["result.json"] : []);
-            if (route.Path is "artifact create" or "artifact export" or "artifact preview" or "artifact format")
+            if (route.Path == "artifact create")
                 await Assert.That(Encoding.UTF8.GetString(fixture.Files["result.json"])).IsEqualTo("""{"enabled":true,"name":"private-answer-marker"}""");
             if (route.Path == "artifact import")
                 await Assert.That(Encoding.UTF8.GetString(fixture.Files["result.json"])).IsEqualTo("""{"expectedRevision":"absent","name":"private-answer-marker"}""");

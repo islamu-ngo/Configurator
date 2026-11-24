@@ -26,9 +26,28 @@ internal static class CliArgumentPreflight
 
         string family = "cli";
         string operation = "help";
+        bool versionFlag = tokens.Contains("--version", StringComparer.Ordinal);
         bool help = arguments.Length == 0 || tokens.Any(token => token is "--help" or "-h");
         IReadOnlyList<CliOptionDescriptor>? options = null;
         int optionStart = 0;
+
+        if (versionFlag)
+        {
+            if (machine && text)
+                return Failure(machine, "mode-conflict", "cli", "version");
+            if (arguments.Any(argument => argument is not ("--version" or "--machine" or "--text")))
+                return Failure(machine, "command-unknown", "cli", "version");
+            if (arguments.Count(argument => argument == "--version") > 1
+                || arguments.Count(argument => argument == "--machine") > 1
+                || arguments.Count(argument => argument == "--text") > 1)
+                return Failure(machine, "option-duplicate", "cli", "version");
+            CliCommand versionCommand = new("cli", "version", machine, false, false, null, null, null, null, null, null)
+            {
+                Version = true
+            };
+            return new(versionCommand, [], true, null);
+        }
+
         if (arguments.Length > 0 && !arguments[0].StartsWith('-'))
         {
             family = arguments[0];
@@ -37,9 +56,9 @@ internal static class CliArgumentPreflight
                 return Failure(machine, "command-unknown");
 
             optionStart = 1;
-            if (family == "doctor")
+            if (CliCommandRegistry.IsSingleOperationRootFamily(family))
             {
-                operation = "doctor";
+                operation = family;
                 options = branch.Operations[0].Options;
             }
             else if (arguments.Length > 1 && !arguments[1].StartsWith('-'))
@@ -69,7 +88,7 @@ internal static class CliArgumentPreflight
         {
             string name = token.Split('=', 2)[0];
             if (name == "-h") name = "--help";
-            bool singleton = name is "--machine" or "--text" or "--help"
+            bool singleton = name is "--machine" or "--text" or "--help" or "--version"
                 || options?.Any(option => option.Name == name && !option.Repeatable) == true;
             if (singleton && !seen.Add(name))
                 return Failure(machine, "option-duplicate", family, operation);
@@ -105,7 +124,7 @@ internal static class CliArgumentPreflight
             else if (!argument.StartsWith('-')) route.Add(argument);
             else break;
             index++;
-            if (route.Count == 2 || route is ["doctor"]) break;
+            if (route.Count == 2 || route is ["doctor"] or ["info"]) break;
         }
         // Keep modes ahead of an option terminator and out of option values.
         return modes.Count == 0 ? arguments : [.. route, .. modes, .. arguments.Skip(index)];

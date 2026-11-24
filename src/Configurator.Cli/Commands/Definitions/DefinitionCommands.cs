@@ -11,7 +11,9 @@ internal static class DefinitionCommands
         CliCommandRegistry.Operation<DefinitionSourceSettings>("check"),
         CliCommandRegistry.Operation<DefinitionLintSettings>("lint"),
         CliCommandRegistry.Operation<DefinitionInspectSettings>("inspect"),
-        CliCommandRegistry.Operation<DefinitionSchemaSettings>("schema"),
+        CliCommandRegistry.Operation<DefinitionDescribeSettings>("describe"),
+        CliCommandRegistry.Operation<DefinitionDiffSettings>("diff"),
+        CliCommandRegistry.Operation<DefinitionTestSettings>("test"),
         CliCommandRegistry.Operation<DefinitionAnswerSchemaSettings>("answer-schema"),
         CliCommandRegistry.Operation<DefinitionBuildSettings>("build"),
         CliCommandRegistry.Operation<DefinitionCandidateSettings>("revise"));

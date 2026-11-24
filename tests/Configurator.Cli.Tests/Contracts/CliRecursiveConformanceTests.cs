@@ -57,8 +57,7 @@ public sealed class CliRecursiveConformanceTests
             await File.WriteAllBytesAsync(answersPath, answers);
             var expectedFiles = new List<string> { definitionPath, answersPath };
 
-            // Preview is protected complete output, not a secret-deferred draft command.
-            foreach (string operation in new[] { "validate", "create", "preview" })
+            foreach (string operation in new[] { "validate", "create" })
             {
                 string outputPath = Path.Combine(directory, operation + ".json");
                 bool write = operation != "validate";

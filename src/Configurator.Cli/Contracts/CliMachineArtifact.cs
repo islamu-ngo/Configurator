@@ -12,5 +12,9 @@ public sealed record CliMachineArtifact(string Kind, string MediaType,
         && Kind is not ("authoring-source" or "compiled-definition" or "logical-id-map") ? "not-attempted" : "not-applicable";
     public string Verification { get; init; } = PathIntent == "output"
         && Kind is not ("authoring-source" or "compiled-definition" or "logical-id-map") ? "not-attempted" : "not-applicable";
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Completeness { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? DeferredFieldCount { get; init; }
 }
 

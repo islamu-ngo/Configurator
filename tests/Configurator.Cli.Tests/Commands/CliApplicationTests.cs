@@ -115,12 +115,12 @@ public sealed class CliApplicationTests
     [Test]
     public async Task GenericOperationsPrepareCanonicalTargetArtifactsWithoutEvent()
     {
-        foreach (string operation in new[] { "create", "open", "validate", "format", "diff", "coverage", "export", "preview" })
+        foreach (string operation in new[] { "create", "validate", "diff", "coverage" })
         {
             var io = new CliFixture();
             string[] options = operation switch
             {
-                "create" or "format" or "export" or "preview" => ["--output", "prepared.json"],
+                "create" => ["--output", "prepared.json"],
                 "diff" => ["--baseline", "baseline.json"],
                 _ => []
             };
@@ -150,7 +150,7 @@ public sealed class CliApplicationTests
     public async Task CatalogueExposesOnlyStructuralDefinitionMetadata()
     {
         var io = new CliFixture();
-        foreach (string operation in new[] { "list", "show", "describe" })
+        foreach (string operation in new[] { "list", "describe" })
         {
             string[] key = operation == "list" ? [] : ["--key", "service.name"];
             await Assert.That(await io.RunAsync(["catalogue", operation, "--definition", "definition.json",
@@ -164,7 +164,7 @@ public sealed class CliApplicationTests
             if (operation == "describe")
                 await Assert.That(field.GetProperty("conditionalActivation").GetBoolean()).IsFalse();
         }
-        await Assert.That(await io.RunAsync("catalogue", "show", "--definition", "definition.json",
+        await Assert.That(await io.RunAsync("catalogue", "describe", "--definition", "definition.json",
             "--key", "missing", "--dry-run", "--machine")).IsEqualTo(CliExitCode.Validation);
     }
 
@@ -172,27 +172,27 @@ public sealed class CliApplicationTests
     public async Task EnvironmentUsesSelectedDefinitionDotenvProjectionOnly()
     {
         var io = new CliFixture();
-        await Assert.That(await io.RunAsync("env", "render", "--definition", "definition.json", "--artifact", "environment",
-            "--input", "answers.json", "--output", "environment.env", "--machine")).IsEqualTo(CliExitCode.Success);
+        await Assert.That(await io.RunAsync("artifact", "create", "--definition", "definition.json", "--artifact", "environment",
+            "--format", "dotenv", "--input", "answers.json", "--output", "environment.env", "--machine")).IsEqualTo(CliExitCode.Success);
         await Assert.That(Encoding.UTF8.GetString(io.Files["environment.env"])).Contains("SERVICE_NAME=private-answer-marker");
-        await Assert.That(await io.RunAsync("env", "validate", "--definition", "definition.json", "--artifact", "environment",
-            "--input", "answers.json", "--machine")).IsEqualTo(CliExitCode.Success);
-        await Assert.That(await io.RunAsync("env", "validate", "--definition", "definition.json", "--artifact", "config",
-            "--input", "answers.json", "--machine")).IsEqualTo(CliExitCode.Usage);
+        await Assert.That(await io.RunAsync("artifact", "validate", "--definition", "definition.json", "--artifact", "environment",
+            "--format", "dotenv", "--input", "answers.json", "--machine")).IsEqualTo(CliExitCode.Success);
+        await Assert.That(await io.RunAsync("artifact", "validate", "--definition", "definition.json", "--artifact", "config",
+            "--format", "dotenv", "--input", "answers.json", "--machine")).IsEqualTo(CliExitCode.Usage);
     }
 
     [Test]
     public async Task FormatsComeFromDefinitionAndMarkdownNeverEntersStdout()
     {
         var io = new CliFixture();
-        await Assert.That(await io.ArtifactAsync("export", "yaml", "--output", "out.yaml", "--format", "yaml")).IsEqualTo(CliExitCode.Success);
+        await Assert.That(await io.ArtifactAsync("create", "yaml", "--output", "out.yaml", "--format", "yaml")).IsEqualTo(CliExitCode.Success);
         await Assert.That(Encoding.UTF8.GetString(io.Files["out.yaml"])).Contains("private-answer-marker");
-        await Assert.That(await io.ArtifactAsync("format", "config", "--format", "yaml", "--dry-run")).IsEqualTo(CliExitCode.Usage);
-        await Assert.That(await io.ArtifactAsync("preview", "markdown", "--output", "draft.md")).IsEqualTo(CliExitCode.Success);
+        await Assert.That(await io.ArtifactAsync("create", "config", "--format", "yaml", "--dry-run")).IsEqualTo(CliExitCode.Usage);
+        await Assert.That(await io.ArtifactAsync("create", "markdown", "--output", "draft.md")).IsEqualTo(CliExitCode.Success);
         await Assert.That(Encoding.UTF8.GetString(io.Files["draft.md"])).Contains("Draft");
         await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).DoesNotContain("Draft");
-        await Assert.That(await io.ArtifactAsync("preview", "markdown", "--output", "-", "--text")).IsEqualTo(CliExitCode.Usage);
-        await Assert.That(await io.RunAsync("artifact", "preview", "--definition", "definition.json", "--artifact", "markdown",
+        await Assert.That(await io.ArtifactAsync("create", "markdown", "--output", "-", "--text")).IsEqualTo(CliExitCode.Usage);
+        await Assert.That(await io.RunAsync("artifact", "create", "--definition", "definition.json", "--artifact", "markdown",
             "--input", "answers.json", "--output", "-", "--dry-run")).IsEqualTo(CliExitCode.Blocked);
     }
 

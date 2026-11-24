@@ -32,16 +32,20 @@ public sealed class CliDefinitionTests
     [Arguments("runtime", "urn:islamu:configurator:setup-definition:v0.0.1")]
     [Arguments("answers", "urn:islamu:configurator:answers:v0.0.1")]
     [Arguments("command", "urn:islamu:configurator:cli:v0.0.1")]
+    [Arguments("fixtures", "urn:islamu:configurator:fixtures:v0.0.1")]
+    [Arguments("store-curation", "urn:islamu:configurator:store-curation:v0.0.1")]
     public async Task SchemaDiscoveryUsesOnlyBuiltInPublicMetadataWithoutFileAuthority(string kind, string id)
     {
         var io = new CliFixture();
-        await Assert.That(await io.RunAsync("definition", "schema", "--kind", kind, "--machine"))
+        await Assert.That(await io.RunAsync("schema", "export", "--kind", kind, "--machine"))
             .IsEqualTo(CliExitCode.Success);
         using JsonDocument output = JsonDocument.Parse(io.StandardOutput);
         await Assert.That(output.RootElement.GetProperty("schemaVersion").GetString()).IsEqualTo("islamu-configurator-command/v0.0.1");
         JsonElement schema = output.RootElement.GetProperty("schema");
         await Assert.That(schema.GetProperty("kind").GetString()).IsEqualTo(kind);
-        await Assert.That(schema.GetProperty("document").GetProperty("$id").GetString()).IsEqualTo(id);
+        await Assert.That(schema.GetProperty("id").GetString()).IsEqualTo(id);
+        if (schema.GetProperty("document").TryGetProperty("$id", out JsonElement documentId))
+            await Assert.That(documentId.GetString()).IsEqualTo(id);
         await Assert.That(schema.GetProperty("authoringContractVersion").GetString()).IsEqualTo("0.0.1");
         await Assert.That(schema.GetProperty("runtimeSchemaVersion").GetString()).IsEqualTo("0.0.1");
         await Assert.That(schema.GetProperty("answerContractVersion").GetString()).IsEqualTo("0.0.1");
@@ -757,4 +761,285 @@ public sealed class CliDefinitionTests
     private static Task<CliExitCode> InitializeAsync(CliFixture io, DefinitionTestDirectory files, params string[] extra) =>
         io.RunAsync(["definition", "init", "--root", files.Root, "--project-id", "example.service", "--name", "Example Service",
             "--application-version", "1.0.0", "--machine", .. extra]);
+
+    [Test]
+    public async Task DefinitionDiffSeparatesBehavioralAndDisplayOnlyChanges()
+    {
+        using var files = new DefinitionTestDirectory();
+        var io = new CliFixture { AuthoringFiles = new PublicDefinitionFiles() };
+        string baseline = files.Path("base.json");
+        string displayCandidate = files.Path("display.json");
+        string behavioralCandidate = files.Path("behavioral.json");
+
+        string baseSource = """
+        {
+          "$schema": "urn:islamu:configurator:authoring:v0.0.1",
+          "identity": {
+            "familyId": "77777777-7777-4777-8777-777777777777",
+            "revision": 1
+          },
+          "project": {
+            "id": "example.diff",
+            "name": "Diff Service"
+          },
+          "applicationVersions": ["1.0.0"],
+          "configuration": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["endpoint"],
+            "properties": {
+              "endpoint": {
+                "type": "string",
+                "title": "Endpoint",
+                "description": "Original endpoint help",
+                "minLength": 4
+              }
+            }
+          },
+          "outputs": {
+            "config.json": {
+              "id": "config",
+              "format": "json",
+              "targetUpdateMode": "replace",
+              "restartRequirement": "process"
+            }
+          }
+        }
+        """;
+        File.WriteAllText(baseline, baseSource);
+        File.WriteAllText(displayCandidate, baseSource.Replace("Original endpoint help", "Clarified endpoint help", StringComparison.Ordinal));
+        File.WriteAllText(behavioralCandidate, baseSource.Replace("\"minLength\": 4", "\"minLength\": 8, \"x-configurator\": { \"sensitivity\": \"secret\" }", StringComparison.Ordinal));
+
+        await Assert.That(await io.RunAsync("definition", "diff", "--against", baseline, "--source", displayCandidate, "--machine"))
+            .IsEqualTo(CliExitCode.Success);
+        await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        using (JsonDocument displayDoc = JsonDocument.Parse(io.StandardOutput))
+        {
+            JsonElement diff = displayDoc.RootElement.GetProperty("revisionDiff");
+            await Assert.That(diff.GetProperty("sameFamily").GetBoolean()).IsTrue();
+            await Assert.That(diff.GetProperty("hasBehavioralChanges").GetBoolean()).IsFalse();
+            await Assert.That(diff.GetProperty("hasDisplayOnlyChanges").GetBoolean()).IsTrue();
+            await Assert.That(diff.GetProperty("displayOnlyCount").GetInt32()).IsGreaterThan(0);
+        }
+
+        await Assert.That(await io.RunAsync("definition", "diff", "--against", baseline, "--source", behavioralCandidate, "--machine"))
+            .IsEqualTo(CliExitCode.Success);
+        await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        using (JsonDocument behavioralDoc = JsonDocument.Parse(io.StandardOutput))
+        {
+            JsonElement diff = behavioralDoc.RootElement.GetProperty("revisionDiff");
+            await Assert.That(diff.GetProperty("hasBehavioralChanges").GetBoolean()).IsTrue();
+            string[] categories = diff.GetProperty("changes").EnumerateArray()
+                .Select(c => c.GetProperty("category").GetString()!).ToArray();
+            await Assert.That(categories).Contains("sensitivity-changed");
+            await Assert.That(categories).Contains("constraint-changed");
+        }
+    }
+
+    [Test]
+    public async Task DefinitionTestExecutesFixturesAndRejectsExecutableOrEmptySuites()
+    {
+        using var files = new DefinitionTestDirectory();
+        var io = new CliFixture { AuthoringFiles = new PublicDefinitionFiles() };
+        string source = files.Path("configurator.json");
+        string passingFixtures = files.Path("fixtures-pass.json");
+        string failingFixtures = files.Path("fixtures-fail.json");
+        string executableFixtures = files.Path("fixtures-exec.json");
+        string emptyFixtures = files.Path("fixtures-empty.json");
+
+        File.WriteAllText(source, """
+        {
+          "$schema": "urn:islamu:configurator:authoring:v0.0.1",
+          "identity": {
+            "familyId": "88888888-8888-4888-8888-888888888888",
+            "revision": 1
+          },
+          "project": {
+            "id": "example.fixtures",
+            "name": "Fixture Service"
+          },
+          "applicationVersions": ["1.0.0"],
+          "configuration": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["service"],
+            "properties": {
+              "service": { "type": "string", "minLength": 3 }
+            }
+          },
+          "outputs": {
+            "config.json": {
+              "id": "config",
+              "format": "json",
+              "targetUpdateMode": "replace",
+              "restartRequirement": "process"
+            }
+          }
+        }
+        """);
+
+        File.WriteAllText(passingFixtures, """
+        {
+          "fixtureContractVersion": "0.0.1",
+          "cases": [
+            {
+              "id": "valid-config",
+              "kind": "prepare",
+              "answers": { "answerContractVersion": "0.0.1", "values": { "service": "alpha" }, "omitted": [] },
+              "expect": {
+                "ready": true,
+                "artifacts": [
+                  { "id": "config", "fileName": "config.json", "contentUtf8": "{\"service\":\"alpha\"}" }
+                ]
+              }
+            },
+            {
+              "id": "missing-required-refusal",
+              "kind": "prepare",
+              "answers": { "answerContractVersion": "0.0.1", "values": {}, "omitted": ["/service"] },
+              "expect": {
+                "ready": false,
+                "refusal": "value-required"
+              }
+            }
+          ]
+        }
+        """);
+
+        await Assert.That(await io.RunAsync("definition", "test", "--source", source, "--fixtures", passingFixtures, "--machine"))
+            .IsEqualTo(CliExitCode.Success);
+        await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        using (JsonDocument passDoc = JsonDocument.Parse(io.StandardOutput))
+        {
+            JsonElement report = passDoc.RootElement.GetProperty("fixtureReport");
+            await Assert.That(report.GetProperty("passed").GetBoolean()).IsTrue();
+            await Assert.That(report.GetProperty("scope").GetString()).IsEqualTo("synthetic-data-only-local-conformance");
+            await Assert.That(report.GetProperty("engineVersion").GetString()).IsEqualTo("0.0.1");
+            await Assert.That(report.GetProperty("totalCases").GetInt32()).IsEqualTo(2);
+            await Assert.That(report.GetProperty("expectedRefusalCases").GetInt32()).IsEqualTo(1);
+            await Assert.That(report.GetProperty("cases")[1].GetProperty("outcome").GetString()).IsEqualTo("passed-expected-refusal");
+        }
+
+        // Mismatched bytes fails with Validation exit code and explicit failureCode.
+        File.WriteAllText(failingFixtures, """
+        {
+          "fixtureContractVersion": "0.0.1",
+          "cases": [
+            {
+              "id": "mismatch",
+              "kind": "prepare",
+              "answers": { "answerContractVersion": "0.0.1", "values": { "service": "alpha" }, "omitted": [] },
+              "expect": {
+                "ready": true,
+                "artifacts": [
+                  { "id": "config", "contentUtf8": "{\"service\":\"beta\"}" }
+                ]
+              }
+            }
+          ]
+        }
+        """);
+        await Assert.That(await io.RunAsync("definition", "test", "--source", source, "--fixtures", failingFixtures, "--machine"))
+            .IsEqualTo(CliExitCode.Validation);
+        await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        using (JsonDocument failDoc = JsonDocument.Parse(io.StandardOutput))
+        {
+            await Assert.That(failDoc.RootElement.GetProperty("fixtureReport").GetProperty("passed").GetBoolean()).IsFalse();
+            await Assert.That(failDoc.RootElement.GetProperty("fixtureReport").GetProperty("failedCases").GetInt32()).IsEqualTo(1);
+        }
+
+        // Executable keyword rejected fail-closed with Data exit code.
+        File.WriteAllText(executableFixtures, """
+        {
+          "fixtureContractVersion": "0.0.1",
+          "command": "echo forbidden",
+          "cases": []
+        }
+        """);
+        await Assert.That(await io.RunAsync("definition", "test", "--source", source, "--fixtures", executableFixtures, "--machine"))
+            .IsEqualTo(CliExitCode.Data);
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).Contains("fixture-member");
+
+        // Vacuous 0-case suite rejected fail-closed with Data exit code.
+        File.WriteAllText(emptyFixtures, """
+        {
+          "fixtureContractVersion": "0.0.1",
+          "cases": []
+        }
+        """);
+        await Assert.That(await io.RunAsync("definition", "test", "--source", source, "--fixtures", emptyFixtures, "--machine"))
+            .IsEqualTo(CliExitCode.Data);
+        await Assert.That(Encoding.UTF8.GetString(io.StandardOutput)).Contains("fixture-empty");
+    }
+
+    [Test]
+    [Arguments("diff-missing-against", "against-required")]
+    [Arguments("diff-stdin-against", "stdin-not-supported")]
+    [Arguments("diff-stdin-source", "stdin-not-supported")]
+    [Arguments("diff-stdin-root", "stdin-not-supported")]
+    [Arguments("test-missing-fixtures", "fixtures-required")]
+    [Arguments("test-stdin-fixtures", "stdin-not-supported")]
+    [Arguments("test-stdin-source", "stdin-not-supported")]
+    [Arguments("test-stdin-root", "stdin-not-supported")]
+    public async Task DefinitionDiffAndTestRejectMissingRequiredAndStdinArgumentsBeforeIo(string scenario, string expectedCode)
+    {
+        var io = new CliFixture { AuthoringFiles = new PublicDefinitionFiles() };
+        string[] arguments = scenario switch
+        {
+            "diff-missing-against" => ["definition", "diff", "--machine"],
+            "diff-stdin-against" => ["definition", "diff", "--against", "-", "--machine"],
+            "diff-stdin-source" => ["definition", "diff", "--against", "base.json", "--source", "-", "--machine"],
+            "diff-stdin-root" => ["definition", "diff", "--against", "base.json", "--root", "-", "--machine"],
+            "test-missing-fixtures" => ["definition", "test", "--machine"],
+            "test-stdin-fixtures" => ["definition", "test", "--fixtures", "-", "--machine"],
+            "test-stdin-source" => ["definition", "test", "--fixtures", "fixtures.json", "--source", "-", "--machine"],
+            "test-stdin-root" => ["definition", "test", "--fixtures", "fixtures.json", "--root", "-", "--machine"],
+            _ => throw new InvalidOperationException("unknown-scenario")
+        };
+
+        await Assert.That(await io.RunAsync(arguments)).IsEqualTo(CliExitCode.Usage);
+        await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
+        using JsonDocument receipt = JsonDocument.Parse(io.StandardOutput);
+        await Assert.That(receipt.RootElement.GetProperty("diagnostics")[0].GetProperty("code").GetString())
+            .IsEqualTo(expectedCode);
+    }
+
+    [Test]
+    public async Task DefinitionDiffIdentifiesIdenticalCanonicalAndCrossFamilySources()
+    {
+        using var files = new DefinitionTestDirectory();
+        var io = new CliFixture { AuthoringFiles = new PublicDefinitionFiles() };
+        string first = files.Path("first.json");
+        string second = files.Path("second.json");
+
+        string template = """
+        {
+          "$schema": "urn:islamu:configurator:authoring:v0.0.1",
+          "identity": { "familyId": "{FAMILY}", "revision": 1 },
+          "project": { "id": "example.family", "name": "Family Service" },
+          "applicationVersions": ["1.0.0"],
+          "configuration": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": { "name": { "type": "string" } }
+          },
+          "outputs": { "config.json": { "id": "config", "format": "json" } }
+        }
+        """;
+        File.WriteAllText(first, template.Replace("{FAMILY}", "11111111-1111-4111-8111-111111111111", StringComparison.Ordinal));
+        File.WriteAllText(second, template.Replace("{FAMILY}", "22222222-2222-4222-8222-222222222222", StringComparison.Ordinal));
+
+        await Assert.That(await io.RunAsync("definition", "diff", "--against", first, "--source", first, "--machine")).IsEqualTo(CliExitCode.Success);
+        using (JsonDocument same = JsonDocument.Parse(io.StandardOutput))
+        {
+            await Assert.That(same.RootElement.GetProperty("revisionDiff").GetProperty("canonicalIdentical").GetBoolean()).IsTrue();
+            await Assert.That(same.RootElement.GetProperty("revisionDiff").GetProperty("totalChanges").GetInt32()).IsEqualTo(0);
+        }
+
+        await Assert.That(await io.RunAsync("definition", "diff", "--against", first, "--source", second, "--machine")).IsEqualTo(CliExitCode.Success);
+        using (JsonDocument cross = JsonDocument.Parse(io.StandardOutput))
+        {
+            await Assert.That(cross.RootElement.GetProperty("revisionDiff").GetProperty("sameFamily").GetBoolean()).IsFalse();
+        }
+    }
 }

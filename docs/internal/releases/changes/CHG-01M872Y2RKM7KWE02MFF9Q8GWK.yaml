@@ -1,0 +1,30 @@
+Change-Id: CHG-01M872Y2RKM7KWE02MFF9Q8GWK
+Title: "Establish canonical CLI grammar, discovery, schema export, and doctor requirements"
+Type: feat
+Scope: cli
+Summary: "Remove deprecated CLI routes (env, catalogue show, artifact open|format|export|preview, definition schema) without aliases; add --version, info, schema list|export, paged digest-fenced definition describe, doctor --require protected-write, and value-safe numeric parser coordinates."
+Group: cli-grammar
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Removed deprecated CLI routes (env, catalogue show, artifact open|format|export|preview, definition schema) without compatibility aliases. Migrate directly to artifact create|validate, catalogue describe, and schema list|export."
+  Security:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: documented
+    Detail: "Discovery and schema export execute without reading private answers or invoking external processes; doctor --require protected-write fails closed when native restricted writes are unavailable; malformed authoring diagnostics emit numeric line/column/byteOffset coordinates only without raw parser messages or canary input."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Adds --version, info, schema list|export, paged digest-fenced definition describe, doctor --require protected-write, and --format on artifact validate; regenerates schemas/configurator-cli.schema.json, docs/public/cli-command-reference.md, and eng/configurator/generated/frozen-contract-baseline.json."
+  OpenAPI:
+    Reference: docs/internal/CLI_CONTRACT.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/cli.md
+    Disposition: documented
+    Detail: "Operators and automation scripts using deprecated env, catalogue show, artifact open|format|export|preview, or definition schema commands must switch to canonical artifact, catalogue describe, and schema list|export commands."

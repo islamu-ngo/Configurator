@@ -3,8 +3,8 @@
 > **Audience:** Contributors | Maintainers
 > **Status:** Machine 0.0.1 implemented; package qualification pending
 > **Owner:** CLI
-> **Last Verified:** 2026-10-30
-> **Source Anchors:** `src/Configurator.Cli/CliApplication.cs`, `src/Configurator.Cli/Rendering/CliMachineOutput.cs`, `schemas/configurator-cli.schema.json`
+> **Last Verified:** 2026-11-24
+> **Source Anchors:** `src/Configurator.Cli/CliApplication.cs`, `src/Configurator.Cli/Commands/Discovery/CliDiscoveryHandlers.cs`, `src/Configurator.Cli/Rendering/CliMachineOutput.cs`, `schemas/configurator-cli.schema.json`
 
 The CLI references only Configurator.Core, Configurator.Artifacts and the admitted
 Spectre packages. The public [command usage](../public/cli.md) documents all
@@ -18,11 +18,14 @@ both using the [native reference commands](../../eng/knowledge/README.md#generat
 
 ### Independent executable route assurance
 
-`CliExecutableRouteTests` specifies all 28 executable routes with literal
+`CliExecutableRouteTests` specifies all canonical executable routes with literal
 arguments and expected artifact kind, sensitivity, path intent, write status and
-count. It invokes `CliApplication.RunAsync` through the real typed parser and
+count (with dedicated command tests covering `info`, `schema list|export`, `definition describe`,
+`doctor --require`, and `--version`). It invokes `CliApplication.RunAsync` through the real typed parser and
 capability dispatch. Registry enumeration detects missing cases only; it never
-supplies expected behavior. Each required option is omitted independently,
+supplies expected behavior. Removed legacy routes (`env`, `catalogue show`,
+`artifact open|format|export|preview`, `definition schema`) are absent from the
+closed registry and fail with `CliExitCode.Usage` (`64`) with zero alias fallback. Each required option is omitted independently,
 including all repeated artifact selections together. Unknown options, duplicate
 mode flags, conflicting modes and malformed definition/source documents must
 produce a bounded value-free failure envelope without additional publication.
@@ -542,16 +545,59 @@ characters; no private dynamic key or value is serialized.
 `definition lint` shares check admission and read-only continuation, then emits
 warnings for descriptive defaults, advisory formats and absent output update or
 restart advice. With `--quality`, it also emits bounded schema-located
-quality advisories (`DefinitionQualityLinter`, covering guidance, secret
-acquisition, duplicate choice explanations, format hints, and dense sections
-over 12 ungrouped required leaves) without inspecting answers. Adding `--strict`
+quality advisories (`DefinitionQualityLinter`, covering guidance including
+conditionally required leaves and unannotated enum choices, secret acquisition,
+duplicate choice explanations, format hints, and dense sections over 12
+ungrouped required leaves) without inspecting answers. Adding `--strict`
 exits with `CliExitCode.Data` (`65`) whenever one or more diagnostics remain.
-It caps its report at 4,096 entries including an explicit
-overflow error. `definition schema --kind authoring|runtime|answers|command`
-returns only built-in public metadata and canonical schema content, before any
-file authority is consulted. Its payload declares profile/capabilities and
-independent versions 2/2/1; text mode emits the public document only. Neither
-operation grants revision, publication or target-acceptance authority.
+It caps its report at 4,096 entries including an explicit overflow error.
+Malformed JSON/YAML parser failures surface value-free numeric `line`,
+1-based Unicode-scalar `column`, and 0-based UTF-8 `byteOffset` coordinates via
+`DefinitionAuthoringDiagnostic` without echoing raw parser messages or input.
+
+Top-level discovery replaces `definition schema`:
+- `--version` and `info` (`CliBuildInfo`, `DiscoveryCommands`, `CliDiscoveryHandlers`)
+  read compiled assembly metadata and `0.0.1` contract constants without invoking
+  `git` or accessing user files.
+- `schema list` enumerates all six built-in public schemas (`authoring`,
+  `runtime`, `answers`, `command`, `fixtures`, `store-curation`) with schema IDs
+  and canonical SHA-256 digests. `schema export --kind <KIND>` returns canonical
+  schema bytes in text mode (bounded by `CliIo.MaximumBytes`) or one machine
+  `schema` payload with profile/capabilities and `0.0.1` contract versions,
+  before any authoring or private file authority is consulted.
+- `definition describe` (`DefinitionDescribeSettings`, `CliDefinitionHandlers`)
+  pages public declared fields (schema pointer, type, sensitivity, requiredness,
+  optional secret policy) and declared artifacts under an 8,192-byte page budget
+  (default and max `--limit 16`), requiring `--expected-detail-digest` on
+  non-initial pages.
+- `definition diff` (`DefinitionDiffSettings`, `CliDefinitionHandlers`) compares
+  `--against` (compiled JSON or authoring source) against `--source`/`--root`
+  using `DefinitionRevisionComparison.Compare`, emitting `revisionDiff` with
+  behavioral vs. display-only counts and up to 256 value-free changes without
+  guessing renames or reading answers.
+- `definition test` (`DefinitionTestSettings`, `CliDefinitionHandlers`) loads a
+  bounded data-only fixture file via `ICliAuthoringFiles` and runs
+  `DefinitionFixtureRunner.Run`, returning `fixtureReport` bound to
+  `(definitionDigest, fixtureDigest, engineVersion, scope)` with `CliExitCode.Data`
+  (`65`) for malformed/executable/empty suites and `CliExitCode.Validation` (`2`)
+  for failing assertions.
+- `artifact bundle-create --draft` (`BundleOutputSettings`, `CliArtifactHandlers`)
+  wires `DefinitionDraftArtifactComposer.ComposeBundle` while keeping strict
+  `bundle-create` fail-closed when required secrets are omitted. Draft receipts
+  report `preparation: "incomplete"`, warning `secret-deferred` diagnostics at
+  each deferred schema pointer, and per-artifact `completeness` (`"complete"` vs
+  `"deferred"`) and `deferredFieldCount` so deferred bundles never imply complete
+  readiness.
+- `CliInstalledAdoptionTests` runs the compiled standalone CLI executable in an
+  isolated temporary directory outside the repository checkout across the full
+  maintainer and preparation workflow (`info`, `schema export`, `definition init`,
+  `check`, `lint --quality --strict`, `build`, `describe`, `revise`, `diff`,
+  `test`, `artifact create`).
+- `doctor` (`DoctorSettings`) truthfully reports host capability status (exiting
+  `0` with `"blocked"` readiness when `protected-write` is unavailable); passing
+  `--require protected-write` fails closed with `CliExitCode.Blocked` (`4`) when
+  native protected writes are unavailable. Neither discovery nor `doctor` grants
+  revision, publication or target-acceptance authority.
 
 `CliCommandSchemaMetadata.GenerateSchema()` generates the closed
 `islamu-configurator-command/v0.0.1` envelope plus registry operation/option metadata.

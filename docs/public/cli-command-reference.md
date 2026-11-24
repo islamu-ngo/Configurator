@@ -62,11 +62,13 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | --detail | false |
 | --device | false |
 | --device-recipient-id | false |
+| --draft | false |
 | --dry-run | false |
 | --environment-context | false |
 | --expected-detail-digest | false |
 | --expected-digest | false |
 | --expected-revision | false |
+| --fixtures | false |
 | --fork-from | false |
 | --format | false |
 | --from-env-example | false |
@@ -94,6 +96,7 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | --project-id | false |
 | --quality | false |
 | --recipient | false |
+| --require | true |
 | --revision-field | false |
 | --root | false |
 | --secret-input-file | false |
@@ -109,39 +112,35 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 
 | Command | Operation | Options |
 | --- | --- | --- |
-| artifact | &#40;union&#41; | --answers&#44; --artifact&#44; --baseline&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --expected-revision&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --revision-field&#44; --text |
+| artifact | &#40;union&#41; | --answers&#44; --artifact&#44; --baseline&#44; --definition&#44; --detail&#44; --draft&#44; --dry-run&#44; --expected-detail-digest&#44; --expected-revision&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --revision-field&#44; --text |
 | artifact | bundle-check | --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
-| artifact | bundle-create | --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
-| artifact | check-existing | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
+| artifact | bundle-create | --artifact&#44; --definition&#44; --detail&#44; --draft&#44; --dry-run&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
+| artifact | check-existing | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
 | artifact | compare | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --limit&#44; --machine&#44; --offset&#44; --text |
-| artifact | coverage | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
+| artifact | coverage | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
 | artifact | create | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
-| artifact | diff | --answers&#44; --artifact&#44; --baseline&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
-| artifact | export | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
-| artifact | format | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
+| artifact | diff | --answers&#44; --artifact&#44; --baseline&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
 | artifact | import | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --expected-revision&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --revision-field&#44; --text |
-| artifact | open | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
 | artifact | prefill | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
-| artifact | preview | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
-| artifact | validate | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
+| artifact | validate | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
 | catalogue | &#40;union&#41; | --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --help&#44; --key&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
 | catalogue | describe | --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --help&#44; --key&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
 | catalogue | list | --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
-| catalogue | show | --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --help&#44; --key&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
-| definition | &#40;union&#41; | --accept-bounded-semantics&#44; --against&#44; --application-version&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --fork-from&#44; --format&#44; --from-env-example&#44; --from-schema&#44; --help&#44; --id-map&#44; --kind&#44; --limit&#44; --machine&#44; --name&#44; --offset&#44; --output&#44; --project-id&#44; --quality&#44; --root&#44; --source&#44; --strict&#44; --text |
+| definition | &#40;union&#41; | --accept-bounded-semantics&#44; --against&#44; --application-version&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --fixtures&#44; --fork-from&#44; --format&#44; --from-env-example&#44; --from-schema&#44; --help&#44; --id-map&#44; --limit&#44; --machine&#44; --name&#44; --offset&#44; --output&#44; --project-id&#44; --quality&#44; --root&#44; --source&#44; --strict&#44; --text |
 | definition | answer-schema | --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
 | definition | build | --against&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --id-map&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --root&#44; --source&#44; --text |
 | definition | check | --against&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --root&#44; --source&#44; --text |
+| definition | describe | --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --root&#44; --source&#44; --text |
+| definition | diff | --against&#44; --help&#44; --machine&#44; --root&#44; --source&#44; --text |
 | definition | init | --accept-bounded-semantics&#44; --application-version&#44; --fork-from&#44; --format&#44; --from-env-example&#44; --from-schema&#44; --help&#44; --machine&#44; --name&#44; --output&#44; --project-id&#44; --root&#44; --text |
 | definition | inspect | --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --root&#44; --source&#44; --text |
 | definition | lint | --against&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --quality&#44; --root&#44; --source&#44; --strict&#44; --text |
 | definition | revise | --against&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --root&#44; --source&#44; --text |
-| definition | schema | --help&#44; --kind&#44; --machine&#44; --text |
-| doctor | &#40;union&#41; | --help&#44; --machine&#44; --text |
-| doctor | doctor | --help&#44; --machine&#44; --text |
-| env | &#40;union&#41; | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
-| env | render | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --dry-run&#44; --expected-detail-digest&#44; --format&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --output&#44; --text |
-| env | validate | --answers&#44; --artifact&#44; --definition&#44; --detail&#44; --expected-detail-digest&#44; --help&#44; --input&#44; --input-revision&#44; --limit&#44; --machine&#44; --offset&#44; --text |
+| definition | test | --fixtures&#44; --help&#44; --machine&#44; --root&#44; --source&#44; --text |
+| doctor | &#40;union&#41; | --help&#44; --machine&#44; --require&#44; --text |
+| doctor | doctor | --help&#44; --machine&#44; --require&#44; --text |
+| info | &#40;union&#41; | --help&#44; --machine&#44; --text |
+| info | info | --help&#44; --machine&#44; --text |
 | profile | &#40;union&#41; | --acknowledge-device-only&#44; --action&#44; --answers&#44; --artifact&#44; --baseline&#44; --cipher&#44; --comparison&#44; --confirm-passphrase-file&#44; --confirm-passphrase-stdin&#44; --definition&#44; --device&#44; --device-recipient-id&#44; --environment-context&#44; --expected-digest&#44; --help&#44; --input&#44; --kdf&#44; --limit&#44; --machine&#44; --mode&#44; --new-passphrase-file&#44; --new-passphrase-stdin&#44; --offset&#44; --output&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --source-definition&#44; --store&#44; --text |
 | profile | adopt | --answers&#44; --artifact&#44; --baseline&#44; --comparison&#44; --definition&#44; --device&#44; --help&#44; --input&#44; --machine&#44; --output&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --source-definition&#44; --store&#44; --text |
 | profile | diff | --baseline&#44; --comparison&#44; --definition&#44; --device&#44; --help&#44; --input&#44; --machine&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --source-definition&#44; --store&#44; --text |
@@ -152,6 +151,9 @@ The renderer validates its supported projection shape, not the whole JSON Schema
 | profile | slots | --acknowledge-device-only&#44; --action&#44; --confirm-passphrase-file&#44; --confirm-passphrase-stdin&#44; --device&#44; --help&#44; --input&#44; --machine&#44; --new-passphrase-file&#44; --new-passphrase-stdin&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --store&#44; --text |
 | profile | unlock | --device&#44; --help&#44; --input&#44; --machine&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --store&#44; --text |
 | profile | upgrade-plan | --baseline&#44; --comparison&#44; --definition&#44; --device&#44; --help&#44; --input&#44; --machine&#44; --passphrase-file&#44; --passphrase-stdin&#44; --profile-id&#44; --recipient&#44; --snapshot-id&#44; --source-definition&#44; --store&#44; --text |
+| schema | &#40;union&#41; | --dry-run&#44; --help&#44; --kind&#44; --machine&#44; --output&#44; --text |
+| schema | export | --dry-run&#44; --help&#44; --kind&#44; --machine&#44; --output&#44; --text |
+| schema | list | --help&#44; --machine&#44; --text |
 | secret | &#40;union&#41; | --definition&#44; --generated-password-output&#44; --help&#44; --input&#44; --machine&#44; --output&#44; --pointer&#44; --secret-input-file&#44; --secret-input-stdin&#44; --text |
 | secret | derive | --definition&#44; --help&#44; --input&#44; --machine&#44; --output&#44; --pointer&#44; --secret-input-file&#44; --secret-input-stdin&#44; --text |
 | secret | generate | --definition&#44; --generated-password-output&#44; --help&#44; --input&#44; --machine&#44; --output&#44; --pointer&#44; --text |

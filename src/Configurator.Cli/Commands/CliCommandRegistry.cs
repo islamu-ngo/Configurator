@@ -9,14 +9,17 @@ internal static class CliCommandRegistry
 {
     internal static IReadOnlyList<CliFamilyDescriptor> Families { get; } =
     [
+        DiscoveryCommands.Descriptor,
+        SchemaCommands.Descriptor,
         CatalogueCommands.Descriptor,
         ArtifactCommands.Descriptor,
-        EnvironmentCommands.Descriptor,
         DefinitionCommands.Descriptor,
         SecretCommands.Descriptor,
         ProfileCommands.Descriptor,
         DoctorCommands.Descriptor
     ];
+
+    internal static bool IsSingleOperationRootFamily(string family) => family is "doctor" or "info";
 
     internal static CommandApp Create(CliCommandRuntime runtime, IAnsiConsole console,
         CliHelpProvider? helpProvider = null)
@@ -33,7 +36,7 @@ internal static class CliCommandRegistry
             if (helpProvider is not null) configuration.SetHelpProvider(helpProvider);
             foreach (CliFamilyDescriptor family in Families)
             {
-                if (family.Name == "doctor")
+                if (IsSingleOperationRootFamily(family.Name))
                 {
                     family.Operations[0].RegisterRoot(configuration, family.Name, runtime);
                     continue;

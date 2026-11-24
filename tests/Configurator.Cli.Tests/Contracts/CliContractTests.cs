@@ -30,7 +30,7 @@ public sealed class CliContractTests
         JsonObject schema = CliMachineContractVerifier.ParseSchema(first);
         await Assert.That(CliMachineContractVerifier.InspectSchema(schema)).IsEmpty();
         await Assert.That(schema["_metadata"]!["commands"]!.AsArray().Select(node => node!["name"]!.GetValue<string>()))
-            .IsEquivalentTo(["catalogue", "env", "artifact", "doctor", "definition", "secret", "profile"]);
+            .IsEquivalentTo(["info", "schema", "catalogue", "artifact", "doctor", "definition", "secret", "profile"]);
         await Assert.That(schema["_metadata"]!["commandOptions"]!.AsArray().Select(node => node!.GetValue<string>()))
             .IsEquivalentTo(["--help", "--machine", "--text", "--dry-run", "--input", "--baseline",
                 "--output", "--key", "--definition", "--artifact", "--format", "--expected-revision",
@@ -38,12 +38,12 @@ public sealed class CliContractTests
                 "--id-map", "--project-id", "--name", "--application-version", "--fork-from", "--from-env-example",
                 "--from-schema", "--accept-bounded-semantics", "--kind", "--detail", "--offset", "--limit", "--expected-detail-digest",
                 "--pointer", "--generated-password-output", "--secret-input-file", "--secret-input-stdin", "--quality", "--strict",
-                "--store", "--mode", "--environment-context", "--confirm-passphrase-stdin", "--confirm-passphrase-file",
+                "--draft", "--fixtures", "--require", "--store", "--mode", "--environment-context", "--confirm-passphrase-stdin", "--confirm-passphrase-file",
                 "--acknowledge-device-only", "--cipher", "--kdf", "--passphrase-stdin", "--passphrase-file", "--device",
                 "--profile-id", "--snapshot-id", "--recipient", "--comparison", "--source-definition",
                 "--expected-digest", "--device-recipient-id", "--action", "--new-passphrase-stdin", "--new-passphrase-file"]);
         await Assert.That(schema["_metadata"]!["repeatableOptions"]!.AsArray().Select(node => node!.GetValue<string>()))
-            .IsEquivalentTo(["--artifact"]);
+            .IsEquivalentTo(["--artifact", "--require"]);
         await Assert.That(schema["properties"]!["exitCode"]!["enum"]!.AsArray().Select(node => node!.GetValue<int>()))
             .IsEquivalentTo([0, 2, 3, 4, 64, 65, 70, 74, 130]);
         JsonArray definition = schema["_metadata"]!["commands"]!.AsArray()
@@ -52,9 +52,11 @@ public sealed class CliContractTests
         JsonArray lint = definition.Single(operation => operation!["name"]!.GetValue<string>() == "lint")!["options"]!.AsArray();
         await Assert.That(lint.Select(option => option!.GetValue<string>()))
             .IsEquivalentTo(check.Select(option => option!.GetValue<string>()).Append("--quality").Append("--strict"));
-        JsonArray discovery = definition.Single(operation => operation!["name"]!.GetValue<string>() == "schema")!["options"]!.AsArray();
+        JsonArray schemaOps = schema["_metadata"]!["commands"]!.AsArray()
+            .Single(command => command!["name"]!.GetValue<string>() == "schema")!["operations"]!.AsArray();
+        JsonArray discovery = schemaOps.Single(operation => operation!["name"]!.GetValue<string>() == "export")!["options"]!.AsArray();
         await Assert.That(discovery.Select(option => option!.GetValue<string>()))
-            .IsEquivalentTo(["--help", "--kind", "--machine", "--text"]);
+            .IsEquivalentTo(["--dry-run", "--help", "--kind", "--machine", "--output", "--text"]);
     }
 
     [Test]
@@ -281,8 +283,8 @@ public sealed class CliContractTests
         string id = CliContractSpecification.SchemaIds[kind];
         // This literal ordering is canonical independently of the production canonicalizer.
         string document = $$"""{"$id":"{{id}}","$schema":"https://json-schema.org/draft/2020-12/schema","type":"object"}""";
-        root["invocation"]!["commandFamily"] = "definition";
-        root["invocation"]!["operation"] = "schema";
+        root["invocation"]!["commandFamily"] = "schema";
+        root["invocation"]!["operation"] = "export";
         root["schema"] = new JsonObject
         {
             ["kind"] = kind,
@@ -792,7 +794,7 @@ public sealed class CliContractTests
         {
             ["scope"] = "root",
             ["commandPath"] = new JsonArray(),
-            ["commands"] = new JsonArray("catalogue", "artifact", "env", "definition", "secret", "doctor", "profile"),
+            ["commands"] = new JsonArray("info", "schema", "catalogue", "artifact", "definition", "secret", "doctor", "profile"),
             ["options"] = new JsonArray()
         };
     }
@@ -802,9 +804,9 @@ public sealed class CliContractTests
     {
         (string[] Arguments, string Family, string Operation, string Scope, string[] Path, string[] Commands)[] cases =
         [
-            (["--help", "--machine"], "cli", "help", "root", [], ["catalogue", "artifact", "env", "definition", "secret", "doctor", "profile"]),
+            (["--help", "--machine"], "cli", "help", "root", [], ["info", "schema", "catalogue", "artifact", "definition", "secret", "doctor", "profile"]),
             (["artifact", "--help", "--machine"], "artifact", "help", "branch", ["artifact"],
-                ["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "compare", "prefill", "bundle-check", "bundle-create", "preview"]),
+                ["create", "validate", "diff", "coverage", "import", "check-existing", "compare", "prefill", "bundle-check", "bundle-create"]),
             (["artifact", "bundle-create", "--help", "--machine"], "artifact", "bundle-create", "leaf", ["artifact", "bundle-create"], [])
         ];
         foreach (var item in cases)
@@ -848,7 +850,7 @@ public sealed class CliContractTests
             foreach (string operation in family.Value)
             {
                 var io = new CliFixture();
-                string[] path = family.Key == "doctor" ? ["doctor"] : [family.Key, operation];
+                string[] path = family.Key is "doctor" or "info" ? [family.Key] : [family.Key, operation];
                 await Assert.That(await io.RunAsync([.. path, "--help", "--machine"]))
                     .IsEqualTo(CliExitCode.Success);
                 using JsonDocument response = JsonDocument.Parse(io.StandardOutput);
@@ -875,8 +877,8 @@ public sealed class CliContractTests
             foreach (var operation in family.Operations)
             {
                 var io = new CliFixture();
-                string[] args = family.Name == "doctor"
-                    ? ["doctor", "--help", "--machine"] : [family.Name, operation.Name, "--help", "--machine"];
+                string[] args = family.Name is "doctor" or "info"
+                    ? [family.Name, "--help", "--machine"] : [family.Name, operation.Name, "--help", "--machine"];
                 await Assert.That(await io.RunAsync(args)).IsEqualTo(CliExitCode.Success);
                 await Assert.That(CliMachineContractVerifier.Validate(io.StandardOutput)).IsEmpty();
             }
@@ -909,7 +911,7 @@ public sealed class CliContractTests
     public async Task MachineReadinessNeverClaimsHostAcceptance()
     {
         var io = new CliFixture();
-        await Assert.That(await io.ArtifactAsync("open")).IsEqualTo(CliExitCode.Success);
+        await Assert.That(await io.ArtifactAsync("validate")).IsEqualTo(CliExitCode.Success);
         using JsonDocument result = JsonDocument.Parse(io.StandardOutput);
         await Assert.That(result.RootElement.GetProperty("readiness").GetProperty("state").GetString()).IsEqualTo("incomplete");
         await Assert.That(result.RootElement.GetProperty("readiness").GetProperty("missingCount").GetInt32()).IsGreaterThan(0);

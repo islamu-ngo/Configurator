@@ -205,7 +205,7 @@ public sealed class CliProgramTests
     public async Task RestrictedEnvironmentCannotReachExecutableStandardOutput()
     {
         using var files = new NativeFixture();
-        ProcessResult result = await ExecuteAsync(files.Arguments("env", "render", "environment", "--output", "-"));
+        ProcessResult result = await ExecuteAsync(files.Arguments("artifact", "create", "environment", "--output", "-"));
 
         await Assert.That(Encoding.UTF8.GetString(result.StandardOutput)).DoesNotContain("private-answer-marker");
         await Assert.That(result.ExitCode).IsEqualTo(4);
@@ -215,7 +215,7 @@ public sealed class CliProgramTests
     public async Task PublicCatalogueStillReachesStandardOutput()
     {
         using var files = new NativeFixture();
-        ProcessResult result = await ExecuteAsync(["catalogue", "show", "--definition", files.Definition,
+        ProcessResult result = await ExecuteAsync(["catalogue", "describe", "--definition", files.Definition,
             "--key", "service.name", "--output", "-"]);
         await Assert.That(result.ExitCode).IsEqualTo(0);
         using JsonDocument catalogue = JsonDocument.Parse(result.StandardOutput);
@@ -236,8 +236,8 @@ public sealed class CliProgramTests
         }));
         try
         {
-            ProcessResult result = await ExecuteAsync(["env", "validate", "--definition", files.Definition,
-                "--artifact", "environment", "--input", path, "--machine"]);
+            ProcessResult result = await ExecuteAsync(["artifact", "validate", "--definition", files.Definition,
+                "--artifact", "environment", "--format", "dotenv", "--input", path, "--machine"]);
             await Assert.That(result.ExitCode).IsEqualTo(0);
             await Assert.That(result.StandardError).IsEmpty();
             await Assert.That(CliMachineContractVerifier.Validate(result.StandardOutput)).IsEmpty();
@@ -260,7 +260,7 @@ public sealed class CliProgramTests
         using var files = new NativeFixture();
         try
         {
-            ProcessResult result = await ExecuteAsync(files.Arguments("env", "render", "environment", "--output", target, "--machine"));
+            ProcessResult result = await ExecuteAsync(files.Arguments("artifact", "create", "environment", "--output", target, "--machine"));
             await Assert.That(result.StandardError).IsEmpty();
             await Assert.That(CliMachineContractVerifier.Validate(result.StandardOutput)).IsEmpty();
             await Assert.That(Encoding.UTF8.GetString(result.StandardOutput)).DoesNotContain("private-answer-marker");
@@ -269,7 +269,7 @@ public sealed class CliProgramTests
             {
                 await Assert.That(File.GetUnixFileMode(target)).IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite);
                 byte[] original = await File.ReadAllBytesAsync(target);
-                ProcessResult overwrite = await ExecuteAsync(files.Arguments("env", "render", "environment", "--output", target, "--machine"));
+                ProcessResult overwrite = await ExecuteAsync(files.Arguments("artifact", "create", "environment", "--output", target, "--machine"));
                 await Assert.That(overwrite.ExitCode).IsEqualTo(74);
                 using JsonDocument refusal = JsonDocument.Parse(overwrite.StandardOutput);
                 await Assert.That(refusal.RootElement.GetProperty("artifacts")[0].GetProperty("writeStatus").GetString()).IsEqualTo("conflict");
@@ -310,7 +310,7 @@ public sealed class CliProgramTests
     [Test]
     [Arguments("catalogue", "")]
     [Arguments("artifact", "validate")]
-    [Arguments("env", "render")]
+    [Arguments("schema", "export")]
     [Arguments("artifact", "import")]
     public async Task HelpDoesNotRequireOperationalInputsOrOutput(string family, string operation)
     {
@@ -333,7 +333,7 @@ public sealed class CliProgramTests
         var cases = new (string[] Arguments, string Code)[]
         {
             (["catalogue", "list"], "definition-required"),
-            (["catalogue", "show", "--definition", "definition.json"], "key-required"),
+            (["catalogue", "describe", "--definition", "definition.json"], "key-required"),
             (["artifact", "create"], "definition-required")
         };
 
@@ -354,7 +354,7 @@ public sealed class CliProgramTests
                 .IsEqualTo(code);
         }
 
-        ProcessResult rejected = await ExecuteAsync(["catalogue", "show", "--key", "person@example.invalid"]);
+        ProcessResult rejected = await ExecuteAsync(["catalogue", "describe", "--key", "person@example.invalid"]);
         await Assert.That(Encoding.UTF8.GetString(rejected.StandardError))
             .DoesNotContain("person@example.invalid");
     }
@@ -405,7 +405,7 @@ public sealed class CliProgramTests
             ["GITHUB_TOKEN"] = "synthetic-unrelated-token"
         });
 
-        await Assert.That(result.ExitCode).IsEqualTo(OperatingSystem.IsLinux() ? 0 : 4);
+        await Assert.That(result.ExitCode).IsEqualTo(0);
         await Assert.That(result.StandardError).IsEmpty();
         await Assert.That(CliMachineContractVerifier.Validate(result.StandardOutput)).IsEmpty();
         string output = Encoding.UTF8.GetString(result.StandardOutput);

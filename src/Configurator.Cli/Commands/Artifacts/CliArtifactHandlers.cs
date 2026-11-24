@@ -25,11 +25,9 @@ internal static class CliArtifactHandlers
         ArtifactDefinition? artifact = definition.Artifacts.FirstOrDefault(item => item.Id == command.Artifact);
         if (artifact is null)
             return CliResults.Failure(CliExitCode.Validation, "artifact-unknown", "/artifact");
-        if (command.Family == "env" && artifact.Format != DefinitionArtifactFormat.Dotenv
-            || command.Format is not null && artifact.Format.ToToken() != command.Format)
+        if (command.Format is not null && artifact.Format.ToToken() != command.Format)
             return CliResults.Failure(CliExitCode.Usage, "artifact-format-mismatch", "/artifact");
-        if (artifact.ApplySemantics == DefinitionTargetUpdateMode.Import
-            && command.Operation is "create" or "format" or "export" or "preview" or "render")
+        if (artifact.ApplySemantics == DefinitionTargetUpdateMode.Import && command.Operation == "create")
             return CliResults.Failure(CliExitCode.Blocked, "import-command-required", "/artifact");
 
         if (command.Operation is "check-existing" or "prefill")
@@ -109,7 +107,7 @@ internal static class CliArtifactHandlers
             if (command.Operation == "coverage")
                 return CliResults.Success(coverage: coverage);
 
-            bool write = command.Operation is "create" or "format" or "export" or "import" or "preview" or "render";
+            bool write = command.Operation is "create" or "import";
             var hostReadiness = new CliMachineReadiness("incomplete", ["host-validation-required"], []);
             CliCommandResult result = CliResults.Success([new CliMachineArtifact("definition-artifact", output.MediaType,
                 output.Digest.Value, "restricted", coverage, hostReadiness,
@@ -128,15 +126,6 @@ internal static class CliArtifactHandlers
             return ledger.Apply(publication, result);
         }
         finally { Clear(outputBytes); }
-    }
-
-    internal static CliCommandResult Doctor()
-    {
-        if (!new ProtectedArtifactWriter().IsAvailable)
-            return CliResults.Failure(CliExitCode.Blocked, "protected-writer-unavailable");
-        byte[] schema = CliCommandSchemaMetadata.GenerateSchema();
-        return CliResults.Success([CliResults.Artifact("doctor-report", "application/json", schema,
-            "public", "none", "none")]);
     }
 
     private static async Task<CliCommandResult> CompareAsync(CliCommand command, CliInvocation invocation,
@@ -270,6 +259,9 @@ internal static class CliArtifactHandlers
             && item.ApplySemantics == DefinitionTargetUpdateMode.Import))
             return CliResults.Failure(CliExitCode.Blocked, "import-command-required", "/artifacts");
         AnswerSnapshot answers = await CliIoOperations.AnswersAsync(invocation, command.Input!, command.InputRevision, cancellationToken);
+        if (command.Operation == "bundle-create" && command.Draft)
+            return await DraftBundleAsync(command, invocation, definition, ids, answers, ledger, cancellationToken);
+
         using DefinitionBundleResult bundle = DefinitionBundleComposer.Compose(definition, ids, answers, cancellationToken);
         if (!bundle.Succeeded)
             return new(CliExitCode.Validation,
@@ -291,6 +283,73 @@ internal static class CliArtifactHandlers
         cancellationToken.ThrowIfCancellationRequested();
         ledger.BeginPublication();
         return ledger.Apply(await invocation.Io.Output.WriteBundleAsync(bundle.Artifacts, command.Output!,
+            invocation.Io.MaximumBytes, ledger.Record, cancellationToken), planned, blockedRejections: true);
+    }
+
+    private static async Task<CliCommandResult> DraftBundleAsync(CliCommand command, CliInvocation invocation,
+        Definition definition, string[] ids, AnswerSnapshot answers, CliOutcomeLedger ledger, CancellationToken cancellationToken)
+    {
+        using DefinitionDraftBundleResult draftBundle = DefinitionDraftArtifactComposer.ComposeBundle(definition, ids, answers, cancellationToken);
+        if (!draftBundle.Succeeded)
+            return new(CliExitCode.Validation,
+                draftBundle.Diagnostics.Select(CliResults.Diagnostic).ToArray(),
+                [], CliResults.EmptyCoverage(), new("incomplete", ["input-invalid"], []))
+            { DefinitionDigest = definition.Digest.Value, Preparation = "incomplete" };
+
+        Dictionary<string, string[]> deferredByArtifact = draftBundle.Completions
+            .GroupBy(item => item.ArtifactId, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(item => string.IsNullOrEmpty(item.FieldPath) ? "/" : item.FieldPath)
+                    .Distinct(StringComparer.Ordinal)
+                    .Order(StringComparer.Ordinal)
+                    .ToArray(),
+                StringComparer.Ordinal);
+        bool hasDeferred = draftBundle.Completions.Count > 0;
+        CliMachineDiagnostic[] diagnostics = draftBundle.Completions
+            .Select(item => string.IsNullOrEmpty(item.FieldPath) ? "/" : item.FieldPath)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .Select(path => new CliMachineDiagnostic("secret-deferred", path, "warning"))
+            .ToArray();
+        string[] usableIds = draftBundle.Artifacts
+            .Where(artifact => !deferredByArtifact.ContainsKey(artifact.ArtifactId))
+            .Select(artifact => artifact.ArtifactId)
+            .ToArray();
+        string[] deferredArtifactIds = draftBundle.Artifacts
+            .Where(artifact => deferredByArtifact.ContainsKey(artifact.ArtifactId))
+            .Select(artifact => artifact.ArtifactId)
+            .ToArray();
+        CliMachineArtifact[] plannedArtifacts = draftBundle.Artifacts.Select(artifact =>
+        {
+            bool deferred = deferredByArtifact.TryGetValue(artifact.ArtifactId, out string[]? deferredFields);
+            return new CliMachineArtifact("definition-artifact", artifact.MediaType, artifact.Digest.Value, "restricted",
+                deferred ? new CliMachineCoverage([], deferredFields!) : CliResults.EmptyCoverage(),
+                deferred ? new CliMachineReadiness("incomplete", ["secret-deferred"], []) : CliResults.Ready(),
+                CliResults.PathIntent(command.Output),
+                command.DryRun ? "planned" : "not-attempted")
+            {
+                Id = artifact.ArtifactId,
+                Completeness = deferred ? "deferred" : "complete",
+                DeferredFieldCount = deferred ? deferredFields!.Length : 0
+            };
+        }).ToArray();
+
+        string[] missingReasons = hasDeferred
+            ? ["secret-deferred", "host-validation-required"]
+            : ["host-validation-required"];
+        var planned = new CliCommandResult(CliExitCode.Success, diagnostics, plannedArtifacts,
+            new CliMachineCoverage(usableIds, deferredArtifactIds),
+            new CliMachineReadiness("incomplete", missingReasons, []))
+        {
+            DefinitionDigest = definition.Digest.Value,
+            Preparation = hasDeferred ? "incomplete" : "ready"
+        };
+        if (command.DryRun) return planned;
+        ledger.Plan(invocation, command, planned);
+        cancellationToken.ThrowIfCancellationRequested();
+        ledger.BeginPublication();
+        return ledger.Apply(await invocation.Io.Output.WriteBundleAsync(draftBundle.Artifacts, command.Output!,
             invocation.Io.MaximumBytes, ledger.Record, cancellationToken), planned, blockedRejections: true);
     }
 

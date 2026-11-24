@@ -11,9 +11,10 @@ internal static class CliMachineOutput
     internal static byte[] Serialize(CliCommand command, CliCommandResult result, int maximumOutputBytes)
     {
         string family = CliCommandRegistry.Families.Any(item => item.Name == command.Family) ? command.Family : "cli";
-        if (family == "doctor" && command.Operation != "doctor") family = "cli";
-        string operation = CliCommandRegistry.TryResolve(family, command.Operation, out _) ? command.Operation
-            : "help";
+        if (CliCommandRegistry.IsSingleOperationRootFamily(family) && command.Operation != family) family = "cli";
+        string operation = family == "cli" && command.Operation == "version"
+            ? "version"
+            : CliCommandRegistry.TryResolve(family, command.Operation, out _) ? command.Operation : "help";
         CliMachineDiagnostic[] diagnostics = result.Diagnostics.Select(Sanitize).ToArray();
         string digest = DetailDigest(command, result, diagnostics);
         CliMachineDetail? detail = HasDetailFailure(result) ? null : Detail(command, result, diagnostics, digest);
@@ -45,8 +46,18 @@ internal static class CliMachineOutput
             Help = result.Help,
             AuthoringContractVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == CliExitCode.Success && result.Help is null ? ConfiguratorVersion.Current : null,
             RuntimeSchemaVersion = family == "definition" && operation is "check" or "build" or "lint" && result.Exit == CliExitCode.Success && result.Help is null ? ConfiguratorVersion.Current : null,
-            Schema = family == "definition" && operation == "schema" && result.Exit == CliExitCode.Success && result.Help is null
-                ? result.Schema : null
+            Schema = family == "schema" && operation == "export" && result.Exit == CliExitCode.Success && result.Help is null
+                ? result.Schema : null,
+            SchemaCatalog = family == "schema" && operation == "list" && result.Exit == CliExitCode.Success && result.Help is null
+                ? result.SchemaCatalog : null,
+            Info = (family is "info" or "doctor" || (family == "cli" && operation == "version")) && result.Help is null
+                ? result.Info : null,
+            DefinitionDescription = family == "definition" && operation == "describe" && result.Exit == CliExitCode.Success && result.Help is null
+                ? result.DefinitionDescription : null,
+            RevisionDiff = family == "definition" && operation == "diff" && result.Exit == CliExitCode.Success && result.Help is null
+                ? result.RevisionDiff : null,
+            FixtureReport = family == "definition" && operation == "test" && result.Help is null
+                ? result.FixtureReport : null
         };
         byte[] body = JsonSerializer.SerializeToUtf8Bytes(envelope, CliJsonContext.Default.CliMachineEnvelope);
         if (body.Length + 1 > maximumOutputBytes) throw new IOException("output-bound");

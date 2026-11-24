@@ -26,8 +26,7 @@ public sealed class CliOperatorIdentityTests
     {
         var io = new CliFixture();
         await Assert.That(await io.ArtifactAsync("import", "request", "--dry-run")).IsEqualTo(CliExitCode.Usage);
-        foreach (string operation in new[] { "create", "format", "export", "preview" })
-            await Assert.That(await io.ArtifactAsync(operation, "request", "--dry-run")).IsEqualTo(CliExitCode.Blocked);
+        await Assert.That(await io.ArtifactAsync("create", "request", "--dry-run")).IsEqualTo(CliExitCode.Blocked);
         await Assert.That(await io.ArtifactAsync("import", "config", "--dry-run", "--expected-revision", "absent",
             "--revision-field", "expectedRevision")).IsEqualTo(CliExitCode.Blocked);
         io.Files["answers.json"] = """{"answerContractVersion":"0.0.1","values":{"service.name":"private-answer-marker","expectedRevision":"different"},"omitted":[]}"""u8.ToArray();

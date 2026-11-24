@@ -13,22 +13,25 @@ internal static class CliContractSpecification
         new ReadOnlyDictionary<string, IReadOnlySet<string>>(
             new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
             {
-                ["catalogue"] = new HashSet<string>(["list", "show", "describe"], StringComparer.Ordinal),
-                ["artifact"] = new HashSet<string>(["create", "open", "validate", "format", "diff", "coverage", "export", "import", "check-existing", "compare", "prefill", "bundle-check", "bundle-create", "preview"], StringComparer.Ordinal),
-                ["env"] = new HashSet<string>(["render", "validate"], StringComparer.Ordinal),
+                ["info"] = new HashSet<string>(["info"], StringComparer.Ordinal),
+                ["schema"] = new HashSet<string>(["list", "export"], StringComparer.Ordinal),
+                ["catalogue"] = new HashSet<string>(["list", "describe"], StringComparer.Ordinal),
+                ["artifact"] = new HashSet<string>(["create", "validate", "diff", "coverage", "import", "check-existing", "compare", "prefill", "bundle-check", "bundle-create"], StringComparer.Ordinal),
                 ["doctor"] = new HashSet<string>(["doctor"], StringComparer.Ordinal),
                 ["secret"] = new HashSet<string>(["generate", "derive"], StringComparer.Ordinal),
                 ["profile"] = new HashSet<string>(["save", "list", "inspect", "unlock", "diff", "upgrade-plan", "adopt", "slots", "recovery-check"], StringComparer.Ordinal),
-                ["definition"] = new HashSet<string>(["init", "check", "build", "revise", "lint", "inspect", "schema", "answer-schema"], StringComparer.Ordinal)
+                ["definition"] = new HashSet<string>(["init", "check", "build", "revise", "lint", "inspect", "describe", "diff", "test", "answer-schema"], StringComparer.Ordinal)
             });
 
     internal static readonly IReadOnlyDictionary<string, string> SchemaIds =
         new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["authoring"] = "urn:islamu:configurator:authoring:v0.0.1",
-            ["runtime"] = "urn:islamu:configurator:setup-definition:v0.0.1",
             ["answers"] = "urn:islamu:configurator:answers:v0.0.1",
-            ["command"] = "urn:islamu:configurator:cli:v0.0.1"
+            ["authoring"] = "urn:islamu:configurator:authoring:v0.0.1",
+            ["command"] = "urn:islamu:configurator:cli:v0.0.1",
+            ["fixtures"] = "urn:islamu:configurator:fixtures:v0.0.1",
+            ["runtime"] = "urn:islamu:configurator:setup-definition:v0.0.1",
+            ["store-curation"] = "urn:islamu:configurator:store-curation:v0.0.1"
         });
 
     internal static readonly IReadOnlySet<string> Capabilities = new HashSet<string>(
@@ -45,8 +48,8 @@ internal static class CliContractSpecification
 
     internal static bool IsInvocation(string family, string operation) =>
         Operations.TryGetValue(family, out IReadOnlySet<string>? operations)
-            && (operations.Contains(operation) || family != "doctor" && operation == "help")
-        || family == "cli" && operation == "help";
+            && (operations.Contains(operation) || family is not ("doctor" or "info") && operation == "help")
+        || family == "cli" && operation is "help" or "version";
 
     internal static readonly IReadOnlyDictionary<string, int> ExitCodes =
         new ReadOnlyDictionary<string, int>(new Dictionary<string, int>(StringComparer.Ordinal)

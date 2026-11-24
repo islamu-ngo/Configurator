@@ -120,7 +120,8 @@ internal static class CliProfileHandlers
                     return CliResults.Failure(CliExitCode.Validation, "profile-adoption-revalidation-required", "/input");
                 using ProfileArtifact artifact = composed.Artifact!;
                 var receipt = new CliMachineArtifact("definition-artifact", artifact.MediaType, null, "restricted",
-                    CliResults.EmptyCoverage(), CliResults.Ready(), "output", "not-attempted") { Id = artifact.ArtifactId };
+                    CliResults.EmptyCoverage(), CliResults.Ready(), "output", "not-attempted")
+                { Id = artifact.ArtifactId };
                 CliCommandResult planned = CliResults.Success([receipt]) with { DefinitionDigest = target!.Digest.Value };
                 ledger.Plan(invocation, command, planned);
                 CliPublicationResult? publication = null;
@@ -161,7 +162,7 @@ internal static class CliProfileHandlers
         {
             // The ordinary target mode uses ordinary answers, never a blind retained profile.
             return await CliArtifactHandlers.ExecuteAsync(command with
-                { Family = "artifact", Operation = "export" }, invocation, ledger, token);
+            { Family = "artifact", Operation = "create" }, invocation, ledger, token);
         }
         Definition definition = await CliIoOperations.DefinitionAsync(invocation, command.Definition!, token);
         AnswerSnapshot answers = await CliIoOperations.AnswersAsync(invocation, command.Input!, "0", token);

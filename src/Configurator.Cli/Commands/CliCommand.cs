@@ -50,5 +50,9 @@ internal sealed record CliCommand(
     internal string? NewPassphraseInput { get; init; }
     internal int ProfileListOffset { get; init; }
     internal int ProfileListLimit { get; init; } = 16;
+    internal bool Version { get; init; }
+    internal string[]? RequiredCapabilities { get; init; }
+    internal bool Draft { get; init; }
+    internal string? Fixtures { get; init; }
 }
 

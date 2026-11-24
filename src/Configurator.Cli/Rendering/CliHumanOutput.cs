@@ -25,6 +25,42 @@ internal static class CliHumanOutput
         grid.AddColumn();
         grid.AddRow(new Text(TextFor("Status")), new Text(State(CliResults.Lower(result.Exit))));
         grid.AddRow(new Text(TextFor("Scope")), new Text(TextFor("ScopeDescription")));
+        if (result.Info is { } info)
+        {
+            grid.AddRow(new Text("application"), new Text(info.Application));
+            grid.AddRow(new Text("version"), new Text(info.Version));
+            grid.AddRow(new Text("profile"), new Text(info.Profile));
+            grid.AddRow(new Text("protected-write"), new Text(info.ProtectedWriteAvailable ? "available" : "unavailable"));
+        }
+        if (result.SchemaCatalog is { } catalog)
+        {
+            foreach (CliMachineSchemaDescriptor item in catalog.Schemas)
+                grid.AddRow(new Text(item.Kind), new Text($"{item.FileName} ({item.Digest[..12]}…)"));
+        }
+        if (result.DefinitionDescription is { } description)
+        {
+            grid.AddRow(new Text("definition"), new Text(string.Create(CultureInfo.InvariantCulture,
+                $"{description.ApplicationId} rev {description.Revision}; {description.ReturnedCount}/{description.Total}; digest={description.Digest}")));
+            foreach (CliMachineFieldDescription field in description.Fields)
+                grid.AddRow(new Text(field.Id), new Text($"{field.Kind} ({field.Sensitivity}, {(field.Required ? "required" : "optional")})"));
+            if (description.NextOffset is { } nextDesc)
+                grid.AddRow(new Text("--offset"), new Text(nextDesc.ToString(CultureInfo.InvariantCulture)));
+        }
+        if (result.RevisionDiff is { } revisionDiff)
+        {
+            grid.AddRow(new Text("diff"), new Text(string.Create(CultureInfo.InvariantCulture,
+                $"rev {revisionDiff.BaselineRevision} -> {revisionDiff.CandidateRevision}; behavioral={revisionDiff.BehavioralCount}; display-only={revisionDiff.DisplayOnlyCount}")));
+            foreach (CliMachineRevisionChange change in revisionDiff.Changes.Take(16))
+                grid.AddRow(new Text($"{change.Impact}: {change.Category}"), new Text(change.SchemaPath));
+        }
+        if (result.FixtureReport is { } fixtureReport)
+        {
+            grid.AddRow(new Text("fixtures"), new Text(string.Create(CultureInfo.InvariantCulture,
+                $"{fixtureReport.PassedCases}/{fixtureReport.TotalCases} passed (expected-refusals={fixtureReport.ExpectedRefusalCases}, failed={fixtureReport.FailedCases})")));
+            grid.AddRow(new Text("scope"), new Text(fixtureReport.Scope));
+            foreach (CliMachineFixtureCase item in fixtureReport.Cases.Take(16))
+                grid.AddRow(new Text(item.CaseId), new Text(item.FailureCode is null ? item.Outcome : $"{item.Outcome} ({item.FailureCode})"));
+        }
         if (result.Workflow is { } workflow)
         {
             grid.AddRow(new Text("workflow"), new Text(string.Create(CultureInfo.InvariantCulture,
@@ -63,9 +99,13 @@ internal static class CliHumanOutput
             {
                 string location = diagnostic.Source is { } source
                     ? string.Create(culture, $"{source.SchemaPath} ({source.StartLine}:{source.StartColumn}-{source.EndLine}:{source.EndColumn})")
-                    : diagnostic.Correction is { } correction
-                        ? JsonSerializer.Serialize(correction, CliJsonContext.Default.CliMachineCorrectionLocation)
-                        : diagnostic.Path;
+                    : diagnostic.Line is { } line && diagnostic.Column is { } column
+                        ? diagnostic.ByteOffset is { } byteOffset
+                            ? string.Create(culture, $"{diagnostic.Path} ({line}:{column}, byte {byteOffset})")
+                            : string.Create(culture, $"{diagnostic.Path} ({line}:{column})")
+                        : diagnostic.Correction is { } correction
+                            ? JsonSerializer.Serialize(correction, CliJsonContext.Default.CliMachineCorrectionLocation)
+                            : diagnostic.Path;
                 grid.AddRow(new Text(State(diagnostic.Severity) + ": " + diagnostic.Code), new Text(location));
             }
             if (result.Diagnostics.Count > 16)

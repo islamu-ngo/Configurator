@@ -56,11 +56,14 @@ internal sealed class CliFixture : ICliInput, ICliWriter
         ValueTask.FromResult<ProtectedArtifactStatus?>(ArtifactDestinationsBlocked ? ProtectedArtifactStatus.UnsupportedPlatform
             : Files.ContainsKey(path) ? ProtectedArtifactStatus.TargetExists : null);
 
-    internal async Task<CliExitCode> RunAsync(params string[] arguments)
+    internal Task<CliExitCode> RunAsync(params string[] arguments) =>
+        RunAsync(new CliApplication(), arguments);
+
+    internal async Task<CliExitCode> RunAsync(CliApplication app, params string[] arguments)
     {
         StandardOutput = [];
         StandardError = [];
-        return await new CliApplication().RunAsync(new(arguments, CliMode.Text,
+        return await app.RunAsync(new(arguments, CliMode.Text,
             new(this, this, new ErrorWriter(this), AuthoringFiles, 65_536, MaximumBytes)));
     }
 

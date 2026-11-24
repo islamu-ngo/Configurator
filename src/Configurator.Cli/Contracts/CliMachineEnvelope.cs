@@ -54,5 +54,15 @@ public sealed record CliMachineEnvelope
     public string? RuntimeSchemaVersion { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public CliMachineSchema? Schema { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CliMachineSchemaCatalog? SchemaCatalog { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CliMachineInfo? Info { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CliMachineDefinitionDescription? DefinitionDescription { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CliMachineRevisionDiff? RevisionDiff { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CliMachineFixtureReport? FixtureReport { get; init; }
 }
 

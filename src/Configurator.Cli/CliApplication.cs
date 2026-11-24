@@ -1,8 +1,9 @@
 using System.Text;
 using System.Text.Json;
+using Configurator.Artifacts;
+using Configurator.Artifacts.Profiles;
 using Configurator.Cli.Commands;
 using Configurator.Core.Definitions;
-using Configurator.Artifacts.Profiles;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -13,13 +14,22 @@ public sealed class CliApplication
 {
     private readonly Func<string, IProfileVaultStore> _profileStore;
     private readonly Func<IOsKeyringProvider> _profileKeyring;
+    private readonly Func<bool> _isProtectedWriterAvailable;
 
-    public CliApplication() : this(root => new LocalProfileVaultStore(root), () => new OsKeyringProvider()) { }
+    public CliApplication() : this(
+        root => new LocalProfileVaultStore(root),
+        () => new OsKeyringProvider(),
+        () => new ProtectedArtifactWriter().IsAvailable)
+    { }
 
-    internal CliApplication(Func<string, IProfileVaultStore> profileStore, Func<IOsKeyringProvider> profileKeyring)
+    internal CliApplication(
+        Func<string, IProfileVaultStore>? profileStore = null,
+        Func<IOsKeyringProvider>? profileKeyring = null,
+        Func<bool>? isProtectedWriterAvailable = null)
     {
-        _profileStore = profileStore;
-        _profileKeyring = profileKeyring;
+        _profileStore = profileStore ?? (root => new LocalProfileVaultStore(root));
+        _profileKeyring = profileKeyring ?? (() => new OsKeyringProvider());
+        _isProtectedWriterAvailable = isProtectedWriterAvailable ?? (() => new ProtectedArtifactWriter().IsAvailable);
     }
     public Task<CliExitCode> RunAsync(CliInvocation invocation, CancellationToken cancellationToken = default) =>
         RunCoreAsync(invocation, null, cancellationToken);
@@ -49,6 +59,8 @@ public sealed class CliApplication
             cancellationToken.ThrowIfCancellationRequested();
             if (argumentError is not null || preflight.Error is not null)
                 result = CliResults.Failure(CliExitCode.Usage, argumentError ?? preflight.Error!);
+            else if (command.Version)
+                result = CliDiscoveryHandlers.Version(_isProtectedWriterAvailable());
             else
             {
                 var runtime = new CliCommandRuntime(this, invocation, ledger);
@@ -78,6 +90,11 @@ public sealed class CliApplication
             if (command.Machine)
                 await invocation.Io.Output.WriteAsync("-", CliMachineOutput.Serialize(command, result, invocation.Io.MaximumOutputBytes),
                     invocation.Io.MaximumOutputBytes, delivery.Token);
+            else if (result.Exit == CliExitCode.Success && result.RawTextOutput is { } rawText)
+            {
+                byte[] rawBytes = Encoding.UTF8.GetBytes(rawText);
+                await invocation.Io.Output.WriteAsync("-", rawBytes, invocation.Io.MaximumBytes, delivery.Token);
+            }
             else
             {
                 if (text.GetStringBuilder().Length == 0) CliHumanOutput.Render(console, result, invocation.Culture);
@@ -107,18 +124,20 @@ public sealed class CliApplication
         {
             cancellationToken.ThrowIfCancellationRequested();
             if ((command.Detail is not null || command.Offset != 0 || command.Limit != 16 || command.ExpectedDetailDigest is not null)
-                && !(command.Family == "definition" && command.Operation is "check" or "lint" or "inspect"
+                && !(command.Family == "definition" && command.Operation is "check" or "lint" or "inspect" or "describe"
                     || command.Family == "artifact" && command.Operation is "validate" or "check-existing" or "compare" or "bundle-check"))
                 return CliResults.Failure(CliExitCode.Usage, "detail-read-only-required");
             return command.Family switch
             {
+                "info" => CliDiscoveryHandlers.Info(_isProtectedWriterAvailable()),
+                "schema" => await CliDiscoveryHandlers.SchemaAsync(command, invocation, ledger, cancellationToken),
                 "catalogue" => await CliCatalogueEnvironmentHandlers.CatalogueAsync(command, invocation, ledger, cancellationToken),
-                "artifact" or "env" => await CliArtifactHandlers.ExecuteAsync(command, invocation, ledger, cancellationToken),
+                "artifact" => await CliArtifactHandlers.ExecuteAsync(command, invocation, ledger, cancellationToken),
                 "definition" => await CliDefinitionHandlers.ExecuteAsync(command, invocation, ledger, cancellationToken),
                 "secret" => await CliSecretHandlers.ExecuteAsync(command, invocation, ledger, cancellationToken),
                 "profile" => await CliProfileHandlers.ExecuteAsync(command, invocation, ledger,
                     _profileStore, _profileKeyring, cancellationToken),
-                "doctor" => CliArtifactHandlers.Doctor(),
+                "doctor" => CliDiscoveryHandlers.Doctor(command, _isProtectedWriterAvailable()),
                 _ => CliResults.Failure(CliExitCode.Usage, "command-unknown")
             };
         }

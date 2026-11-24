@@ -21,6 +21,23 @@ internal static partial class CliMachineContractVerifier
         ["$.diagnostics[].correction.segments[]"] = ["kind"],
         ["$.schema"] = ["kind", "id", "digest", "profile", "authoringContractVersion", "runtimeSchemaVersion",
             "answerContractVersion", "capabilities", "document"],
+        ["$.schemaCatalog"] = ["schemas"],
+        ["$.schemaCatalog.schemas[]"] = ["kind", "id", "fileName", "digest"],
+        ["$.info"] = ["application", "version", "profile", "authoringContractVersion", "runtimeSchemaVersion",
+            "answerContractVersion", "fixtureContractVersion", "commandEnvelopeVersion", "protectedWriteAvailable", "schemas", "capabilities"],
+        ["$.definitionDescription"] = ["familyId", "revision", "definitionDigest", "applicationId", "profile",
+            "requiredCapabilities", "artifactIds", "locales", "applicationVersions", "entryPoints",
+            "offset", "limit", "total", "retainedCount", "returnedCount", "terminal", "nextOffset", "digest", "fields"],
+        ["$.definitionDescription.fields[]"] = ["id", "schemaPointer", "kind", "nullable", "required", "sensitivity",
+            "detail", "policyDeclared", "conditionalActivation", "conditionalRequirement", "hasChoices"],
+        ["$.revisionDiff"] = ["baselineFamilyId", "baselineRevision", "baselineDigest", "candidateFamilyId",
+            "candidateRevision", "candidateDigest", "sameFamily", "canonicalIdentical", "hasBehavioralChanges",
+            "hasDisplayOnlyChanges", "behavioralCount", "displayOnlyCount", "totalChanges", "truncated", "changes"],
+        ["$.revisionDiff.changes[]"] = ["impact", "category", "schemaPath"],
+        ["$.fixtureReport"] = ["definitionDigest", "fixtureDigest", "engineVersion", "scope", "claimBoundary",
+            "passed", "totalCases", "passedCases", "failedCases", "expectedRefusalCases", "cases"],
+        ["$.fixtureReport.cases[]"] = ["caseId", "kind", "outcome", "expectedRefusal",
+            "observedDiagnosticCodes", "observedArtifactIds"],
         ["$.artifacts[]"] = ["id", "kind", "mediaType", "sensitivity", "pathIntent", "writeStatus", "installation", "verification"],
         ["$.coverage"] = ["coveredCount", "missingCount", "detailDigest"],
         ["$.readiness"] = ["state", "missingCount", "blockedCount"],
@@ -40,10 +57,13 @@ internal static partial class CliMachineContractVerifier
     private static readonly Dictionary<string, string[]> Allowed = Required.ToDictionary(
         item => item.Key, item => item.Key switch
         {
-            "$" => [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion", "detail", "help", "schema", "assessment", "workflow"],
+            "$" => [.. item.Value, "authoringContractVersion", "runtimeSchemaVersion", "detail", "help", "schema", "schemaCatalog", "info", "definitionDescription", "revisionDiff", "fixtureReport", "assessment", "workflow"],
+            "$.definitionDescription.fields[]" => [.. item.Value, "acquisition"],
+            "$.revisionDiff.changes[]" => [.. item.Value, "detail"],
+            "$.fixtureReport.cases[]" => [.. item.Value, "failureCode"],
             "$.workflow.items[]" => [.. item.Value, "optionId", "targetOption", "sourcePointer", "targetPointer", "priority", "artifactCount"],
             "$.assessment" or "$.detail" => [.. item.Value, "total"],
-            "$.artifacts[]" => [.. item.Value, "digest"],
+            "$.artifacts[]" => [.. item.Value, "digest", "completeness", "deferredFieldCount"],
             "$.detail.findings[]" => [.. item.Value, "source", "schema"],
             "$.diagnostics[]" => [.. item.Value, "line", "column", "byteOffset", "source", "correction"],
             "$.diagnostics[].correction.segments[]" => [.. item.Value, "propertyName", "index"],
@@ -87,6 +107,15 @@ internal static partial class CliMachineContractVerifier
             ["$.diagnostics[].correction"] = schema["$defs"]!["correction"]!.AsObject(),
             ["$.diagnostics[].correction.segments[]"] = schema["$defs"]!["correctionSegment"]!.AsObject(),
             ["$.schema"] = schema["$defs"]!["schema"]!.AsObject(),
+            ["$.schemaCatalog"] = schema["$defs"]!["schemaCatalog"]!.AsObject(),
+            ["$.schemaCatalog.schemas[]"] = schema["$defs"]!["schemaDescriptor"]!.AsObject(),
+            ["$.info"] = schema["$defs"]!["info"]!.AsObject(),
+            ["$.definitionDescription"] = schema["$defs"]!["definitionDescription"]!.AsObject(),
+            ["$.definitionDescription.fields[]"] = schema["$defs"]!["fieldDescription"]!.AsObject(),
+            ["$.revisionDiff"] = schema["$defs"]!["revisionDiff"]!.AsObject(),
+            ["$.revisionDiff.changes[]"] = schema["$defs"]!["revisionChange"]!.AsObject(),
+            ["$.fixtureReport"] = schema["$defs"]!["fixtureReport"]!.AsObject(),
+            ["$.fixtureReport.cases[]"] = schema["$defs"]!["fixtureCase"]!.AsObject(),
             ["$.artifacts[]"] = schema["$defs"]!["artifact"]!.AsObject(),
             ["$.coverage"] = schema["$defs"]!["coverage"]!.AsObject(),
             ["$.readiness"] = schema["$defs"]!["readiness"]!.AsObject(),
@@ -152,7 +181,7 @@ internal static partial class CliMachineContractVerifier
                 .SetEquals(CliContractSpecification.Operations.Keys.Append("cli"))
             || !schema["$defs"]!["invocation"]!["properties"]!["operation"]!["enum"]!.AsArray()
                 .Select(node => node!.GetValue<string>()).ToHashSet(StringComparer.Ordinal)
-                .SetEquals(CliContractSpecification.Operations.Values.SelectMany(value => value).Append("help")))
+                .SetEquals(CliContractSpecification.Operations.Values.SelectMany(value => value).Append("help").Append("version")))
             errors.Add("schema-invocation-vocabulary");
         JsonArray commands = schema["_metadata"]!["commands"]!.AsArray();
         if (!commands.Select(command => command!["name"]!.GetValue<string>()).ToHashSet(StringComparer.Ordinal)
@@ -361,13 +390,13 @@ internal static partial class CliMachineContractVerifier
             || discovery["document"]?["type"]?.GetValue<string>() != "object"
             || discovery["document"]?["$ref"]?.GetValue<string>() != "https://json-schema.org/draft/2020-12/schema")
             errors.Add("schema-discovery-contract");
-        if (definitions["schema"]?["oneOf"] is not JsonArray identities || identities.Count != 4
+        if (definitions["schema"]?["oneOf"] is not JsonArray identities || identities.Count != 6
             || identities.Any(identity => identity?["properties"]?["kind"]?["const"]?.GetValue<string>() is not { } kind
                 || !CliContractSpecification.SchemaIds.TryGetValue(kind, out string? id)
                 || identity["properties"]?["id"]?["const"]?.GetValue<string>() != id)
             || identities.Select(identity => identity!["properties"]!["kind"]!["const"]!.GetValue<string>())
-                .Distinct(StringComparer.Ordinal).Count() != 4
-            || schema["allOf"] is not JsonArray { Count: 5 })
+                .Distinct(StringComparer.Ordinal).Count() != 6
+            || schema["allOf"] is not JsonArray { Count: 12 })
             errors.Add("schema-discovery-operation");
     }
 
@@ -552,11 +581,11 @@ internal static partial class CliMachineContractVerifier
         {
             "root" => family == "cli" && operation == "help" && segments.Length == 0 && options.Count == 0
                 && children.ToHashSet(StringComparer.Ordinal).SetEquals(CliContractSpecification.Operations.Keys),
-            "branch" => operation == "help" && family != "doctor" && segments.SequenceEqual([family]) && options.Count == 0
+            "branch" => operation == "help" && family is not ("doctor" or "info") && segments.SequenceEqual([family]) && options.Count == 0
                 && CliContractSpecification.Operations.TryGetValue(family, out IReadOnlySet<string>? operations)
                 && operations.SetEquals(children),
             "leaf" => CliContractSpecification.Operations.TryGetValue(family, out IReadOnlySet<string>? operations)
-                && operations.Contains(operation) && segments.SequenceEqual(family == "doctor" ? ["doctor"] : new[] { family, operation })
+                && operations.Contains(operation) && segments.SequenceEqual(family is "doctor" or "info" ? [family] : new[] { family, operation })
                 && children.Length == 0 && options.Count > 0,
             _ => false
         };
@@ -692,8 +721,8 @@ internal static partial class CliMachineContractVerifier
 
     private static void ValidateSchemaDiscovery(JsonObject root, List<string> errors)
     {
-        bool expected = root["invocation"]?["commandFamily"]?.GetValue<string>() == "definition"
-            && root["invocation"]?["operation"]?.GetValue<string>() == "schema"
+        bool expected = root["invocation"]?["commandFamily"]?.GetValue<string>() == "schema"
+            && root["invocation"]?["operation"]?.GetValue<string>() == "export"
             && root["exitCode"]?.GetValue<int>() == 0 && !root.ContainsKey("help");
         if (!expected)
         {
@@ -719,7 +748,7 @@ internal static partial class CliMachineContractVerifier
             || capabilities.Select(item => item!.GetValue<string>()).Distinct(StringComparer.Ordinal).Count() != capabilities.Count)
             errors.Add("machine-schema-capabilities");
         if (schema["document"] is not JsonObject document
-            || document["$id"]?.GetValue<string>() != id
+            || (document.ContainsKey("$id") ? document["$id"]?.GetValue<string>() != id : kind != "store-curation")
             || document["$schema"]?.GetValue<string>() != "https://json-schema.org/draft/2020-12/schema")
             errors.Add("machine-schema-document");
         else

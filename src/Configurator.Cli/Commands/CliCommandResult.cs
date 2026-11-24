@@ -11,7 +11,13 @@ internal sealed record CliCommandResult(
     internal string? Preparation { get; init; }
     internal string Cleanup { get; init; } = "not-required";
     internal CliMachineSchema? Schema { get; init; }
+    internal CliMachineSchemaCatalog? SchemaCatalog { get; init; }
+    internal CliMachineInfo? Info { get; init; }
+    internal CliMachineDefinitionDescription? DefinitionDescription { get; init; }
+    internal CliMachineRevisionDiff? RevisionDiff { get; init; }
+    internal CliMachineFixtureReport? FixtureReport { get; init; }
     internal CliMachineAssessment? Assessment { get; init; }
     internal CliMachineWorkflow? Workflow { get; init; }
+    internal string? RawTextOutput { get; init; }
 }
 

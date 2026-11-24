@@ -10,9 +10,12 @@ internal sealed class BundleOutputSettings : BundleInputSettings
     [CommandOption("--dry-run")]
     public bool DryRun { get; set; }
 
+    [CommandOption("--draft")]
+    public bool Draft { get; set; }
+
     protected override string? ValidateValues() => base.ValidateValues() ?? ValidateOutput(Output, !DryRun);
 
     public override CliCommand Bind(string family, string operation, CliMode invocationMode) =>
-        base.Bind(family, operation, invocationMode) with { Output = Output, DryRun = DryRun };
+        base.Bind(family, operation, invocationMode) with { Output = Output, DryRun = DryRun, Draft = Draft };
 }
 

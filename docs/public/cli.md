@@ -338,39 +338,39 @@ The CLI uses strict, case-sensitive option parsing:
 
 | Command | Required Options | Optional Options | Description |
 | --- | --- | --- | --- |
+| `info` | *(none)* | *(none)* | Report build version, contract versions, schema catalog, and host capabilities |
+| `schema list` | *(none)* | *(none)* | List embedded public schemas with kinds, IDs, and canonical SHA-256 digests |
+| `schema export` | *(none)* | `--kind` | Export an embedded public JSON Schema (`authoring`, `runtime`, `answers`, `command`, `fixtures`, `store-curation`) |
 | `catalogue list` | `--definition`, `--output` | `--dry-run` | List all declared field keys and structural metadata |
-| `catalogue show` | `--definition`, `--key`, `--output` | `--dry-run` | Inspect metadata for a single declared field |
 | `catalogue describe` | `--definition`, `--key`, `--output` | `--dry-run` | Inspect detailed activation and constraint metadata |
-| `env render` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Render a declared dotenv artifact from answers |
-| `env validate` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--answers` | Validate answer compatibility for a dotenv artifact |
-| `artifact create` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Generate a declared configuration artifact |
-| `artifact open` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--answers` | Validate answers and stage output without writing |
-| `artifact validate` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--answers` | Verify answer constraints against schema rules |
-| `artifact format` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Publish canonical formatting for an existing artifact |
+| `artifact create` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Generate a declared configuration artifact (including `.env` via `--format dotenv`) |
+| `artifact validate` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--format`, `--answers` | Verify answer constraints against schema rules (and optional artifact format) |
 | `artifact diff` | `--definition`, `--artifact`, `--input`, `--baseline` | `--input-revision`, `--answers` | Compare candidate answers against a baseline |
-| `artifact coverage` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--answers` | Report provided vs missing required fields |
-| `artifact export` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Publish artifact using canonical output writer |
+| `artifact coverage` | `--definition`, `--artifact`, `--input` | `--input-revision`, `--format`, `--answers` | Report provided vs missing required fields |
 | `artifact import` | `--definition`, `--artifact`, `--input`, `--output`, `--expected-revision`, `--revision-field` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Prepare an import artifact with explicit revision binding |
-| `artifact check-existing` | `--definition`, `--artifact`, `--input` | `--answers`, `--input-revision` | Verify if a local file can be reverse-mapped to answers |
+| `artifact check-existing` | `--definition`, `--artifact`, `--input` | `--answers`, `--input-revision`, `--format` | Verify if a local file can be reverse-mapped to answers |
 | `artifact compare` | `--definition`, `--artifact`, `--input` | `--answers`, `--detail`, `--offset`, `--limit`, `--expected-detail-digest` | Assess an existing file against the selected definition without changing answers or files |
 | `artifact prefill` | `--definition`, `--artifact`, `--input`, `--output` | `--answers`, `--input-revision`, `--format`, `--dry-run` | Ingest local configuration into a JSON answer workspace |
 | `artifact bundle-check` | `--definition`, repeated `--artifact`, `--input` | `--input-revision` | Validate multi-artifact bundle readiness |
-| `artifact bundle-create` | `--definition`, repeated `--artifact`, `--input`, `--output` | `--input-revision`, `--dry-run` | Create all bundle artifacts in the target directory |
-| `artifact preview` | `--definition`, `--artifact`, `--input`, `--output` | `--input-revision`, `--format`, `--dry-run`, `--answers` | Validate and write protected preview output |
-| `doctor` | *(none)* | *(none)* | Check system writer availability and schema status |
+| `artifact bundle-create` | `--definition`, repeated `--artifact`, `--input`, `--output` | `--input-revision`, `--dry-run`, `--draft` | Create all bundle artifacts in the target directory (with optional `--draft` for secret-deferred incomplete bundles) |
+| `doctor` | *(none)* | `--require` | Check host capabilities and schema status; fail closed when a required capability (e.g. `protected-write`) is unavailable |
 | `definition init` | `--project-id`, `--name`, `--application-version` (unless forking) | `--root`, `--output`, `--format`, `--fork-from`, `--from-env-example`, `--from-schema`, `--accept-bounded-semantics` | Initialize a source, or fork to a new family with explicit output |
 | `definition check` | *(none)* | `--source`, `--root`, `--against` | Verify maintainer source syntax and canonical hash |
-| `definition lint` | *(none)* | `--source`, `--root`, `--against`, `--detail`, `--offset`, `--limit`, `--expected-detail-digest` | Admit source and report bounded authoring warnings without publication |
+| `definition lint` | *(none)* | `--source`, `--root`, `--against`, `--quality`, `--strict`, `--detail`, `--offset`, `--limit`, `--expected-detail-digest` | Admit source and report bounded authoring warnings without publication |
 | `definition inspect` | *(none)* | `--source`, `--root`, `--offset`, `--limit`, `--expected-detail-digest` | Inspect public output options, next actions and suggested-value links without reading answers or writing files |
-| `definition schema` | *(none)* | `--kind` | Discover built-in public schemas without reading files |
+| `definition describe` | *(none)* | `--source`, `--root`, `--offset`, `--limit`, `--expected-detail-digest` | Page public declared fields, artifacts, types, requiredness, sensitivity, and secret policy without reading answers |
+| `definition diff` | `--against` | `--source`, `--root` | Compare a baseline and candidate definition by exact field and artifact IDs, separating behavioral impacts from display-only edits |
+| `definition test` | `--fixtures` | `--source`, `--root` | Execute a bounded data-only synthetic conformance fixture suite against the definition without external commands |
 | `definition build` | *(none)* | `--source`, `--root`, `--against`, `--output`, `--id-map` | Compile maintainer source into distribution JSON |
 | `definition revise` | `--output` *(when changed)* | `--source`, `--root`, `--against` | Increment revision if source contents changed |
 
-`--machine` and `--text` are common mode options. Output is optional on
+`--version` prints the compiled build version directly (`--version --machine` emits a single `info` envelope with build, contract, and capability metadata) without invoking external tools or reading files. `--machine` and `--text` are common mode options. Output is optional on
 `--dry-run` operations; no destination preflight or publication occurs.
 `--format` must match the selected artifact, not request conversion.
 `--input-revision` is a nonnegative local snapshot revision, not the definition
 revision or target revision hash.
+
+Removed legacy routes (`env`, `catalogue show`, `artifact open|format|export|preview`, and `definition schema`) fail with exit code `64` (`Usage`) without alias fallback; use `artifact create|validate`, `catalogue describe`, and `schema list|export`.
 
 Detail options (`--detail`, `--offset`, `--limit`,
 `--expected-detail-digest`) are for read-only `definition check|lint` and
@@ -425,18 +425,32 @@ structural authoring advisories; advisory warnings do not reject an otherwise va
 definition.
 
 ```bash
+islamu-configurator --version
+islamu-configurator info --machine
+islamu-configurator schema list --machine
+islamu-configurator schema export --kind authoring --machine
+islamu-configurator schema export --kind fixtures --text
+islamu-configurator definition describe \
+  --source examples/minimal-self-hosted/configurator.yaml --machine --limit 16
 islamu-configurator definition lint \
   --source examples/minimal-self-hosted/configurator.yaml --machine \
   --detail diagnostics --limit 16
-islamu-configurator definition schema --kind authoring --machine
-islamu-configurator definition schema --kind command --text
 ```
 
-Schema kinds are exactly `authoring` (default), `runtime`, `answers`, and
-`command`. Machine discovery returns a `schema` object containing its kind, ID,
-canonical digest, `bounded-v0.0.1` profile, capabilities, document, and independent
-authoring/runtime/answer versions 2/2/1. Text mode prints only the public schema
-document. Discovery takes no source, input, output or root authority.
+Schema kinds are exactly `authoring` (default), `runtime`, `answers`, `command`,
+`fixtures`, and `store-curation`. `schema list` summarizes every embedded public
+schema with its kind, ID, and canonical SHA-256 digest. `schema export --machine`
+returns a `schema` object containing its kind, ID, canonical digest,
+`bounded-v0.0.1` profile, capabilities, document, and independent
+authoring/runtime/answer versions (`0.0.1`). Text mode prints only the public
+schema document bytes. Discovery takes no source, input, output or root authority.
+
+`definition describe --source configurator.yaml --machine` returns a paged
+`description` inventory (default and maximum `--limit 16`) containing each
+declared field's ID, schema pointer, type, sensitivity, requiredness, optional
+secret policy (`acquisition` and `profile`), and the definition's declared
+artifacts. Non-initial pages require `--expected-detail-digest` bound to the
+returned digest so any source change restarts at offset zero.
 
 Lint runs the same admission as check, then reports descriptive defaults,
 advisory formats and missing output update/restart advice as warnings. Warnings
@@ -444,9 +458,12 @@ alone succeed; unsupported source still fails admission. Lint never revises or
 publishes source. A bounded report overflow fails explicitly rather than hiding
 unreported diagnostics.
 
-Compiler diagnostics preserve their code and optional public `source` location:
-schema pointer, zero-based document index and one-based start/end line/column.
-Answer diagnostics can instead carry a revision-bound `correction` with a field
+Parser and compiler diagnostics preserve their fixed code and optional value-free
+coordinates (`line`, 1-based Unicode-scalar `column`, 0-based original UTF-8
+`byteOffset`, plus optional public `source` span with schema pointer, zero-based
+document index, and start/end line/column). Raw exception messages, unknown keys,
+input snippets, and private paths are never echoed. Answer diagnostics can
+instead carry a revision-bound `correction` with a field
 ID and typed `property`, `arrayRow`, or `mapEntry` segments. Map entries use
 ordinals, never private keys. A numeric declared property remains a property.
 Do not apply a correction after changing the input revision.
@@ -477,22 +494,24 @@ islamu-configurator catalogue describe \
   --machine
 ```
 
-### Environment Operations (dotenv)
+### Dotenv Artifacts via `artifact`
 
-Render or validate `.env` format artifacts declared in the definition:
+Render or validate `.env` format artifacts declared in the definition through the unified `artifact` family (with optional `--format dotenv` format assertion):
 
 ```bash
 # Validate answers for a declared environment artifact
-islamu-configurator env validate \
+islamu-configurator artifact validate \
   --definition "$definition" \
   --artifact environment \
+  --format dotenv \
   --input "$answers" \
   --machine
 
 # Render the .env file to disk
-islamu-configurator env render \
+islamu-configurator artifact create \
   --definition "$definition" \
   --artifact environment \
+  --format dotenv \
   --input "$answers" \
   --output ./prepared.env \
   --machine
@@ -644,11 +663,19 @@ islamu-configurator definition revise \
 Check environment capabilities, native writer availability, and schema authority:
 
 ```bash
+# Inspect host capabilities truthfully (exits 0 while reporting missing capabilities)
 islamu-configurator doctor --machine
+
+# Require protected-write support explicitly (exits 4 / Blocked if unavailable)
+islamu-configurator doctor --require protected-write --machine
 ```
 
-Doctor does not probe the selected output filesystem, qualify another host,
-or establish that target software will accept an artifact.
+Plain `doctor` reports whether `protected-write` is available on the current host
+without failing simply because an optional host feature is absent; passing
+`--require protected-write` enforces the requirement and fails closed with exit
+code `4` (`Blocked`) when native protected writes are unavailable. Doctor does
+not probe the selected output filesystem, qualify another host, or establish that
+target software will accept an artifact.
 
 ---
 
