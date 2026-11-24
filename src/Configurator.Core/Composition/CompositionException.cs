@@ -7,6 +7,13 @@ using Configurator.Core.Definitions;
 
 internal sealed class CompositionException : Exception
 {
-    internal CompositionException(CompositionFailureCode code) : base("Setup composition failed.") => Code = code;
+    internal CompositionException(CompositionFailureCode code, CompositionSourceLocation? location = null)
+        : base("Setup composition failed.")
+    {
+        Code = code;
+        Location = location;
+    }
+
     internal CompositionFailureCode Code { get; }
+    internal CompositionSourceLocation? Location { get; }
 }

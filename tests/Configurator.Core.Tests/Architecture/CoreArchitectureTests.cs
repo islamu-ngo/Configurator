@@ -354,7 +354,14 @@ internal static class SetupCoreAssemblyVerifier
                             ? property.Name is not "Code" and not "FieldId" and not "RelativePath"
                                 && !(property.Name == "Location"
                                     && property.PropertyType == typeof(Configurator.Core.Definitions.DefinitionCorrectionLocation))
-                            : property.Name is not "Code" and not "Path" and not "Severity"))
+                            : type == typeof(Configurator.Core.Definitions.Authoring.DefinitionAuthoringDiagnostic)
+                                ? !(property.Name == "Code" && property.PropertyType == typeof(string)
+                                    || property.Name == "SchemaPath" && property.PropertyType == typeof(string)
+                                    || property.Name == "Line" && property.PropertyType == typeof(int?)
+                                    || property.Name == "Column" && property.PropertyType == typeof(int?)
+                                    || property.Name == "ByteOffset" && property.PropertyType == typeof(long?)
+                                    || property.Name == "SourceSpan" && property.PropertyType == typeof(Configurator.Core.Definitions.DefinitionSourceSpan?))
+                                : property.Name is not "Code" and not "Path" and not "Severity"))
                     failures.Add($"value-bearing diagnostic field {type.FullName}.{property.Name}");
                 if (type == typeof(Configurator.Core.Definitions.DefinitionCorrectionLocation)
                     && !(property.Name == "InputRevision" && property.PropertyType == typeof(long)

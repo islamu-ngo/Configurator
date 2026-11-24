@@ -8,7 +8,7 @@ description: "Understand bounded definitions, exact names, answer presence, and 
 > **Kind:** Guide
 > **Status:** Current bounded-v0.0.1 explanation; platform and target qualification are separate
 > **Owner:** Core
-> **Last Verified:** 2026-10-28
+> **Last Verified:** 2026-11-24
 > **Source Anchors:** `src/Configurator.Core/Definitions/`, `src/Configurator.Core/Artifacts/DefinitionArtifactComposer.cs`, `src/Configurator.Cli/Commands/Definitions/CliDefinitionHandlers.cs`
 
 A definition describes configuration data, local validation, presentation, and
@@ -705,6 +705,8 @@ These operations establish different facts:
 | Complete preparation | Validated declared projection and format encoding; not target acceptance or successful save |
 | Secret-deferred draft | Explicitly incomplete output with completion locations, never complete readiness |
 | Existing-file import | Bounded reversible prefill, not arbitrary configuration migration |
+| Semantic revision diff | Separates behavioral changes (sensitivity, requiredness, activation, constraints, defaults, secret policy, outputs) from display-only edits by exact identity without guessing renames or reading answers |
+| Synthetic fixture conformance | Exercises bounded data-only synthetic prepare and import cases against the local offline engine; rejects executable keywords and empty suites, and claims no target runtime acceptance |
 | Target validation/apply | Independently owned by the target, outside Configurator authority |
 
 Complete preparation rejects validation diagnostics. Draft preparation may defer
@@ -801,10 +803,15 @@ assertions. See [JSON Schema import](definition-reference.md#json-schema-import)
 ## Diagnostics and Recovery
 
 Use codes and bounded correction locations, not private values, to explain a
-failure. Definition failures can include a public schema pointer and source
-line/column span. Answer corrections bind to the input revision and distinguish
-declared properties, array rows, and private map-entry ordinals. Revalidate after
-an edit; an old ordinal/revision is not a durable identifier for a new workspace.
+failure. Definition failures can include a public schema pointer, a schema span,
+and parser-level numeric coordinates: a one-based line number, a one-based
+Unicode-scalar column number, and a zero-based original UTF-8 byte offset
+(counting any leading UTF-8 BOM). Raw parser exception messages, unknown member
+names, submitted values, source snippets, and private paths are never emitted in
+authoring diagnostics. Answer corrections bind to the input revision and
+distinguish declared properties, array rows, and private map-entry ordinals.
+Revalidate after an edit; an old ordinal/revision is not a durable identifier
+for a new workspace.
 
 | Code or family | Meaning and next action |
 |---|---|
@@ -861,13 +868,16 @@ tasks. Machine consumers must accept the new advisory codes. Additional findings
 can reach the existing report limit sooner; an incomplete bounded report returns
 the documented Data outcome rather than success.
 The same lint pass also reports `required-setting-missing-guidance` and
-`required-secret-missing-guidance` for statically required leaves without
-`description` or `guidance.instructions`, `secret-missing-acquisition-guidance`
-for required or optional secret leaves without declared `secret` acquisition
-policy or `guidance.instructions`, `choice-missing-guidance` and
-`choice-duplicate-explanation` for authored choices missing or repeating
-explanations, `description-missing-format-hint` for asserted lexical formats
-missing concrete examples or format cues, and `section-high-required-density`
-for sections with more than 12 ungrouped required leaves. Pass `--strict` to
+`required-secret-missing-guidance` for statically or conditionally required
+leaves (including container-local `required` members inside optional objects,
+leaves carrying `x-configurator.requiredWhen`, and `if`/`then`/`else` or
+`dependentRequired` targets) without `description` or `guidance.instructions`,
+`secret-missing-acquisition-guidance` for required or optional secret leaves
+without declared `secret` acquisition policy or `guidance.instructions`,
+`choice-missing-guidance` and `choice-duplicate-explanation` for declared `enum`
+choices missing or repeating `x-configurator.choices` explanations,
+`description-missing-format-hint` for asserted lexical formats missing concrete
+examples or format cues, and `section-high-required-density` for sections with
+more than 12 ungrouped statically required leaves. Pass `--strict` to
 `definition lint` to return `CliExitCode.Data` when any warning is present;
 all findings carry schema paths and leave admission unchanged.

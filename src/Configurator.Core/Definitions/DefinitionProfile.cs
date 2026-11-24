@@ -60,7 +60,6 @@ public static class DefinitionProfile
             throw new DefinitionException("document-limit");
         try
         {
-            _ = StrictUtf8.GetCharCount(bytes.Span);
             CompositionMap tree = yaml
                 ? CompositionYamlParser.Parse(bytes, CompositionLimits.Default, CancellationToken.None,
                     keyPolicy: CompositionKeyPolicy.Exact)
@@ -74,8 +73,9 @@ public static class DefinitionProfile
         catch (DefinitionException) { throw; }
         catch (CompositionException exception)
         {
-            throw new DefinitionException(exception.Code == CompositionFailureCode.LimitExceeded
-                ? "document-limit" : "document-invalid");
+            throw DefinitionException.AtLocation(
+                exception.Code == CompositionFailureCode.LimitExceeded ? "document-limit" : "document-invalid",
+                exception.Location);
         }
         catch (Exception exception) when (exception is JsonException or ArgumentException or InvalidOperationException)
         {

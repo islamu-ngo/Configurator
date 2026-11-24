@@ -1,0 +1,28 @@
+Change-Id: CHG-01M870NR1W7T96ATMMVBK08E43
+Title: "Preserve value-safe parser coordinates in authoring diagnostics"
+Type: feat
+Scope: definitions
+Summary: "Capture exact one-based line, one-based Unicode-scalar column, and zero-based original UTF-8 byte offset across malformed JSON and YAML authoring sources while stripping raw parser exception messages, unknown keys, values, snippets, and private paths."
+Group: authoring-diagnostics
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: documented
+    Detail: "Parser-level authoring diagnostics propagate only closed codes, known schema paths, and numeric source coordinates (line, Unicode-scalar column, UTF-8 byte offset), stripping raw parser exception messages, unknown keys, values, snippets, and private paths."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/definitions.md
+    Disposition: documented
+    Detail: "Malformed JSON and YAML authoring sources report one-based line, one-based Unicode-scalar column, and zero-based UTF-8 byte offset (including UTF-8 BOM) through DefinitionException and DefinitionAuthoringDiagnostic."
+  OpenAPI:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definitions.md
+    Disposition: not-applicable
