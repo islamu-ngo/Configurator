@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:islamu:configurator:fixtures:v0.0.1",
+  "title": "Configurator synthetic conformance fixtures 0.0.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "fixtureContractVersion",
+    "cases"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "urn:islamu:configurator:fixtures:v0.0.1",
+      "description": "Optional schema identifier for editor validation."
+    },
+    "fixtureContractVersion": {
+      "const": "0.0.1",
+      "description": "Synthetic conformance fixture contract version."
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "expect"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$",
+            "description": "Unique synthetic fixture case identifier."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "description": "Public description of the synthetic case."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "prepare",
+              "import"
+            ],
+            "description": "Offline engine flow exercised by this synthetic case."
+          },
+          "draft": {
+            "type": "boolean",
+            "default": false,
+            "description": "When true on a prepare case, composes a secret-deferred draft bundle."
+          },
+          "artifactId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Artifact identifier to inspect (required for import; optional single-artifact selection for prepare)."
+          },
+          "answers": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "answerContractVersion",
+              "values"
+            ],
+            "properties": {
+              "answerContractVersion": {
+                "const": "0.0.1",
+                "description": "Synthetic answer envelope contract version."
+              },
+              "values": {
+                "type": "object",
+                "description": "Synthetic answer values keyed by root configuration field."
+              },
+              "omitted": {
+                "type": "array",
+                "uniqueItems": true,
+                "default": [],
+                "items": {
+                  "type": "string",
+                  "maxLength": 65536,
+                  "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+                }
+              }
+            }
+          },
+          "contextAnswers": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "answerContractVersion",
+              "values"
+            ],
+            "properties": {
+              "answerContractVersion": {
+                "const": "0.0.1",
+                "description": "Synthetic answer envelope contract version."
+              },
+              "values": {
+                "type": "object",
+                "description": "Synthetic answer values keyed by root configuration field."
+              },
+              "omitted": {
+                "type": "array",
+                "uniqueItems": true,
+                "default": [],
+                "items": {
+                  "type": "string",
+                  "maxLength": 65536,
+                  "pattern": "^(?:/(?:[^~]|~[01])*)*$"
+                }
+              }
+            }
+          },
+          "contentUtf8": {
+            "type": "string",
+            "description": "Synthetic UTF-8 artifact input for import cases. Mutually exclusive with contentBase64."
+          },
+          "contentBase64": {
+            "type": "string",
+            "description": "Synthetic base64-encoded artifact input for import cases. Mutually exclusive with contentUtf8."
+          },
+          "expect": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "ready": {
+                "type": "boolean",
+                "description": "Expected preparation readiness."
+              },
+              "refusal": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "description": "Expected closed refusal or diagnostic code."
+              },
+              "diagnosticCodes": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "description": "Closed diagnostic codes expected in the result."
+              },
+              "artifacts": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "description": "Declared artifact identifier."
+                    },
+                    "fileName": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "description": "Expected artifact file name."
+                    },
+                    "contentUtf8": {
+                      "type": "string",
+                      "description": "Expected literal UTF-8 artifact content. Mutually exclusive with contentBase64."
+                    },
+                    "contentBase64": {
+                      "type": "string",
+                      "description": "Expected base64-encoded artifact bytes. Mutually exclusive with contentUtf8."
+                    },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$",
+                      "description": "Expected lowercase hexadecimal SHA-256 digest."
+                    },
+                    "deferred": {
+                      "type": "boolean",
+                      "description": "For draft cases, whether this artifact is expected to carry deferred secret completions."
+                    }
+                  }
+                },
+                "description": "Expected prepared artifacts for prepare cases."
+              },
+              "importCompatibility": {
+                "type": "string",
+                "enum": [
+                  "compatible",
+                  "changes-required",
+                  "incomplete",
+                  "unsupported",
+                  "invalid-input"
+                ],
+                "description": "Expected inverse import compatibility classification for import cases."
+              },
+              "importReady": {
+                "type": "boolean",
+                "description": "Expected post-import readiness for import cases."
+              }
+            }
+          }
+        }
+      },
+      "description": "Non-empty list of data-only synthetic conformance cases."
+    }
+  }
+}

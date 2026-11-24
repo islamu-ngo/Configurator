@@ -55,7 +55,8 @@ if (args is ["--write"] or ["--check"])
     {
         ("schemas/setup-definition.schema.json", DefinitionSchema.Generate()),
         ("schemas/configurator-authoring.schema.json", DefinitionAuthoringSchema.Generate()),
-        ("schemas/configurator-answers.schema.json", DefinitionSchema.GenerateAnswers())
+        ("schemas/configurator-answers.schema.json", DefinitionSchema.GenerateAnswers()),
+        ("schemas/configurator-fixtures.schema.json", DefinitionFixtureSchema.Generate())
     })
     {
         if (write) File.WriteAllText(schemaPath, content);

@@ -1,0 +1,28 @@
+Change-Id: CHG-01M871BXTAB6XH9DQ6980FC23D
+Title: "Add semantic revision comparison and bounded synthetic fixture runner"
+Type: feat
+Scope: definitions
+Summary: "Add DefinitionRevisionComparison to separate behavioral contract impacts from display-only edits without guessing renames, and add DefinitionFixtureDocument, DefinitionFixtureRunner, and generated unversioned schemas/configurator-fixtures.schema.json to execute bounded data-only synthetic conformance suites while rejecting executable vocabulary and empty suites."
+Group: authoring-verification
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/CORE_DEFINITION_CONTRACT.md
+    Disposition: documented
+    Detail: "Synthetic fixture admission enforces closed data-only vocabulary (rejecting executable, network, process, oversized, and empty fixture suites fail-closed) and disposes composed artifact buffers without echoing answer values in diagnostics."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/definitions.md
+    Disposition: documented
+    Detail: "Adds DefinitionRevisionComparison for behavioral vs. display-only revision diffing and DefinitionFixtureRunner with generated unversioned schemas/configurator-fixtures.schema.json (fixtureContractVersion 0.0.1)."
+  OpenAPI:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definitions.md
+    Disposition: not-applicable
