@@ -1,9 +1,9 @@
 # Static Browser v1 Launch Qualification Record (2026-11-23)
 
 > **Audience:** Maintainers | Release reviewers | Self-hosting operators | AI agents
-> **Status:** Local Linux container & dual-engine qualification executed; residual `4x` `QF01`/scale tail and external human/hardware gates remain open
+> **Status:** Local Linux container, dual-engine `Q01–Q16`, and Track A `4x` `QF01`/scale qualification passed; external human/hardware gates remain open
 > **Owner:** Browser / Packaging
-> **Last Verified:** 2026-11-23
+> **Last Verified:** 2026-11-24
 > **Source Anchors:** `src/Configurator.Browser/Dockerfile`, `src/Configurator.Browser.Host/`, `eng/configurator/Configurator.BrowserQualification/`, `eng/configurator/ValidateSupportQualification.cs`, `eng/configurator/MeasureInteractiveWork.cs`
 
 This qualification record binds exact container, payload, test, and benchmark identities executed on Linux x64 (`SDK 10.0.404`, Docker `29.9.3` BuildKit) after implementing Phases 1–5 of the `browser-launch-readiness` workstream. Automated passes do not substitute for physical assistive-technology sign-off, manual high-zoom evaluation, Apple WebKit/Safari hardware testing, or live Coolify edge TLS inspection.
@@ -117,4 +117,45 @@ These gates cannot be closed by local Linux automation and remain explicit prere
 2. **Manual `200%` and `400%` browser UI zoom & reflow verification:** Real browser chrome zoom (not CSS emulation) across desktop and mobile widths.
 3. **Safari / WebKit on physical macOS & iOS hardware:** Real Apple WebKit WASM boot, service worker caching/eviction, clipboard/download custody, and RTL shaping (Linux Playwright WebKit failed launch on Arch due to Ubuntu `libicu74`/`libxml2`).
 4. **Live Coolify production edge deployment & rollback drill:** Verified HTTPS TLS termination, reverse-proxy `Vary: Accept-Encoding` compression cooperation, query/referrer-stripped edge access logs, and exact-digest rollback verification.
-5. **Bounded `4x` throttled performance follow-up (`QF01` / extended scale tail):** Incremental `DefinitionPreparationSession` scheduling for `wide-nested-object`/`large-map-list` `4x` prep (`214.1ms`/`224.4ms` vs `200ms`) and `few-root-deep-tree` `4x` reverse / `compact-600` outlier smoothing.
+
+---
+
+## 7. Track A `4x` Performance Tail Closure Addendum (2026-11-24)
+
+Executed on Linux x64 (`SDK 10.0.404`, Docker `29.9.2` BuildKit, Chromium `159.0.8154.6`) after implementing single-pass cooperative `DefinitionPreparationSession` (streaming canonical `Utf8JsonWriter` + `ZeroingByteBufferWriter`), precomputed `DefinitionNode.RequiredSet`/`HasOptionalDescendant`, O(1) `DefinitionFormProjection.FieldStatesById` & `OptionalMissing`, and fenced two-phase `ConfigurationReview` effects hydration.
+
+### 7.1 Track A Rebuilt Container & Input Identities
+
+| Identity | Value |
+| --- | --- |
+| Rebuilt unified container image ID (`src/Configurator.Browser/Dockerfile`) | `sha256:6f56bbed3df0006fb0183567e4669c29fb968b89112cd2f7ea1d9db6305a5a53` |
+| Published `service-worker-assets.js` SHA-256 (`payloadDigest`) | `59eb19ae44c0f85a92bf5be3dc9f3596a218c0f2e5871e08e6908aa10272c91f` |
+| Interactive fixture bundle digest (`fixtureDigest`) | `4c1490e03a986486252eebcbbb86de1abb377f8165e02645f40249a238a010dc` |
+| Qualification host digest (`hostDigest`) | `b0f2ee4ac145bcd495f7f1093567e1934ce40a88831b68f5191787375a92ebbd` |
+
+### 7.2 `MeasureInteractiveWork.cs` (`56/56` Passed — Exit `0`)
+
+Ran `Configurator.BrowserQualification --measure-interactive` against the hardened container (`--read-only --tmpfs /tmp:rw,noexec,nosuid,size=16m --cap-drop ALL --security-opt no-new-privileges`) and validated raw outputs via `dotnet run --file eng/configurator/MeasureInteractiveWork.cs` (**`exit 0`**, `passed: true`, **`56/56` cohorts passed**, `1` retained non-failing outlier across `2,576` total samples):
+
+- **Mandatory core cohorts (`36/36` passed, `0` outliers):** worst `1x` content `p95` **`78.5ms`** (`bulk-edit-malformed-recovery` reverse, budget `100ms`), worst `1x` feedback max **`23.8ms`** (`deferred-draft` reverse, budget `50ms`); worst `4x` content `p95` **`198.6ms`** (`bulk-edit-malformed-recovery` reverse, budget `400ms`), worst `4x` feedback max **`94.1ms`** (`obscure-correction` reverse, budget `200ms`).
+- **Extended compound-root & `compact-600` cohorts (`20/20` passed):**
+
+| Fixture Journey | `1x` Forward / Reverse `p95` (budget `100ms`) | `4x` Forward / Reverse `p95` (budget `400ms`) | Worst `4x` Feedback Max (budget `200ms`) | Status |
+| --- | --- | --- | --- | --- |
+| `wide-nested-object` (512 fields) | `66.3ms` / `72.4ms` | `141.8ms` / `224.4ms` | `91.6ms` | **4/4 Passed** |
+| `large-map-list` (256 map + 256 list) | `81.9ms` / `81.9ms` | `93.0ms` / `111.8ms` | `66.7ms` | **4/4 Passed** |
+| `multi-artifact` (8 JSON outputs) | `68.1ms` / `73.6ms` | `193.6ms` / `267.0ms` | `142.0ms` | **4/4 Passed** (`1` retained `4x` forward outlier ordinal `32` at `695.7ms`, `fb=52.1ms`, `p95=193.6ms <= 400ms`) |
+| `few-root-deep-tree` (7-level, 128 leaves) | `64.8ms` / `84.1ms` | `136.4ms` / **`377.0ms`** | `90.0ms` | **4/4 Passed** (`4x` reverse down from `407.1ms`, `max=391.0ms`, `0` outliers) |
+| `compact-600` (600 root fields) | `64.9ms` / `88.9ms` | `182.6ms` / `327.7ms` | **`187.1ms`** | **4/4 Passed** (`1x` forward first-use `fb=35.5ms < 50ms`, `4x` forward `fbMax=187.1ms < 200ms`, `0` outliers) |
+
+### 7.3 `QF01` Near-Limit Preparation Gate (`8/8` Passed — `passed: true`)
+
+| Fixture | `1x` `p50` / `p95` (budget `<= 100ms`) | `1x` Gate | `4x` `p50` / `p95` (budget `<= 200ms`) | `4x` Gate |
+| --- | --- | --- | --- | --- |
+| `few-root-deep-tree` | `64.6ms` / `64.8ms` | **PASS** | `92.7ms` / `94.5ms` | **PASS** |
+| `wide-nested-object` | `64.7ms` / `64.9ms` | **PASS** | `124.4ms` / **`140.5ms`** | **PASS** (down from `214.1ms`) |
+| `large-map-list` | `81.2ms` / `81.6ms` | **PASS** | `156.1ms` / **`166.4ms`** | **PASS** (down from `224.4ms`) |
+| `multi-artifact` (8 outputs) | `64.7ms` / `65.0ms` | **PASS** | `90.5ms` / `109.6ms` | **PASS** |
+
+- **Owner unit verification for this payload:** `Configurator.Core.Tests` (`978/978`, `13.6s`), `CoreArchitectureTests` (`10/10`), `Configurator.Presentation.Tests` (`498/498`, `2.2s`), `Configurator.Browser.Tests` (`693/693`), Release `Configurator.Browser` build (`0W, 0E`).
+- **Remaining release gates:** External human/hardware items `1–4` in Section 6 (physical screen-reader/braille sign-off, manual `200%`/`400%` zoom, physical macOS/iOS Safari/WebKit, and live Coolify edge TLS/rollback drill) remain open and are unaffected by this automation pass.

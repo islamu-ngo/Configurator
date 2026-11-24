@@ -28,9 +28,11 @@ internal sealed class DefinitionFormFacts
         Validation = validation;
         _nodes = new Dictionary<DefinitionPath, DefinitionNodeState>(validation.Nodes.Count);
         _activeFields = new HashSet<string>(validation.Fields.Count, StringComparer.Ordinal);
+        var fieldStatesById = new Dictionary<string, FieldState>(validation.Fields.Count, StringComparer.Ordinal);
         List<DefinitionDiagnostic>? activeDiagnostics = null;
         foreach (FieldState fieldState in validation.Fields)
         {
+            fieldStatesById[fieldState.Id] = fieldState;
             if (!fieldState.IsActive) continue;
             _activeFields.Add(fieldState.Id);
             if (index.FieldPositions.ContainsKey(fieldState.Id))
@@ -39,6 +41,7 @@ internal sealed class DefinitionFormFacts
                     (activeDiagnostics ??= []).Add(diag);
             }
         }
+        FieldStatesById = new ReadOnlyDictionary<string, FieldState>(fieldStatesById);
         IEnumerable<DefinitionDiagnostic> inputDiagnostics = activeDiagnostics ?? Enumerable.Empty<DefinitionDiagnostic>();
         if (validation.ConfigurationContext is { } context && activeDiagnostics is not null)
         {
@@ -97,6 +100,7 @@ internal sealed class DefinitionFormFacts
         }
 
         bool hasDeployment = form.Definition.Deployment is not null;
+        int optionalMissingCount = 0;
         var entries = new List<EntryState>(validation.Nodes.Count);
         foreach (DefinitionNodeState node in validation.Nodes)
         {
@@ -187,9 +191,13 @@ internal sealed class DefinitionFormFacts
                 if (sectionBuckets is not null && sectionBuckets.TryGetValue(section.Id, out ProgressAccumulator? secBucket))
                     secBucket.AddObligation(node, exactInputError, obligationDeferred);
             }
+            if (node.IsActive && !node.IsRequired && !node.IsProvided)
+                optionalMissingCount++;
             index.Bindings.TryGetValue(node.FieldId, out var binding);
             entries.Add(new(metadata, section, node, literal, inputError, deferred, origin, binding.Artifacts, binding.Keys));
         }
+
+        OptionalMissingCount = optionalMissingCount;
 
         if (validation.Diagnostics.Count > 0)
         {
@@ -489,10 +497,12 @@ internal sealed class DefinitionFormFacts
     }
 
     internal DefinitionValidationResult Validation { get; }
+    internal IReadOnlyDictionary<string, FieldState> FieldStatesById { get; }
     internal IReadOnlyList<DefinitionDiagnostic> InputDiagnostics { get; }
     internal bool HasInputErrors { get; }
     internal DefinitionFormProgress Progress { get; }
     internal int OptionalInvalidCount { get; }
+    internal int OptionalMissingCount { get; }
     internal IReadOnlyDictionary<string, DefinitionFormProgress> SectionProgress { get; }
     internal Lazy<IReadOnlyList<DefinitionDiscoveryEntry>> Entries { get; }
     internal Lazy<IReadOnlyDictionary<string, DefinitionPath>> EntryLiteralPaths { get; }

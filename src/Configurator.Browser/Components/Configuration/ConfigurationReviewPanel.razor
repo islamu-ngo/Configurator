@@ -19,7 +19,7 @@
                 }
             </p>
         }
-        @{ int optionalMissing = Form.Projection.Entries.Count(entry => entry.IsActive && !entry.IsRequired && !entry.IsProvided); }
+        @{ int optionalMissing = Form.Projection.ProgressSummary.OptionalMissing; }
         <ul>
             <li>@Format("ReviewRequiredSummary", Form.Projection.Progress.Ready, Form.Projection.Progress.Required)</li>
             <li data-review-optional-missing="@optionalMissing">@Format("ReviewOptionalMissing", optionalMissing)</li>

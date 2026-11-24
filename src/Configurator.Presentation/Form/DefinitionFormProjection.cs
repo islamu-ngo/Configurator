@@ -245,6 +245,7 @@ public sealed class DefinitionFormProjection
         IEnumerable<string> visibleFields,
         IReadOnlyDictionary<string, DefinitionFormProgress> sectionProgress,
         IReadOnlyDictionary<string, SectionStatusProjection> sectionStatuses,
+        IReadOnlyDictionary<string, FieldState> fieldStatesById,
         WorkspaceProgressSummary progressSummary,
         WorkspaceNavigationProjection navigation,
         WorkspacePresentationOptions presentationOptions,
@@ -261,6 +262,7 @@ public sealed class DefinitionFormProjection
         Sections = sections;
         SectionProgress = sectionProgress;
         SectionStatuses = sectionStatuses;
+        FieldStatesById = fieldStatesById;
         ProgressSummary = progressSummary;
         Navigation = navigation;
         PresentationOptions = presentationOptions;
@@ -289,6 +291,7 @@ public sealed class DefinitionFormProjection
         Sections = sections ?? current.Sections;
         SectionProgress = current.SectionProgress;
         SectionStatuses = sectionStatuses ?? current.SectionStatuses;
+        FieldStatesById = current.FieldStatesById;
         ProgressSummary = progressSummary ?? current.ProgressSummary;
         Navigation = navigation ?? current.Navigation;
         PresentationOptions = current.PresentationOptions;
@@ -399,6 +402,8 @@ public sealed class DefinitionFormProjection
     public IReadOnlyList<DefinitionFormSection> Sections { get; }
     public IReadOnlyDictionary<string, DefinitionFormProgress> SectionProgress { get; }
     public IReadOnlyDictionary<string, SectionStatusProjection> SectionStatuses { get; }
+    public IReadOnlyDictionary<string, FieldState> FieldStatesById { get; }
+    internal bool AreEntriesMaterialized => _entries.IsValueCreated;
     public WorkspaceProgressSummary ProgressSummary { get; }
     public WorkspaceNavigationProjection Navigation { get; }
     public WorkspacePresentationOptions PresentationOptions { get; }
@@ -472,7 +477,8 @@ public sealed class DefinitionFormProjection
             activeSections,
             openedSections,
             reviewedSections,
-            facts.OptionalInvalidCount);
+            facts.OptionalInvalidCount,
+            facts.OptionalMissingCount);
 
         DefinitionFormExperience activeExperience = form.Experiences.Single(item => item.Id == form.SelectedExperienceId);
         WorkspaceNavigationProjection navigation = WorkspaceNavigationProjection.Create(
@@ -502,6 +508,7 @@ public sealed class DefinitionFormProjection
             visibleFields,
             facts.SectionProgress,
             readOnlyStatuses,
+            facts.FieldStatesById,
             progressSummary,
             navigation,
             form.PresentationOptions,

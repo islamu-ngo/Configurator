@@ -3,7 +3,7 @@
 @using System.Text.Json
 
 <div class="configuration-field @(Type is "object" or "array" ? "configuration-field--group" : "")"
-     data-field="@string.Join('.', Path)"
+     data-field="@FieldPathKey"
      @onfocusin="NotifyFocused" @onfocusin:stopPropagation="true">
     @if (!IsVisible)
     {
@@ -32,7 +32,7 @@
     {
     string type = Type;
     var actionForm = Form;
-    IReadOnlyList<string> actionPath = Path.ToArray();
+    IReadOnlyList<string> actionPath = CurrentPathSnapshot;
     long actionRevision = Form.InputRevision;
     long actionGeneration = _actionGeneration;
     string error = Error;
@@ -83,7 +83,7 @@
             else if (type == "object")
             {
                 var objectSchema = ObjectSchema;
-                var requiredProperties = objectSchema.Required.ToHashSet(StringComparer.Ordinal);
+                IReadOnlySet<string> requiredProperties = objectSchema.RequiredSet;
                 @if (Value is null)
                 {
                     <button type="button" class="button button--secondary" data-action="supply-object"
@@ -93,7 +93,7 @@
                 @foreach (var childMount in MountNode.Children)
                 {
                     string childId = childMount.Location.Segments[^1];
-                    string[] childPath = Path.Append(childId).ToArray();
+                    string[] childPath = ChildPath(childId);
                     bool declared = objectSchema.Properties.TryGetValue(childId, out var childSchema);
                     childSchema ??= objectSchema.AdditionalProperties!;
                     bool focusChild = declared && focusRemaining && CanFocus(childSchema, childPath);
@@ -150,7 +150,7 @@
                         {
                             <p class="configuration-field__duplicate" role="status" data-duplicate-key>@Ui("DuplicateUniqueKey")</p>
                         }
-                        <ConfigurationField Form="Form" Schema="ItemSchema" Path="@Path.Append(row.ToString(CultureInfo.InvariantCulture)).ToArray()" LiteralPath="LiteralPath" MountNode="childMount" MountRevision="MountRevision" Validation="Validation" ValidationChanged="ValidationChanged"
+                        <ConfigurationField Form="Form" Schema="ItemSchema" Path="@ChildPath(row.ToString(CultureInfo.InvariantCulture))" LiteralPath="LiteralPath" MountNode="childMount" MountRevision="MountRevision" Validation="Validation" ValidationChanged="ValidationChanged"
                                             TitleOverride="@UiFormat("FieldListItem", Title)" RequiredOverride="true"
                                             InheritedSecret="isSecret" FocusFirstControl="@(row == _focusNewRow || FocusFirstControl && (FocusPath.Count > Path.Count ? FocusPath[Path.Count] == row.ToString(CultureInfo.InvariantCulture) : row == (FocusRow >= 0 ? FocusRow : 0)))" FocusGeneration="FocusGeneration" FocusPath="@(row == _focusNewRow ? PendingFocusPath : FocusPath)" />
                         <button type="button" class="button button--secondary" data-action="remove-item" aria-label="@UiFormat("RemoveFieldItem", Title, row + 1)"
@@ -245,7 +245,7 @@
         @if (HasChoices || type == "boolean" && !isMasked)
         {
             var editForm = Form;
-            var editPath = Path.ToArray();
+            IReadOnlyList<string> editPath = actionPath;
             long editRevision = Form.InputRevision;
             long editControlGeneration = _controlGeneration;
             @if (useSwitch)
@@ -340,7 +340,7 @@
         else if (UseSlider && TryGetSliderBounds(out double sliderMin, out double sliderMax, out double sliderStep))
         {
             var editForm = Form;
-            var editPath = Path.ToArray();
+            IReadOnlyList<string> editPath = actionPath;
             long editRevision = Form.InputRevision;
             long editControlGeneration = _controlGeneration;
             <div class="configuration-field__slider-pair" data-widget="slider">
@@ -367,7 +367,7 @@
         else
         {
             var editForm = Form;
-            var editPath = Path.ToArray();
+            IReadOnlyList<string> editPath = actionPath;
             long editRevision = Form.InputRevision;
             long editControlGeneration = _controlGeneration;
             <div class="configuration-field__input"

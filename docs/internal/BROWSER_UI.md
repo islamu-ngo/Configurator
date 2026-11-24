@@ -462,12 +462,24 @@ English and Arabic UI resources are embedded in the main assembly for offline
 use. Appearance direction remains an explicit override of the derived direction.
 
 The Review panel derives complete-ready, secret-deferred or blocked presentation
-from the existing shared progress and input diagnostics. It does not compose
-artifacts or collect another answer tree. Its ready and draft actions invoke the
-editor's existing preparation/adoption operation. The inner effects list remains
-value-free and names declared output metadata rather than promising inclusion.
-Required/optional/secret state, origin labels and recovery text use the current
-English or Arabic resource set.
+from the existing shared progress and input diagnostics, binding optional-missing
+counts directly from `WorkspaceProgressSummary.OptionalMissing` without
+materializing all discovery entries on frame 1. It does not compose artifacts or
+collect another answer tree. Its ready and draft actions invoke the editor's
+cooperative `DefinitionPreparationSession` preparation/adoption operation,
+yielding via `nextTask` and re-verifying captured form identity, generation,
+input revision, privacy consent and disposal across every yield. The inner
+effects list remains value-free, indexes only the active page, and for forms
+exceeding 128 validation nodes defers effects hydration by one `nextFrame` fenced
+by captured form, input revision and disposal so Review opens promptly without
+stale updates. Required/optional/secret state, origin labels and recovery text
+use the current English or Arabic resource set.
+
+`ConfigurationField` and `ConfigurationConfigurePanel` consume precomputed
+`DefinitionNode.HasOptionalDescendant`, `DefinitionNode.RequiredSet` and
+`DefinitionFormProjection.FieldStatesById`, caching child path arrays per field
+path rather than scanning subtrees or allocating per-render hash sets and
+dictionaries on deep nested trees.
 
 `ConfigurationFiles` owns each mounted file's preview element and accessible
 actions, not its bytes or workspace. The editor retains preparation, export and

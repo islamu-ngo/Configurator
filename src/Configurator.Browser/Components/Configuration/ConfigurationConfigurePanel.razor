@@ -348,7 +348,7 @@
         IReadOnlyList<DefinitionFormSection> sections) =>
         ResolveVisibleSectionsWithStates(form, sections).Sections;
 
-    private static (Dictionary<string, FieldState> States, DefinitionFormSection[] Sections) ResolveVisibleSectionsWithStates(
+    private static (IReadOnlyDictionary<string, FieldState> States, DefinitionFormSection[] Sections) ResolveVisibleSectionsWithStates(
         DefinitionFormModel form,
         IReadOnlyList<DefinitionFormSection> sections)
     {
@@ -358,7 +358,7 @@
         bool allSections = form.ConfigureLayoutMode == ConfigureLayoutMode.AllSections;
         DefinitionFormExperience experience = form.DisplayExperiences.Single(item => item.Id == form.SelectedExperienceId);
         DefinitionFormProjection projection = form.Projection;
-        Dictionary<string, FieldState> states = form.Validate().Fields.ToDictionary(state => state.Id, StringComparer.Ordinal);
+        IReadOnlyDictionary<string, FieldState> states = projection.FieldStatesById;
         string? outputField = form.Definition.Presentation?.OutputSelector is { } selector
             ? DefinitionProfile.FieldId(selector.Location.Segments[0])
             : null;

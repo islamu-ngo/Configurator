@@ -48,7 +48,8 @@ public sealed record WorkspaceProgressSummary(
     int ActiveSections,
     int OpenedSections,
     int ReviewedSections,
-    int OptionalInvalidCount = 0)
+    int OptionalInvalidCount = 0,
+    int OptionalMissing = 0)
 {
     public int? RequiredPercent => TotalRequired == 0 ? null : 100 * ReadyRequired / TotalRequired;
     public int TotalInvalidCount => InvalidCount;

@@ -888,9 +888,11 @@ Each `DefinitionFormProjection` pairs that progress with a two-dimensional
 `HasNewlyRelevantSettings` downgrade tracking cleared via `SetSectionReviewed`
 or `RecordSectionOpened(..., acknowledgeNewlyRelevant: true)` and `HiddenOptionalTitles`), a
 `WorkspaceProgressSummary` tracking active/opened/reviewed section
-denominators alongside required counts, `OptionalInvalidCount`, `TotalInvalidCount`,
-and `IsReadyForExport` (false whenever missing required, deferred secrets, or
-validation errors including optional-setting errors remain), `WorkspaceNavigationProjection` (wizard
+denominators alongside required counts, `OptionalInvalidCount`, `OptionalMissing`,
+`TotalInvalidCount`, and `IsReadyForExport` (false whenever missing required,
+deferred secrets, or validation errors including optional-setting errors remain),
+precomputed `FieldStatesById` (cached per projection without per-render
+validation or dictionary allocation), `WorkspaceNavigationProjection` (wizard
 step indices and next-required / next-error / next-unvisited section jumps, plus
 control-level `WorkspaceActionableTarget` resolved via `ResolveNextActionableTarget`
 and `ResolveActionableTarget`), and

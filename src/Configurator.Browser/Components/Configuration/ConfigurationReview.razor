@@ -1,6 +1,9 @@
+@implements IAsyncDisposable
 @using System.Globalization
 @using Configurator.Core.Definitions
 @using Configurator.Presentation
+@using Microsoft.JSInterop
+@inject IJSRuntime Javascript
 
 @if (Validation is not null || DiagnosticCodes.Count > 0 || InvalidFields.Count > 0)
 {
@@ -8,13 +11,13 @@
         <h3 id="configuration-review-heading">@Ui("ReviewPreparationTitle")</h3>
         @if (Validation?.IsReady == false || InvalidFields.Count > 0 || DiagnosticCodes.Count > 0)
         {
-            Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>? diagTitleLookup = BuildDiagnosticTitleLookup();
             IReadOnlyList<DefinitionDiagnostic> validationDiagnostics = Validation?.Diagnostics ?? [];
             int totalCorrections = validationDiagnostics.Count + InvalidFields.Count;
             int correctionsPageCount = Math.Max(1, (totalCorrections + CorrectionsPageSize - 1) / CorrectionsPageSize);
             int currentCorrectionPage = Math.Clamp(_correctionsPage, 0, correctionsPageCount - 1);
             int start = currentCorrectionPage * CorrectionsPageSize;
             int end = Math.Min(totalCorrections, start + CorrectionsPageSize);
+            Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>? diagTitleLookup = null;
             <p>@Ui("ReviewCorrectionsHelp")</p>
             <ul>
                 @for (int index = start; index < end; index++)
@@ -24,7 +27,7 @@
                         ? validationDiagnostics[index]
                         : InvalidFields[index - validationDiagnostics.Count];
                     string code = fromValidation ? diagnostic.Code : "input-type-invalid";
-                    string diagTitle = FieldTitle(diagnostic, diagTitleLookup);
+                    string diagTitle = ResolveDiagnosticTitle(diagnostic, ref diagTitleLookup);
                     <li><button type="button" class="button button--secondary" data-correction="@diagnostic.FieldId"
                                 aria-label="@UiFormat("ReviewCorrectField", diagTitle)" @onclick="() => CorrectField.InvokeAsync(diagnostic)">@diagTitle</button>
                         <span>@DescribeDiagnostic(code)</span></li>
@@ -57,7 +60,10 @@
 
 @if (ShowEffects && Form is not null)
 {
-    <section class="configuration-review__effects" data-review-effects aria-label="@Ui("ReviewEffects")">
+    <section class="configuration-review__effects" data-review-effects
+             data-review-effects-hydrated="@(_effectsHydrated ? "true" : "false")"
+             aria-busy="@(!_effectsHydrated ? "true" : null)"
+             aria-label="@Ui("ReviewEffects")">
         <p class="form-help configuration-review__steps" data-review-steps>@Ui("FilesStepSequence")</p>
         <p>@Ui("ReviewEffectsHelp")</p>
         <p>@Ui("ReviewDeclaredOutputs")</p>
@@ -86,53 +92,62 @@
                         @onclick="() => SetOriginFilter(origin)">@OriginText(origin)</button>
             }
         </div>
-        <p data-review-count="@_entries.Count">@UiFormat("ReviewSettingsCount", _entries.Count)</p>
-        @{
-            Dictionary<(string FieldId, string RelKey), DefinitionNodeState>? reviewNodes = GetReviewNodes();
-            Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>? entryTitleLookup = BuildDiagnosticTitleLookup();
-        }
-        <ul class="configuration-review__answers">
-            @foreach (var entry in _entries.Skip(_page * PageSize).Take(PageSize))
-            {
-                var node = reviewNodes![(entry.FieldId, string.Join('\0', entry.RelativePath))];
-                var diagnostic = new DefinitionDiagnostic("review-change", entry.FieldId, node.Location);
-                string entryTitle = FieldTitle(diagnostic, entryTitleLookup);
-                <li @key="(entry.FieldId, node.Location)"
-                    data-review-path="@string.Join(".", entry.FieldId.Length == 0 ? entry.RelativePath : new[] { entry.FieldId }.Concat(entry.RelativePath))" data-origin="@entry.Origin">
-                    <div class="configuration-review__answer">
-                        <strong>@entryTitle</strong>
-                        @if (entry.IsActive)
-                        {
-                            <button type="button" class="button button--secondary" data-action="review-focus-row" @onclick="() => ChangeField.InvokeAsync(diagnostic)"
-                                    aria-label="@UiFormat("ReviewChangeField", entryTitle)">@Ui("ReviewChange")</button>
-                        }
-                    </div>
-                    <p>@StateText(entry)</p>
-                    @if (entry.Sensitivity != FieldSensitivity.Public && entry.Origin != DefinitionAnswerOrigin.Omitted)
-                    {
-                        <p>@Ui("ReviewPrivateMasked")</p>
-                    }
-                    @if (entry.OutputArtifactIds.Count > 0)
-                    {
-                        <details><summary>@Ui("ReviewBindings")</summary>
-                            <p>@OriginText(entry.Origin)</p>
-                            <p><bdi dir="ltr">@string.Join(", ", entry.OutputArtifactIds)</bdi></p>
-                            <p><code dir="ltr">@string.Join(", ", entry.BindingKeys)</code></p>
-                            <p>@Ui("ReviewBindingsHelp")</p>
-                        </details>
-                    }
-                </li>
-            }
-        </ul>
-        @if (_entries.Count > PageSize)
+        @if (_effectsHydrated)
         {
-            <nav class="actions" aria-label="@Ui("ReviewPages")">
-                <button type="button" class="button button--secondary" data-action="review-previous"
-                        disabled="@(_page == 0)" @onclick="() => _page--">@Ui("ReviewPrevious")</button>
-                <span role="status">@UiFormat("ReviewPage", _page + 1, PageCount)</span>
-                <button type="button" class="button button--secondary" data-action="review-next"
-                        disabled="@(_page + 1 >= PageCount)" @onclick="() => _page++">@Ui("ReviewNext")</button>
-            </nav>
+            <p data-review-count="@_entries.Count">@UiFormat("ReviewSettingsCount", _entries.Count)</p>
+            int pageStart = _page * PageSize;
+            int pageEnd = Math.Min(_entries.Count, pageStart + PageSize);
+            Dictionary<(string FieldId, string RelKey), DefinitionNodeState>? reviewNodes = null;
+            var emptyRootLocation = new DefinitionCorrectionLocation(Form.InputRevision, []);
+            <ul class="configuration-review__answers">
+                @for (int index = pageStart; index < pageEnd; index++)
+                {
+                    DefinitionDiscoveryEntry entry = _entries[index];
+                    DefinitionCorrectionLocation location = ResolveEntryLocation(entry, emptyRootLocation, ref reviewNodes);
+                    var diagnostic = new DefinitionDiagnostic("review-change", entry.FieldId, location);
+                    string entryTitle = entry.Title;
+                    string reviewPath = entry.RelativePath.Count == 0
+                        ? entry.FieldId
+                        : entry.FieldId.Length == 0
+                            ? string.Join(".", entry.RelativePath)
+                            : entry.FieldId + "." + string.Join(".", entry.RelativePath);
+                    <li @key="(entry.FieldId, location)"
+                        data-review-path="@reviewPath" data-origin="@entry.Origin">
+                        <div class="configuration-review__answer">
+                            <strong>@entryTitle</strong>
+                            @if (entry.IsActive)
+                            {
+                                <button type="button" class="button button--secondary" data-action="review-focus-row" @onclick="() => ChangeField.InvokeAsync(diagnostic)"
+                                        aria-label="@UiFormat("ReviewChangeField", entryTitle)">@Ui("ReviewChange")</button>
+                            }
+                        </div>
+                        <p>@StateText(entry)</p>
+                        @if (entry.Sensitivity != FieldSensitivity.Public && entry.Origin != DefinitionAnswerOrigin.Omitted)
+                        {
+                            <p>@Ui("ReviewPrivateMasked")</p>
+                        }
+                        @if (entry.OutputArtifactIds.Count > 0)
+                        {
+                            <details><summary>@Ui("ReviewBindings")</summary>
+                                <p>@OriginText(entry.Origin)</p>
+                                <p><bdi dir="ltr">@string.Join(", ", entry.OutputArtifactIds)</bdi></p>
+                                <p><code dir="ltr">@string.Join(", ", entry.BindingKeys)</code></p>
+                                <p>@Ui("ReviewBindingsHelp")</p>
+                            </details>
+                        }
+                    </li>
+                }
+            </ul>
+            @if (_entries.Count > PageSize)
+            {
+                <nav class="actions" aria-label="@Ui("ReviewPages")">
+                    <button type="button" class="button button--secondary" data-action="review-previous"
+                            disabled="@(_page == 0)" @onclick="() => _page--">@Ui("ReviewPrevious")</button>
+                    <span role="status">@UiFormat("ReviewPage", _page + 1, PageCount)</span>
+                    <button type="button" class="button button--secondary" data-action="review-next"
+                            disabled="@(_page + 1 >= PageCount)" @onclick="() => _page++">@Ui("ReviewNext")</button>
+                </nav>
+            }
         }
     </section>
 }
@@ -150,6 +165,7 @@
     [Parameter] public EventCallback EnableSecrets { get; set; }
     private const int PageSize = 50;
     private const int CorrectionsPageSize = 25;
+    private const int DeferredEffectsNodeThreshold = 128;
     private static readonly DefinitionAnswerOrigin[] OriginFilters =
     [
         DefinitionAnswerOrigin.Explicit,
@@ -171,7 +187,15 @@
     private Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>? _cachedEntryLookup;
     private DefinitionValidationResult? _cachedNodeValidation;
     private Dictionary<(string FieldId, string RelKey), DefinitionNodeState>? _cachedReviewNodes;
+    private bool _effectsHydrated = true;
+    private DefinitionFormModel? _hydratedForm;
+    private long _hydratedRevision = -1;
+    private long _hydrationGeneration;
+    private long _scheduledHydrationGeneration = -1;
+    private bool _disposed;
+    private Task<IJSObjectReference>? _renderingModule;
     private int PageCount => Math.Max(1, (_entries.Count + PageSize - 1) / PageSize);
+
     protected override void OnParametersSet()
     {
         if (!ReferenceEquals(_observedDefinition, Definition))
@@ -187,6 +211,8 @@
             _originFilter = null;
             _page = 0;
             _correctionsPage = 0;
+            _hydratedForm = null;
+            _hydratedRevision = -1;
         }
         if (_observedExperience != Form?.SelectedExperienceId)
         {
@@ -197,27 +223,103 @@
         int correctionsPageCount = Math.Max(1, (totalCorrections + CorrectionsPageSize - 1) / CorrectionsPageSize);
         _correctionsPage = Math.Min(_correctionsPage, correctionsPageCount - 1);
         _observedExperience = Form?.SelectedExperienceId;
+
+        if (!ShowEffects || Form is null)
+        {
+            _effectsHydrated = true;
+            _entries = [];
+            ++_hydrationGeneration;
+            return;
+        }
+
+        if (ShouldDeferEffectsHydration())
+        {
+            if (_effectsHydrated && ReferenceEquals(_hydratedForm, Form) && _hydratedRevision == Form.InputRevision)
+            {
+                SelectEntries();
+                return;
+            }
+            _effectsHydrated = false;
+            _entries = [];
+            ++_hydrationGeneration;
+            return;
+        }
+
+        _effectsHydrated = true;
+        _hydratedForm = Form;
+        _hydratedRevision = Form.InputRevision;
         SelectEntries();
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed || !ShowEffects || Form is null || _effectsHydrated) return;
+        long generation = _hydrationGeneration;
+        if (_scheduledHydrationGeneration == generation) return;
+        _scheduledHydrationGeneration = generation;
+        DefinitionFormModel capturedForm = Form;
+        long capturedRevision = Form.InputRevision;
+        try
+        {
+            _renderingModule ??= Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js").AsTask();
+            IJSObjectReference module = await _renderingModule;
+            if (_disposed || !ShowEffects || generation != _hydrationGeneration ||
+                !ReferenceEquals(Form, capturedForm) || Form.InputRevision != capturedRevision)
+                return;
+            await module.InvokeVoidAsync("nextFrame");
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or JSException or InvalidOperationException)
+        {
+            // Fall through and hydrate cleanly when JS interop is unavailable.
+        }
+        if (_disposed || !ShowEffects || generation != _hydrationGeneration ||
+            !ReferenceEquals(Form, capturedForm) || Form.InputRevision != capturedRevision)
+            return;
+        _effectsHydrated = true;
+        _hydratedForm = capturedForm;
+        _hydratedRevision = capturedRevision;
+        SelectEntries();
+        StateHasChanged();
+    }
+
+    private bool ShouldDeferEffectsHydration()
+    {
+        if (Form is null) return false;
+        int nodeCount = Validation?.Nodes.Count ?? Form.Definition.Fields.Count;
+        return nodeCount > DeferredEffectsNodeThreshold;
+    }
+
     private void IncludeOmitted(ChangeEventArgs args)
     {
         _includeOmitted = args.Value is true;
         _page = 0;
-        SelectEntries();
+        HydrateImmediately();
     }
+
     private void IncludeInactive(ChangeEventArgs args)
     {
         _includeInactive = args.Value is true;
         _page = 0;
-        SelectEntries();
+        HydrateImmediately();
     }
+
     private void SetOriginFilter(DefinitionAnswerOrigin? origin)
     {
         if (_originFilter == origin) return;
         _originFilter = origin;
         _page = 0;
+        HydrateImmediately();
+    }
+
+    private void HydrateImmediately()
+    {
+        ++_hydrationGeneration;
+        _effectsHydrated = true;
+        _hydratedForm = Form;
+        _hydratedRevision = Form?.InputRevision ?? -1;
         SelectEntries();
     }
+
     private void SelectEntries()
     {
         if (ShowEffects && Form is not null)
@@ -233,6 +335,31 @@
         else _entries = [];
         _page = Math.Min(_page, PageCount - 1);
     }
+
+    private DefinitionCorrectionLocation ResolveEntryLocation(
+        DefinitionDiscoveryEntry entry,
+        DefinitionCorrectionLocation emptyRootLocation,
+        ref Dictionary<(string FieldId, string RelKey), DefinitionNodeState>? reviewNodes)
+    {
+        if (entry.RelativePath.Count == 0 && entry.FieldId.Length > 0)
+            return emptyRootLocation;
+        reviewNodes ??= GetReviewNodes();
+        if (reviewNodes is not null &&
+            reviewNodes.TryGetValue((entry.FieldId, entry.RelativePath.Count == 0 ? string.Empty : string.Join('\0', entry.RelativePath)), out DefinitionNodeState? node))
+            return node.Location;
+        return emptyRootLocation;
+    }
+
+    private string ResolveDiagnosticTitle(
+        DefinitionDiagnostic diagnostic,
+        ref Dictionary<(string FieldId, string RelKey), DefinitionDiscoveryEntry>? diagTitleLookup)
+    {
+        if (diagnostic.RelativePath.Count == 0 && Form is not null && _fieldsById.TryGetValue(diagnostic.FieldId, out FieldDefinition? rootField))
+            return Form.GetEditorPresentation([diagnostic.FieldId])?.DisplayLabel ?? DefinitionDisplayText.Resolve(rootField.Title, rootField.Name);
+        diagTitleLookup ??= BuildDiagnosticTitleLookup();
+        return FieldTitle(diagnostic, diagTitleLookup);
+    }
+
     private string Ui(string key) => BrowserStrings.Get(key, Form?.Locale ?? "en");
     private IEnumerable<ArtifactDefinition> SelectedArtifacts()
     {
@@ -316,5 +443,24 @@
             }
         }
         return string.Join(" / ", titles);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        ++_hydrationGeneration;
+        if (_renderingModule is { IsCompletedSuccessfully: true })
+        {
+            try
+            {
+                IJSObjectReference module = await _renderingModule;
+                await module.DisposeAsync();
+            }
+            catch (JSException)
+            {
+            }
+        }
+        _renderingModule = null;
     }
 }

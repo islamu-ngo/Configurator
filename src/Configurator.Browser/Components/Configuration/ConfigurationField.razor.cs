@@ -176,21 +176,10 @@ public partial class ConfigurationField
     private bool HasHelp(bool isMasked) => !string.IsNullOrWhiteSpace(Help) || IsMultilineSecret
         || InputPurposeHelp is not null || isMasked && Type == "boolean";
     private bool Required => Path.Count == 0 || (Form.GetEditorState(EditorPath)?.IsRequired ?? RequiredOverride ?? false);
-    private bool HasOptionalChildren => ContainsOptionalProperty(ObjectSchema);
+    private bool HasOptionalChildren => ObjectSchema.HasOptionalDescendant;
     private bool OptionalEditorsExpanded => Form.IsEditorExpanded(EditorPath);
     private void ExpandEditor() => Form.SetEditorExpanded(EditorPath, true);
     private void ToggleOptionalEditors() => Form.SetEditorExpanded(EditorPath, !OptionalEditorsExpanded);
-    private static JsonElement? Metadata(DefinitionNode schema, string name) =>
-        schema.Keywords.TryGetProperty("x-configurator", out var metadata) && metadata.TryGetProperty(name, out var value)
-            ? value : null;
-    private static bool ContainsOptionalProperty(DefinitionNode schema)
-    {
-        if (schema.Properties.Count == 0) return false;
-        var required = schema.Required.ToHashSet(StringComparer.Ordinal);
-        return schema.Properties.Any(child =>
-            (!required.Contains(child.Key) && Metadata(child.Value, "detail")?.GetString() != "basic") ||
-            ContainsOptionalProperty(child.Value));
-    }
     private bool HasChoices => Schema.Keywords.TryGetProperty("enum", out _);
     private JsonElement Choices => Schema.Keywords.GetProperty("enum");
     private bool UseSwitch => !IsMasked && !HasChoices && Type == "boolean"
@@ -412,6 +401,28 @@ public partial class ConfigurationField
     private long _renderedFocusGeneration;
     private string[] _renderedFocusPath = [];
     private string[] _renderedPath = [];
+    private string _fieldPathKey = string.Empty;
+    private Dictionary<string, string[]>? _childPaths;
+    private string FieldPathKey => _renderedPath.Length == Path.Count && _fieldPathKey.Length > 0 ? _fieldPathKey : string.Join('.', Path);
+    private IReadOnlyList<string> CurrentPathSnapshot => _renderedPath.Length == Path.Count ? _renderedPath : Path.ToArray();
+
+    private string[] ChildPath(string segment)
+    {
+        if (_renderedPath.Length == Path.Count)
+        {
+            _childPaths ??= new Dictionary<string, string[]>(StringComparer.Ordinal);
+            if (_childPaths.TryGetValue(segment, out string[]? cached)) return cached;
+            var cachedNext = new string[_renderedPath.Length + 1];
+            for (int index = 0; index < _renderedPath.Length; index++) cachedNext[index] = _renderedPath[index];
+            cachedNext[_renderedPath.Length] = segment;
+            _childPaths[segment] = cachedNext;
+            return cachedNext;
+        }
+        var next = new string[Path.Count + 1];
+        for (int index = 0; index < Path.Count; index++) next[index] = Path[index];
+        next[Path.Count] = segment;
+        return next;
+    }
     private Func<(IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys)>? _getBindingsDelegate;
     private Func<(IReadOnlyList<string> ArtifactIds, IReadOnlyList<string> BindingKeys)> GetBindingsDelegate =>
         _getBindingsDelegate ??= InspectorBindings;
@@ -618,7 +629,11 @@ public partial class ConfigurationField
         _renderedFocusGeneration = FocusGeneration;
         _renderedFocusPath = FocusFirstControl ? (FocusPath.Count == 0 ? [] : FocusPath.ToArray()) : [];
         if (_renderedPath.Length != Path.Count || PathChangedFrom(_renderedPath, Path))
+        {
             _renderedPath = Path.ToArray();
+            _fieldPathKey = string.Join('.', _renderedPath);
+            _childPaths?.Clear();
+        }
         _renderedScalarStamp = !LiteralPath && MountNode.Admitted && MountNode.Children.Count == 0 &&
             Type is not ("object" or "array")
             ? Form.GetScalarFieldRenderStamp(Path, InheritedSecret)

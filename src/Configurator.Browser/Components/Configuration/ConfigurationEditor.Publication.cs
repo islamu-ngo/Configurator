@@ -28,9 +28,11 @@ public partial class ConfigurationEditor
         if (_activeWorkflowStage != WorkspaceStage.Files)
             SelectWorkflowStage(WorkspaceStage.Files);
         DefinitionFormModel form = _form!;
+        DefinitionSessionPrivacy privacy = form.SessionPrivacy;
+        long inputRevision = form.InputRevision;
         long generation = _generation + 1;
         await InvalidateOutputAsync();
-        if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
+        if (!IsCurrentPreparation(form, generation, inputRevision, privacy)) return;
         _activeWorkflowStage = WorkspaceStage.Files;
         AnswerSnapshot answers;
         try { answers = form.Snapshot(); }
@@ -48,53 +50,69 @@ public partial class ConfigurationEditor
             _diagnostics.Add("answer-budget-exceeded");
             return;
         }
-        DefinitionValidationResult validation = draft ? DefinitionValidator.ValidateDraft(Definition, answers) : form.Validate();
-        _validation = validation;
         if (form.HasInputErrors)
         {
+            _validation = draft ? DefinitionValidator.ValidateDraft(Definition, answers) : form.Validate();
             _errorSummaryRequested = true;
             _diagnostics.Add("input-type-invalid");
             SetStatus("InputTypeInvalidStatus");
             _statusCode = "input-type-invalid";
             return;
         }
-        DefinitionDraftBundleResult? draftBundle = null;
-        DefinitionBundleResult? completeBundle = null;
+        DefinitionPreparationResult? prepared = null;
         var staged = new List<PreparedArtifact>();
+        CancellationToken cancellationToken = _mountCancellation.Token;
         try
         {
+            async ValueTask YieldPreparationAsync(CancellationToken token)
+            {
+                token.ThrowIfCancellationRequested();
+                if (!IsCurrentPreparation(form, generation, inputRevision, privacy))
+                    throw new OperationCanceledException(token);
+                await YieldComparisonAsync(token);
+                if (!IsCurrentPreparation(form, generation, inputRevision, privacy))
+                    throw new OperationCanceledException(token);
+            }
+
+            prepared = draft
+                ? await DefinitionPreparationSession.PrepareActiveDraftAsync(
+                    Definition, answers, YieldPreparationAsync, cancellationToken)
+                : await DefinitionPreparationSession.PrepareActiveAsync(
+                    Definition, answers, YieldPreparationAsync, cancellationToken);
+            if (!IsCurrentPreparation(form, generation, inputRevision, privacy)) return;
+
+            _validation = prepared.Validation;
             IReadOnlyList<DefinitionArtifact> artifacts;
             if (draft)
             {
-                draftBundle = DefinitionDraftArtifactComposer.ComposeActiveBundle(Definition, answers);
-                if (draftBundle.Artifacts.Count == 0 || draftBundle.Diagnostics.Any(item => item.Code is not ("draft-dependency-unresolved" or "artifact-omitted")))
+                if (prepared.Artifacts.Count == 0 || prepared.Diagnostics.Any(item => item.Code is not ("draft-dependency-unresolved" or "artifact-omitted")))
                 {
                     _errorSummaryRequested = true;
-                    _diagnostics.AddRange(draftBundle.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
+                    _diagnostics.AddRange(prepared.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
                     SetStatus("PreparationRejectedStatus");
                     _statusCode = "preparation-rejected";
                     return;
                 }
-                artifacts = draftBundle.Artifacts;
-                _diagnostics.AddRange(draftBundle.Diagnostics.Select(item => item.Code));
+                artifacts = prepared.Artifacts;
+                _diagnostics.AddRange(prepared.Diagnostics.Select(item => item.Code));
             }
             else
             {
-                completeBundle = DefinitionBundleComposer.ComposeActive(Definition, answers);
-                if (!completeBundle.Succeeded)
+                if (!prepared.Succeeded)
                 {
                     _errorSummaryRequested = true;
-                    _diagnostics.AddRange(completeBundle.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
+                    _diagnostics.AddRange(prepared.Diagnostics.Select(item => $"{item.FieldId}: {item.Code}"));
                     SetStatus("PreparationRejectedStatus");
                     _statusCode = "preparation-rejected";
                     return;
                 }
-                artifacts = completeBundle.Artifacts;
+                artifacts = prepared.Artifacts;
             }
-            if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
+            if (!IsCurrentPreparation(form, generation, inputRevision, privacy)) return;
             foreach (DefinitionArtifact artifact in artifacts)
             {
-                using DefinitionPreparedAdoption operation = DefinitionPresentationOperation.Adopt(artifact, draftBundle?.Completions);
+                using DefinitionPreparedAdoption operation = DefinitionPresentationOperation.Adopt(
+                    artifact, draft ? prepared.Completions : null);
                 WorkspaceId.TryCreate(Guid.NewGuid().ToString("N"), out var workspaceId);
                 var workspace = _session.CreateWorkspace(workspaceId, operation);
                 bool retained = false;
@@ -102,7 +120,7 @@ public partial class ConfigurationEditor
                 {
                     workspace.Activate();
                     await workspace.ExecuteAsync(Guid.NewGuid());
-                    if (_disposed || !_ready || generation != _generation || !ReferenceEquals(form, _form)) return;
+                    if (!IsCurrentPreparation(form, generation, inputRevision, privacy)) return;
                     if (workspace.Result is not DefinitionPreparationMetadata { Succeeded: true } metadata)
                     {
                         if (workspace.Result is DefinitionPreparationMetadata failure) _diagnostics.AddRange(failure.DiagnosticCodes);
@@ -129,13 +147,21 @@ public partial class ConfigurationEditor
                 : (_prepared.Count == 1 ? "PreparedArtifactStatus" : "PreparedArtifactsStatus"), _prepared.Count);
             _statusCode = "preparation-ready";
         }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
         finally
         {
             foreach (PreparedArtifact artifact in staged) await artifact.DisposeAsync();
-            draftBundle?.Dispose();
-            completeBundle?.Dispose();
+            prepared?.Dispose();
         }
     }
+
+    private bool IsCurrentPreparation(DefinitionFormModel form, long generation, long inputRevision,
+        DefinitionSessionPrivacy privacy) =>
+        !_disposed && _ready && generation == _generation && ReferenceEquals(form, _form)
+        && form.InputRevision == inputRevision && form.SessionPrivacy == privacy;
     private async Task ExportAllAsync(bool archive)
     {
         DefinitionFormModel form = _form!;
