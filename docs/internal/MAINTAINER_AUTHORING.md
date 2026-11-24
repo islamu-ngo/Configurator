@@ -3,8 +3,8 @@
 > **Audience:** Maintainers | Contributors | AI agents
 > **Status:** Current bounded-v0.0.1 contract; package and host qualification is recorded separately
 > **Owner:** Core
-> **Last Verified:** 2026-10-28
-> **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Definitions/DefinitionSourceCodec.cs`, `src/Configurator.Cli/Commands/Definitions/CliDefinitionHandlers.cs`, `schemas/configurator-authoring.schema.json`
+> **Last Verified:** 2026-11-24
+> **Source Anchors:** `src/Configurator.Core/Definitions/Authoring/`, `src/Configurator.Core/Composition/CompositionSourceLocation.cs`, `src/Configurator.Core/Definitions/DefinitionSourceCodec.cs`, `src/Configurator.Cli/Commands/Definitions/CliDefinitionHandlers.cs`, `schemas/configurator-authoring.schema.json`
 
 ## Source and admission
 
@@ -75,12 +75,14 @@ nested pointers and concise output bindings (`includeBindings`, `bindObject`,
 string paths, literals, output `when`) are described in the
 [Core definition contract](CORE_DEFINITION_CONTRACT.md#authoring-lowering).
 Run `definition lint --quality --strict` before release so warnings fail closed
-with `CliExitCode.Data`. Give every required setting a description or guidance,
+with `CliExitCode.Data`. Give every statically or conditionally required leaf
+(including required properties inside optional objects, `requiredWhen` leaves,
+and `if`/`then`/`else`/`dependentRequired` targets) a description or guidance,
 every secret (required or optional) an acquisition policy or instructions, every
-asserted lexical format a concrete example or hint, authored choices distinct
-non-empty explanations, and split dense sections (`> 12` required leaves) into
-`groups`. Review English and Arabic rendering at narrow viewport widths as well as
-the machine findings.
+asserted lexical format a concrete example or hint, every declared `enum` choice
+a distinct non-empty `x-configurator.choices` explanation, and split dense
+sections (`> 12` statically required leaves) into `groups`. Review English and
+Arabic rendering at narrow viewport widths as well as the machine findings.
 Public initial/suggested/default/example/const metadata must pass privacy and
 value admission. Private ancestors prevent literal-value leakage through public
 leaves; protected descendants raise effective container sensitivity.
@@ -168,10 +170,15 @@ These are relationship assertions, not visibility toggles or activation edges;
 arbitrary conditional subschemas remain unsupported.
 
 Definition source maps carry bounded public schema pointers, document ordinals
-and numeric spans through decoding/lowering. Errors use known positions, or an
-enclosing safe position when necessary, never raw scalars, arbitrary unknown
-keys or native paths. Answer correction coordinates are separate, typed and
-revision-bound; private map names become entry ordinals.
+and numeric spans through decoding/lowering. Syntax, duplicate-key, invalid
+UTF-8, and unsupported-YAML-grammar rejections capture exact `CompositionSourceLocation`
+coordinates (one-based `Line`, one-based Unicode-scalar `Column`, and zero-based
+original UTF-8 `ByteOffset` counting any UTF-8 BOM) inside `DefinitionException`
+and `DefinitionAuthoringDiagnostic` (`DefinitionAuthoringCodec.TryParseJson/TryParseYaml`
+and `DefinitionException.ToAuthoringDiagnostic()`). Raw parser exception messages,
+unknown keys, submitted scalars, source snippets, and native paths are stripped
+inside Core and never reach diagnostics. Answer correction coordinates are
+separate, typed and revision-bound; private map names become entry ordinals.
 
 ## Authored presentation and guidance
 
@@ -254,9 +261,13 @@ network authentication, target apply or persistent browser answer custody.
 
 ## Native maintainer commands
 
-`DefinitionCommands` registers init/check/build/revise through the existing
-Spectre registry/preflight and current machine envelope. `CliDefinitionHandlers`
-owns scaffolding, compilation and revision comparison. Discovery/read/existence/
+`DefinitionCommands` registers init/check/lint/inspect/describe/diff/test/answer-schema/build/revise
+through the existing Spectre registry/preflight and current machine envelope;
+top-level `DiscoveryCommands` (`info`) and `SchemaCommands` (`schema list|export`)
+replace the removed `definition schema` command. `CliDefinitionHandlers`
+owns scaffolding, compilation, paged public field description, semantic revision
+comparison (`DefinitionRevisionComparison`), and synthetic fixture execution
+(`DefinitionFixtureRunner`). Discovery/read/existence/
 staged publication, including schema references, use invocation-scoped
 `ICliAuthoringFiles`; `CliIo` requires it explicitly and Program supplies
 `PublicDefinitionFiles`. Non-authoring fixtures reject that authority.
@@ -316,11 +327,46 @@ never unsupported assertions or privacy loss. Native 0.0.1 no longer substitutes
 required-string-whitespace or UTF-16-length semantics. CLI compiles before source
 creation; import is not proof of target-validator equivalence.
 
+## Semantic revision comparison and synthetic fixture suites
+
+`DefinitionRevisionComparison.Compare` compares two admitted `Definition`
+revisions by exact field names and artifact IDs without reading answers or
+guessing renames. It classifies every difference cleanly as `Behavioral`
+(`field-added`, `field-removed`, `type-changed`, `sensitivity-changed`,
+`requiredness-changed`, `activation-changed`, `constraint-changed`,
+`initial-value-changed`, `secret-policy-changed`, `output-added`,
+`output-removed`, `output-mapping-changed`, `deployment-changed`,
+`capability-changed`) or `DisplayOnly` (`display-text-changed`,
+`presentation-changed`, `localization-changed`, `annotations-changed`) using
+value-free schema paths and closed qualifiers.
+
+`DefinitionFixtureDocument.ParseJson/ParseYaml` and `DefinitionFixtureRunner.Run`
+admit and execute bounded data-only synthetic conformance suites described by
+the generated unversioned `schemas/configurator-fixtures.schema.json`
+(`fixtureContractVersion: "0.0.1"`). Closed-vocabulary admission rejects unknown
+or executable/network fields (`fixture-member`), zero-case suites
+(`fixture-empty`), duplicate case IDs (`fixture-duplicate-case`), empty
+expectations (`fixture-expectation-empty`), and suites exceeding 64 cases or
+4 MiB (`fixture-limit` / `document-limit`). Each `DefinitionFixtureRunReport`
+binds its verdict to `(DefinitionDigest, FixtureDigest, EngineVersion, Scope)`,
+separates expected per-case refusals (`PassedExpectedRefusal`) from runner
+failures (`Failed`), disposes every composed artifact buffer immediately, and
+claims no target runtime acceptance.
+
 ## Generated schemas and examples
 
 The native `Configurator.DefinitionSchemaGenerator` owns `--write` and `--check`
-for authoring-0.0.1/runtime-0.0.1/answers-0.0.1 schemas, and `--write-examples`,
-`--renew-example-families`, `--check-examples` for the three maintained pairs.
+for authoring, runtime, answers, and fixtures (`schemas/configurator-fixtures.schema.json`)
+`0.0.1` schemas, and `--write-examples`,
+`--renew-example-families`, `--check-examples` for the maintained example pairs.
+Generic unsigned definition delivery receipts (`release.json`) are owned by
+`eng/configurator/DefinitionDelivery.cs` (`--source`, `--definition`, `--receipt`,
+`--source-url`, `--app-version`, `--entry`, `--locale`, `--write` / `--check`,
+`--self-test`), which enforces byte-exact canonical source/runtime agreement,
+declared selectors, credential-free public HTTPS URLs (rejecting loopback,
+RFC1918, link-local, CGNAT, ULA, queries, and fragments), read-only `--check`,
+prior-receipt preservation on rejection, and explicit `trustBoundary: "unsigned-local-verification-only"` /
+`signatureStatus: "unsigned"` non-authority markers.
 Renewal uses the native identity editor and allocates fresh family/revision 1;
 ordinary writing does not authorize rewriting published identity history.
 See the [schema catalog](../../schemas/README.md) for exact commands.

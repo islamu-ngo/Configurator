@@ -1,0 +1,29 @@
+Change-Id: CHG-01M874B04YQJGYZ318W7X1HJT2
+Title: "Add generic unsigned delivery receipt verification tool"
+Type: feat
+Scope: definitions
+Summary: "Add eng/configurator/DefinitionDelivery.cs to verify canonical agreement between a public definition source and compiled runtime JSON, validate declared selectors and credential-free public HTTPS source URLs, and write or read-only check deterministic unsigned release.json receipts carrying explicit non-authority markers without altering prior receipts on rejection."
+Group: delivery-verification
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: documented
+    Detail: "Enforces byte-exact source/runtime canonical agreement, rejects symlinks, oversized inputs, undeclared selectors, non-HTTPS/credentialed/loopback/RFC1918/link-local URLs, preserves prior receipts on rejection, and explicitly marks trustBoundary as unsigned-local-verification-only."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/integrate-your-tool.md
+    Disposition: documented
+    Detail: "Adds eng/configurator/DefinitionDelivery.cs (--write / --check / --self-test) for deterministic unsigned release.json delivery verification."
+  OpenAPI:
+    Reference: docs/internal/MAINTAINER_AUTHORING.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/packaging.md
+    Disposition: documented
+    Detail: "Maintainers can verify and emit unsigned release.json delivery receipts and pinned Browser launch fragments without implying cryptographic signatures or target apply authority."

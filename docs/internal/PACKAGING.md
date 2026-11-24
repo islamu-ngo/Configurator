@@ -70,8 +70,13 @@ the embedded .NET native/Mono runtime's own notices are retained; those runtime
 packs are not ordinary NuGet asset libraries. This conservative inventory also retains build-time
 package notices; it does not copy assemblies or executable inputs.
 
-The ratchet, definition Store, browser editor and dependency-notice file-based
-engineering tools explicitly use managed execution (`PublishAot=false`). They
+The ratchet, definition Store, unsigned definition delivery (`eng/configurator/DefinitionDelivery.cs`),
+browser editor and dependency-notice file-based engineering tools explicitly use
+managed execution (`PublishAot=false`). `DefinitionDelivery.cs` verifies local
+source-to-runtime canonical agreement, declared selectors, and credential-free
+public HTTPS URLs for unsigned `release.json` receipts (including Event `0.0.1`
+revision `8` under unified family `f79259e8-af23-49b0-8d8d-6e371cc96080`) without
+implying cryptographic signatures or promoted publication authority. They
 run during packaging and need no native AOT compiler dependency. This setting
 does not alter the packaged native single-file contract or the Browser Release
 `RunAOTCompilation=true` setting; Browser publication still compiles WASM AOT.

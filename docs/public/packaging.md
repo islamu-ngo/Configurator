@@ -43,9 +43,12 @@ unsupported and unexecuted rows remain explicit; one passing scenario does
 not qualify the remaining rows.
 
 Maintainers can also verify [detached package provenance](../internal/PACKAGING.md#detached-package-provenance)
-against independently retained identities. A matching unsigned digest proves
-local consistency under that procedure; publisher authenticity and actual
-host qualification require their separate evidence and authority.
+against independently retained identities, and verify unsigned public definition
+delivery receipts (`release.json`) using `eng/configurator/DefinitionDelivery.cs`
+(`--write` / `--check`). A matching unsigned digest proves
+local consistency under that procedure (`trustBoundary: "unsigned-local-verification-only"`);
+publisher authenticity, cryptographic signatures, and actual host qualification
+require their separate evidence and authority.
 
 Rejected task-factory declarations can retain bounded diagnostic fingerprints
 without admitting the factory. Missing observations remain explicit. These
