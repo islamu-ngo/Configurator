@@ -124,9 +124,10 @@ public sealed class OutputGuidanceProviderTests
             "bba29249228105562bcaed8b7439a58c0700ebccd2abdc3fed99236c861ab939",
             "229a6b556f09fe925aa036629fa526db13fc9a2b5c7b3d36eacdf02734af6288",
             "92d46eedad5d252e5d5c157c21c2f42005554dfe30544234cda85d735a3b882b",
-            "d401d00661520990575985210c6e699d0697166061d66cf878620ac84788f81f"
+            "d401d00661520990575985210c6e699d0697166061d66cf878620ac84788f81f",
+            "798c682454f9fac5fda4d8525a3d9605a0a1fd736e4d961ed885b7a776379f52"
         ];
-        for (int revision = 1; revision <= 6; revision++)
+        for (int revision = 1; revision <= 7; revision++)
         {
             byte[] bytes = File.ReadAllBytes(Path.Combine(ReleaseTestPaths.Root,
                 $"store/islamu-event/releases/{revision}.json"));
@@ -134,11 +135,11 @@ public sealed class OutputGuidanceProviderTests
             _ = DefinitionCodec.ParseJson(bytes);
         }
         Definition old = DefinitionCodec.ParseJson(File.ReadAllBytes(
-            Path.Combine(ReleaseTestPaths.Root, "store/islamu-event/releases/6.json")));
+            Path.Combine(ReleaseTestPaths.Root, "store/islamu-event/releases/7.json")));
         foreach (string path in new[] { "examples/islamu-event/configurator.json", "store/islamu-event/configurator.json" })
         {
             Definition current = Compile(path);
-            await Assert.That(current.Revision).IsEqualTo(7);
+            await Assert.That(current.Revision).IsEqualTo(8);
             await Assert.That(current.FamilyId).IsEqualTo(old.FamilyId);
             await Assert.That(current.Digest == old.Digest).IsFalse();
             await Assert.That(DefinitionQualityLinter.Lint(current)).IsEmpty();
@@ -161,6 +162,7 @@ public sealed class OutputGuidanceProviderTests
     [Arguments("examples/islamu-event/definition.json")]
     [Arguments("store/islamu-event/releases/5.json")]
     [Arguments("store/islamu-event/releases/7.json")]
+    [Arguments("store/islamu-event/releases/8.json")]
     public async Task ManuallySuppliedSyntheticOperatorArtifactPreservesGoldenBytes(string current)
     {
         Definition before = DefinitionCodec.ParseJson(File.ReadAllBytes(

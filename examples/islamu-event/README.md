@@ -3,35 +3,35 @@
 These public fixtures derive from first-party
 [ISLAMU Event](https://github.com/ISLAMU/Event) configuration metadata, not
 compiled target code or authority to apply configuration. The current
-source uses family `ea55cccf-dce5-4f88-8ea1-6dd211714edc`,
-allocated through Configurator's native identity editor. The admitted runtime
-owns its current revision and canonical digest. The prior Event family
-and its publication facts are historical, not authority for this new family.
+source uses unified family `f79259e8-af23-49b0-8d8d-6e371cc96080` at revision `8`,
+maintained identically across `examples/islamu-event/`, `store/islamu-event/`, and
+upstream `ISLAMU/Event`. The admitted runtime
+owns its current revision and canonical digest. Earlier historical families
+and their publication facts are archived history, not authority for this family.
 
 `configurator.json` is the maintained neutral source with declared deployment
-recipes, component scopes and recipient-specific environment mappings.
-Configurator's compiler produces the sole canonical
-`definition.json`, admitted by Configurator Core's bounded parser. `answers/` and
-`expected/` carry environment, manifest, tenant package, operator-identity and
-legal-draft vectors. Configurator's actual CLI composes these answer workspaces,
-against independent expected bytes. Prior Event host-parser evidence does not
-certify this reauthoring or its new family. The Event exporter has no
+recipes, component scopes, first-party local secret generation profiles (keeping
+third-party issuer secrets manual/`existing`), and recipient-specific environment
+mappings. Configurator's compiler produces the sole canonical
+`definition.json`, admitted by Configurator Core's bounded parser. `answers/`,
+`expected/`, and `fixtures.json` carry environment, manifest, tenant package,
+operator-identity and legal-draft vectors verified through `definition test` and
+`ExternalDefinitionConformanceTests`. The Event exporter has no
 Configurator assembly dependency. `catalogue.json` is value-safe environment metadata and
-`.env.example` is the target's curated template. `release.json` retains the
-**historical v1 receipt**, including its old command,
-authoring and runtime contract versions, executable SHA-256, exact source and
-canonical definition digests, revision and host-acceptance limits. These public
-reproduction facts supply no signing, promotion or authentication authority.
-It is not a current compiler pin, digest, launch fragment or current acceptance
-receipt. It remains unchanged rather than fabricating a new upstream release.
+`.env.example` is the target's curated template. `release.json` is the current
+unsigned `0.0.1` delivery receipt generated and verified by
+`eng/configurator/DefinitionDelivery.cs` (`trustBoundary: "unsigned-local-verification-only"`,
+`signatureStatus: "unsigned"`), recording exact source/runtime digests and a pinned
+Browser launch fragment without claiming cryptographic signatures, publisher
+authentication, or target apply authority.
 
 The browser embeds `definition.json` directly through a resource link; there are
 no separately maintained native/public copies.
-Use `/launch/ea55cccf-dce5-4f88-8ea1-6dd211714edc` on a Configurator origin
+Use `/launch/f79259e8-af23-49b0-8d8d-6e371cc96080` on a Configurator origin
 built with this fixture. Obtain the current canonical digest by admitting
 `definition.json` rather than reusing a historical pin.
-The historical receipt's upstream URL does not serve this new family.
-Earlier store snapshots retain their bytes and are not silently revised.
+Earlier store snapshots (`store/islamu-event/releases/1..7.json`) retain their
+immutable bytes and are not silently revised.
 The complete browser workspace accepts typed memory-only answers, with explicit
 consent for secret entry and draft output for deferred secrets.
 No supplied answers, private defaults or private literals are embedded.

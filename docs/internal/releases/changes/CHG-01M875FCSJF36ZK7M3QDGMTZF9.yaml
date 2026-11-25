@@ -1,0 +1,29 @@
+Change-Id: CHG-01M875FCSJF36ZK7M3QDGMTZF9
+Title: "Publish Event 0.0.1 revision 8 with local first-party secret profiles and delivery receipt"
+Type: feat
+Scope: definitions
+Summary: "Resolve all expanded G12 English and Arabic quality lint advisories on islamu-event revision 8, enable local cryptographic generation strictly on first-party operator-owned secrets while keeping third-party issuer credentials manual (existing), add synthetic conformance fixtures and an unsigned DefinitionDelivery receipt, append immutable store/islamu-event/releases/8.json, and record fixture-verified Store conformance."
+Group: event-definition-rev8
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/definition-store.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: documented
+    Detail: "Enables local CSPRNG secret generation strictly on 20 approved first-party operator passwords/secrets while keeping all 13 third-party issuer credentials manual (existing); replaces stale legacy v1 release.json with an unsigned DefinitionDelivery.cs receipt (trustBoundary: unsigned-local-verification-only)."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/definition-store.md
+    Disposition: documented
+    Detail: "Publishes Event 0.0.1 revision 8 (unified family f79259e8-af23-49b0-8d8d-6e371cc96080) with zero G12 en/ar quality lint advisories, synthetic fixtures (examples/islamu-event/fixtures.json), immutable store/islamu-event/releases/8.json, and fixture-verified Store conformance metadata."
+  OpenAPI:
+    Reference: docs/internal/PACKAGING.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definition-store.md
+    Disposition: documented
+    Detail: "Operators configuring Event receive complete en/ar guidance on conditionally required settings and enum choices, local CSPRNG generation for first-party passwords, and honest fixture-verified Store evidence."

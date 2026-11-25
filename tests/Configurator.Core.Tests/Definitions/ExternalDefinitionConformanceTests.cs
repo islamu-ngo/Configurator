@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
+using Configurator.Core.Definitions.Authoring;
 
 namespace Configurator.Core.Tests.Definitions;
 
@@ -94,6 +95,15 @@ public sealed class ExternalDefinitionConformanceTests
         await Assert.That(native.Digest).IsEqualTo(redelivered.Digest);
         await Assert.That(registry.Definitions.Count).IsEqualTo(1);
         await Assert.That(registry.Resolve(native.FamilyId).Digest).IsEqualTo(native.Digest);
+    }
+
+    [Test]
+    public async Task EventDefinitionUsesUnifiedFamilyAtRevisionEightWithZeroQualityAdvisories()
+    {
+        Definition definition = DefinitionCodec.ParseJson(Resource("EventDefinition"));
+        await Assert.That(definition.FamilyId).IsEqualTo(Guid.Parse("f79259e8-af23-49b0-8d8d-6e371cc96080"));
+        await Assert.That(definition.Revision).IsEqualTo(8);
+        await Assert.That(DefinitionQualityLinter.Lint(definition)).IsEmpty();
     }
 
     private static byte[] Resource(string name)

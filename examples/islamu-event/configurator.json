@@ -39,7 +39,29 @@
             "instructions": "Choose the file to prepare. Changing this choice changes applicable settings, not the target application. Review before exporting; Event validates and authorizes any later use."
           },
           "initialValue": "environment",
-          "sensitivity": "public"
+          "sensitivity": "public",
+          "choices": [
+            {
+              "value": "environment",
+              "explanation": "Prepare runtime environment variables (.env) for standalone, API, Blazor, or Compose deployments."
+            },
+            {
+              "value": "configuration-manifest",
+              "explanation": "Prepare the declarative instance and tenant configuration manifest JSON."
+            },
+            {
+              "value": "tenant-package",
+              "explanation": "Prepare a portable single-tenant configuration package JSON."
+            },
+            {
+              "value": "operator-identity",
+              "explanation": "Prepare the draft operator identity declaration JSON for review."
+            },
+            {
+              "value": "legal-drafts",
+              "explanation": "Prepare optional editorial legal document drafts JSON for independent legal review."
+            }
+          ]
         }
       },
       "deployment": {
@@ -62,7 +84,21 @@
             "x-configurator": {
               "detail": "basic",
               "initialValue": "standalone",
-              "sensitivity": "public"
+              "sensitivity": "public",
+              "choices": [
+                {
+                  "value": "standalone",
+                  "explanation": "Run the combined Event web and API host from a single local container or process."
+                },
+                {
+                  "value": "separate-images",
+                  "explanation": "Deploy dedicated API and Blazor frontend images independently with explicit inter-service endpoints."
+                },
+                {
+                  "value": "docker-compose",
+                  "explanation": "Orchestrate Event services together with supporting infrastructure containers via Docker Compose."
+                }
+              ]
             }
           },
           "scope": {
@@ -77,7 +113,21 @@
             "x-configurator": {
               "detail": "basic",
               "initialValue": "all",
-              "sensitivity": "public"
+              "sensitivity": "public",
+              "choices": [
+                {
+                  "value": "all",
+                  "explanation": "Prepare environment variables for a combined host serving both API and Blazor surfaces."
+                },
+                {
+                  "value": "api",
+                  "explanation": "Prepare environment variables scoped strictly to the Event API service."
+                },
+                {
+                  "value": "blazor",
+                  "explanation": "Prepare environment variables scoped strictly to the Blazor BFF frontend service."
+                }
+              ]
             }
           }
         }
@@ -626,6 +676,13 @@
                     "value": 1
                   }
                 ]
+              },
+              "secret": {
+                "kind": "password",
+                "acquisition": "local",
+                "generation": {
+                  "length": 32
+                }
               }
             }
           },
@@ -772,7 +829,8 @@
               "detail": "advanced",
               "initialValue": 1,
               "sensitivity": "public"
-            }
+            },
+            "description": "Number of application replicas planned for this deployment; values above 1 activate distributed coordination settings."
           },
           "uiHttpPort": {
             "maximum": 65535,
@@ -825,8 +883,11 @@
                     "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
                   },
                   "secret": {
-                    "acquisition": "existing",
-                    "kind": "password"
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   },
                   "sensitivity": "secret"
                 }
@@ -886,8 +947,11 @@
                     "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
                   },
                   "secret": {
-                    "acquisition": "existing",
-                    "kind": "password"
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   },
                   "sensitivity": "secret"
                 }
@@ -958,8 +1022,11 @@
                     "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
                   },
                   "secret": {
-                    "acquisition": "existing",
-                    "kind": "password"
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   },
                   "sensitivity": "secret"
                 }
@@ -1054,8 +1121,11 @@
                     "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
                   },
                   "secret": {
-                    "acquisition": "existing",
-                    "kind": "password"
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   },
                   "sensitivity": "secret"
                 }
@@ -1138,8 +1208,11 @@
                     "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
                   },
                   "secret": {
-                    "acquisition": "existing",
-                    "kind": "password"
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   },
                   "sensitivity": "secret"
                 }
@@ -1158,6 +1231,13 @@
                   "sensitivity": "secret",
                   "guidance": {
                     "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  },
+                  "secret": {
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   }
                 }
               },
@@ -1344,8 +1424,11 @@
                     "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
                   },
                   "secret": {
-                    "acquisition": "existing",
-                    "kind": "password"
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   },
                   "sensitivity": "secret"
                 }
@@ -1436,8 +1519,11 @@
                     "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
                   },
                   "secret": {
-                    "acquisition": "existing",
-                    "kind": "password"
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   },
                   "sensitivity": "secret"
                 }
@@ -1473,8 +1559,11 @@
                     "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
                   },
                   "secret": {
-                    "acquisition": "existing",
-                    "kind": "password"
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   },
                   "sensitivity": "secret"
                 }
@@ -1529,7 +1618,8 @@
               },
               "detail": "standard",
               "sensitivity": "public"
-            }
+            },
+            "description": "Hostname or network address of the PostgreSQL server backing this Event deployment."
           },
           "migratorPassword": {
             "type": "string",
@@ -1543,8 +1633,11 @@
                 "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
               },
               "secret": {
-                "acquisition": "existing",
-                "kind": "password"
+                "kind": "password",
+                "acquisition": "local",
+                "generation": {
+                  "length": 32
+                }
               },
               "sensitivity": "secret"
             }
@@ -1558,14 +1651,16 @@
               },
               "detail": "standard",
               "sensitivity": "public"
-            }
+            },
+            "description": "Database role name used during schema migrations with DDL privileges."
           },
           "name": {
             "type": "string",
             "x-configurator": {
               "detail": "standard",
               "sensitivity": "public"
-            }
+            },
+            "description": "Target PostgreSQL database name created for this Event instance."
           },
           "port": {
             "maximum": 65535,
@@ -1619,7 +1714,8 @@
               ],
               "detail": "basic",
               "sensitivity": "public"
-            }
+            },
+            "description": "Database engine provider identifier selected for the Event backend."
           },
           "runtimePassword": {
             "type": "string",
@@ -1633,8 +1729,11 @@
                 "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
               },
               "secret": {
-                "acquisition": "existing",
-                "kind": "password"
+                "kind": "password",
+                "acquisition": "local",
+                "generation": {
+                  "length": 32
+                }
               },
               "sensitivity": "secret"
             }
@@ -1648,7 +1747,8 @@
               },
               "detail": "standard",
               "sensitivity": "public"
-            }
+            },
+            "description": "Least-privilege database role name used by the running Event application."
           },
           "schema": {
             "type": "string",
@@ -1727,8 +1827,11 @@
                     "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
                   },
                   "secret": {
-                    "acquisition": "existing",
-                    "kind": "password"
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   },
                   "sensitivity": "secret"
                 }
@@ -1764,8 +1867,11 @@
                     "instructions": "Supply the existing credential from the service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
                   },
                   "secret": {
-                    "acquisition": "existing",
-                    "kind": "password"
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   },
                   "sensitivity": "secret"
                 }
@@ -1900,6 +2006,13 @@
               "sensitivity": "secret",
               "guidance": {
                 "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              },
+              "secret": {
+                "kind": "password",
+                "acquisition": "local",
+                "generation": {
+                  "length": 32
+                }
               }
             }
           },
@@ -1987,6 +2100,13 @@
                   "sensitivity": "secret",
                   "guidance": {
                     "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  },
+                  "secret": {
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   }
                 }
               },
@@ -2061,6 +2181,13 @@
                   "sensitivity": "secret",
                   "guidance": {
                     "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  },
+                  "secret": {
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   }
                 }
               },
@@ -2161,7 +2288,8 @@
               ],
               "detail": "basic",
               "sensitivity": "public"
-            }
+            },
+            "description": "Bootstrap mode controlling how initial operator and administrator identity records are initialized."
           },
           "operatorIdentity": {
             "type": "object",
@@ -2190,14 +2318,16 @@
                 "x-configurator": {
                   "detail": "standard",
                   "sensitivity": "public"
-                }
+                },
+                "description": "ISO 3166-1 alpha-2 country code identifying the operator's legal jurisdiction."
               },
               "legalName": {
                 "type": "string",
                 "x-configurator": {
                   "detail": "standard",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Official legal name of the organization or individual operating this Event instance."
               },
               "legalNoticeUrl": {
                 "format": "uri",
@@ -2220,7 +2350,8 @@
                 "x-configurator": {
                   "detail": "standard",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Stable lowercase identifier uniquely naming the operator entity in Event manifests."
               },
               "operatorKindCode": {
                 "enum": [
@@ -2261,7 +2392,8 @@
                   ],
                   "detail": "standard",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Category code classifying the operator legal structure (for example organization or individual)."
               },
               "privacyUrl": {
                 "format": "uri",
@@ -2284,7 +2416,8 @@
                 "x-configurator": {
                   "detail": "standard",
                   "sensitivity": "public"
-                }
+                },
+                "description": "Public-facing operator name displayed to end users on instance notices and footers."
               },
               "registrationIdentifier": {
                 "type": "string",
@@ -2367,14 +2500,16 @@
             "x-configurator": {
               "detail": "standard",
               "sensitivity": "sensitive"
-            }
+            },
+            "description": "Given name recorded on the initial bootstrap administrator account."
           },
           "lastName": {
             "type": "string",
             "x-configurator": {
               "detail": "standard",
               "sensitivity": "sensitive"
-            }
+            },
+            "description": "Family name recorded on the initial bootstrap administrator account."
           },
           "provider": {
             "enum": [
@@ -2450,6 +2585,13 @@
               "sensitivity": "secret",
               "guidance": {
                 "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              },
+              "secret": {
+                "kind": "password",
+                "acquisition": "local",
+                "generation": {
+                  "length": 32
+                }
               }
             }
           }
@@ -2501,7 +2643,11 @@
               "guidance": {
                 "instructions": "Obtain this confidential client's secret from the Keycloak realm administrator. Use the client identified by KEYCLOAK_CLIENT_ID; Configurator does not contact Keycloak."
               },
-              "sensitivity": "secret"
+              "sensitivity": "secret",
+              "secret": {
+                "kind": "password",
+                "acquisition": "existing"
+              }
             }
           },
           "clientId": {
@@ -2794,6 +2940,10 @@
               "sensitivity": "secret",
               "guidance": {
                 "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              },
+              "secret": {
+                "kind": "password",
+                "acquisition": "existing"
               }
             }
           }
@@ -3058,6 +3208,10 @@
                   "sensitivity": "secret",
                   "guidance": {
                     "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  },
+                  "secret": {
+                    "kind": "password",
+                    "acquisition": "existing"
                   }
                 }
               },
@@ -3164,6 +3318,10 @@
               "sensitivity": "secret",
               "guidance": {
                 "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              },
+              "secret": {
+                "kind": "password",
+                "acquisition": "existing"
               }
             }
           },
@@ -3224,6 +3382,10 @@
               "sensitivity": "secret",
               "guidance": {
                 "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              },
+              "secret": {
+                "kind": "password",
+                "acquisition": "existing"
               }
             }
           },
@@ -3282,6 +3444,10 @@
                   "sensitivity": "secret",
                   "guidance": {
                     "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  },
+                  "secret": {
+                    "kind": "password",
+                    "acquisition": "existing"
                   }
                 }
               },
@@ -3308,6 +3474,10 @@
                   "sensitivity": "secret",
                   "guidance": {
                     "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  },
+                  "secret": {
+                    "kind": "password",
+                    "acquisition": "existing"
                   }
                 }
               },
@@ -3723,6 +3893,10 @@
                   "sensitivity": "secret",
                   "guidance": {
                     "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  },
+                  "secret": {
+                    "kind": "password",
+                    "acquisition": "existing"
                   }
                 }
               },
@@ -3733,6 +3907,10 @@
                   "sensitivity": "secret",
                   "guidance": {
                     "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  },
+                  "secret": {
+                    "kind": "password",
+                    "acquisition": "existing"
                   }
                 }
               }
@@ -4140,6 +4318,13 @@
               "sensitivity": "secret",
               "guidance": {
                 "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+              },
+              "secret": {
+                "kind": "password",
+                "acquisition": "local",
+                "generation": {
+                  "length": 32
+                }
               }
             }
           },
@@ -4405,6 +4590,13 @@
                   "sensitivity": "secret",
                   "guidance": {
                     "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                  },
+                  "secret": {
+                    "kind": "password",
+                    "acquisition": "local",
+                    "generation": {
+                      "length": 32
+                    }
                   }
                 }
               }
@@ -4765,6 +4957,10 @@
                       "sensitivity": "secret",
                       "guidance": {
                         "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      },
+                      "secret": {
+                        "kind": "password",
+                        "acquisition": "existing"
                       }
                     }
                   },
@@ -4795,7 +4991,17 @@
                     "type": "string",
                     "x-configurator": {
                       "detail": "standard",
-                      "sensitivity": "public"
+                      "sensitivity": "public",
+                      "choices": [
+                        {
+                          "value": "Finite",
+                          "explanation": "Issue a fixed-lifetime Infisical token that expires without automatic renewal."
+                        },
+                        {
+                          "value": "Periodic",
+                          "explanation": "Issue a renewable periodic Infisical token rotated before each renewal window."
+                        }
+                      ]
                     },
                     "description": "Duration string specifying lifetime of issued Infisical machine tokens for the API component (for example `1h`)."
                   },
@@ -4878,6 +5084,10 @@
                       "sensitivity": "secret",
                       "guidance": {
                         "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      },
+                      "secret": {
+                        "kind": "password",
+                        "acquisition": "existing"
                       }
                     }
                   },
@@ -4908,7 +5118,17 @@
                     "type": "string",
                     "x-configurator": {
                       "detail": "standard",
-                      "sensitivity": "public"
+                      "sensitivity": "public",
+                      "choices": [
+                        {
+                          "value": "Finite",
+                          "explanation": "Issue a fixed-lifetime Infisical token that expires without automatic renewal."
+                        },
+                        {
+                          "value": "Periodic",
+                          "explanation": "Issue a renewable periodic Infisical token rotated before each renewal window."
+                        }
+                      ]
                     },
                     "description": "Duration string specifying lifetime of issued Infisical machine tokens for the Blazor BFF component (for example `1h`)."
                   },
@@ -4968,6 +5188,10 @@
                       "sensitivity": "secret",
                       "guidance": {
                         "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      },
+                      "secret": {
+                        "kind": "password",
+                        "acquisition": "existing"
                       }
                     }
                   },
@@ -4998,7 +5222,17 @@
                     "type": "string",
                     "x-configurator": {
                       "detail": "standard",
-                      "sensitivity": "public"
+                      "sensitivity": "public",
+                      "choices": [
+                        {
+                          "value": "Finite",
+                          "explanation": "Issue a fixed-lifetime Infisical token that expires without automatic renewal."
+                        },
+                        {
+                          "value": "Periodic",
+                          "explanation": "Issue a renewable periodic Infisical token rotated before each renewal window."
+                        }
+                      ]
                     },
                     "description": "Duration string specifying lifetime of issued Infisical machine tokens for the combined host (for example `1h`)."
                   },
@@ -5075,6 +5309,10 @@
                       "sensitivity": "secret",
                       "guidance": {
                         "instructions": "Supply the existing credential or private connection setting from your service administrator or secret authority. Configurator keeps this input local and does not issue, rotate or verify credentials."
+                      },
+                      "secret": {
+                        "kind": "password",
+                        "acquisition": "existing"
                       }
                     }
                   },
@@ -5105,7 +5343,17 @@
                     "type": "string",
                     "x-configurator": {
                       "detail": "standard",
-                      "sensitivity": "public"
+                      "sensitivity": "public",
+                      "choices": [
+                        {
+                          "value": "Finite",
+                          "explanation": "Issue a fixed-lifetime Infisical token that expires without automatic renewal."
+                        },
+                        {
+                          "value": "Periodic",
+                          "explanation": "Issue a renewable periodic Infisical token rotated before each renewal window."
+                        }
+                      ]
                     },
                     "description": "Duration string specifying lifetime of issued Infisical machine tokens for the database migration job (for example `1h`)."
                   },
@@ -5611,7 +5859,21 @@
                         "type": "string",
                         "x-configurator": {
                           "detail": "standard",
-                          "sensitivity": "public"
+                          "sensitivity": "public",
+                          "choices": [
+                            {
+                              "value": "dark",
+                              "explanation": "Default the user interface to the dark color palette."
+                            },
+                            {
+                              "value": "light",
+                              "explanation": "Default the user interface to the light color palette."
+                            },
+                            {
+                              "value": "system",
+                              "explanation": "Follow the visitor's operating system and browser color-scheme preference."
+                            }
+                          ]
                         }
                       },
                       "branding.custom_css_url": {
@@ -5901,7 +6163,17 @@
                         "type": "string",
                         "x-configurator": {
                           "detail": "standard",
-                          "sensitivity": "public"
+                          "sensitivity": "public",
+                          "choices": [
+                            {
+                              "value": "DiscoveryCentric",
+                              "explanation": "Highlight multi-organizer public event discovery across the instance."
+                            },
+                            {
+                              "value": "OrganizationCentric",
+                              "explanation": "Focus the public storefront on a single organization's brand and schedule."
+                            }
+                          ]
                         }
                       },
                       "routing.default_public_home_page": {
@@ -5914,7 +6186,17 @@
                         "type": "string",
                         "x-configurator": {
                           "detail": "standard",
-                          "sensitivity": "public"
+                          "sensitivity": "public",
+                          "choices": [
+                            {
+                              "value": "EventList",
+                              "explanation": "Route the public root URL directly to the browsable event listing."
+                            },
+                            {
+                              "value": "LandingPage",
+                              "explanation": "Route the public root URL to the curated introductory landing page."
+                            }
+                          ]
                         }
                       },
                       "tenants.self_service_registration": {
@@ -5962,7 +6244,8 @@
                       "x-configurator": {
                         "detail": "standard",
                         "sensitivity": "sensitive"
-                      }
+                      },
+                      "description": "Stable machine identifier (slug) for this tenant entry inside the manifest."
                     }
                   },
                   "required": [
@@ -5986,7 +6269,8 @@
                       "x-configurator": {
                         "detail": "standard",
                         "sensitivity": "sensitive"
-                      }
+                      },
+                      "description": "Human-readable display name shown for this tenant in the Event interface."
                     },
                     "documents": {
                       "additionalProperties": false,
@@ -6005,7 +6289,8 @@
                                   "x-configurator": {
                                     "detail": "standard",
                                     "sensitivity": "sensitive"
-                                  }
+                                  },
+                                  "description": "Public branding display name rendered on tenant pages and communications."
                                 }
                               },
                               "required": [
@@ -6024,7 +6309,8 @@
                               "x-configurator": {
                                 "detail": "standard",
                                 "sensitivity": "sensitive"
-                              }
+                              },
+                              "description": "Schema version token for the tenant branding document payload accepted by Event."
                             }
                           },
                           "required": [
@@ -6070,7 +6356,21 @@
                           "type": "string",
                           "x-configurator": {
                             "detail": "standard",
-                            "sensitivity": "public"
+                            "sensitivity": "public",
+                            "choices": [
+                              {
+                                "value": "dark",
+                                "explanation": "Default the user interface to the dark color palette."
+                              },
+                              {
+                                "value": "light",
+                                "explanation": "Default the user interface to the light color palette."
+                              },
+                              {
+                                "value": "system",
+                                "explanation": "Follow the visitor's operating system and browser color-scheme preference."
+                              }
+                            ]
                           }
                         },
                         "event_reporting.intake_enabled": {
@@ -6266,7 +6566,17 @@
                           "type": "string",
                           "x-configurator": {
                             "detail": "standard",
-                            "sensitivity": "public"
+                            "sensitivity": "public",
+                            "choices": [
+                              {
+                                "value": "DiscoveryCentric",
+                                "explanation": "Highlight multi-organizer public event discovery across the instance."
+                              },
+                              {
+                                "value": "OrganizationCentric",
+                                "explanation": "Focus the public storefront on a single organization's brand and schedule."
+                              }
+                            ]
                           }
                         },
                         "routing.default_public_home_page": {
@@ -6279,7 +6589,17 @@
                           "type": "string",
                           "x-configurator": {
                             "detail": "standard",
-                            "sensitivity": "public"
+                            "sensitivity": "public",
+                            "choices": [
+                              {
+                                "value": "EventList",
+                                "explanation": "Route the public root URL directly to the browsable event listing."
+                              },
+                              {
+                                "value": "LandingPage",
+                                "explanation": "Route the public root URL to the curated introductory landing page."
+                              }
+                            ]
                           }
                         },
                         "tenants.white_labeling_enabled": {
@@ -6510,7 +6830,29 @@
                         "type": "string",
                         "x-configurator": {
                           "detail": "standard",
-                          "sensitivity": "sensitive"
+                          "sensitivity": "sensitive",
+                          "choices": [
+                            {
+                              "value": "Public",
+                              "explanation": "Applies to all public visitors browsing the site without signing in."
+                            },
+                            {
+                              "value": "RegisteredUsers",
+                              "explanation": "Applies to authenticated users holding an account on the instance."
+                            },
+                            {
+                              "value": "Administrators",
+                              "explanation": "Applies to operators and administrators managing instance or tenant settings."
+                            },
+                            {
+                              "value": "Developers",
+                              "explanation": "Applies to API integrators and technical developers interacting with platform interfaces."
+                            },
+                            {
+                              "value": "EventParticipants",
+                              "explanation": "Applies to attendees and participants registering for or attending events."
+                            }
+                          ]
                         }
                       },
                       "jurisdictionAssumptions": {
@@ -6542,7 +6884,17 @@
                         "type": "string",
                         "x-configurator": {
                           "detail": "standard",
-                          "sensitivity": "sensitive"
+                          "sensitivity": "sensitive",
+                          "choices": [
+                            {
+                              "value": "Draft",
+                              "explanation": "Marks the legal text as an internal working draft not yet published for acceptance."
+                            },
+                            {
+                              "value": "ReviewRequired",
+                              "explanation": "Flags the legal text as awaiting formal human legal review before publication."
+                            }
+                          ]
                         }
                       },
                       "localizations": {
@@ -6657,7 +7009,21 @@
                     "type": "string",
                     "x-configurator": {
                       "detail": "standard",
-                      "sensitivity": "public"
+                      "sensitivity": "public",
+                      "choices": [
+                        {
+                          "value": "dark",
+                          "explanation": "Default the user interface to the dark color palette."
+                        },
+                        {
+                          "value": "light",
+                          "explanation": "Default the user interface to the light color palette."
+                        },
+                        {
+                          "value": "system",
+                          "explanation": "Follow the visitor's operating system and browser color-scheme preference."
+                        }
+                      ]
                     }
                   },
                   "event_reporting.intake_enabled": {
@@ -6853,7 +7219,17 @@
                     "type": "string",
                     "x-configurator": {
                       "detail": "standard",
-                      "sensitivity": "public"
+                      "sensitivity": "public",
+                      "choices": [
+                        {
+                          "value": "DiscoveryCentric",
+                          "explanation": "Highlight multi-organizer public event discovery across the instance."
+                        },
+                        {
+                          "value": "OrganizationCentric",
+                          "explanation": "Focus the public storefront on a single organization's brand and schedule."
+                        }
+                      ]
                     }
                   },
                   "routing.default_public_home_page": {
@@ -6866,7 +7242,17 @@
                     "type": "string",
                     "x-configurator": {
                       "detail": "standard",
-                      "sensitivity": "public"
+                      "sensitivity": "public",
+                      "choices": [
+                        {
+                          "value": "EventList",
+                          "explanation": "Route the public root URL directly to the browsable event listing."
+                        },
+                        {
+                          "value": "LandingPage",
+                          "explanation": "Route the public root URL to the curated introductory landing page."
+                        }
+                      ]
                     }
                   },
                   "tenants.white_labeling_enabled": {
@@ -7174,7 +7560,29 @@
                             "type": "string",
                             "x-configurator": {
                               "detail": "standard",
-                              "sensitivity": "sensitive"
+                              "sensitivity": "sensitive",
+                              "choices": [
+                                {
+                                  "value": "Public",
+                                  "explanation": "Applies to all public visitors browsing the site without signing in."
+                                },
+                                {
+                                  "value": "RegisteredUsers",
+                                  "explanation": "Applies to authenticated users holding an account on the instance."
+                                },
+                                {
+                                  "value": "Administrators",
+                                  "explanation": "Applies to operators and administrators managing instance or tenant settings."
+                                },
+                                {
+                                  "value": "Developers",
+                                  "explanation": "Applies to API integrators and technical developers interacting with platform interfaces."
+                                },
+                                {
+                                  "value": "EventParticipants",
+                                  "explanation": "Applies to attendees and participants registering for or attending events."
+                                }
+                              ]
                             }
                           },
                           "jurisdictionAssumptions": {
@@ -7206,7 +7614,17 @@
                             "type": "string",
                             "x-configurator": {
                               "detail": "standard",
-                              "sensitivity": "sensitive"
+                              "sensitivity": "sensitive",
+                              "choices": [
+                                {
+                                  "value": "Draft",
+                                  "explanation": "Marks the legal text as an internal working draft not yet published for acceptance."
+                                },
+                                {
+                                  "value": "ReviewRequired",
+                                  "explanation": "Flags the legal text as awaiting formal human legal review before publication."
+                                }
+                              ]
                             }
                           },
                           "localizations": {
@@ -7321,7 +7739,21 @@
                         "type": "string",
                         "x-configurator": {
                           "detail": "standard",
-                          "sensitivity": "public"
+                          "sensitivity": "public",
+                          "choices": [
+                            {
+                              "value": "dark",
+                              "explanation": "Default the user interface to the dark color palette."
+                            },
+                            {
+                              "value": "light",
+                              "explanation": "Default the user interface to the light color palette."
+                            },
+                            {
+                              "value": "system",
+                              "explanation": "Follow the visitor's operating system and browser color-scheme preference."
+                            }
+                          ]
                         }
                       },
                       "branding.custom_css_url": {
@@ -7611,7 +8043,17 @@
                         "type": "string",
                         "x-configurator": {
                           "detail": "standard",
-                          "sensitivity": "public"
+                          "sensitivity": "public",
+                          "choices": [
+                            {
+                              "value": "DiscoveryCentric",
+                              "explanation": "Highlight multi-organizer public event discovery across the instance."
+                            },
+                            {
+                              "value": "OrganizationCentric",
+                              "explanation": "Focus the public storefront on a single organization's brand and schedule."
+                            }
+                          ]
                         }
                       },
                       "routing.default_public_home_page": {
@@ -7624,7 +8066,17 @@
                         "type": "string",
                         "x-configurator": {
                           "detail": "standard",
-                          "sensitivity": "public"
+                          "sensitivity": "public",
+                          "choices": [
+                            {
+                              "value": "EventList",
+                              "explanation": "Route the public root URL directly to the browsable event listing."
+                            },
+                            {
+                              "value": "LandingPage",
+                              "explanation": "Route the public root URL to the curated introductory landing page."
+                            }
+                          ]
                         }
                       },
                       "tenants.self_service_registration": {
@@ -7672,7 +8124,8 @@
                       "x-configurator": {
                         "detail": "standard",
                         "sensitivity": "sensitive"
-                      }
+                      },
+                      "description": "Stable machine identifier (slug) for this tenant entry inside the legal drafts document."
                     }
                   },
                   "required": [
@@ -7696,7 +8149,8 @@
                       "x-configurator": {
                         "detail": "standard",
                         "sensitivity": "sensitive"
-                      }
+                      },
+                      "description": "Human-readable display name shown for this tenant in legal drafts."
                     },
                     "documents": {
                       "additionalProperties": false,
@@ -7732,7 +8186,21 @@
                           "type": "string",
                           "x-configurator": {
                             "detail": "standard",
-                            "sensitivity": "public"
+                            "sensitivity": "public",
+                            "choices": [
+                              {
+                                "value": "dark",
+                                "explanation": "Default the user interface to the dark color palette."
+                              },
+                              {
+                                "value": "light",
+                                "explanation": "Default the user interface to the light color palette."
+                              },
+                              {
+                                "value": "system",
+                                "explanation": "Follow the visitor's operating system and browser color-scheme preference."
+                              }
+                            ]
                           }
                         },
                         "event_reporting.intake_enabled": {
@@ -7928,7 +8396,17 @@
                           "type": "string",
                           "x-configurator": {
                             "detail": "standard",
-                            "sensitivity": "public"
+                            "sensitivity": "public",
+                            "choices": [
+                              {
+                                "value": "DiscoveryCentric",
+                                "explanation": "Highlight multi-organizer public event discovery across the instance."
+                              },
+                              {
+                                "value": "OrganizationCentric",
+                                "explanation": "Focus the public storefront on a single organization's brand and schedule."
+                              }
+                            ]
                           }
                         },
                         "routing.default_public_home_page": {
@@ -7941,7 +8419,17 @@
                           "type": "string",
                           "x-configurator": {
                             "detail": "standard",
-                            "sensitivity": "public"
+                            "sensitivity": "public",
+                            "choices": [
+                              {
+                                "value": "EventList",
+                                "explanation": "Route the public root URL directly to the browsable event listing."
+                              },
+                              {
+                                "value": "LandingPage",
+                                "explanation": "Route the public root URL to the curated introductory landing page."
+                              }
+                            ]
                           }
                         },
                         "tenants.white_labeling_enabled": {
@@ -8245,7 +8733,7 @@
   ],
   "identity": {
     "familyId": "f79259e8-af23-49b0-8d8d-6e371cc96080",
-    "revision": 7
+    "revision": 8
   },
   "localization": {
     "defaultLocale": "en",
@@ -8772,7 +9260,95 @@
           "/configuration/properties/storageReconciliation/properties/quarantineMissingObjects/x-configurator/choices/0/explanation": "نقل سجلات الملفات المفقودة في التخزين إلى حالة الحجر.",
           "/configuration/properties/storageReconciliation/properties/quarantineMissingObjects/x-configurator/choices/1/explanation": "ترك سجلات البيانات الوصفية دون تغيير عند فقدان الملفات الفعلي.",
           "/configuration/properties/storageReconciliation/properties/quarantineOrphanLocalFiles/x-configurator/choices/0/explanation": "نقل الملفات اليتيمة غير المرتبطة بسجل في التخزين المحلي إلى مجلد الحجر.",
-          "/configuration/properties/storageReconciliation/properties/quarantineOrphanLocalFiles/x-configurator/choices/1/explanation": "ترك الملفات المحلية غير المرتبطة دون مساس أثناء عمليات التسوية."
+          "/configuration/properties/storageReconciliation/properties/quarantineOrphanLocalFiles/x-configurator/choices/1/explanation": "ترك الملفات المحلية غير المرتبطة دون مساس أثناء عمليات التسوية.",
+          "/configuration/properties/bootstrapAdministrator/properties/firstName/description": "الاسم الأول المسجَّل لحساب المسؤول الابتدائي عند التهيئة.",
+          "/configuration/properties/bootstrapAdministrator/properties/lastName/description": "اسم العائلة المسجَّل لحساب المسؤول الابتدائي عند التهيئة.",
+          "/configuration/properties/configurationManifest/properties/tenants/items/properties/metadata/properties/name/description": "معرّف آلي ثابت (slug) لهذا المستأجر داخل ملف البيان.",
+          "/configuration/properties/configurationManifest/properties/tenants/items/properties/spec/properties/displayName/description": "الاسم المعروض المقروء بشريًا لهذا المستأجر في واجهة Event.",
+          "/configuration/properties/configurationManifest/properties/tenants/items/properties/spec/properties/documents/properties/tenant.branding/properties/payload/properties/displayName/description": "اسم العلامة التجارية العام المعروض في صفحات المستأجر ومراسلاته.",
+          "/configuration/properties/configurationManifest/properties/tenants/items/properties/spec/properties/documents/properties/tenant.branding/properties/schemaVersion/description": "إصدار مخطط وثيقة العلامة التجارية للمستأجر المقبول لدى Event.",
+          "/configuration/properties/database/properties/host/description": "اسم المضيف أو عنوان الشبكة لخادم PostgreSQL الذي يدعم نشر Event هذا.",
+          "/configuration/properties/database/properties/migratorUsername/description": "اسم دور قاعدة البيانات المستخدم أثناء ترحيلات المخطط بصلاحيات التعديل البنيوي.",
+          "/configuration/properties/database/properties/name/description": "اسم قاعدة بيانات PostgreSQL الهدف المخصَّصة لنسخة Event هذه.",
+          "/configuration/properties/database/properties/provider/description": "معرّف مزوّد محرك قاعدة البيانات المختار للخلفية في Event.",
+          "/configuration/properties/database/properties/runtimeUsername/description": "اسم دور قاعدة البيانات الأقل صلاحية الذي يستخدمه تطبيق Event أثناء التشغيل.",
+          "/configuration/properties/hosting/properties/replicaCount/description": "عدد نسخ التطبيق المخطط تشغيلها لهذا النشر؛ تفعّل القيم الأكبر من 1 إعدادات التنسيق الموزّع.",
+          "/configuration/properties/identity/properties/bootstrapMode/description": "وضع التهيئة الأولية الذي يحدد كيفية إنشاء سجلات هوية المشغل والمسؤول الابتدائية.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/jurisdictionCountryCode/description": "رمز الدولة (ISO 3166-1 alpha-2) الذي يحدد الاختصاص القانوني للمشغل.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/legalName/description": "الاسم القانوني الرسمي للمؤسسة أو الفرد المشغّل لنسخة Event هذه.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/operatorId/description": "معرّف ثابت بأحرف صغيرة يميّز كيان المشغل في بيانات Event.",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/operatorKindCode/description": "رمز تصنيف البنية القانونية للمشغل (مثل مؤسسة أو فرد).",
+          "/configuration/properties/identity/properties/operatorIdentity/properties/publicName/description": "الاسم العام للمشغل المعروض للمستخدمين في إشعارات النسخة وتذييل الصفحات.",
+          "/configuration/properties/legalDrafts/properties/tenants/items/properties/metadata/properties/name/description": "معرّف آلي ثابت (slug) لهذا المستأجر داخل وثيقة المسودات القانونية.",
+          "/configuration/properties/legalDrafts/properties/tenants/items/properties/spec/properties/displayName/description": "الاسم المعروض المقروء بشريًا لهذا المستأجر في المسودات القانونية.",
+          "/configuration/properties/operation/x-configurator/choices/0/explanation": "إعداد متغيرات بيئة التشغيل (.env) لنشر مستقل أو API أو Blazor أو Compose.",
+          "/configuration/properties/operation/x-configurator/choices/1/explanation": "إعداد ملف بيان التكوين التصريحي للنسخة والمستأجرين بصيغة JSON.",
+          "/configuration/properties/operation/x-configurator/choices/2/explanation": "إعداد حزمة تكوين قابلة للنقل لمستأجر واحد بصيغة JSON.",
+          "/configuration/properties/operation/x-configurator/choices/3/explanation": "إعداد مسودة إعلان هوية المشغل بصيغة JSON للمراجعة.",
+          "/configuration/properties/operation/x-configurator/choices/4/explanation": "إعداد مسودات وثائق قانونية تحريرية اختيارية بصيغة JSON للمراجعة القانونية المستقلة.",
+          "/configuration/properties/deployment/properties/recipe/x-configurator/choices/0/explanation": "تشغيل خادم الويب وواجهة API المدمجين في حاوية أو عملية محلية واحدة.",
+          "/configuration/properties/deployment/properties/recipe/x-configurator/choices/1/explanation": "نشر صور منفصلة لواجهة API وواجهة Blazor مع تحديد نقاط الاتصال بينهما صراحة.",
+          "/configuration/properties/deployment/properties/recipe/x-configurator/choices/2/explanation": "تنسيق خدمات Event مع حاويات البنية التحتية الداعمة عبر Docker Compose.",
+          "/configuration/properties/deployment/properties/scope/x-configurator/choices/0/explanation": "إعداد متغيرات البيئة لمضيف مدمج يخدم كلاً من واجهة API وواجهة Blazor.",
+          "/configuration/properties/deployment/properties/scope/x-configurator/choices/1/explanation": "إعداد متغيرات البيئة المقتصرة على خدمة واجهة API في Event.",
+          "/configuration/properties/deployment/properties/scope/x-configurator/choices/2/explanation": "إعداد متغيرات البيئة المقتصرة على خدمة واجهة Blazor الأمامية.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/api/properties/tokenLifetime/x-configurator/choices/0/explanation": "إصدار رمز Infisical بمدة صلاحية محددة ينتهي دون تجديد تلقائي.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/api/properties/tokenLifetime/x-configurator/choices/1/explanation": "إصدار رمز Infisical دوري قابل للتجديد يُدار تدويره قبل انتهاء كل فترة.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/bff/properties/tokenLifetime/x-configurator/choices/0/explanation": "إصدار رمز Infisical بمدة صلاحية محددة ينتهي دون تجديد تلقائي.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/bff/properties/tokenLifetime/x-configurator/choices/1/explanation": "إصدار رمز Infisical دوري قابل للتجديد يُدار تدويره قبل انتهاء كل فترة.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/combined/properties/tokenLifetime/x-configurator/choices/0/explanation": "إصدار رمز Infisical بمدة صلاحية محددة ينتهي دون تجديد تلقائي.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/combined/properties/tokenLifetime/x-configurator/choices/1/explanation": "إصدار رمز Infisical دوري قابل للتجديد يُدار تدويره قبل انتهاء كل فترة.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/migration/properties/tokenLifetime/x-configurator/choices/0/explanation": "إصدار رمز Infisical بمدة صلاحية محددة ينتهي دون تجديد تلقائي.",
+          "/configuration/properties/recipientAuthorities/properties/infisical/properties/migration/properties/tokenLifetime/x-configurator/choices/1/explanation": "إصدار رمز Infisical دوري قابل للتجديد يُدار تدويره قبل انتهاء كل فترة.",
+          "/configuration/properties/configurationManifest/properties/spec/properties/instance/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/0/explanation": "تعيين المظهر الداكن كإعداد افتراضي لواجهة المستخدم.",
+          "/configuration/properties/configurationManifest/properties/spec/properties/instance/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/1/explanation": "تعيين المظهر الفاتح كإعداد افتراضي لواجهة المستخدم.",
+          "/configuration/properties/configurationManifest/properties/spec/properties/instance/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/2/explanation": "اتباع تفضيل نظام التشغيل والمتصفح الخاص بالزائر.",
+          "/configuration/properties/configurationManifest/properties/spec/properties/instance/properties/settings/properties/public_experience.mode/x-configurator/choices/0/explanation": "إبراز استكشاف الفعاليات العامة لعدة منظمين عبر النسخة.",
+          "/configuration/properties/configurationManifest/properties/spec/properties/instance/properties/settings/properties/public_experience.mode/x-configurator/choices/1/explanation": "تركيز الواجهة العامة على هوية مؤسسة واحدة وجدول فعالياتها.",
+          "/configuration/properties/configurationManifest/properties/spec/properties/instance/properties/settings/properties/routing.default_public_home_page/x-configurator/choices/0/explanation": "توجيه المسار العام الجذري مباشرة إلى قائمة الفعاليات القابلة للتصفح.",
+          "/configuration/properties/configurationManifest/properties/spec/properties/instance/properties/settings/properties/routing.default_public_home_page/x-configurator/choices/1/explanation": "توجيه المسار العام الجذري إلى الصفحة التعريفية الرئيسية.",
+          "/configuration/properties/configurationManifest/properties/tenants/items/properties/spec/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/0/explanation": "تعيين المظهر الداكن كإعداد افتراضي لواجهة المستخدم.",
+          "/configuration/properties/configurationManifest/properties/tenants/items/properties/spec/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/1/explanation": "تعيين المظهر الفاتح كإعداد افتراضي لواجهة المستخدم.",
+          "/configuration/properties/configurationManifest/properties/tenants/items/properties/spec/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/2/explanation": "اتباع تفضيل نظام التشغيل والمتصفح الخاص بالزائر.",
+          "/configuration/properties/configurationManifest/properties/tenants/items/properties/spec/properties/settings/properties/public_experience.mode/x-configurator/choices/0/explanation": "إبراز استكشاف الفعاليات العامة لعدة منظمين عبر النسخة.",
+          "/configuration/properties/configurationManifest/properties/tenants/items/properties/spec/properties/settings/properties/public_experience.mode/x-configurator/choices/1/explanation": "تركيز الواجهة العامة على هوية مؤسسة واحدة وجدول فعالياتها.",
+          "/configuration/properties/configurationManifest/properties/tenants/items/properties/spec/properties/settings/properties/routing.default_public_home_page/x-configurator/choices/0/explanation": "توجيه المسار العام الجذري مباشرة إلى قائمة الفعاليات القابلة للتصفح.",
+          "/configuration/properties/configurationManifest/properties/tenants/items/properties/spec/properties/settings/properties/routing.default_public_home_page/x-configurator/choices/1/explanation": "توجيه المسار العام الجذري إلى الصفحة التعريفية الرئيسية.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/legalDocuments/properties/TermsOfService/properties/audience/x-configurator/choices/0/explanation": "ينطبق على جميع الزوار العامين الذين يتصفحون الموقع دون تسجيل الدخول.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/legalDocuments/properties/TermsOfService/properties/audience/x-configurator/choices/1/explanation": "ينطبق على المستخدمين المسجلين الذين يملكون حسابًا في النسخة.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/legalDocuments/properties/TermsOfService/properties/audience/x-configurator/choices/2/explanation": "ينطبق على المشغلين والمسؤولين الذين يديرون إعدادات النسخة أو المستأجر.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/legalDocuments/properties/TermsOfService/properties/audience/x-configurator/choices/3/explanation": "ينطبق على مطوري التكامل الذين يتعاملون مع واجهات المنصة البرمجية.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/legalDocuments/properties/TermsOfService/properties/audience/x-configurator/choices/4/explanation": "ينطبق على الحضور والمشاركين المسجلين في الفعاليات أو الحاضرين لها.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/legalDocuments/properties/TermsOfService/properties/lifecycleIntent/x-configurator/choices/0/explanation": "يُصنّف النص القانوني كمسودة عمل داخلية غير منشورة بعد للقبول.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/legalDocuments/properties/TermsOfService/properties/lifecycleIntent/x-configurator/choices/1/explanation": "يُشير إلى أن النص القانوني بانتظار مراجعة قانونية بشرية رسمية قبل النشر.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/0/explanation": "تعيين المظهر الداكن كإعداد افتراضي لواجهة المستخدم.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/1/explanation": "تعيين المظهر الفاتح كإعداد افتراضي لواجهة المستخدم.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/2/explanation": "اتباع تفضيل نظام التشغيل والمتصفح الخاص بالزائر.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/settings/properties/public_experience.mode/x-configurator/choices/0/explanation": "إبراز استكشاف الفعاليات العامة لعدة منظمين عبر النسخة.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/settings/properties/public_experience.mode/x-configurator/choices/1/explanation": "تركيز الواجهة العامة على هوية مؤسسة واحدة وجدول فعالياتها.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/settings/properties/routing.default_public_home_page/x-configurator/choices/0/explanation": "توجيه المسار العام الجذري مباشرة إلى قائمة الفعاليات القابلة للتصفح.",
+          "/configuration/properties/legalDrafts/properties/spec/properties/instance/properties/settings/properties/routing.default_public_home_page/x-configurator/choices/1/explanation": "توجيه المسار العام الجذري إلى الصفحة التعريفية الرئيسية.",
+          "/configuration/properties/legalDrafts/properties/tenants/items/properties/spec/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/0/explanation": "تعيين المظهر الداكن كإعداد افتراضي لواجهة المستخدم.",
+          "/configuration/properties/legalDrafts/properties/tenants/items/properties/spec/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/1/explanation": "تعيين المظهر الفاتح كإعداد افتراضي لواجهة المستخدم.",
+          "/configuration/properties/legalDrafts/properties/tenants/items/properties/spec/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/2/explanation": "اتباع تفضيل نظام التشغيل والمتصفح الخاص بالزائر.",
+          "/configuration/properties/legalDrafts/properties/tenants/items/properties/spec/properties/settings/properties/public_experience.mode/x-configurator/choices/0/explanation": "إبراز استكشاف الفعاليات العامة لعدة منظمين عبر النسخة.",
+          "/configuration/properties/legalDrafts/properties/tenants/items/properties/spec/properties/settings/properties/public_experience.mode/x-configurator/choices/1/explanation": "تركيز الواجهة العامة على هوية مؤسسة واحدة وجدول فعالياتها.",
+          "/configuration/properties/legalDrafts/properties/tenants/items/properties/spec/properties/settings/properties/routing.default_public_home_page/x-configurator/choices/0/explanation": "توجيه المسار العام الجذري مباشرة إلى قائمة الفعاليات القابلة للتصفح.",
+          "/configuration/properties/legalDrafts/properties/tenants/items/properties/spec/properties/settings/properties/routing.default_public_home_page/x-configurator/choices/1/explanation": "توجيه المسار العام الجذري إلى الصفحة التعريفية الرئيسية.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/legalDocuments/properties/TenantPrivacyNotice/properties/audience/x-configurator/choices/0/explanation": "ينطبق على جميع الزوار العامين الذين يتصفحون الموقع دون تسجيل الدخول.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/legalDocuments/properties/TenantPrivacyNotice/properties/audience/x-configurator/choices/1/explanation": "ينطبق على المستخدمين المسجلين الذين يملكون حسابًا في النسخة.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/legalDocuments/properties/TenantPrivacyNotice/properties/audience/x-configurator/choices/2/explanation": "ينطبق على المشغلين والمسؤولين الذين يديرون إعدادات النسخة أو المستأجر.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/legalDocuments/properties/TenantPrivacyNotice/properties/audience/x-configurator/choices/3/explanation": "ينطبق على مطوري التكامل الذين يتعاملون مع واجهات المنصة البرمجية.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/legalDocuments/properties/TenantPrivacyNotice/properties/audience/x-configurator/choices/4/explanation": "ينطبق على الحضور والمشاركين المسجلين في الفعاليات أو الحاضرين لها.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/legalDocuments/properties/TenantPrivacyNotice/properties/lifecycleIntent/x-configurator/choices/0/explanation": "يُصنّف النص القانوني كمسودة عمل داخلية غير منشورة بعد للقبول.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/legalDocuments/properties/TenantPrivacyNotice/properties/lifecycleIntent/x-configurator/choices/1/explanation": "يُشير إلى أن النص القانوني بانتظار مراجعة قانونية بشرية رسمية قبل النشر.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/0/explanation": "تعيين المظهر الداكن كإعداد افتراضي لواجهة المستخدم.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/1/explanation": "تعيين المظهر الفاتح كإعداد افتراضي لواجهة المستخدم.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/settings/properties/appearance.default_theme_mode/x-configurator/choices/2/explanation": "اتباع تفضيل نظام التشغيل والمتصفح الخاص بالزائر.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/settings/properties/public_experience.mode/x-configurator/choices/0/explanation": "إبراز استكشاف الفعاليات العامة لعدة منظمين عبر النسخة.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/settings/properties/public_experience.mode/x-configurator/choices/1/explanation": "تركيز الواجهة العامة على هوية مؤسسة واحدة وجدول فعالياتها.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/settings/properties/routing.default_public_home_page/x-configurator/choices/0/explanation": "توجيه المسار العام الجذري مباشرة إلى قائمة الفعاليات القابلة للتصفح.",
+          "/configuration/properties/tenantPackage/properties/spec/properties/settings/properties/routing.default_public_home_page/x-configurator/choices/1/explanation": "توجيه المسار العام الجذري إلى الصفحة التعريفية الرئيسية."
         }
       },
       "en": {

@@ -1,7 +1,9 @@
+using System.Text;
 using System.Text.Json;
 using Configurator.Core.Artifacts;
 using Configurator.Core.Definitions;
-using System.Text;
+using Configurator.Core.Definitions.Authoring;
+using Configurator.Core.Secrets;
 
 namespace Configurator.Core.Tests.Definitions;
 
@@ -78,6 +80,113 @@ public sealed class EventDeploymentContractTests
         await Assert.That(draftText).DoesNotContain("synthetic-api-");
         await Assert.That(draftText).DoesNotContain("synthetic-migration-");
         await Assert.That(DefinitionArtifactComposer.Compose(definition, "environment-api", answers).Succeeded).IsFalse();
+    }
+
+    [Test]
+    public async Task EventDefinitionPassesExpandedQualityLintWithArabicGuidance()
+    {
+        Definition definition = Definition();
+        IReadOnlyList<DefinitionQualityAdvisory> advisories = DefinitionQualityLinter.Lint(definition);
+        await Assert.That(advisories).IsEmpty();
+
+        var localization = new DefinitionLocalization(definition);
+        await Assert.That(localization.Locales).Contains("en");
+        await Assert.That(localization.Locales).Contains("ar");
+
+        string[] checkedPointers =
+        [
+            "/configuration/properties/bootstrapAdministrator/properties/firstName/description",
+            "/configuration/properties/database/properties/host/description",
+            "/configuration/properties/hosting/properties/replicaCount/description",
+            "/configuration/properties/deployment/properties/recipe/x-configurator/choices/0/explanation",
+            "/configuration/properties/deployment/properties/scope/x-configurator/choices/0/explanation",
+            "/configuration/properties/operation/x-configurator/choices/0/explanation"
+        ];
+        foreach (string pointer in checkedPointers)
+        {
+            string? arabic = localization.Text("ar", pointer, null);
+            await Assert.That(arabic).IsNotNull().Because(pointer);
+            await Assert.That(string.IsNullOrWhiteSpace(arabic)).IsFalse().Because(pointer);
+        }
+    }
+
+    [Test]
+    public async Task EventSecretPoliciesSeparateFirstPartyLocalGenerationFromThirdPartyExistingCredentials()
+    {
+        Definition definition = Definition();
+
+        string[] firstPartyLocalSecrets =
+        [
+            "/platform/setupSecret",
+            "/localBootstrap/password",
+            "/database/migratorPassword",
+            "/database/runtimePassword",
+            "/database/erasure/migratorPassword",
+            "/database/erasure/runtimePassword",
+            "/postgresql/password",
+            "/identity/database/migratorPassword",
+            "/identity/database/runtimePassword",
+            "/cerbos/adminPassword",
+            "/recipientAuthorities/bffSession/redisPassword",
+            "/supportingServices/cerbos/postgresPassword",
+            "/supportingServices/coop/databasePassword",
+            "/supportingServices/coop/scyllaPassword",
+            "/supportingServices/formbricks/databasePassword",
+            "/supportingServices/keycloak/adminPassword",
+            "/supportingServices/keycloak/dbPassword",
+            "/supportingServices/svix/dbPassword",
+            "/supportingServices/weblate/adminPassword",
+            "/supportingServices/weblate/postgresPassword"
+        ];
+
+        foreach (string pointer in firstPartyLocalSecrets)
+        {
+            DefinitionNode node = definition.Field(pointer).Node;
+            DefinitionSecretSpecification? policy = node.Secret;
+            await Assert.That(policy).IsNotNull().Because(pointer);
+            await Assert.That(policy!.Acquisition).IsEqualTo(DefinitionSecretAcquisition.Local).Because(pointer);
+            await Assert.That(policy.Generation).IsNotNull().Because(pointer);
+            using SecretGenerationResult generated = SecretGenerator.Generate(policy);
+            await Assert.That(generated.Succeeded).IsTrue().Because(pointer);
+            await Assert.That(SecretValueValidator.Validate(policy, generated.Output!.CopyValue())).IsEmpty().Because(pointer);
+        }
+
+        string[] thirdPartyExistingSecrets =
+        [
+            "/keycloak/blazorClientSecret",
+            "/payments/stripe/platformSecretKey",
+            "/payments/stripe/webhookSecret",
+            "/svix/authToken",
+            "/svix/operationalWebhookSecret",
+            "/recipientAuthorities/infisical/api/clientSecret",
+            "/recipientAuthorities/infisical/bff/clientSecret",
+            "/recipientAuthorities/infisical/combined/clientSecret",
+            "/recipientAuthorities/infisical/migration/clientSecret",
+            "/s3Storage/secretAccessKey",
+            "/messaging/smtp/password",
+            "/integrations/ai/anthropicApiKey",
+            "/integrations/ai/openaiApiKey"
+        ];
+
+        foreach (string pointer in thirdPartyExistingSecrets)
+        {
+            DefinitionNode node = definition.Field(pointer).Node;
+            DefinitionSecretSpecification? policy = node.Secret;
+            await Assert.That(policy).IsNotNull().Because(pointer);
+            await Assert.That(policy!.Acquisition).IsEqualTo(DefinitionSecretAcquisition.Existing).Because(pointer);
+            await Assert.That(policy.Generation).IsNull().Because(pointer);
+            bool hasDescription = node.Keywords.TryGetProperty("description", out JsonElement desc)
+                && desc.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(desc.GetString());
+            bool hasInstructions = node.Keywords.TryGetProperty("x-configurator", out JsonElement ext)
+                && ext.ValueKind == JsonValueKind.Object
+                && ext.TryGetProperty("guidance", out JsonElement guidance)
+                && guidance.ValueKind == JsonValueKind.Object
+                && guidance.TryGetProperty("instructions", out JsonElement instructions)
+                && instructions.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(instructions.GetString());
+            await Assert.That(hasDescription || hasInstructions).IsTrue().Because(pointer);
+        }
     }
 
     private static byte[] Resource(string name)
