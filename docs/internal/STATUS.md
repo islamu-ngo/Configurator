@@ -3,15 +3,28 @@
 > **Audience:** Contributors | Integrators | AI agents
 > **Status:** Mixed; current implementation routes and bounded historical evidence
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-11-23
+> **Last Verified:** 2026-11-24
 > **Source Anchors:** `docs/internal/CLI_CONTRACT.md`, `docs/internal/IMPORT_COMPARISON.md`, `docs/internal/OPERATIONS.md`, `docs/internal/adr/`
 
 This index separates claims that require different evidence. It routes to the
 owning record without repeating test totals or creating a new acceptance gate.
-The date above records the current configuration-experience qualification
-review; historical sections below retain their original evidence boundaries.
+The date above records the current ecosystem-dogfooding, canonical CLI, Grafana
+Docker proof, and Browser `4x` Track A review; historical sections below retain
+their original evidence boundaries.
 Use the [knowledge map](KNOWLEDGE_MAP.md) for document lifecycle and the
 [current procedure entry](OPERATIONS.md#current-procedure-entry) for execution.
+
+## Ecosystem dogfooding, canonical CLI, Grafana proof & Browser 4x Track A (2026-11-24)
+
+Phases 1–6 of `ecosystem-dogfooding-cli-and-perf` (verified locally on `2026-11-24`; git commits pending explicit authorization) delivered:
+
+- **Browser `4x` Track A Closure:** Single-pass cooperative `DefinitionPreparationSession`, `ZeroingByteBufferWriter`, admission-time precomputed `DefinitionNode.{RequiredSet,HasOptionalDescendant}`, and two-phase `ConfigurationReview` effects hydration closed all Track A `4x` latency breaches on rebuilt hardened container `sha256:6f56bbed3df0006fb0183567e4669c29fb968b89112cd2f7ea1d9db6305a5a53` (`payloadDigest` `59eb19ae44c0f85a92bf5be3dc9f3596a218c0f2e5871e08e6908aa10272c91f`): `MeasureInteractiveWork.cs` exited `0` (`56/56` cohorts) and `QF01` passed `8/8` (`passed: true`; see [Browser v1 qualification Section 7](releases/browser-v1-qualification.md#7-track-a-4x-performance-tail-closure-addendum-2026-11-24)).
+- **Core Authoring Engines & Canonical `0.0.1` CLI:** Value-safe numeric parser coordinates (`CompositionSourceLocation` / `DefinitionAuthoringDiagnostic`), expanded `G12` conditional/choice linting (`DefinitionQualityLinter`), semantic `DefinitionRevisionComparison`, and bounded data-only `DefinitionFixtureRunner` (`schemas/configurator-fixtures.schema.json`); breaking removal of deprecated CLI routes (`env`, `catalogue show`, `artifact open|format|export|preview`, `definition schema`) without shims; addition of `--version`, `info`, `schema list|export`, paged/digest-fenced `definition describe`, `definition diff`, `definition test`, `doctor --require`, and explicit `artifact bundle-create --draft`, with regenerated CLI schema, reference, ratchets, updated portable `skills/configurator-integrate/`, and outside-checkout `CliInstalledAdoptionTests`.
+- **Generic Unsigned Delivery & Auditable Store Conformance:** Added `eng/configurator/DefinitionDelivery.cs` (`trustBoundary: "unsigned-local-verification-only"`, SSRF-fenced public HTTPS validation) and bounded Store `conformance` evidence (`format-only`, `fixture-verified`, `target-runtime-verified`) in `BuildDefinitionStore.cs`, Presentation, and Browser Store detail pages without implying signatures or target apply authority.
+- **Target Dogfooding (Event `0.0.1` Rev `8` & Grafana OSS `13.2.2`):** Advanced `islamu-event` to rev `8` (`0` `G12` bilingual advisories, `20` first-party local CSPRNG secrets / `13` third-party `existing`, unified family `f79259e8-af23-49b0-8d8d-6e371cc96080`, immutable `store/islamu-event/releases/1..7.json` + `8.json`, 3-way & `10/10` cross-repo `cmp` parity against migrated sibling `../Event` with zero Event build dependency). Verified `examples/grafana-13.2.2` transiently against pinned `grafana/grafana@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0` (`/api/health` HTTP `200`, verified `.env` + Graphite provisioning) and promoted logo-free MIT `store/grafana-oss/` (`3` bundled Store projects; see [Operations](OPERATIONS.md#track-a-performance-closure-canonical-cli-event-rev-8--grafana-1322-docker-proof-2026-11-24)).
+- **Accepted Architecture Decision:** [Configuration experience and answer authority](adr/ADR-configuration-experience-and-answer-authority.md) promoted to `Accepted`; durable findings recorded in [`dev/_journal/domains/configuration-experiences.md`](../../dev/_journal/domains/configuration-experiences.md).
+
+**Remaining open gates (unchanged boundaries):** Browser Track B external human/hardware gates (physical screen-reader/braille `en`/`ar`, manual `200%`/`400%` browser zoom, physical macOS/iOS Safari, live Coolify HTTPS edge), non-Linux protected-save writers (`win-x64`, `osx-arm64`), independent cryptographic signing authority, and quarantined release-engineering baseline (`TrustedVerifierPackagingTests` / `ReleaseCandidateVerificationTests`).
 
 ## Browser static launch readiness & qualification (2026-11-23)
 
