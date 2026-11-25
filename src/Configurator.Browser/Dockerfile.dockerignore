@@ -52,6 +52,8 @@ src/Configurator.Cli/Commands/*
 !src/Configurator.Cli/Commands/Artifacts/
 !src/Configurator.Cli/Commands/Catalogue/
 !src/Configurator.Cli/Commands/Definitions/
+!src/Configurator.Cli/Commands/Discovery/
+!src/Configurator.Cli/Commands/Profiles/
 !src/Configurator.Cli/Commands/Secrets/
 !src/Configurator.Cli/Contracts/
 src/Configurator.Cli/Contracts/*
@@ -262,6 +264,10 @@ store/minimal-self-hosted/releases/*
 store/islamu-event/*
 !store/islamu-event/releases/
 store/islamu-event/releases/*
+!store/grafana-oss/
+store/grafana-oss/*
+!store/grafana-oss/releases/
+store/grafana-oss/releases/*
 !store/*/configurator.json
 !store/*/configurator.yaml
 !store/*/configurator.yml

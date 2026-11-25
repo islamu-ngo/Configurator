@@ -3,7 +3,7 @@
 > **Audience:** Contributors | AI agents
 > **Status:** Implemented local engineering procedures; publication not activated
 > **Owner:** Packaging/Release
-> **Last Verified:** 2026-11-23
+> **Last Verified:** 2026-11-24
 > **Source Anchors:** `AGENTS.md`, `PROJECTS.md`, `global.json`, `eng/agent-workflow/`, `eng/release/`
 
 This selective transfer uses the AI-agent operational section from Event
@@ -206,6 +206,18 @@ both exited 0. The generated completion manifest under
 independent expected-output identities. Baseline map/list bounds were corrected
 from fixed 256 to 255–257 before the accepted self-check so add/remove/reverse
 can actually run. No Browser performance result follows from those commands.
+
+On 2026-11-24, live hardened-container qualification of the Track A Browser AOT
+payload (`sha256:6f56bbed3df0006fb0183567e4669c29fb968b89112cd2f7ea1d9db6305a5a53`,
+`payloadDigest` `59eb19ae44c0f85a92bf5be3dc9f3596a218c0f2e5871e08e6908aa10272c91f`,
+`fixtureDigest` `4c1490e03a986486252eebcbbb86de1abb377f8165e02645f40249a238a010dc`,
+`hostDigest` `b0f2ee4ac145bcd495f7f1093567e1934ce40a88831b68f5191787375a92ebbd`)
+passed `MeasureInteractiveWork.cs` (`exit 0`, `56/56` cohorts passed) and `QF01`
+(`8/8` passed: `wide-nested-object` `4x p95=140.5ms`, `large-map-list` `4x p95=166.4ms`,
+`few-root-deep-tree` `4x` reverse `p95=377.0ms`, `compact-600` `1x` first-use
+`fb=35.5ms` and `4x fbMax=187.1ms`). See
+[Browser v1 qualification Section 7](releases/browser-v1-qualification.md#7-track-a-4x-performance-tail-closure-addendum-2026-11-24).
+External human/hardware Track B gates remain open.
 
 ## Retain safe evidence and qualify explicit receipts
 
@@ -2824,3 +2836,16 @@ fields) loaded via `/open`:
   - Empirical `QF01` preparation gate: **`4/4` passed at `1x`** (`63.3–81.5ms <= 100ms`); **`2/4` passed at `4x`** (`few-root-deep-tree` `108.7ms`, `multi-artifact` `127.2ms`) while `wide-nested-object` (`214.1ms`) and `large-map-list` (`224.4ms`) exceeded `200ms` (retained open for bounded `DefinitionPreparationSession` remediation).
   - Workstream Exit Ring: `Configurator.slnx` (30 projects) locked restore + Release build `0 Warning(s), 0 Error(s)`; `validate-dependency-license-policy.cs` `97` pairs passed; `GenerateConfiguratorRatchets.cs --check` `3/3` current; `Configurator.BrowserQualification --self-test` `13/13` passed; scoped `dotnet format` across all modified/added C# files exit `0`; `Configurator.Core.Tests` `969/969`, `Configurator.Presentation.Tests` `496/496`, `Configurator.Browser.Tests` `689/689` (pre-existing `TrustedVerifierPackagingTests`/`ReleaseCandidateVerificationTests` remain quarantined unchanged).
 - **Remaining open gates:** Bounded `4x` `QF01`/extended-scale tail follow-up, physical screen-reader/braille (`en`/`ar`), manual `200%`/`400%` zoom, physical macOS/iOS Safari hardware verification, and live Coolify production HTTPS edge inspection/rollback drill.
+
+### Track A Performance Closure, Canonical CLI, Event Rev 8 & Grafana 13.2.2 Docker Proof (2026-11-24)
+
+- **Track A (`4x` CPU preparation, deep-tree remount & 600-field review paint) — CLOSED:**
+  - Hardened container `configurator-browser:track-a` (`sha256:6f56bbed3df0006fb0183567e4669c29fb968b89112cd2f7ea1d9db6305a5a53`, `payloadDigest=59eb19ae44c0f85a92bf5be3dc9f3596a218c0f2e5871e08e6908aa10272c91f`):
+    - `MeasureInteractiveWork.cs`: **`56/56` cohorts passed** (`exit 0`, `1` non-failing outlier on `multi-artifact` `4x` forward ordinal `32` with `p95=193.6ms <= 400ms`; `few-root-deep-tree` `4x` reverse `p95=377.0ms < 400ms`; `compact-600` `1x` first-use `fb=35.5ms < 50ms` and `4x` `fbMax=187.1ms < 200ms`).
+    - Empirical `QF01` preparation gate: **`8/8` passed (`passed: true`)** (`wide-nested-object` `4x p95=140.5ms <= 200ms`, `large-map-list` `4x p95=166.4ms <= 200ms`, `few-root-deep-tree` `4x p95=94.5ms`, `multi-artifact` `4x p95=109.6ms`). Full table in [Static Browser v1 Qualification Record](releases/browser-v1-qualification.md#7-track-a-4x-performance-tail-closure-addendum-2026-11-24).
+- **Grafana OSS `13.2.2` Live Transient Docker Proof (2026-11-24):**
+  - Pinned image: `grafana/grafana@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0` (external AGPLv3 container only; zero Grafana source, images, or dependencies enter this MIT repository).
+  - Prepared via standalone CLI from `examples/grafana-13.2.2/setup-definition.json` (rev `2`, `digest=bb583ec230dbfd0f2a9f0488d6ea3beef9e5ec64d66d4f872c82c132bf34448d`, `cmp`-identical to `store/grafana-oss/releases/2.json`): `.env` (`22f36118...`) and `datasource.yaml` (`0f097bbc...`) verified byte-identical to `expected.env` and `expected.yaml`.
+  - Transient loopback container verified `GET /api/health` HTTP `200`, `server.domain=dashboard.example.invalid`, `users.allow_sign_up=false`, and provisioned Graphite datasource `Example metrics` (`type: graphite`, `access: proxy`, `url: http://metrics.example.invalid:8080`) with zero errors, followed by clean `docker rm -f`.
+  - Clean-room MIT Store entry promoted to `store/grafana-oss/` (no `iconDataUri`, `target-runtime-verified` evidence citing pinned digest, `fixtures.json` `3/3` passed, `DefinitionDelivery.cs --check` exit `0`).
+- **Remaining open gates:** Physical screen-reader/braille (`en`/`ar`), manual `200%`/`400%` zoom, physical macOS/iOS Safari hardware verification, live Coolify HTTPS edge inspection/rollback drill, and Track B (`Q01–Q16` full re-run if needed on non-Linux hosts).

@@ -1,0 +1,129 @@
+$schema: urn:islamu:configurator:authoring:v0.0.1
+# Fresh v2 family allocated through the native identity editor.
+identity:
+  familyId: "c9091324-8fc2-42ed-a659-95b708d4c0a4"
+  revision: 2
+project:
+  id: grafana.oss
+  name: Grafana OSS 13.2.2 configuration
+  publisher: Configurator community (unverified)
+  repository: https://github.com/islamu-ngo/Configurator
+  definitionLicense: MIT
+  description: >-
+    Independently authored MIT configuration definition for Grafana OSS 13.2.2
+    environment variables and Graphite data-source provisioning YAML. Prepared
+    files remain operator-owned; validate against your target Grafana host
+    before production use.
+applicationVersions: ["13.2.2"]
+entryPoints: [setup]
+configuration:
+  type: object
+  additionalProperties: false
+  required: [server, datasource]
+  x-configurator:
+    sensitivity: public
+  properties:
+    server:
+      type: object
+      title: Dashboard access
+      additionalProperties: false
+      required: [domain]
+      x-configurator:
+        sensitivity: public
+      properties:
+        domain:
+          type: string
+          title: Dashboard domain
+          description: >-
+            Public hostname operators use to reach Grafana. Configurator checks
+            the hostname shape only; Grafana and DNS decide whether it works.
+          format: hostname
+          x-configurator:
+            sensitivity: public
+            detail: basic
+            placeholder: dashboard.example.org
+        allowSignUp:
+          type: boolean
+          title: Allow sign-up
+          x-configurator:
+            sensitivity: public
+            detail: standard
+            initialValue: false
+            widget: switch
+            booleanLabels: {"true": Anyone can create an account, "false": Administrators invite users}
+    datasource:
+      type: object
+      title: Graphite data source
+      additionalProperties: false
+      required: [name, url]
+      x-configurator:
+        sensitivity: public
+      properties:
+        name:
+          type: string
+          title: Data source label
+          description: >-
+            Human-readable display name shown for the provisioned Graphite data
+            source inside Grafana.
+          x-configurator:
+            sensitivity: public
+            detail: standard
+            placeholder: Example metrics
+        url:
+          type: string
+          title: Graphite endpoint
+          description: >-
+            HTTP or HTTPS address of the Graphite endpoint. Configurator checks
+            the URL shape only; it does not prove connectivity.
+          format: http-url
+          x-configurator:
+            sensitivity: public
+            detail: standard
+            placeholder: https://graphite.example.org
+presentation:
+  defaultJourney: setup
+  navigation: wizard
+  sections:
+    - id: server
+      title: Dashboard access
+      description: How operators reach the dashboard and who may register.
+      pointers: [/server/domain, /server/allowSignUp]
+    - id: datasource
+      title: Graphite data source
+      description: The provisioned Graphite connection.
+      pointers: [/datasource/name, /datasource/url]
+  journeys:
+    - id: setup
+      title: Setup
+      sections: [server, datasource]
+outputs:
+  ".env":
+    id: environment
+    format: dotenv
+    targetUpdateMode: create
+    restartRequirement: process
+    bindings:
+      GF_SERVER_DOMAIN: /server/domain
+      GF_USERS_ALLOW_SIGN_UP: /server/allowSignUp
+  datasource.yaml:
+    id: datasource
+    format: yaml
+    targetUpdateMode: create
+    restartRequirement: process
+    projection:
+      op: object
+      members:
+        apiVersion: {op: literal, value: 1}
+        datasources:
+          op: list
+          items:
+            - op: object
+              members:
+                name:
+                  op: copy
+                  reference: {scope: root, path: /datasource/name}
+                type: {op: literal, value: graphite}
+                access: {op: literal, value: proxy}
+                url:
+                  op: copy
+                  reference: {scope: root, path: /datasource/url}

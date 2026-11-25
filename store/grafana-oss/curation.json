@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "0.0.1",
+  "tags": [
+    "observability",
+    "monitoring",
+    "self-hosted"
+  ],
+  "conformance": {
+    "evidenceKind": "target-runtime-verified",
+    "definitionDigest": "bb583ec230dbfd0f2a9f0488d6ea3beef9e5ec64d66d4f872c82c132bf34448d",
+    "fixtureDigest": "b5e8000cb92e1fd22548f044fd19f76789fdc7c0f43a27f89654160a2851e4a4",
+    "engineVersion": "0.0.1",
+    "recordedAt": "2026-11-24",
+    "claimBoundary": "Verified prepared .env and Graphite datasource.yaml against transient grafana/grafana@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0 (/api/health 200, settings & provisioning); does not prove upstream connectivity or production apply authority."
+  }
+}

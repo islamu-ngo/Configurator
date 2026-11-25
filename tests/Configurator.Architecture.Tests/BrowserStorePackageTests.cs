@@ -66,11 +66,14 @@ public sealed class BrowserStorePackageTests
             IReadOnlyList<DefinitionStoreProject> embedded = await provider.LoadAsync();
 
             await Assert.That(embedded.Count).IsEqualTo(expected.Count);
+            await Assert.That(embedded.Select(project => project.ProjectId).Order(StringComparer.Ordinal).ToArray())
+                .IsEquivalentTo(["grafana-oss", "islamu-event", "minimal-self-hosted"]);
             foreach (DefinitionStoreProject project in expected)
             {
                 DefinitionStoreProject? match = embedded.SingleOrDefault(candidate => candidate.ProjectId == project.ProjectId);
                 await Assert.That(match).IsNotNull().Because(project.ProjectId);
                 await Assert.That(match!.FamilyId).IsEqualTo(project.FamilyId);
+                await Assert.That(match.Conformance).IsEqualTo(project.Conformance);
                 await Assert.That(match.Revisions.Count).IsEqualTo(project.Revisions.Count);
                 foreach (DefinitionStoreRevision revision in project.Revisions)
                 {

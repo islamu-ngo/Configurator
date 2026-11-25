@@ -1,0 +1,29 @@
+Change-Id: CHG-01M876DCEXBQBB64FGFJ2VT6QJ
+Title: "Verify Grafana OSS 13.2.2 in Docker and promote clean-room Store entry"
+Type: feat
+Scope: definitions
+Summary: "Prove examples/grafana-13.2.2 environment and Graphite datasource provisioning outputs start cleanly against a transient digest-pinned grafana/grafana:13.2.2 container, add synthetic fixtures and a verified unsigned delivery receipt, promote the independently authored MIT definition into store/grafana-oss/ with target-runtime-verified evidence and zero copied Grafana source or logos, and update Store tests and documentation."
+Group: grafana-store-promotion
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/public/definition-store.md
+    Disposition: not-applicable
+  Security:
+    Reference: docs/internal/DEFINITION_STORE.md
+    Disposition: documented
+    Detail: "Promotes clean-room MIT store/grafana-oss/ with zero copied Grafana source, logos, or AGPLv3 dependencies; records bounded target-runtime-verified evidence against pinned grafana/grafana@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0 without claiming signatures or target apply authority."
+  Migration:
+    Reference: docs/internal/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/public/definition-store.md
+    Disposition: documented
+    Detail: "Advances examples/grafana-13.2.2 to revision 2 with zero G12 lint advisories, adds fixtures.json and unsigned release.json, and promotes store/grafana-oss/ into the bundled Store catalog (now 3 projects)."
+  OpenAPI:
+    Reference: docs/internal/DEFINITION_STORE.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/public/definition-store.md
+    Disposition: documented
+    Detail: "Operators can browse and configure Grafana OSS 13.2.2 offline directly from the bundled Desktop and Browser Store catalog with visible target-runtime-verified conformance evidence."

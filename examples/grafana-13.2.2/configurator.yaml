@@ -2,16 +2,18 @@ $schema: urn:islamu:configurator:authoring:v0.0.1
 # Fresh v2 family allocated through the native identity editor.
 identity:
   familyId: "c9091324-8fc2-42ed-a659-95b708d4c0a4"
-  revision: 1
+  revision: 2
 project:
   id: grafana.oss
-  name: Grafana OSS 13.2.2 configuration example
-  publisher: Configurator example (unverified)
+  name: Grafana OSS 13.2.2 configuration
+  publisher: Configurator community (unverified)
+  repository: https://github.com/islamu-ngo/Configurator
+  definitionLicense: MIT
   description: >-
-    Independently authored environment and Graphite data-source provisioning
-    example. Grafana startup, provisioning acceptance, and data-source
-    connectivity have not been tested against this pinned release. Have Grafana
-    validate the prepared files before use.
+    Independently authored MIT configuration definition for Grafana OSS 13.2.2
+    environment variables and Graphite data-source provisioning YAML. Prepared
+    files remain operator-owned; validate against your target Grafana host
+    before production use.
 applicationVersions: ["13.2.2"]
 entryPoints: [setup]
 configuration:
@@ -60,6 +62,9 @@ configuration:
         name:
           type: string
           title: Data source label
+          description: >-
+            Human-readable display name shown for the provisioned Graphite data
+            source inside Grafana.
           x-configurator:
             sensitivity: public
             detail: standard

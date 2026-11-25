@@ -1,0 +1,24 @@
+{
+  "applicationVersion": "13.2.2",
+  "artifactIds": [
+    "datasource",
+    "environment"
+  ],
+  "authoringContractVersion": "0.0.1",
+  "authorityClaim": "none-local-canonical-agreement-only",
+  "browserLaunchFragment": "src=https%3A%2F%2Fraw.githubusercontent.com%2Fislamu-ngo%2FConfigurator%2Fmain%2Fexamples%2Fgrafana-13.2.2%2Fsetup-definition.json\u0026digest=bb583ec230dbfd0f2a9f0488d6ea3beef9e5ec64d66d4f872c82c132bf34448d\u0026appVersion=13.2.2\u0026entry=setup\u0026locale=en",
+  "definitionDigest": "bb583ec230dbfd0f2a9f0488d6ea3beef9e5ec64d66d4f872c82c132bf34448d",
+  "entry": "setup",
+  "familyId": "c9091324-8fc2-42ed-a659-95b708d4c0a4",
+  "locale": "en",
+  "profile": "bounded-v0.0.1",
+  "projectId": "grafana.oss",
+  "receiptContractVersion": "0.0.1",
+  "revision": 2,
+  "runtimeSchemaVersion": "0.0.1",
+  "signatureStatus": "unsigned",
+  "sourceFormat": "yaml",
+  "sourceSha256": "57a0b80938a917f5b6997a5ab2f5ee64749f69babf59a0e67e0016f10958e443",
+  "sourceUrl": "https://raw.githubusercontent.com/islamu-ngo/Configurator/main/examples/grafana-13.2.2/setup-definition.json",
+  "trustBoundary": "unsigned-local-verification-only"
+}

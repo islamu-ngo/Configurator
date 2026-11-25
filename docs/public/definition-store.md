@@ -40,7 +40,7 @@ When you open the Configurator WebAssembly application:
 1. **Choose a project:** Open the home catalogue. On wide viewports (`>= 960 px` in Browser, `>= 700` units in Desktop), projects appear as compact 2-per-row landscape cards displaying a `76×76` offline PNG logo (or deterministic monogram), revision badge, concise summary, and `[Explore]` / `[Configure]` actions. Definitions are grouped by their exact application identifier; matching titles alone never combine projects.
 2. **Search and Filter:** When four or more catalog projects are present, filter applications by name, keywords, or curated category tags (e.g. `monitoring`, `database`, `proxy`); smaller catalogues omit the redundant search bar.
 3. **Start Configuration:** Use **Configure** for the explicitly identified available source, or jump directly to **Use an existing configuration**, **Open a saved profile**, or the read-only **Explore** view (`/explore/{FamilyId}`). A directory choice is checked against its exact indexed identity before the workspace opens in the same action.
-4. **Inspect Details & Choose Alternatives:** Select the card's `ⓘ` **Project details** modal (or **Source details** disclosure) to inspect curated icon copyright attribution (`iconLicense` / `iconAttribution`), family GUIDs, declared outputs, alternate revisions, publisher metadata, and SHA-256 digests without cluttering the catalog card. Multiple ambiguous candidates require an explicit choice; no revision is silently selected as latest.
+4. **Inspect Details, Conformance Evidence & Choose Alternatives:** Select the card's `ⓘ` **Project details** modal (or **Source details** disclosure / project page `/store/{projectId}`) to inspect curated icon copyright attribution (`iconLicense` / `iconAttribution`), family GUIDs, declared outputs, alternate revisions, publisher metadata, SHA-256 digests, and auditable **Conformance evidence** (`format-only`, `fixture-verified`, or `target-runtime-verified`, bound to the latest definition digest and an explicit claim boundary) without cluttering the catalog card. Store listings always disclose that verification scope grants neither cryptographic signatures, publisher authentication, nor target apply permission. Multiple ambiguous candidates require an explicit choice; no revision is silently selected as latest.
 5. **Inspect a directory revision:** Optional project details let you choose an exact revision and configure it directly. An unavailable requested revision reports an error instead of substituting another.
 
 Application identifiers and publisher labels organize navigation, not trust.
@@ -73,10 +73,25 @@ drafts remain an optional editorial companion.
 Maintainers use `definition revise` against the existing canonical definition
 for each source, then compile the example and generate the store. Preserve each
 source's family; never infer identity from matching project names. The current
-example and store anchors both use family
-`f79259e8-af23-49b0-8d8d-6e371cc96080`. Releases 1 through 4 remain immutable,
-and the builder creates `store/islamu-event/releases/5.json` without rewriting
+example, store, and upstream `ISLAMU/Event` anchors all use unified family
+`f79259e8-af23-49b0-8d8d-6e371cc96080` at revision `8` (with `fixture-verified`
+conformance metadata, zero `G12` quality advisories in English and Arabic, and
+first-party local CSPRNG secret profiles separated from third-party manual
+credentials). Releases `1` through `7` remain immutable,
+and the builder appends `store/islamu-event/releases/8.json` without rewriting
 them. Metadata adoption leaves manually supplied artifact values unchanged.
+
+## Grafana OSS 13.2.2 clean-room entry
+
+`store/grafana-oss/` provides an independently authored MIT definition for
+Grafana OSS `13.2.2` (`familyId: c9091324-8fc2-42ed-a659-95b708d4c0a4`, revision
+`2`, monogram fallback with no copied Grafana logo or trademark). Its
+`target-runtime-verified` conformance metadata records a transient loopback
+Docker proof against
+`grafana/grafana@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0`
+confirming `/api/health` HTTP `200`, `GF_SERVER_DOMAIN`, `GF_USERS_ALLOW_SIGN_UP`,
+and Graphite `datasource.yaml` provisioning, while explicitly disclaiming
+upstream connectivity, signatures, or target apply authority.
 Generation is local public-data preparation, with no publication or trust
 activation. The [engineering contract](../internal/DEFINITION_STORE.md)
 owns the native commands and history checks.

@@ -1,20 +1,46 @@
-# Grafana OSS 13.2.2 format example
+# Grafana OSS 13.2.2 configuration definition
 
-This independently authored example maps four synthetic answers to a Docker
-environment file and a data-source provisioning YAML file. It demonstrates
-Configurator's declared `.env` and YAML projection only. Grafana startup,
-provisioning acceptance, and data-source connectivity have **not** been tested
-against the pinned release. The `.invalid` addresses deliberately cannot be
-used as live service destinations. Replace them with operator-controlled values
-and have Grafana validate the result before using it.
+This independently authored MIT example maps four synthetic answers to a Docker
+environment file and a Graphite data-source provisioning YAML file, and is
+promoted into the bundled Store at `store/grafana-oss/` with `target-runtime-verified`
+conformance evidence. The `.invalid` addresses deliberately cannot be used as
+live service destinations. Replace them with operator-controlled values and have
+your target Grafana instance validate the result before production use.
 
-`configurator.yaml` owns the current runtime `setup-definition.json`. Native identity
-allocation created family `c9091324-8fc2-42ed-a659-95b708d4c0a4`, revision 1;
+`configurator.yaml` owns the current runtime `setup-definition.json` (and compiles
+byte-identically to `store/grafana-oss/releases/2.json`). Native identity
+allocation maintains family `c9091324-8fc2-42ed-a659-95b708d4c0a4`, revision `2`;
 canonical runtime digest:
-`0e02061e331f58eb008eb6bd482d86331633ec1a8d86ba722c5cfb01b0efd47d`.
-`answers.json` is a synthetic 0.0.1 private answer envelope with nested `server`
-and `datasource` objects. The `hostname` and `http-url` formats are checked
+`bb583ec230dbfd0f2a9f0488d6ea3beef9e5ec64d66d4f872c82c132bf34448d`.
+`answers.json` is a synthetic `0.0.1` private answer envelope with nested `server`
+and `datasource` objects; `fixtures.json` exercises ready composition and
+expected-refusal cases via `islamu-configurator definition test`
+(`fixtureDigest: b5e8000cb92e1fd22548f044fd19f76789fdc7c0f43a27f89654160a2851e4a4`).
+`release.json` is the unsigned `0.0.1` delivery receipt generated and checked by
+`eng/configurator/DefinitionDelivery.cs` (`trustBoundary: "unsigned-local-verification-only"`,
+`signatureStatus: "unsigned"`). The `hostname` and `http-url` formats are checked
 automatically for lexical shape only; Grafana remains the target validator.
+
+## Transient Docker runtime verification (2026-11-24)
+
+The standalone CLI prepared `.env` (`22f36118ea95ec3e98322c8d3700b725b37c54e792dc35ff1b7061a575093a0e`)
+and `datasource.yaml` (`0f097bbcc96b617a693d6237fcbc0a09a1463ffc16d6ad0b2452071535721a8b`)
+and launched a transient loopback container from
+`grafana/grafana@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0`
+(Grafana OSS `13.2.2`, external AGPLv3 runtime only; zero Grafana source,
+images, trademarks, or dependencies enter this repository):
+
+- `GET /api/health` returned HTTP `200`.
+- `GET /api/admin/settings` confirmed `server.domain = dashboard.example.invalid`
+  and `users.allow_sign_up = false`.
+- `GET /api/datasources` confirmed provisioned `Example metrics` (`type: graphite`,
+  `access: proxy`, `url: http://metrics.example.invalid:8080`) with zero
+  provisioning errors, followed by clean container removal (`docker rm -f`).
+
+**Claim boundary:** This proof verifies startup, environment variable ingestion,
+and Graphite provisioning YAML acceptance in that exact container image only.
+It does **not** prove upstream Graphite network connectivity, authentication
+policies, cryptographic signatures, or target apply authority.
 
 The environment output contains `GF_SERVER_DOMAIN` and
 `GF_USERS_ALLOW_SIGN_UP`. A Grafana container can receive these as environment
