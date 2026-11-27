@@ -4,10 +4,11 @@
 > **Kind:** Accepted decision
 > **Status:** Current product direction; the connected package is planned and unimplemented
 > **Owner:** Browser
-> **Last Verified:** 2026-11-16
-> **Source Anchors:** `src/Configurator.Browser.Host/Program.cs`, `docs/internal/LAUNCH_CONTRACT.md`, `docs/internal/adr/ADR-secret-store-integration-and-credential-sources.md`
+> **Last Verified:** 2026-11-27
+> **Source Anchors:** `src/Configurator.Browser.Host/Program.cs`, `docs/internal/LAUNCH_CONTRACT.md`, `docs/internal/TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md`, `docs/internal/adr/ADR-secret-store-integration-and-credential-sources.md`
 
-Date: 2026-11-16  
+Date: 2026-11-16 (rationale addendum: 2026-11-27)
+
 Reviewers: Product Steward, Browser, native client, Artifacts/Security and Packaging maintainers.  
 Implementation status: **Decision and documentation only.** No connector API, connected
 host, provider credential flow or target apply exists. The working name
@@ -116,6 +117,48 @@ Self-hosting changes those custody and reachability conditions: the operator
 selects the host, credentials, egress policy and reachable private targets. It
 reduces third-party custody but does not remove server, browser, extension,
 reverse-proxy or provider risk.
+
+### Norm-setting and anti-conditioning boundary (non-technical pillar)
+
+Even if every technical blocker to direct WebAssembly-to-provider calls were
+removed—for example, if operators enabled CORS on self-hosted Infisical or
+Coolify instances, or if WebAssembly could run provider SDKs directly—the
+ISLAMU public instance (`configurator.islamu.org`) still permanently refuses
+live secret-manager and PaaS credentials, target API calls and external-origin
+CORS trust.
+
+- **Preventing unsafe habituation:** Most operators will not verify delivered
+  WebAssembly bundles on every page load; they rely on trust in ISLAMU.
+  Normalizing live vault or PaaS tokens on a third-party hosted website teaches
+  a mimicable UX pattern that malicious clones and lookalike domains can
+  exploit, and breaks the simple, inspectable zero-network rule of the static
+  Browser.
+- **Refusing standing origin holes:** Teaching operators to whitelist
+  `configurator.islamu.org` in self-hosted Infisical/Coolify CORS settings (or
+  bypass browser origin protections) creates standing infrastructure exposure
+  to future origin compromise, supply-chain attacks or domain takeover.
+- **Distinct from local static secret entry:** Per-workspace opt-in password
+  and secret generation/validation in the static Browser is a bounded necessity
+  of Configurator's core assisted-configuration promise, constrained by
+  off-by-default locking, secret-deferred drafts, explicit consent warnings and
+  strict zero-network operation. Optional live vault/PaaS integrations cross
+  into live infrastructure control-plane authority and belong in native clients
+  or an operator-owned self-hosted connected host with server-side aliases.
+- **Same boundary for planned live connectivity probes:** Future declarative
+  pure-.NET endpoint verification probes (`tcp-tls`, `grpc-check`,
+  `http-discovery`, `smtp-handshake`, recorded in
+  `dev/backlog/declarative-connectivity-probes.md`; unimplemented) likewise
+  belong first in native **CLI, Terminal and Desktop** clients, are
+  **permanently excluded** from `configurator.islamu.org` and static
+  `Configurator.Browser.Host` (no live WASM probes—even narrow secret-free
+  CORS-enabled ones—and no ISLAMU probe proxy; zero-network local verification
+  hints or `configurator://` handoff only), and remain **optional and deferred**
+  inside the future self-hosted `Configurator.Browser.ConnectedHost` behind its
+  authentication and SSRF/allowlist gates.
+
+Technical workarounds (such as self-hosted provider CORS, browser extensions or
+WASM SDK support) are therefore **not** revisit triggers for the public
+instance. See [Public Browser Trust Boundary and Anti-Conditioning Rationale](../TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md).
 
 ## Planned connected data flow
 
@@ -272,7 +315,10 @@ continues to defer actual target apply and owns local profile semantics.
   merely because it is self-hosted.
 - **La Darar (avoid harm):** use least privilege, strict target admission,
   bounded request handling and no persistence; fail closed on ambiguous target
-  identity, capability discovery and unknown apply outcomes.
+  identity, capability discovery and unknown apply outcomes. Refuse live
+  vault/PaaS credentials and external-origin CORS exceptions on the public
+  instance so ISLAMU never conditions operators into unsafe third-party web
+  habits ([anti-conditioning rationale](../TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md)).
 - **Adl (fairness):** offer the same local configuration vocabulary without
   requiring a cloud account, and let organizations use their own private
   infrastructure rather than reserving connected operation for ISLAMU-hosted

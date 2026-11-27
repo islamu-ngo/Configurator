@@ -3,8 +3,8 @@
 > **Audience:** Contributors | AI agents
 > **Status:** Implemented invariant router
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-11-23
-> **Source Anchors:** `AGENTS.md`, `PROJECTS.md`, `Directory.Build.props`, `docs/internal/extraction/FOUNDATION.md`, `docs/internal/adr/ADR-desktop-ui-library-and-sukiui.md`
+> **Last Verified:** 2026-11-27
+> **Source Anchors:** `AGENTS.md`, `PROJECTS.md`, `Directory.Build.props`, `docs/internal/extraction/FOUNDATION.md`, `docs/internal/adr/ADR-desktop-ui-library-and-sukiui.md`, `docs/internal/TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md`
 
 Selected reusable rules from Event revision
 `c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38` are adapted to actual Configurator
@@ -63,8 +63,17 @@ do not apply.
     gains an ISLAMU proxy. A separately packaged, operator-owned connected host
     is **planned after native pilots**, with SecretKit operations server-side
     and its own custody/SSRF/authentication qualification, not a static-host
-    switch or current capability. See the [secret-store ADR](adr/ADR-secret-store-integration-and-credential-sources.md)
-    and [Browser hosting ADR](adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md).
+    switch or current capability. Planned pure-.NET declarative connectivity
+    probes (`dev/backlog/declarative-connectivity-probes.md`; unimplemented)
+    follow the same boundary: native CLI/Terminal/Desktop first (closed
+    data-only vocabulary, explicit operator trigger, zero external CLIs, zero
+    Core network dependencies), permanently excluded from ISLAMU public and
+    static Browser packages (no live WASM probes or public proxy; zero-network
+    local command hints only), and optional/deferred in the separate
+    authenticated self-hosted connected host under its SSRF/allowlist gates.
+    See the [secret-store ADR](adr/ADR-secret-store-integration-and-credential-sources.md),
+    [Browser hosting ADR](adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md)
+    and [public trust & anti-conditioning rationale](TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md).
 
 ## Build And Test Baseline
 

@@ -58,7 +58,7 @@ navigation pages and generated inventories project it rather than replace it.
 | Project Steward | `legal/IP_GOVERNANCE.md`; licensing/distribution authority remains with the Steward and existing reviewed records |
 | Presentation | `PRESENTATION_STATE.md`, `IMPORT_COMPARISON.md` (Core reviews inverse/evaluation semantics) |
 | CLI | `CLI_CONTRACT.md`, public CLI guide |
-| Browser | `LAUNCH_CONTRACT.md`, `BROWSER_UI.md`, public browser guide |
+| Browser | `LAUNCH_CONTRACT.md`, `BROWSER_UI.md`, `TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md`, public browser guide |
 | Terminal | `TERMINAL_CLIENT.md`, public terminal guide |
 | Desktop | `DESKTOP_CLIENT.md`, public desktop guide |
 | Contributor Experience | `CONTRIBUTING.md`, `PROJECTS.md`, `GOVERNANCE.md`, `TESTING.md`, `STATUS.md`, `KNOWLEDGE_MAP.md`, `DEVELOPER_GUIDE.md`, `FIRST_CONTRIBUTION.md`, `CONTRIBUTOR_RECIPES.md`, `DOCUMENTATION_STYLE_GUIDE.md`, `PRODUCT_VISION.md`, `MARKETING_AND_ADOPTION_STRATEGY.md`, `docs/public/getting-started.md`, this document |
@@ -189,7 +189,7 @@ Single Responsibility and do not duplicate content:
 | CLI | [cli.md](../public/cli.md) | [CLI_CONTRACT.md](CLI_CONTRACT.md) | Public: commands and results; internal: machine contract and exit semantics |
 | Terminal | [terminal.md](../public/terminal.md) | [TERMINAL_CLIENT.md](TERMINAL_CLIENT.md), [PRESENTATION_STATE.md](PRESENTATION_STATE.md) | Public: interaction; internal: shared state and terminal adapter |
 | Desktop | [desktop.md](../public/desktop.md) | [DESKTOP_CLIENT.md](DESKTOP_CLIENT.md), [PRESENTATION_STATE.md](PRESENTATION_STATE.md) | Public: workflow; internal: Avalonia adapter and generation fencing |
-| Browser | [browser.md](../public/browser.md) | [LAUNCH_CONTRACT.md](LAUNCH_CONTRACT.md), [PRESENTATION_STATE.md](PRESENTATION_STATE.md), [PACKAGING.md](PACKAGING.md) | Public: complete/draft usage, custody choices and offline hosting; internal: consent/generation fences, source admission and static closure |
+| Browser | [browser.md](../public/browser.md) | [LAUNCH_CONTRACT.md](LAUNCH_CONTRACT.md), [TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md](TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md), [PRESENTATION_STATE.md](PRESENTATION_STATE.md), [PACKAGING.md](PACKAGING.md) | Public: complete/draft usage, custody choices and offline hosting; internal: consent/generation fences, source admission, anti-conditioning trust boundary and static closure |
 | Native output | [native-output.md](../public/native-output.md) | [PROTECTED_ARTIFACTS.md](PROTECTED_ARTIFACTS.md) | Public: safe save procedure; internal: create-only protected writes and failure posture |
 | Launch integration | [launch-integration.md](../public/launch-integration.md) | [LAUNCH_CONTRACT.md](LAUNCH_CONTRACT.md), [ADR](adr/ADR-definition-runtime-boundary.md) | Public: handoff; internal: preparation is not host apply/admin authority |
 | Packaging | [packaging.md](../public/packaging.md) | [PACKAGING.md](PACKAGING.md) | Public: platform commands and limits; internal: evaluated release contracts and package closure |

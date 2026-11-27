@@ -114,6 +114,19 @@ secrets. The [accepted transport decision](adr/ADR-secret-store-integration-and-
   server-side; static Host gains no integration switch. This separate package
   is planned, not implemented, and requires its own custody, authentication,
   SSRF, memory and partial-outcome qualification.
+- **Declarative pure-.NET live connectivity & endpoint probes *(Planned, unimplemented)*:**
+  optional, operator-triggered live verification (`tcp-tls`, `grpc-check` with
+  HTTP/2 ALPN + `grpc.health.v1.Health` + optional `ServerReflection`,
+  `http-discovery`, and read-only `smtp-handshake`) using a closed data-only
+  definition vocabulary and a separate native pure-.NET probe library (zero
+  external CLIs like `grpcurl`, zero Core network dependencies) on **CLI,
+  Terminal and Desktop** first (`dev/backlog/declarative-connectivity-probes.md`).
+  Live probes are **permanently excluded** from ISLAMU's public and static
+  Browser packages (no direct WASM probes and no ISLAMU probe proxy; static
+  Browser offers only zero-network local verification command hints and planned
+  `configurator://` handoff; see [trust & anti-conditioning rationale](TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md)),
+  and remain **optional and deferred** inside the future self-hosted connected
+  Browser behind its authentication and SSRF/allowlist gates.
 
 This is not current provider support, dependency approval or write authority. The [existing provider backlog](../../dev/backlog/universal-configurator-followups.md#secret-store-inspection-and-completion)
 requires one concrete pilot before abstractions, and separate connector/privacy

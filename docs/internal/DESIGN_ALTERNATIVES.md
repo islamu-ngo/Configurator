@@ -3,8 +3,8 @@
 > **Audience:** Contributors | AI agents
 > **Status:** Implemented
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-11-23
-> **Source Anchors:** `docs/internal/universal-configurator.md`, `docs/internal/adr/`, `docs/internal/QUICK_REFERENCE.md`
+> **Last Verified:** 2026-11-27
+> **Source Anchors:** `docs/internal/universal-configurator.md`, `docs/internal/adr/`, `docs/internal/QUICK_REFERENCE.md`, `docs/internal/TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md`
 
 Configurator’s architecture prioritizes operator privacy, deterministic outputs, offline independence, and maintainer sovereignty. Every design choice balances usability with strict security boundaries.
 
@@ -88,6 +88,16 @@ This document records the major design alternatives evaluated during system desi
 | **`Montago/NocturneTheme`, `AtomUI` (LGPL v3), `Actipro` / `Eremex` (Proprietary EULA)** | **Rejected** | Missing OSS license (`NocturneTheme`), copyleft LGPL obligations (`AtomUI`), or proprietary commercial EULAs (`Actipro`, `Eremex`) conflict with Configurator's pure MIT distribution and self-buildable stack. | [ADR: Desktop UI Library (SukiUI)](adr/ADR-desktop-ui-library-and-sukiui.md#evaluated-alternatives-and-rationale)<br/>[IP_GOVERNANCE.md](legal/IP_GOVERNANCE.md) |
 | **Raw `Avalonia.Themes.Fluent` + Bespoke Custom Theme Layer** | **Current Baseline; Planned to Supersede** | Functional today (`12.1.6`), but shifts full desktop component, chrome, dialog, toast and visual polish maintenance onto ISLAMU—poor leverage for an optional quality-of-life utility supporting ISLAMU Event. | [DESKTOP_CLIENT.md](DESKTOP_CLIENT.md)<br/>[ADR: Desktop UI Library (SukiUI)](adr/ADR-desktop-ui-library-and-sukiui.md) |
 | **`SukiUI` (100% MIT Community Library) with Pragmatic Delegation** | **Accepted Future Direction** | Pure MIT ecosystem with no commercial superset (mirroring `MudBlazor` on Blazor), desired modern desktop UI/UX, active maintenance and community PR acceptance. Configurator Desktop adapts to SukiUI and delegates UI/theming/controls heavily rather than enforcing Browser visual/density parity, RTL or automated WCAG clamping, while keeping safety, secret custody and protected output strictly non-negotiable. Implementation and dependency admission remain planned. | [ADR: Desktop UI Library (SukiUI)](adr/ADR-desktop-ui-library-and-sukiui.md) — planned and unimplemented |
+
+---
+
+## 9. Live Connectivity & Endpoint Verification Probes *(Planned)*
+
+| Option | Status | Trade-offs & Rationale | Evidence / Decision Anchor |
+|---|---|---|---|
+| **Shell Commands / External CLIs in Definitions (`grpcurl`, `openssl`, `swaks`)** | **Rejected** | Violates data-only definitions, reintroduces `PATH` injection, unpinned binary drift, missing SSH tools, sandbox breakage and brittle stderr parsing. | [QUICK_REFERENCE.md](QUICK_REFERENCE.md) (Rules 6 & 16)<br/>[ADR: Secret-Store Transport](adr/ADR-secret-store-integration-and-credential-sources.md) |
+| **Live Probes on ISLAMU Public / Static Browser (Direct WASM or Public Probe Proxy)** | **Rejected Permanently** | Browsers lack raw TCP/TLS/STARTTLS sockets and native HTTP/2 gRPC trailers; CORS produces opaque false negatives (`no-cors` hides status); PNA/Mixed Content block private targets. An ISLAMU proxy would create an open SSRF/port-scanner/credential-stuffing oracle. Even narrow secret-free CORS-by-spec probes (OIDC discovery) break the zero-network editing invariant, leak staging hostnames/`Origin` during editing, and tempt users to punch CORS holes or expose internal ports. | [TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md](TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md#3-why-planned-pure-net-live-connectivity-probes-follow-the-exact-same-boundary)<br/>[ADR: Connected Browser Boundary](adr/ADR-self-hosted-connected-browser-and-public-static-boundary.md) |
+| **Pure-.NET Closed Declarative Probes on Native Clients (`CLI`, `Terminal`, `Desktop`) + Optional Later Self-Hosted `ConnectedHost`** | **Accepted Future Direction** | `Configurator.Core` admits a closed, bounded, read-only probe vocabulary as offline metadata; a separate native pure-.NET probe library runs explicit operator-triggered checks (`tcp-tls`, `grpc-check`, `http-discovery`, `smtp-handshake`) with generation fencing, vantage-point honesty (advisory, never blocking export) and secret/ANSI sanitization. Static Browser offers only zero-network copyable secret-free local commands and planned `configurator://` handoff; self-hosted `ConnectedHost` probes remain optional and deferred behind authentication and SSRF/allowlist gates. | [TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md](TRUST_BOUNDARY_AND_ANTI_CONDITIONING.md)<br/>`dev/backlog/declarative-connectivity-probes.md` — planned and unimplemented |
 
 ---
 
