@@ -21,7 +21,7 @@ public sealed class BrowserCredentialEntryTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='created'] .configuration-field__input")
             .TriggerEventAsync(notification, new ChangeEventArgs { Value = "synthetic-manager-fill" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -96,7 +96,7 @@ public sealed class BrowserCredentialEntryTests
         await using var context = BrowserFixture.Context();
         context.ComponentFactories.Add<ConfigurationField, EmittedInputField>();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         object held = component.FindComponents<EmittedInputField>()
             .Single(item => item.Instance.Path.SequenceEqual(["created"])).Instance.CaptureInput();
 
@@ -130,7 +130,7 @@ public sealed class BrowserCredentialEntryTests
         await Assert.That(component.FindAll("[data-field='existing'] input")).IsEmpty();
         await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
         await Assert.That(component.FindAll("[data-field='issuer'] input")).IsEmpty();
-        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+        await Assert.That(component.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("false");
     }
 
     [Test]
@@ -138,7 +138,7 @@ public sealed class BrowserCredentialEntryTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
         var created = component.Find("[data-field='created'] input");
         var existing = component.Find("[data-field='existing'] input");
@@ -159,13 +159,13 @@ public sealed class BrowserCredentialEntryTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='created'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-manager-value" });
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         await Assert.That(component.FindAll("[data-field='created'] input")).IsEmpty();
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.Snapshot().Values.ContainsKey("created")).IsFalse();
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await Assert.That(component.Find("[data-field='created'] input").GetAttribute("value")).IsEqualTo("");
         await Assert.That(component.Markup).DoesNotContain("synthetic-manager-value");
     }
@@ -178,11 +178,11 @@ public sealed class BrowserCredentialEntryTests
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         string custodyHelp = Configurator.Browser.Resources.BrowserStrings.Get("CredentialCustodyHelp", "en");
 
-        await Assert.That(component.Find("details[data-secret-consent]").HasAttribute("open")).IsFalse();
-        await Assert.That(component.Find("#secret-consent-help").TextContent).Contains(custodyHelp);
+        await Assert.That(component.FindAll("[data-trust-privacy-panel]")).IsEmpty();
 
         await component.Find("[data-field='created'] [data-action='field-secret-consent']").ClickAsync(new MouseEventArgs());
-        await Assert.That(component.Find("details[data-secret-consent]").HasAttribute("open")).IsTrue();
+        await Assert.That(component.FindAll("[data-trust-privacy-panel]")).Count().IsEqualTo(1);
+        await Assert.That(component.Find("#secret-consent-help").TextContent).Contains(custodyHelp);
         await Assert.That(form.SessionPrivacy).IsEqualTo(DefinitionSessionPrivacy.BrowserNoSecrets);
         await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
 
@@ -201,7 +201,7 @@ public sealed class BrowserCredentialEntryTests
         context.Services.AddSingleton<IJSRuntime>(javascript);
 
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='created'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-race-secret-value" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         var revoked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -216,7 +216,7 @@ public sealed class BrowserCredentialEntryTests
         try
         {
             await module.OpeningStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            revoking = component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+            revoking = BrowserFixture.SetSecretConsentAsync(component, false);
             await revoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
             await Assert.That(form.Snapshot().Values.ContainsKey("created")).IsFalse();
         }

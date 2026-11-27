@@ -82,7 +82,7 @@ public sealed class BrowserVisualStatusTests
         await Assert.That(statusSlot.QuerySelector("[role='status']")!.ClassList.Contains("sr-only")).IsFalse();
 
         // Satisfy all required fields, then enter an invalid draft on an optional field (defaultedPort).
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='requiredHost'] input").InputAsync(new ChangeEventArgs { Value = "ready.example.org" });
         await component.Find("[data-field='secretKey'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-valid-secret" });
         await component.Find("[data-field='defaultedPort'] input").InputAsync(new ChangeEventArgs { Value = "not-a-valid-port" });

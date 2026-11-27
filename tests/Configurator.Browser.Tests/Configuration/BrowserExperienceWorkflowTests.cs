@@ -166,14 +166,14 @@ public sealed class BrowserExperienceWorkflowTests
             builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), definition);
             builder.CloseComponent();
         }));
-        await component.Find("#configuration-locale").ChangeAsync(new ChangeEventArgs { Value = "ar" });
-        var help = component.FindComponents<ConfigurationFieldHelp>().Single(item => item.Instance.FieldPath == "workspace");
-        string name = help.Find("button").GetAttribute("aria-label")!;
+        await BrowserFixture.SwitchLocaleAsync(context, component, "ar");
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "inspector");
+        string name = component.Find("[data-utility-rail-action='inspector']").GetAttribute("aria-label")!;
         await Assert.That(name.Any(character => character is >= '\u0600' and <= '\u06ff')).IsTrue();
         await Assert.That(name.Any(character => character is >= 'A' and <= 'Z' or >= 'a' and <= 'z')).IsFalse();
-        await help.Find("button").ClickAsync(new MouseEventArgs());
-        await Assert.That(component.Find(".configuration-inspector").GetAttribute("lang")).IsEqualTo("ar");
-        await Assert.That(component.Find(".configuration-inspector").GetAttribute("dir")).IsEqualTo("rtl");
+        await Assert.That(component.Find("[data-inspector-pane]").GetAttribute("lang")).IsEqualTo("ar");
+        await Assert.That(component.Find("[data-inspector-pane]").GetAttribute("dir")).IsEqualTo("rtl");
+        await Assert.That(component.FindAll("[data-workspace-overview]")).Count().IsEqualTo(1);
     }
 
     [Test]
@@ -189,9 +189,9 @@ public sealed class BrowserExperienceWorkflowTests
         }));
         string descriptionId = component.Find("[data-section-panel='decisions']").GetAttribute("aria-describedby")!;
         await Assert.That(component.Find("#" + descriptionId).TextContent).IsEqualTo(definition.Presentation!.Sections[0].Description);
-        await component.Find("[aria-label='Help with this workspace']").ClickAsync(new MouseEventArgs());
-        await Assert.That(component.Find("[data-experience-description]").TextContent).IsEqualTo(definition.Presentation!.Experiences[0].Description);
-        await Assert.That(component.Find("[data-section-description]").TextContent).IsEqualTo(definition.Presentation!.Sections[0].Description);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "inspector");
+        await Assert.That(component.Find("[data-workspace-overview] [data-experience-description]").TextContent).IsEqualTo(definition.Presentation!.Experiences[0].Description);
+        await Assert.That(component.Find("[data-workspace-overview] [data-section-description]").TextContent).IsEqualTo(definition.Presentation!.Sections[0].Description);
     }
 
     [Test]
@@ -307,7 +307,7 @@ public sealed class BrowserExperienceWorkflowTests
         await Assert.That(component.FindAll("[data-field='options.limit'] input").Count).IsEqualTo(1);
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.CanEdit(["options", "api_token"])).IsFalse();
-        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+        await Assert.That(component.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("false");
         await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);
     }
 
@@ -396,11 +396,9 @@ public sealed class BrowserExperienceWorkflowTests
         {
             "[data-action='toggle-naming-mode']",
             "#configuration-density",
-            "[data-action='toggle-inspector']",
             "[data-action='open-shortcuts']",
             "[data-action='undo']",
             "[data-action='redo']",
-            "[data-editing-mode='developer']",
             "#configuration-detail"
         })
         {
@@ -409,16 +407,14 @@ public sealed class BrowserExperienceWorkflowTests
             await Assert.That(controlIndex).IsLessThan(firstFieldIndex);
         }
 
-        foreach (string footerSelector in new[]
-        {
-            "[data-profile-panel]",
-            "#configuration-locale",
-            "[data-secret-consent]"
-        })
-        {
-            int secondaryIndex = IndexOf(footerSelector);
-            await Assert.That(secondaryIndex).IsGreaterThan(firstFieldIndex);
-        }
+        // Secondary utilities live in the trailing utility rail and quiet status footer, not stacked below the form.
+        await Assert.That(component.FindAll("[data-workspace-utility-rail] [data-utility-rail-action='inspector']")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-workspace-utility-rail] [data-utility-rail-action='document']")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-workspace-utility-rail] [data-utility-rail-action='profiles']")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-workspace-utility-rail] [data-utility-rail-action='trust-privacy']")).Count().IsEqualTo(1);
+        await Assert.That(IndexOf("[data-workspace-status-footer]")).IsGreaterThan(firstFieldIndex);
+        await Assert.That(component.FindAll("#configuration-locale")).IsEmpty();
+        await Assert.That(component.FindAll("details[data-secret-consent]")).IsEmpty();
 
         await Assert.That(component.FindAll("[data-section-panel]").Count).IsEqualTo(1);
         await BrowserFixture.SelectPanelAsync(component, "review");

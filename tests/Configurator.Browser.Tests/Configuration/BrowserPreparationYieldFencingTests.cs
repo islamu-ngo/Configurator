@@ -25,8 +25,8 @@ public sealed class BrowserPreparationYieldFencingTests
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, definition));
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
-        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        var form = component.FindComponent<ConfigurationField>().Instance.Form;
         await component.InvokeAsync(() =>
         {
             form.EditValue(["hostname"], "yield-fence.example.invalid");
@@ -43,7 +43,7 @@ public sealed class BrowserPreparationYieldFencingTests
         await renderingGate.NextTaskEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(preparing.IsCompleted).IsFalse();
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         renderingGate.ReleaseNextTask.TrySetResult();
         await preparing.WaitAsync(TimeSpan.FromSeconds(5));
 
@@ -65,8 +65,8 @@ public sealed class BrowserPreparationYieldFencingTests
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, BuildNearLimitSecretDefinition(300)));
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
-        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        var form = component.FindComponent<ConfigurationField>().Instance.Form;
         await component.InvokeAsync(() =>
         {
             form.EditValue(["hostname"], "before-edit.example.invalid");
@@ -100,8 +100,8 @@ public sealed class BrowserPreparationYieldFencingTests
         var component = context.Render<ConfigurationEditor>(parameters =>
             parameters.Add(item => item.Definition, BuildNearLimitSecretDefinition(300)));
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
-        var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        var form = component.FindComponent<ConfigurationField>().Instance.Form;
         await component.InvokeAsync(() =>
         {
             form.EditValue(["hostname"], "dispose-fence.example.invalid");

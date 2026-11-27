@@ -25,13 +25,14 @@ public sealed class BrowserConfigurationNavigationTests
         var form = component.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
         long revision = form.InputRevision;
 
-        await component.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "document");
         await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0])
             .IsEqualTo(component.FindComponent<ConfigurationDeveloper>().Instance.Heading!.Value);
 
-        await component.Find("[data-editing-mode='form']").ClickAsync(new MouseEventArgs());
-        await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0])
-            .IsEqualTo(component.FindComponent<ConfigurationConfigurePanel>().Instance.SectionHeading!.Value);
+        int restoreBefore = context.JSInterop.Invocations.Count(call => call.Identifier == "restoreFocus");
+        await BrowserFixture.CloseWorkspaceUtilityAsync(component);
+        await Assert.That(context.JSInterop.Invocations.Count(call => call.Identifier == "restoreFocus"))
+            .IsGreaterThan(restoreBefore);
         await Assert.That(form.InputRevision).IsEqualTo(revision);
     }
 
@@ -73,7 +74,7 @@ public sealed class BrowserConfigurationNavigationTests
         await Assert.That(component.FindAll("nav nav")).IsEmpty();
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("example.test");
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await Assert.That(component.Find("button[aria-controls='application-navigation']").GetAttribute("aria-expanded")).IsEqualTo("true");
         await component.Find("button[aria-controls='application-navigation']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("button[aria-controls='application-navigation']").GetAttribute("aria-expanded")).IsEqualTo("false");
@@ -168,7 +169,7 @@ public sealed class BrowserConfigurationNavigationTests
         await Assert.That(component.Find("#configuration-experience option[value='inspect-settings']").TextContent).IsEqualTo("Inspect configuration");
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("example.test");
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         navigation.Find("[data-section='credentials']").Click();
         component.Find("[data-field='credential'] input").Input("synthetic-experience-secret");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -347,11 +348,12 @@ public sealed class BrowserConfigurationNavigationTests
         await using BunitContext context = BrowserFixture.Context();
         IRenderedComponent<ConfigurationEditor> singleEditor = context.Render<ConfigurationEditor>(p => p.Add(x => x.Definition, singleSectionDef));
         await Assert.That(singleEditor.FindAll(".configuration-configure-panel__nav")).IsEmpty();
-        await Assert.That(singleEditor.FindComponent<DockLayoutHost>().Instance.MinimumContentWidth).IsEqualTo(DockLayoutState.DefaultMinimumContentWidth);
+        // Desktop viewport omits multi-section form nav but keeps the 44px utility rail: 420 + 44 = 464px.
+        await Assert.That(singleEditor.FindComponent<DockLayoutHost>().Instance.MinimumContentWidth).IsEqualTo(DockLayoutState.DefaultMinimumContentWidth + 44);
 
         IRenderedComponent<ConfigurationEditor> rootEditor = context.Render<ConfigurationEditor>(p => p.Add(x => x.Definition, literalRootDef));
         await Assert.That(rootEditor.FindAll(".configuration-configure-panel__nav")).IsEmpty();
-        await Assert.That(rootEditor.FindComponent<DockLayoutHost>().Instance.MinimumContentWidth).IsEqualTo(DockLayoutState.DefaultMinimumContentWidth);
+        await Assert.That(rootEditor.FindComponent<DockLayoutHost>().Instance.MinimumContentWidth).IsEqualTo(DockLayoutState.DefaultMinimumContentWidth + 44);
     }
 
     [Test]
@@ -372,32 +374,32 @@ public sealed class BrowserConfigurationNavigationTests
         await app.InvokeAsync(() => dockLayout.UpdateViewport(1440, isMobile: false, DockScope.Shell, DockLayoutState.DefaultMinimumContentWidth));
         IRenderedComponent<DockLayoutHost> workspaceDock = app.FindComponents<DockLayoutHost>().Single(h => h.Instance.Scope == DockScope.Workspace);
 
-        // Comfortable: 790px floor -> Inspector (360) stays docked at 1150px, overlays at 1149px while StartNav (256) stays docked.
-        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(790);
-        await app.Find("[data-action='toggle-inspector']").ClickAsync(new MouseEventArgs());
+        // Comfortable: 834px floor (790 + 44px rail) -> Inspector (360) stays docked at 1194px, overlays at 1193px while StartNav (256) stays docked.
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(834);
+        await app.Find("[data-utility-rail-action='inspector']").ClickAsync(new MouseEventArgs());
 
-        await app.InvokeAsync(() => dockLayout.UpdateViewport(1150, isMobile: false));
+        await app.InvokeAsync(() => dockLayout.UpdateViewport(1194, isMobile: false));
         await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.InspectorId)!)).IsFalse();
 
-        await app.InvokeAsync(() => dockLayout.UpdateViewport(1149, isMobile: false));
+        await app.InvokeAsync(() => dockLayout.UpdateViewport(1193, isMobile: false));
         await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.InspectorId)!)).IsTrue();
         await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsFalse();
 
-        // Spacious (806px), Compact (774px), Dense (766px).
+        // Spacious (850px), Compact (818px), Dense (810px).
         await app.InvokeAsync(() => appearance.SetDensityAsync("spacious").AsTask());
-        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(806);
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(850);
 
         await app.InvokeAsync(() => appearance.SetDensityAsync("compact").AsTask());
-        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(774);
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(818);
 
         await app.InvokeAsync(() => appearance.SetDensityAsync("dense").AsTask());
-        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(766);
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(810);
 
         await app.InvokeAsync(() => appearance.SetDensityAsync("comfortable").AsTask());
-        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(790);
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(834);
 
-        // At <= 960px (where form nav collapses above form fields), Workspace floor drops to 420px so StartNav fits if Inspector is closed.
-        await app.Find("[data-action='toggle-inspector']").ClickAsync(new MouseEventArgs());
+        // At <= 960px (where form nav collapses and desktop utility rail hides), Workspace floor drops to 420px so StartNav fits if Inspector is closed.
+        await app.InvokeAsync(() => dockLayout.Close(BrowserDockPanels.InspectorId));
         await app.InvokeAsync(() => dockLayout.UpdateViewport(1000, isMobile: false));
         await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsTrue();
 
@@ -405,7 +407,7 @@ public sealed class BrowserConfigurationNavigationTests
         await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(DockLayoutState.DefaultMinimumContentWidth);
         await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsFalse();
 
-        // At 1000px desktop Configure, opening in-place Settings or switching to Review resets floor to 420px so StartNav fits docked.
+        // At 1000px desktop Configure, opening in-place Settings drops floor to 420px; switching to Review drops floor to 464px (420 + 44px rail) so StartNav fits docked.
         await app.InvokeAsync(() => dockLayout.UpdateViewport(1000, isMobile: false));
         await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsTrue();
 
@@ -414,10 +416,11 @@ public sealed class BrowserConfigurationNavigationTests
         await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsFalse();
 
         await app.Find("[data-action='return-to-configuration']").ClickAsync(new MouseEventArgs());
-        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(790);
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(834);
         await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsTrue();
 
         await BrowserFixture.SelectPanelAsync(app, "review");
+        await Assert.That(workspaceDock.Instance.MinimumContentWidth).IsEqualTo(464);
         await Assert.That(dockLayout.ShouldRenderDockedPanelAsOverlay(dockLayout.GetPanel(BrowserDockPanels.StartNavId)!)).IsFalse();
     }
 
@@ -465,7 +468,7 @@ public sealed class BrowserConfigurationNavigationTests
 
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "roundtrip.example.test" });
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find(".configuration-configure-panel__nav [data-section='credentials']").ClickAsync(new MouseEventArgs());
 
         await component.Find("header [data-action='open-settings']").ClickAsync(new MouseEventArgs());

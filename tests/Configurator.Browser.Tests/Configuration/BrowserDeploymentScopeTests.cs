@@ -42,7 +42,7 @@ public sealed class BrowserDeploymentScopeTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Deployment(environment: true)));
         var form = component.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
-        await component.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "document");
         await Assert.That(component.FindComponent<ConfigurationDeveloper>().Instance.EnvironmentArtifactId).IsNull();
         long revision = form.InputRevision;
         await component.Find("#developer-destination").ChangeAsync(new ChangeEventArgs { Value = "dashboard" });
@@ -99,6 +99,7 @@ public sealed class BrowserDeploymentScopeTests
         await component.Find("#configuration-recipe").ChangeAsync(new ChangeEventArgs { Value = "split" });
         await component.Find("#configuration-scope").ChangeAsync(new ChangeEventArgs { Value = "dashboard" });
         await Assert.That(form.ConfigurationContext!.ScopeId).IsEqualTo("dashboard");
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await Assert.That(component.FindAll("#import-artifact option[value='worker']")).IsEmpty();
         await Assert.That(component.FindAll("#import-artifact option[value='dashboard']").Count).IsEqualTo(1);
         long revision = form.InputRevision;

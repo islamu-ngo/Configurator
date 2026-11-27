@@ -106,7 +106,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         var component = layout.FindComponent<ConfigurationEditor>();
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-warmed-secret" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await layout.Find("#configuration-search").ClickAsync(new MouseEventArgs());
@@ -120,11 +120,11 @@ public sealed class BrowserWorkspaceLifecycleTests
         await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         try
         {
-            await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+            await BrowserFixture.SetSecretConsentAsync(component, false);
             await BrowserFixture.SelectPanelAsync(component, "prepare");
             await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
             await BrowserFixture.SelectPanelAsync(component, "configure");
-            await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+            await BrowserFixture.SetSecretConsentAsync(component, true);
             await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "current.test" });
         }
         finally { stream.Release.TrySetResult(); }
@@ -147,7 +147,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "");
         component.Find("[data-field='hostname'] input").Input("retained.test");
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         using var stream = new HeldReadStream("{\"mode\":\"\",\"hostname\":\"retained.test\",\"credential\":\"repeated-selection-canary\"}"u8.ToArray());
         Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -167,13 +167,13 @@ public sealed class BrowserWorkspaceLifecycleTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         component.Find("[data-field='hostname'] input").Input("retained.test");
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         using var stream = new HeldReadStream("{\"mode\":\"single\",\"hostname\":\"retained.test\",\"credential\":\"late-import-canary\"}"u8.ToArray());
         Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await stream.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         try
         {
-            if (transition == "denial") component.Find("#secret-consent").Change(false);
+            if (transition == "denial") await BrowserFixture.SetSecretConsentAsync(component, false);
             else component.Find("[data-field='hostname'] input").Input(transition == "invalid" ? "invalid host" : "retained.test");
         }
         finally { stream.Release.TrySetResult(); }
@@ -201,7 +201,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("old.test");
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         component.Find("[data-field='credential'] input").Input("second-artifact-canary");
         await BrowserFixture.PrepareAsync(component, draft: false);
         await component.FindAll(".configuration-editor__artifact")[0].QuerySelector("button")!.ClickAsync(new MouseEventArgs());
@@ -215,7 +215,7 @@ public sealed class BrowserWorkspaceLifecycleTests
             exportModule.GateNextInvalidate = true;
             // Files exit starts cleanup; revocation must retire the bundle before that cleanup settles.
             await BrowserFixture.SelectPanelAsync(component, "configure");
-            denied = component.InvokeAsync(() => component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false }));
+            denied = component.InvokeAsync(() => BrowserFixture.SetSecretConsentAsync(component, false));
             await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
             exportModule.OpenRelease.TrySetResult();
             await opening.WaitAsync(TimeSpan.FromSeconds(5));
@@ -241,7 +241,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("old.test");
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         component.Find("[data-field='credential'] input").Input("revoked-lifecycle-canary");
         await BrowserFixture.PrepareAsync(component, draft: false);
         component.Find(".configuration-editor__artifact button").Click();
@@ -249,7 +249,7 @@ public sealed class BrowserWorkspaceLifecycleTests
         exportModule.GateNextInvalidate = true;
         // Keep the required Files-exit cleanup held while Configure revokes consent and accepts an edit.
         await BrowserFixture.SelectPanelAsync(component, "configure");
-        Task denied = component.InvokeAsync(() => component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false }));
+        Task denied = component.InvokeAsync(() => BrowserFixture.SetSecretConsentAsync(component, false));
         await exportModule.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         try
         {
@@ -395,9 +395,10 @@ public sealed class BrowserWorkspaceLifecycleTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         using var input = new MemoryStream("""{"mode":"single","hostname":"compared.test","credential":"synthetic-navigation-secret"}"""u8.ToArray());
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         await component.InvokeAsync(() => component.Instance.LoadAsync(input));
         var comparison = form.ImportComparison;
@@ -437,9 +438,10 @@ public sealed class BrowserWorkspaceLifecycleTests
         Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         using var stream = new HeldReadStream("""{"mode":"single","hostname":"late.test","credential":"synthetic-retired-comparison"}"""u8.ToArray());
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         await component.Find("#import-artifact").ChangeAsync(new ChangeEventArgs { Value = definition.Artifacts[0].Id });
         Task reading = component.InvokeAsync(() => component.Instance.LoadAsync(stream));
@@ -491,8 +493,9 @@ public sealed class BrowserWorkspaceLifecycleTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         using var first = new MemoryStream("""{"mode":"single","hostname":"first.test","credential":"synthetic-first-secret"}"""u8.ToArray());
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         await component.InvokeAsync(() => component.Instance.LoadAsync(first));
         var review = component.FindComponent<ConfigurationImportReview>().Instance;

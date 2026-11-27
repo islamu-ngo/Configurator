@@ -240,7 +240,7 @@ public sealed class BrowserExperienceRecoveryTests
             .Add(item => item.Definition, CreateRecoveryDefinition()));
         await js.ReleaseStartupFrameAsync(editor);
         await js.DrainAllMountsAsync(editor);
-        await editor.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(editor, true);
         await editor.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "kept.example.test" });
         var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
 
@@ -287,6 +287,7 @@ public sealed class BrowserExperienceRecoveryTests
         await editor.Find("[data-field='port'] input").InputAsync(new ChangeEventArgs { Value = "443" });
 
         // 2. Import consent refusal then oversized import file: both preserve hostname and offer reachable recovery.
+        await BrowserFixture.OpenWorkspaceUtilityAsync(editor, "import");
         var importFile = editor.FindComponent<InputFile>();
         await editor.InvokeAsync(() => importFile.UploadFiles(
             InputFileContent.CreateFromBinary(Encoding.UTF8.GetBytes("{}"), "small.json")));
@@ -296,6 +297,7 @@ public sealed class BrowserExperienceRecoveryTests
         await consentRecovery.ClickAsync(new MouseEventArgs());
         await editor.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
 
+        await BrowserFixture.OpenWorkspaceUtilityAsync(editor, "import");
         await editor.Find("#import-artifact").ChangeAsync(new ChangeEventArgs { Value = "out-config.json" });
         importFile = editor.FindComponent<InputFile>();
         await editor.InvokeAsync(() => importFile.UploadFiles(
@@ -377,7 +379,7 @@ public sealed class BrowserExperienceRecoveryTests
 
         // Held import stream cancelled by leaving Configure cannot alter typed answers.
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "kept.example.test" });
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         long revision = currentForm.InputRevision;
         using var heldStream = new HeldReadStream();
         Task importing = component.InvokeAsync(() => component.Instance.LoadAsync(heldStream));

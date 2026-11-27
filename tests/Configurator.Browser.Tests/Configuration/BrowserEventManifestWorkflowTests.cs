@@ -129,8 +129,8 @@ public sealed class BrowserEventManifestWorkflowTests
             .IsEqualTo("https://api-two.example.org");
 
         // Document (JSON) preview & apply inside developer mode.
-        await layout.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
-        await layout.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.SetSecretConsentAsync(layout, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(layout, "document");
         var developer = layout.FindComponent<ConfigurationDeveloper>();
         await developerBridge.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         JsonNode candidate = JsonNode.Parse(developerBridge.CurrentText)!;
@@ -138,7 +138,7 @@ public sealed class BrowserEventManifestWorkflowTests
         await developer.InvokeAsync(() => developerBridge.ChangeAsync(candidate.ToJsonString()));
         await developer.Find("[data-action='developer-preview']").ClickAsync(new MouseEventArgs());
         await developer.Find("[data-action='developer-apply']").ClickAsync(new MouseEventArgs());
-        await layout.Find("[data-editing-mode='form']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.CloseWorkspaceUtilityAsync(layout);
         await Assert.That(form.Snapshot().Values["apiEndpoint"].GetString()).IsEqualTo("https://api-doc.example.org");
 
         // Switch to configuration-manifest, complete required manifest entries, review and prepare file.
@@ -205,7 +205,7 @@ public sealed class BrowserEventManifestWorkflowTests
         await using var secretContext = BrowserFixture.Context(new BrowserDefinitionRegistry([secretGen]));
         var secretLayout = BrowserFixture.RenderWorkspace(secretContext, secretGen);
         var secretForm = secretLayout.FindComponents<ConfigurationField>()[0].Instance.Form;
-        await secretLayout.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(secretLayout, true);
         await secretLayout.Find("[data-field='password'] [data-secret-action='open-generator']").ClickAsync(new MouseEventArgs());
         await Assert.That(secretLayout.FindAll("[data-secret-generator-dialog]").Count).IsEqualTo(1);
         await secretLayout.Find("[data-secret-generator-generate]").ClickAsync(new MouseEventArgs());

@@ -1,10 +1,12 @@
 namespace Configurator.Browser.Tests;
 
+using System.Reflection;
 using System.Text.Json;
 using AngleSharp.Dom;
 using Bunit;
 using Configurator.Browser.Profiles;
 using Configurator.Browser.Resources;
+using Configurator.Browser.Services;
 using Configurator.Core;
 using Configurator.Core.Definitions;
 using Configurator.Core.Definitions.Authoring;
@@ -14,6 +16,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 
 [NotInParallel]
 public sealed partial class BrowserProfileVaultTests
@@ -170,8 +173,13 @@ public sealed partial class BrowserProfileVaultTests
             Guid.NewGuid(), Guid.NewGuid(), "browser-workspace");
         byte[] bytes = CompareBaselineCodec.Serialize(baseline);
         ProfileWorkerAuthority Authority() => new(Guid.Parse(BrowserFixture.Family), 1, form.InputRevision, 1, false);
+        await using var controller = new BrowserProfileVaultController(
+            form,
+            context.Services.GetRequiredService<IJSRuntime>(),
+            context.Services.GetRequiredService<BrowserDefinitionRegistry>(),
+            Authority);
         var panel = context.Render<ConfigurationVaultPanel>(parameters => parameters
-            .Add(item => item.Form, form).Add(item => item.Ready, true).Add(item => item.CaptureAuthority, Authority));
+            .Add(item => item.Controller, controller));
 
         var input = panel.FindComponents<InputFile>().Single(component =>
             component.Instance.AdditionalAttributes?["id"]?.ToString() == "profile-comparison-file");
@@ -193,8 +201,13 @@ public sealed partial class BrowserProfileVaultTests
         using var form = Opened(mode);
         form.SelectLocale(locale);
         ProfileWorkerAuthority Authority() => new(Guid.Parse(BrowserFixture.Family), 1, form.InputRevision, 1, true);
+        await using var controller = new BrowserProfileVaultController(
+            form,
+            context.Services.GetRequiredService<IJSRuntime>(),
+            context.Services.GetRequiredService<BrowserDefinitionRegistry>(),
+            Authority);
         var panel = context.Render<ConfigurationVaultPanel>(parameters => parameters
-            .Add(item => item.Form, form).Add(item => item.Ready, true).Add(item => item.CaptureAuthority, Authority));
+            .Add(item => item.Controller, controller));
 
         await Assert.That(panel.FindAll("[data-action='profile-inspect']").Count).IsEqualTo(inspect ? 1 : 0);
         await Assert.That(panel.FindAll("[data-action='profile-download-private']").Count).IsEqualTo(1);
@@ -213,8 +226,13 @@ public sealed partial class BrowserProfileVaultTests
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.SelectLocale(locale);
         ProfileWorkerAuthority Authority() => new(Guid.Parse(BrowserFixture.Family), 1, form.InputRevision, 1, true);
+        await using var controller = new BrowserProfileVaultController(
+            form,
+            context.Services.GetRequiredService<IJSRuntime>(),
+            context.Services.GetRequiredService<BrowserDefinitionRegistry>(),
+            Authority);
         var panel = context.Render<ConfigurationVaultPanel>(parameters => parameters
-            .Add(item => item.Form, form).Add(item => item.Ready, true).Add(item => item.Open, true).Add(item => item.CaptureAuthority, Authority));
+            .Add(item => item.Controller, controller));
 
         var steps = panel.Find("[data-vault-steps]");
         await Assert.That(steps.QuerySelectorAll("li").Length).IsEqualTo(3);
@@ -244,8 +262,7 @@ public sealed partial class BrowserProfileVaultTests
         await using var context = BrowserFixture.Context();
         var editor = context.Render<ConfigurationEditor>(parameters => parameters
             .Add(item => item.Definition, Definition()));
-        await editor.Find("#secret-consent").ChangeAsync(
-            new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(editor, true);
         var form = editor.FindComponents<ConfigurationField>()
             .Single(field => field.Instance.Path.SequenceEqual(["token"])).Instance.Form;
         bool admitted = false;

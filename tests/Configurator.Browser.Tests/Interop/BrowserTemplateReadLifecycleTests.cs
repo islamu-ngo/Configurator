@@ -18,6 +18,7 @@ public sealed class BrowserTemplateReadLifecycleTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         var input = component.FindComponents<InputFile>().Single(file => file.Instance.AdditionalAttributes?["id"] as string == "artifact-import");
         InputFile selected = input.Instance;
         await component.InvokeAsync(() => input.UploadFiles(InputFileContent.CreateFromBinary("invalid"u8.ToArray(), "invalid.json", contentType: "application/json")));
@@ -36,11 +37,11 @@ public sealed class BrowserTemplateReadLifecycleTests
         using var input = new MemoryStream(Encoding.UTF8.GetBytes(BrowserDefinitionSourceTests.AuthoringJson));
         Definition definition = await source.ReadLocalAsync(input);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         using var older = new GatedReadStream("""{"HOST":"example.test","settings":{"secret":"synthetic-local-import-secret"}}"""u8.ToArray());
         Task pending = component.InvokeAsync(() => component.Instance.LoadAsync(older));
         await older.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        try { component.Find("#secret-consent").Change(false); }
+        try { await BrowserFixture.SetSecretConsentAsync(component, false); }
         finally { older.Release.TrySetResult(); }
         await pending.WaitAsync(TimeSpan.FromSeconds(5));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -60,7 +61,7 @@ public sealed class BrowserTemplateReadLifecycleTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         using var older = new GatedReadStream(OrdinaryArtifact);
         Task pending = component.InvokeAsync(() => component.Instance.LoadAsync(older));
         await older.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -75,7 +76,7 @@ public sealed class BrowserTemplateReadLifecycleTests
             }
             else if (transition == "replacement")
                 await component.InvokeAsync(() => component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2))));
-            else await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+            else await BrowserFixture.SetSecretConsentAsync(component, false);
         }
         finally { older.Release.TrySetResult(); }
         await pending.WaitAsync(TimeSpan.FromSeconds(5));
@@ -97,7 +98,7 @@ public sealed class BrowserTemplateReadLifecycleTests
         navigation.NavigateTo($"/launch/{BrowserFixture.Family}");
         var app = context.Render<App>();
         var editor = app.FindComponent<ConfigurationEditor>();
-        await editor.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(editor, true);
         using var older = new GatedReadStream(OrdinaryArtifact);
         Task pending = editor.InvokeAsync(() => editor.Instance.LoadAsync(older));
         await older.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -113,7 +114,8 @@ public sealed class BrowserTemplateReadLifecycleTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "fill" });
         using var stream = new GatedReadStream(OrdinaryArtifact);
         stream.Release.TrySetResult();

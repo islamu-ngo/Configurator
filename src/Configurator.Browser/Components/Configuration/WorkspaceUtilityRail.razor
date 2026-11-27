@@ -1,0 +1,148 @@
+@using Configurator.Browser.Resources
+@using Configurator.Browser.Services.Docking
+
+@{
+    WorkspaceUtilityDescriptor[] visible = VisibleUtilities;
+    WorkspaceUtilityKind focusedKind = ResolveFocusedKind(visible);
+}
+
+<aside class="workspace-utility-rail"
+       data-workspace-utility-rail
+       aria-label="@T("WorkspaceUtilitiesRailLabel")"
+       lang="@Locale"
+       dir="@(IsRtl ? "rtl" : "ltr")">
+    <div class="workspace-utility-rail__toolbar"
+         role="toolbar"
+         aria-orientation="vertical"
+         aria-label="@T("WorkspaceUtilitiesRailLabel")"
+         @onkeydown="args => HandleKeyDownAsync(args, visible, focusedKind)">
+        @foreach (WorkspaceUtilityDescriptor descriptor in visible)
+        {
+            bool active = ActiveUtility == descriptor.Kind;
+            bool isFocused = focusedKind == descriptor.Kind;
+            string label = descriptor.GetTitle(Locale);
+            string? statusKind = GetStatusIndicator(descriptor.Kind);
+
+            <button @key="descriptor.Kind"
+                    @ref="_buttonRefs[descriptor.Kind]"
+                    type="button"
+                    class="workspace-utility-rail__button @(active ? "workspace-utility-rail__button--active" : null)"
+                    data-utility-rail-action="@descriptor.ActionToken"
+                    tabindex="@(isFocused ? 0 : -1)"
+                    aria-label="@descriptor.GetAriaLabel(Locale)"
+                    title="@label"
+                    aria-expanded="@(active ? "true" : "false")"
+                    aria-controls="@DockElementIds.PanelBodyId(descriptor.PanelId)"
+                    @onclick="() => HandleUtilityClickAsync(descriptor.Kind)"
+                    @onfocus="() => _focusedKind = descriptor.Kind">
+                <MudIcon Icon="@descriptor.Icon" Size="Size.Small" aria-hidden="true" />
+                @if (statusKind is not null)
+                {
+                    <span class="workspace-utility-rail__dot workspace-utility-rail__dot--@statusKind"
+                          data-utility-status="@statusKind"
+                          aria-hidden="true"></span>
+                }
+            </button>
+        }
+    </div>
+</aside>
+
+@code {
+    private readonly Dictionary<WorkspaceUtilityKind, ElementReference> _buttonRefs = [];
+    private WorkspaceUtilityKind _focusedKind = WorkspaceUtilityKind.Inspector;
+    private bool _pendingFocus;
+    private (string Locale, bool IsRtl, WorkspaceUtilityKind? ActiveUtility, bool ImportAvailable, bool SecretsUnlocked, bool HasActiveProfile, bool ProfileBusy, bool HasImportComparison, bool ImportPending, bool DocumentDirty, WorkspaceUtilityKind FocusedKind) _rendered;
+    private bool _hasRendered;
+
+    [Parameter, EditorRequired] public string Locale { get; set; } = "en";
+    [Parameter] public bool IsRtl { get; set; }
+    [Parameter] public WorkspaceUtilityKind? ActiveUtility { get; set; }
+    [Parameter] public bool ImportAvailable { get; set; }
+    [Parameter] public bool SecretsUnlocked { get; set; }
+    [Parameter] public bool HasActiveProfile { get; set; }
+    [Parameter] public bool ProfileBusy { get; set; }
+    [Parameter] public bool HasImportComparison { get; set; }
+    [Parameter] public bool ImportPending { get; set; }
+    [Parameter] public bool DocumentDirty { get; set; }
+    [Parameter] public EventCallback<WorkspaceUtilityKind> UtilitySelected { get; set; }
+
+    private (string Locale, bool IsRtl, WorkspaceUtilityKind? ActiveUtility, bool ImportAvailable, bool SecretsUnlocked, bool HasActiveProfile, bool ProfileBusy, bool HasImportComparison, bool ImportPending, bool DocumentDirty, WorkspaceUtilityKind FocusedKind) CurrentRenderState =>
+        (Locale, IsRtl, ActiveUtility, ImportAvailable, SecretsUnlocked, HasActiveProfile, ProfileBusy, HasImportComparison, ImportPending, DocumentDirty, _focusedKind);
+
+    protected override bool ShouldRender() => !_hasRendered || !_rendered.Equals(CurrentRenderState);
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        _hasRendered = true;
+        _rendered = CurrentRenderState;
+    }
+
+    private WorkspaceUtilityDescriptor[] VisibleUtilities =>
+        WorkspaceUtilities.All
+            .Where(item => !item.RequiresImportArtifacts || ImportAvailable)
+            .ToArray();
+
+    private WorkspaceUtilityKind ResolveFocusedKind(WorkspaceUtilityDescriptor[] visible)
+    {
+        if (visible.Any(item => item.Kind == _focusedKind))
+            return _focusedKind;
+        return visible.Length > 0 ? visible[0].Kind : WorkspaceUtilityKind.Inspector;
+    }
+
+    private string? GetStatusIndicator(WorkspaceUtilityKind kind) => kind switch
+    {
+        WorkspaceUtilityKind.TrustPrivacy when SecretsUnlocked => "unlocked",
+        WorkspaceUtilityKind.Profiles when ProfileBusy => "busy",
+        WorkspaceUtilityKind.Profiles when HasActiveProfile => "active",
+        WorkspaceUtilityKind.Import when ImportPending => "busy",
+        WorkspaceUtilityKind.Import when HasImportComparison => "active",
+        WorkspaceUtilityKind.DocumentJson when DocumentDirty => "dirty",
+        _ => null
+    };
+
+    private Task HandleUtilityClickAsync(WorkspaceUtilityKind kind)
+    {
+        _focusedKind = kind;
+        return UtilitySelected.InvokeAsync(kind);
+    }
+
+    private Task HandleKeyDownAsync(
+        KeyboardEventArgs args,
+        WorkspaceUtilityDescriptor[] visible,
+        WorkspaceUtilityKind currentFocused)
+    {
+        if (visible.Length == 0) return Task.CompletedTask;
+
+        int index = Array.FindIndex(visible, item => item.Kind == currentFocused);
+        if (index < 0) index = 0;
+
+        int nextIndex = args.Key switch
+        {
+            "ArrowDown" => (index + 1) % visible.Length,
+            "ArrowUp" => (index - 1 + visible.Length) % visible.Length,
+            "Home" => 0,
+            "End" => visible.Length - 1,
+            _ => -1
+        };
+
+        if (nextIndex < 0) return Task.CompletedTask;
+
+        _focusedKind = visible[nextIndex].Kind;
+        _pendingFocus = true;
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_pendingFocus) return;
+        _pendingFocus = false;
+
+        if (_buttonRefs.TryGetValue(_focusedKind, out ElementReference button)
+            && !string.IsNullOrEmpty(button.Id))
+        {
+            await button.FocusAsync(preventScroll: true);
+        }
+    }
+
+    private string T(string key) => BrowserStrings.Get(key, Locale);
+}

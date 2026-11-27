@@ -35,7 +35,7 @@ public sealed class BrowserRecursiveConformanceTests
             }).SetVoidResult();
             module.Setup<bool>("reveal", _ => true).SetResult(true);
             var form = root.FindComponents<ConfigurationField>()[0].Instance.Form;
-            await root.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+            await BrowserFixture.SetSecretConsentAsync(root, true);
             using var source = new MemoryStream(Encoding.UTF8.GetBytes(item.GetProperty("values").GetRawText()));
             if (resource == "Conformance.Library")
             {

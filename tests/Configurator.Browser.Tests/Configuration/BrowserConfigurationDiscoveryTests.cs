@@ -136,7 +136,7 @@ public sealed class BrowserConfigurationDiscoveryTests
         await Assert.That(form.Validate().TryGetEffectiveValue(DefinitionPath.Parse("/enabled"), out var effectiveEnabled)).IsTrue();
         await Assert.That(effectiveEnabled.GetBoolean()).IsFalse();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
-        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+        await Assert.That(component.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("false");
     }
 
     [Test]

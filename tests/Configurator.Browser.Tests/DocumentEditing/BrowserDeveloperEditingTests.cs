@@ -23,11 +23,11 @@ public sealed class BrowserDeveloperEditingTests
         await using var engine = Boundary(context);
         var root = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
             BrowserRootEditingTests.Definition("Conformance.RootVariant")));
-        await root.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(root, true);
         await BrowserRootEditingTests.Choose(root, [], "0");
         await BrowserRootEditingTests.Type(root, ["directory"], "spool");
         var form = BrowserRootEditingTests.Field(root).Instance.Form;
-        await root.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.OpenWorkspaceUtilityAsync(root, "document");
         var panel = root.FindComponent<ConfigurationDeveloper>();
         await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await panel.InvokeAsync(() => engine.ChangeAsync("""
@@ -35,7 +35,7 @@ public sealed class BrowserDeveloperEditingTests
             """));
         await Click(panel, "developer-preview");
         await Click(panel, "developer-apply");
-        await root.Find("[data-editing-mode='form']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.CloseWorkspaceUtilityAsync(root);
         await Assert.That(BrowserRootEditingTests.Field(root).Instance.Form).IsSameReferenceAs(form);
         await Assert.That(form.Snapshot().Values["directory"].GetString()).IsEqualTo("changed-spool");
         await Assert.That(BrowserRootEditingTests.Field(root, "directory").Find("input").GetAttribute("value")).IsEqualTo("changed-spool");
@@ -83,18 +83,60 @@ public sealed class BrowserDeveloperEditingTests
     }
 
     [Test]
-    public async Task RootSuppliesExactConsentAndEditorLifetimes()
+    public async Task RootSuppliesExactCustodyAnchorAndEditorLifetimes()
     {
         await using var context = BrowserFixture.Context();
         await using var engine = Boundary(context);
         var root = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await root.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.OpenWorkspaceUtilityAsync(root, "document");
         var panel = root.FindComponent<ConfigurationDeveloper>();
         await panel.InvokeAsync(() => panel.Instance.Form.SetSecretEntryEnabled(true));
         await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        await Assert.That(engine.Options!.Consent.Id).IsNotNull();
-        await Assert.That(engine.Options.WorkspaceLifetime).IsEqualTo(root.Find("#secret-consent").GetAttribute("data-workspace-lifetime"));
+        await Assert.That(engine.Options!.CustodyAnchor.Id).IsNotNull();
+        var workspaceSection = root.Find("section.configuration-editor");
+        await Assert.That(engine.Options.WorkspaceLifetime).IsEqualTo(workspaceSection.GetAttribute("data-workspace-lifetime"));
+        await Assert.That(workspaceSection.GetAttribute("data-secret-consent")).IsEqualTo("enabled");
         await Assert.That(engine.Options.EditorLifetime).IsEqualTo(panel.Find("[data-developer-editor]").GetAttribute("data-editor-lifetime"));
+    }
+
+    [Test]
+    public async Task UninitializedCustodyAnchorRejectsMountWithoutAcquiringSource()
+    {
+        await using var context = BrowserFixture.Context();
+        using var form = Form();
+        await using var engine = Boundary(context);
+        var component = context.Render<ConfigurationDeveloper>(parameters => parameters
+            .Add(item => item.Form, form)
+            .Add(item => item.CustodyAnchor, () => default)
+            .Add(item => item.WorkspaceLifetime, "synthetic-workspace"));
+        await Assert.That(engine.Active).IsFalse();
+        await Assert.That(engine.MountSource).IsNull();
+        await Assert.That(component.Find("[data-developer-status]").GetAttribute("data-code")).IsEqualTo("developer-unavailable");
+    }
+
+    [Test]
+    public async Task ConsentRevocationRetiresDeveloperSynchronouslyBeforeFormRevokesSecrets()
+    {
+        await using var context = BrowserFixture.Context();
+        await using var engine = Boundary(context);
+        var root = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await BrowserFixture.SetSecretConsentAsync(root, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(root, "document");
+        var panel = root.FindComponent<ConfigurationDeveloper>();
+        await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        DefinitionFormModel form = panel.Instance.Form;
+        bool? activeAtFormInputChanged = null;
+        form.InputChanged += (_, _) =>
+        {
+            if (form.SessionPrivacy == DefinitionSessionPrivacy.BrowserNoSecrets)
+                activeAtFormInputChanged ??= engine.Active;
+        };
+
+        await root.Find("[data-action='revoke-secret-entry']").ClickAsync(new MouseEventArgs());
+
+        await Assert.That(activeAtFormInputChanged).IsEqualTo(false);
+        await Assert.That(engine.Active).IsFalse();
+        await Assert.That(root.Find("section.configuration-editor").GetAttribute("data-secret-consent")).IsEqualTo("locked");
     }
 
     [Test]
@@ -108,7 +150,7 @@ public sealed class BrowserDeveloperEditingTests
         var root = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserDeploymentScopeTests.Deployment()));
         var form = root.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
         await root.InvokeAsync(() => form.SetSecretEntryEnabled(true));
-        await root.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.OpenWorkspaceUtilityAsync(root, "document");
         var panel = root.FindComponent<ConfigurationDeveloper>();
         await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await panel.InvokeAsync(() => engine.ChangeAsync("""
@@ -205,7 +247,7 @@ public sealed class BrowserDeveloperEditingTests
         await using var engine = Boundary(context);
         var definition = BrowserFixture.Definition;
         var root = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await root.InvokeAsync(() => root.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs()));
+        await root.InvokeAsync(() => BrowserFixture.OpenWorkspaceUtilityAsync(root, "document"));
         var panel = root.FindComponent<ConfigurationDeveloper>();
         await panel.InvokeAsync(() => panel.Instance.Form.SetSecretEntryEnabled(true));
         await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -243,7 +285,7 @@ public sealed class BrowserDeveloperEditingTests
         await using var engine = Boundary(context);
         var definition = BrowserFixture.Definition;
         var root = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await root.InvokeAsync(() => root.Find("[data-editing-mode='developer']").ClickAsync(new MouseEventArgs()));
+        await root.InvokeAsync(() => BrowserFixture.OpenWorkspaceUtilityAsync(root, "document"));
         var panel = root.FindComponent<ConfigurationDeveloper>();
         DefinitionFormModel form = panel.Instance.Form;
         await panel.InvokeAsync(() => form.SetSecretEntryEnabled(true));
@@ -253,7 +295,7 @@ public sealed class BrowserDeveloperEditingTests
         Task? transition = null;
         await root.InvokeAsync(() =>
         {
-            transition = root.Find(destination == "form" ? "[data-editing-mode='form']" : "[data-workflow-step='review']")
+            transition = root.Find(destination == "form" ? "[data-utility-rail-action='document']" : "[data-workflow-step='review']")
                 .ClickAsync(new MouseEventArgs());
         });
         await Assert.That(transition!.IsCompleted).IsFalse();
@@ -900,7 +942,7 @@ public sealed class BrowserDeveloperEditingTests
     }
     private static IRenderedComponent<ConfigurationDeveloper> Render(BunitContext context, DefinitionFormModel form, string? artifact = null) =>
         context.Render<ConfigurationDeveloper>(parameters => parameters.Add(item => item.Form, form).Add(item => item.EnvironmentArtifactId, artifact)
-            .Add(item => item.ConsentControl, () => new ElementReference("synthetic-consent"))
+            .Add(item => item.CustodyAnchor, () => new ElementReference("synthetic-custody"))
             .Add(item => item.WorkspaceLifetime, "synthetic-workspace"));
     private static Task Click(IRenderedComponent<ConfigurationDeveloper> component, string action) =>
         component.Find($"[data-action='{action}']").ClickAsync(new MouseEventArgs());

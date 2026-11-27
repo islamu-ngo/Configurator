@@ -26,15 +26,15 @@ public sealed class BrowserSecretBoundaryTests
         context.ComponentFactories.Add<ConfigurationField, BrowserCredentialEntryTests.EmittedInputField>();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await component.Find("[data-field='profile.name'] input").InputAsync(new ChangeEventArgs { Value = "ordinary-sibling" });
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='profile.token'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-retired-secret" });
         var token = component.FindComponents<BrowserCredentialEntryTests.EmittedInputField>()
             .Single(item => item.Instance.Path.SequenceEqual(["profile", "token"]));
         object callback = token.Instance.CaptureInput();
         var form = token.Instance.Form;
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         await Assert.That(form.Snapshot().Values["profile"].GetRawText()).IsEqualTo("{\"name\":\"ordinary-sibling\"}");
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         long revision = form.InputRevision;
         await component.InvokeAsync(() => callback switch
         {
@@ -62,15 +62,15 @@ public sealed class BrowserSecretBoundaryTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         component.Find("[data-field='profile.name'] input").Input("ordinary-sibling");
         await Assert.That(component.FindAll("[data-field='profile.token'] input")).IsEmpty();
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         component.Find("[data-field='profile.token'] input").Input("nested-revoked-canary");
-        component.Find("#secret-consent").Change(false);
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.Snapshot().Values["profile"].GetRawText()).IsEqualTo("{\"name\":\"ordinary-sibling\"}");
         await Assert.That(component.FindAll("[data-field='profile.token'] input")).IsEmpty();
         await Assert.That(component.Markup).DoesNotContain("nested-revoked-canary");
         component.Render(parameters => parameters.Add(item => item.Definition, BrowserFixture.Revision(2)));
-        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+        await Assert.That(component.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("false");
         await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
     }
 
@@ -81,10 +81,10 @@ public sealed class BrowserSecretBoundaryTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
         component.Find("[data-field='hostname'] input").Input("example.test");
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         component.Find("[data-field='credential'] input").Input("synthetic-private-canary");
         await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("type")).IsEqualTo("password");
-        component.Find("#secret-consent").Change(false);
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         await Assert.That(component.FindAll("[data-field='credential'] input")).IsEmpty();
         await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsEqualTo("example.test");
         await Assert.That(component.Markup).DoesNotContain("synthetic-private-canary");
@@ -124,6 +124,7 @@ public sealed class BrowserSecretBoundaryTests
             .Add(item => item.Definition, bilingual)
             .Add(item => item.InitialLocale, locale));
 
+        await BrowserFixture.OpenWorkspaceUtilityAsync(editor, "trust-privacy");
         await Assert.That(editor.Find("#secret-consent").HasAttribute("checked")).IsFalse();
         var consentDisclosure = editor.Find("[data-secret-consent] [data-hosted-code-custody]");
         await Assert.That(string.IsNullOrWhiteSpace(consentDisclosure.TextContent)).IsFalse();
@@ -159,7 +160,7 @@ public sealed class BrowserSecretBoundaryTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsNotEqualTo("imported");
@@ -174,7 +175,8 @@ public sealed class BrowserSecretBoundaryTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         using var stream = new MemoryStream("""{"mode":"single","hostname":"compared.test","credential":"synthetic-retained-secret"}"""u8.ToArray());
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
@@ -183,10 +185,10 @@ public sealed class BrowserSecretBoundaryTests
         var report = form.ImportComparison!;
         var adoption = review.FillFields;
         await Assert.That(report).IsNotNull();
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         await Assert.That(form.ImportComparison).IsNull();
         await Assert.That(component.FindAll("[data-import-comparison]")).IsEmpty();
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         long revision = form.InputRevision;
         await component.InvokeAsync(() => adoption.InvokeAsync(report));
         await Assert.That(form.InputRevision).IsEqualTo(revision);
@@ -210,7 +212,7 @@ public sealed class BrowserSecretBoundaryTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, admitted));
         await Assert.That(component.FindAll("[data-field='private'] input")).IsEmpty();
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await Assert.That(component.FindAll("[data-field='private'] input")).Count().IsEqualTo(3);
         await Assert.That(component.Find("[data-field='private.enabled'] input").GetAttribute("type")).IsEqualTo("password");
         await Assert.That(component.Find("[data-field='private.count'] input").GetAttribute("type")).IsEqualTo("password");
@@ -302,7 +304,7 @@ public sealed class BrowserSecretBoundaryTests
         await Assert.That(component.FindAll("[data-section-panel='sec0'] input")).IsEmpty();
 
         // Enable consent and enter a secret in section 11 while sec0 is unmounted, capturing its @oninput callback.
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='deepSecret'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-unmounted-secret-s04" });
         object staleDeepCallback = component.FindComponents<EmittedSettingRow>()
             .Single(row => row.Instance.Path.SequenceEqual(["deepSecret"]))
@@ -314,7 +316,7 @@ public sealed class BrowserSecretBoundaryTests
         await Assert.That(component.Find("[data-field='unparsedPort'] input").GetAttribute("value")).IsEqualTo("99999-draft");
 
         // Revoke consent while sec11 is unmounted, fire stale input callback against retired control, then verify zero resurrection.
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         long revisionAfterRevoke = form.InputRevision;
         await component.InvokeAsync(() => staleDeepCallback switch
         {
@@ -348,7 +350,7 @@ public sealed class BrowserSecretBoundaryTests
             .NavigateTo($"launch/{BrowserFixture.Family}?digest={BrowserFixture.Definition.Digest.Value}");
         IRenderedComponent<App> component = context.Render<App>();
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-in-place-secret" });
 
         await component.Find("header [data-action='open-settings']").ClickAsync(new MouseEventArgs());

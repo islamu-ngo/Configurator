@@ -1,6 +1,7 @@
 @using System.Globalization
 @using Configurator.Browser.Resources
 @using Configurator.Browser.Services
+@using Configurator.Browser.Services.Docking
 @using Configurator.Core.Definitions
 @using Configurator.Presentation
 
@@ -15,21 +16,96 @@
     <div class="workspace-header__controls">
         <nav class="workspace-header__modes" aria-label="@T("WorkspaceModes")">
             <button type="button" class="workspace-header__mode" data-workflow-step="configure"
-                    aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Configure ? "step" : null)"
+                    aria-current="@(ActiveStage == WorkspaceStage.Configure ? "step" : null)"
                     @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Configure)">
                 @T("Configure")
             </button>
             <button type="button" class="workspace-header__mode" data-workflow-step="review"
-                    aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Review ? "step" : null)"
+                    aria-current="@(ActiveStage == WorkspaceStage.Review ? "step" : null)"
                     @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Review)">
                 @T("WorkflowReview")
             </button>
             <button type="button" class="workspace-header__mode" data-workflow-step="prepare"
-                    aria-current="@(!DeveloperMode && ActiveStage == WorkspaceStage.Files ? "step" : null)"
+                    aria-current="@(ActiveStage == WorkspaceStage.Files ? "step" : null)"
                     @onclick="() => StageSelected.InvokeAsync(WorkspaceStage.Files)">
                 @T("WorkflowFiles")
             </button>
         </nav>
+        <div class="workspace-header__custody" role="group" aria-label="@T("UtilityTrustPrivacyTitle")">
+            <button type="button"
+                    class="workspace-header__consent @(SecretsUnlocked ? "workspace-header__consent--active" : null)"
+                    data-workspace-consent-chip
+                    data-consent-active="@SecretsUnlocked.ToString().ToLowerInvariant()"
+                    aria-expanded="@(ActiveUtility == WorkspaceUtilityKind.TrustPrivacy ? "true" : "false")"
+                    @onclick="() => ConsentChipClicked.InvokeAsync()">
+                <MudIcon Icon="@(SecretsUnlocked ? Icons.Material.Outlined.LockOpen : Icons.Material.Outlined.Lock)" Size="Size.Small" aria-hidden="true" />
+                <span>@T(SecretsUnlocked ? "SecretsEnabledChip" : "SecretsLockedChip")</span>
+            </button>
+            @if (SecretsUnlocked)
+            {
+                <button type="button"
+                        class="workspace-header__revoke"
+                        data-action="revoke-secret-entry"
+                        aria-label="@T("RevokeSecrets")"
+                        @onclick="() => RevokeSecretsClicked.InvokeAsync()">
+                    <span>@T("RevokeSecretsCompact")</span>
+                </button>
+            }
+        </div>
+        <div class="workspace-header__tools">
+            @if (_toolsMenuRequested)
+            {
+                <MudMenu @bind-Open="_toolsOpen"
+                         AnchorOrigin="Origin.BottomRight"
+                         TransformOrigin="Origin.TopRight"
+                         Dense="true"
+                         Class="workspace-header__tools-menu">
+                    <ActivatorContent>
+                        <button type="button"
+                                class="workspace-header__tools-button @(_toolsOpen ? "workspace-header__tools-button--open" : null)"
+                                data-action="open-workspace-tools"
+                                aria-label="@T("WorkspaceToolsMenuLabel")"
+                                aria-haspopup="menu"
+                                aria-expanded="@_toolsOpen.ToString().ToLowerInvariant()"
+                                @onclick="ToggleToolsMenu">
+                            <MudIcon Icon="@Icons.Material.Outlined.Widgets" Size="Size.Small" aria-hidden="true" />
+                            <span>@T("WorkspaceToolsButton")</span>
+                        </button>
+                    </ActivatorContent>
+                    <ChildContent>
+                        @foreach (WorkspaceUtilityDescriptor descriptor in VisibleUtilities)
+                        {
+                            bool active = ActiveUtility == descriptor.Kind;
+                            <MudMenuItem OnClick="@(() => SelectUtilityAsync(descriptor.Kind))"
+                                         data-tools-utility="@descriptor.ActionToken"
+                                         Class="@(active ? "workspace-header__tools-item workspace-header__tools-item--active" : "workspace-header__tools-item")">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@descriptor.Icon" Size="Size.Small" aria-hidden="true" />
+                                    <MudText Typo="Typo.body2">@descriptor.GetTitle(Locale)</MudText>
+                                    @if (active)
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" aria-hidden="true" />
+                                    }
+                                </MudStack>
+                            </MudMenuItem>
+                        }
+                    </ChildContent>
+                </MudMenu>
+            }
+            else
+            {
+                <button type="button"
+                        class="workspace-header__tools-button"
+                        data-action="open-workspace-tools"
+                        aria-label="@T("WorkspaceToolsMenuLabel")"
+                        aria-haspopup="menu"
+                        aria-expanded="false"
+                        @onclick="OpenToolsMenu">
+                    <MudIcon Icon="@Icons.Material.Outlined.Widgets" Size="Size.Small" aria-hidden="true" />
+                    <span>@T("WorkspaceToolsButton")</span>
+                </button>
+            }
+        </div>
         <button @ref="_advancedToggle"
                 type="button"
                 class="workspace-header__advanced @(AdvancedOpen ? "workspace-header__advanced--open" : null)"
@@ -54,21 +130,47 @@
 
 @code {
     private ElementReference _advancedToggle;
+    private bool _toolsMenuRequested;
+    private bool _toolsOpen;
 
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter, EditorRequired] public string Locale { get; set; } = "en";
     [Parameter, EditorRequired] public WorkspaceStage ActiveStage { get; set; } = WorkspaceStage.Configure;
-    [Parameter] public bool DeveloperMode { get; set; }
     [Parameter] public bool AdvancedOpen { get; set; }
     [Parameter] public int ActiveAdvancedCount { get; set; }
+    [Parameter] public bool SecretsUnlocked { get; set; }
+    [Parameter] public WorkspaceUtilityKind? ActiveUtility { get; set; }
+    [Parameter] public bool ImportAvailable { get; set; }
     [Parameter] public RenderFragment? StatusContent { get; set; }
     [Parameter] public EventCallback OnToggleAdvanced { get; set; }
     [Parameter] public EventCallback<WorkspaceStage> StageSelected { get; set; }
+    [Parameter] public EventCallback ConsentChipClicked { get; set; }
+    [Parameter] public EventCallback RevokeSecretsClicked { get; set; }
+    [Parameter] public EventCallback<WorkspaceUtilityKind> UtilitySelected { get; set; }
+
+    private WorkspaceUtilityDescriptor[] VisibleUtilities =>
+        WorkspaceUtilities.All
+            .Where(item => !item.RequiresImportArtifacts || ImportAvailable)
+            .ToArray();
 
     public async ValueTask FocusAdvancedToggleAsync()
     {
         if (!string.IsNullOrEmpty(_advancedToggle.Id))
             await _advancedToggle.FocusAsync(preventScroll: true);
+    }
+
+    private void OpenToolsMenu()
+    {
+        _toolsMenuRequested = true;
+        _toolsOpen = true;
+    }
+
+    private void ToggleToolsMenu() => _toolsOpen = !_toolsOpen;
+
+    private Task SelectUtilityAsync(WorkspaceUtilityKind kind)
+    {
+        _toolsOpen = false;
+        return UtilitySelected.InvokeAsync(kind);
     }
 
     private string T(string key) => BrowserStrings.Get(key, Locale);

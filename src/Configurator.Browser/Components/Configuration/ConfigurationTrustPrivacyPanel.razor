@@ -1,0 +1,87 @@
+@using System.Globalization
+@using Configurator.Browser.Resources
+@using Configurator.Core.Definitions
+
+<div class="configuration-trust-panel" data-trust-privacy-panel lang="@Locale">
+    <div class="configuration-trust-panel__header">
+        <h3 id="trust-privacy-heading" tabindex="-1">@T("UtilityTrustPrivacyTitle")</h3>
+        @if (CloseRequested.HasDelegate)
+        {
+            <AppButton Variant="Variant.Text"
+                       OnClick="HandleCloseRequestedAsync"
+                       data-action="close-trust-privacy-panel"
+                       aria-label="@T("CloseTrustPrivacyPanel")">@T("Close")</AppButton>
+        }
+    </div>
+    <section class="configuration-trust-panel__section" data-secret-consent aria-labelledby="trust-secret-consent-heading">
+        <h4 id="trust-secret-consent-heading">@T("ReviewSecretConsent")</h4>
+        <div class="configuration-editor__consent">
+            <input @ref="_consentCheckbox"
+                   id="secret-consent"
+                   type="checkbox"
+                   data-workspace-lifetime="@WorkspaceLifetime"
+                   checked="@SecretsUnlocked"
+                   aria-describedby="session-boundary secret-consent-help secret-consent-hosted-help"
+                   @onchange="HandleConsentChangedAsync" />
+            <div>
+                <label for="secret-consent">@T("EnableWorkspaceSecrets")</label>
+                <p id="secret-consent-help" class="form-help">@T("WorkspaceSecretHelp") @T("CredentialCustodyHelp")</p>
+                <p id="secret-consent-hosted-help" class="form-help" data-hosted-code-custody>
+                    @T("WorkspaceHostedCodeCustodyHelp")
+                    <a href="help#custody" data-action="custody-guidance">@T("WorkspaceCustodyGuideLink")</a>
+                </p>
+            </div>
+        </div>
+        @if (SecretsUnlocked)
+        {
+            <div class="configuration-trust-panel__actions">
+                <AppButton Variant="Variant.Outlined"
+                           data-action="revoke-secret-entry-panel"
+                           OnClick="HandleRevokeRequestedAsync">@T("RevokeSecrets")</AppButton>
+            </div>
+        }
+    </section>
+    <section class="configuration-trust-panel__section" data-privacy-export-limits aria-labelledby="trust-export-limits-heading">
+        <h4 id="trust-export-limits-heading">@T("PrivacyExportLimits")</h4>
+        <p class="form-help" data-declared-outputs>@Format("DeclaredFiles", string.Join(", ", DeclaredArtifactFileNames))</p>
+        <p class="form-help">@T("WorkspaceExportBoundary")</p>
+    </section>
+</div>
+
+@code {
+    private ElementReference _consentCheckbox;
+    private (string Locale, string WorkspaceLifetime, bool SecretsUnlocked, int ArtifactCount) _rendered;
+    private bool _hasRendered;
+
+    [Parameter, EditorRequired] public string Locale { get; set; } = "en";
+    [Parameter, EditorRequired] public string WorkspaceLifetime { get; set; } = string.Empty;
+    [Parameter] public bool SecretsUnlocked { get; set; }
+    [Parameter] public IReadOnlyList<string> DeclaredArtifactFileNames { get; set; } = [];
+    [Parameter] public EventCallback<ChangeEventArgs> ConsentChanged { get; set; }
+    [Parameter] public EventCallback RevokeRequested { get; set; }
+    [Parameter] public EventCallback CloseRequested { get; set; }
+
+    protected override bool ShouldRender() =>
+        !_hasRendered || !_rendered.Equals((Locale, WorkspaceLifetime, SecretsUnlocked, DeclaredArtifactFileNames.Count));
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        _hasRendered = true;
+        _rendered = (Locale, WorkspaceLifetime, SecretsUnlocked, DeclaredArtifactFileNames.Count);
+    }
+
+    public ElementReference ConsentCheckbox => _consentCheckbox;
+
+    // Dispatch through instance methods so ShouldRender() skips never leave a stale EventCallback
+    // closure bound to a prior view generation on DOM event handlers or child buttons.
+    private Task HandleConsentChangedAsync(ChangeEventArgs args) => ConsentChanged.InvokeAsync(args);
+
+    private Task HandleRevokeRequestedAsync() => RevokeRequested.InvokeAsync();
+
+    private Task HandleCloseRequestedAsync() => CloseRequested.InvokeAsync();
+
+    private string T(string key) => BrowserStrings.Get(key, Locale);
+
+    private string Format(string key, params object?[] arguments) =>
+        string.Format(CultureInfo.GetCultureInfo(Locale), T(key), arguments);
+}

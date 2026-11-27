@@ -154,7 +154,7 @@ public sealed class BrowserCollectionWorkflowTests
         }
         string lastIdentity = component.Find("[data-field='tenants.2.name'] input").Id!;
         await Assert.That(component.Find("[data-field='tenants'] > fieldset > button[data-action='add-item']").HasAttribute("disabled")).IsTrue();
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='tenants.1.credential'] input").InputAsync(new ChangeEventArgs { Value = "removed-row-secret-canary" });
         await component.FindAll("[data-field='tenants'] > fieldset > .configuration-field__row > button")[1].ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("[data-field='tenants.1.name'] input").Id).IsEqualTo(lastIdentity);

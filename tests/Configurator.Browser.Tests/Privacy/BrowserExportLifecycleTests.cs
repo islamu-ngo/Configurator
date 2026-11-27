@@ -24,7 +24,7 @@ public sealed class BrowserExportLifecycleTests
             parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("retained.test");
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         component.Find("[data-field='credential'] input").Input("synthetic-panel-secret");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
@@ -50,7 +50,7 @@ public sealed class BrowserExportLifecycleTests
             await component.Find("[data-workflow-step='prepare']").ClickAsync(new MouseEventArgs());
             await Assert.That(component.FindAll(".configuration-editor__artifact").Count).IsEqualTo(1);
             await component.Find("[data-workflow-step='configure']").ClickAsync(new MouseEventArgs());
-            revoking = component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+            revoking = BrowserFixture.SetSecretConsentAsync(component, false);
             await revoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
             await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
             await Assert.That(form.Snapshot().Values["hostname"].GetString()).IsEqualTo("retained.test");
@@ -104,7 +104,7 @@ public sealed class BrowserExportLifecycleTests
         await component.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         component.Find("[data-field='hostname'] input").Input("retained.test");
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         BrowserFixture.SectionNavigation(context, component).Find("[data-section='private']").Click();
         component.Find("[data-field='credential'] input").Input("synthetic-remount-secret");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -129,7 +129,7 @@ public sealed class BrowserExportLifecycleTests
             await Assert.That(ReferenceEquals(retired, remounted.Instance)).IsFalse();
             await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("value"))
                 .IsEqualTo("synthetic-remount-secret");
-            component.Find("#secret-consent").Change(false);
+            await BrowserFixture.SetSecretConsentAsync(component, false);
             await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
             await BrowserFixture.SelectPanelAsync(component, "prepare");
             await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
@@ -146,7 +146,7 @@ public sealed class BrowserExportLifecycleTests
                 MulticastDelegate handler => new EventCallbackWorkItem(handler).InvokeAsync(new ChangeEventArgs { Value = "synthetic-stale-remount-input" }),
                 _ => throw new InvalidOperationException("input-handler-missing")
             });
-            component.Find("#secret-consent").Change(true);
+            await BrowserFixture.SetSecretConsentAsync(component, true);
             BrowserFixture.SectionNavigation(context, component).Find("[data-section='private']").Click();
         }
         finally { javascript.Release.TrySetResult(module); }

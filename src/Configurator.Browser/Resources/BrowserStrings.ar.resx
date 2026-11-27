@@ -881,4 +881,37 @@
   <data name="WorkspaceHostedCodeCustodyHelp" xml:space="preserve"><value>يمكن لشيفرة الويب المستضافة وإضافات المتصفح الاطلاع على الأسرار المدخلة في علامة التبويب هذه؛ ولا يتصل المتصفح الثابت مطلقًا بـ SecretKit أو خزائن الأسرار أو المضيفات المستهدفة. اترك هذا الخيار غير محدد لتصدير مسودة مؤجَّلة الأسرار، أو استخدم تطبيقات سطح المكتب أو الطرفية أو سطر الأوامر الأصلية للأسرار الحساسة.</value></data>
   <data name="WorkspaceCustodyGuideLink" xml:space="preserve"><value>راجع تفاصيل الحفظ في المتصفح وخيارات العملاء الأصليين</value></data>
   <data name="HelpHostedCodeCustodyBody" xml:space="preserve"><value>مع أن WebAssembly يعمل محليًا ولا يُجري المتصفح الثابت أي اتصالات بـ SecretKit أو خزائن الأسرار أو المضيف المستهدف، يظل بإمكان جهة الاستضافة وشيفرة الويب وإضافات المتصفح فحص ذاكرة المتصفح النشطة. أبقِ إدخال الأسرار معطلًا لتحضير مسودة مؤجَّلة الأسرار وإكمالها محليًا، أو استخدم عميل سطح المكتب أو الطرفية أو سطر الأوامر الأصلي على جهاز موثوق لبيانات الاعتماد الإنتاجية.</value></data>
+  <data name="WorkspaceUtilitiesRailLabel" xml:space="preserve"><value>أدوات مساحة العمل</value></data>
+  <data name="WorkspaceToolsButton" xml:space="preserve"><value>الأدوات</value></data>
+  <data name="WorkspaceToolsMenuLabel" xml:space="preserve"><value>أدوات مساحة العمل</value></data>
+  <data name="UtilityInspectorTitle" xml:space="preserve"><value>الفاحص</value></data>
+  <data name="UtilityDocumentJsonTitle" xml:space="preserve"><value>مستند JSON</value></data>
+  <data name="UtilityImportTitle" xml:space="preserve"><value>استيراد</value></data>
+  <data name="UtilityProfilesTitle" xml:space="preserve"><value>ملفات التعريف</value></data>
+  <data name="UtilityTrustPrivacyTitle" xml:space="preserve"><value>الثقة والخصوصية</value></data>
+  <data name="UtilityImportAriaLabel" xml:space="preserve"><value>استيراد تكوين موجود</value></data>
+  <data name="UtilityProfilesAriaLabel" xml:space="preserve"><value>ملفات التعريف المحفوظة المحمولة</value></data>
+  <data name="UtilityTrustPrivacyAriaLabel" xml:space="preserve"><value>موافقة أسرار مساحة العمل وحدود الخصوصية</value></data>
+  <data name="WorkspaceStatusFooterLabel" xml:space="preserve"><value>حالة الحفظ في مساحة العمل</value></data>
+  <data name="WorkspaceStatusLocalTab" xml:space="preserve"><value>محلي في علامة التبويب هذه</value></data>
+  <data name="WorkspaceStatusDeclaredOutputsSingle" xml:space="preserve"><value>مخرج واحد مصرّح به</value></data>
+  <data name="WorkspaceStatusDeclaredOutputsPlural" xml:space="preserve"><value>{0} مخرجات مصرّح بها</value></data>
+  <data name="WorkspaceStatusPrivacyLink" xml:space="preserve"><value>الخصوصية والحدود</value></data>
+  <data name="OnboardingCueLabel" xml:space="preserve"><value>خيارات البدء السريع</value></data>
+  <data name="OnboardingCueText" xml:space="preserve"><value>بدء من جديد — أو تابع من ملف موجود أو ملف تعريف محفوظ:</value></data>
+  <data name="OnboardingCueImport" xml:space="preserve"><value>استيراد موجود</value></data>
+  <data name="OnboardingCueProfile" xml:space="preserve"><value>فتح ملف تعريف</value></data>
+  <data name="OnboardingCueDismiss" xml:space="preserve"><value>إخفاء</value></data>
+  <data name="RevokeSecretsCompact" xml:space="preserve"><value>إلغاء</value></data>
+  <data name="WorkspaceOverviewHeading" xml:space="preserve"><value>مساحة العمل هذه</value></data>
+  <data name="WorkspaceOverviewDefinition" xml:space="preserve"><value>التعريف</value></data>
+  <data name="WorkspaceOverviewExperience" xml:space="preserve"><value>مهمة التكوين</value></data>
+  <data name="WorkspaceOverviewSection" xml:space="preserve"><value>القسم الحالي</value></data>
+  <data name="WorkspaceOverviewCustody" xml:space="preserve"><value>إدخال الأسرار</value></data>
+  <data name="CommandOpenImportTitle" xml:space="preserve"><value>استيراد تكوين موجود</value></data>
+  <data name="CommandOpenProfilesTitle" xml:space="preserve"><value>فتح ملفات التعريف المحفوظة المحمولة</value></data>
+  <data name="CommandOpenTrustPrivacyTitle" xml:space="preserve"><value>فتح الثقة والخصوصية</value></data>
+  <data name="CloseImportPanel" xml:space="preserve"><value>إغلاق لوحة الاستيراد</value></data>
+  <data name="CloseTrustPrivacyPanel" xml:space="preserve"><value>إغلاق لوحة الثقة والخصوصية</value></data>
+  <data name="CloseProfilesPanel" xml:space="preserve"><value>إغلاق لوحة ملفات التعريف</value></data>
 </root>

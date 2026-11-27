@@ -16,38 +16,7 @@ using Microsoft.JSInterop;
 
 public partial class ConfigurationEditor
 {
-    private bool _importOpen;
     private string _initialMode = "fresh";
-
-    private void SelectReturningEntry(string mode)
-    {
-        if (_disposed || _form is null) return;
-        if (mode == "import" && ImportArtifacts.Length > 0)
-        {
-            if (_developerMode)
-            {
-                RetireDeveloper();
-                _developerMode = false;
-            }
-            if (_activeWorkflowStage != WorkspaceStage.Configure)
-                SelectWorkflowStage(WorkspaceStage.Configure);
-            _importOpen = true;
-            _profileOpen = false;
-            RequestFocus(FocusTarget.Import);
-            return;
-        }
-        if (mode == "profile")
-        {
-            OpenProfileEntry();
-            return;
-        }
-        _importOpen = false;
-        _profileOpen = false;
-        if (_activeWorkflowStage != WorkspaceStage.Configure)
-            SelectWorkflowStage(WorkspaceStage.Configure);
-        else
-            RequestFocus(FocusTarget.Configure);
-    }
 
     private void ChangeImportFormat(ChangeEventArgs args)
     {

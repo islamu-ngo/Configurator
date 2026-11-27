@@ -881,4 +881,37 @@
   <data name="WorkspaceHostedCodeCustodyHelp" xml:space="preserve"><value>Hosted web code and browser extensions can still observe secrets entered in this tab; static Browser never connects to SecretKit, vaults, or target hosts. Leave this unchecked to export a secret-deferred draft, or use the native Desktop, Terminal, or CLI client for high-value secrets.</value></data>
   <data name="WorkspaceCustodyGuideLink" xml:space="preserve"><value>Review browser custody and native client options</value></data>
   <data name="HelpHostedCodeCustodyBody" xml:space="preserve"><value>Although WebAssembly runs locally and static Browser performs zero SecretKit, vault, or target-host calls, the hosting origin, delivered web code, and installed browser extensions can still inspect active browser memory. Keep secret entry disabled to prepare a secret-deferred draft and fill secrets locally, or use the native Desktop, Terminal, or CLI client on a trusted machine for production credentials.</value></data>
+  <data name="WorkspaceUtilitiesRailLabel" xml:space="preserve"><value>Workspace utilities</value></data>
+  <data name="WorkspaceToolsButton" xml:space="preserve"><value>Tools</value></data>
+  <data name="WorkspaceToolsMenuLabel" xml:space="preserve"><value>Workspace tools</value></data>
+  <data name="UtilityInspectorTitle" xml:space="preserve"><value>Inspector</value></data>
+  <data name="UtilityDocumentJsonTitle" xml:space="preserve"><value>Document (JSON)</value></data>
+  <data name="UtilityImportTitle" xml:space="preserve"><value>Import</value></data>
+  <data name="UtilityProfilesTitle" xml:space="preserve"><value>Profiles</value></data>
+  <data name="UtilityTrustPrivacyTitle" xml:space="preserve"><value>Trust &amp; Privacy</value></data>
+  <data name="UtilityImportAriaLabel" xml:space="preserve"><value>Import existing configuration</value></data>
+  <data name="UtilityProfilesAriaLabel" xml:space="preserve"><value>Portable saved profiles</value></data>
+  <data name="UtilityTrustPrivacyAriaLabel" xml:space="preserve"><value>Workspace secret consent and privacy limits</value></data>
+  <data name="WorkspaceStatusFooterLabel" xml:space="preserve"><value>Workspace custody status</value></data>
+  <data name="WorkspaceStatusLocalTab" xml:space="preserve"><value>Local in this tab</value></data>
+  <data name="WorkspaceStatusDeclaredOutputsSingle" xml:space="preserve"><value>1 declared output</value></data>
+  <data name="WorkspaceStatusDeclaredOutputsPlural" xml:space="preserve"><value>{0} declared outputs</value></data>
+  <data name="WorkspaceStatusPrivacyLink" xml:space="preserve"><value>Privacy &amp; limits</value></data>
+  <data name="OnboardingCueLabel" xml:space="preserve"><value>Quick start options</value></data>
+  <data name="OnboardingCueText" xml:space="preserve"><value>Starting fresh — or continue from an existing file or saved profile:</value></data>
+  <data name="OnboardingCueImport" xml:space="preserve"><value>Import existing</value></data>
+  <data name="OnboardingCueProfile" xml:space="preserve"><value>Open profile</value></data>
+  <data name="OnboardingCueDismiss" xml:space="preserve"><value>Dismiss</value></data>
+  <data name="RevokeSecretsCompact" xml:space="preserve"><value>Revoke</value></data>
+  <data name="WorkspaceOverviewHeading" xml:space="preserve"><value>This workspace</value></data>
+  <data name="WorkspaceOverviewDefinition" xml:space="preserve"><value>Definition</value></data>
+  <data name="WorkspaceOverviewExperience" xml:space="preserve"><value>Configuration task</value></data>
+  <data name="WorkspaceOverviewSection" xml:space="preserve"><value>Current section</value></data>
+  <data name="WorkspaceOverviewCustody" xml:space="preserve"><value>Secret entry</value></data>
+  <data name="CommandOpenImportTitle" xml:space="preserve"><value>Import existing configuration</value></data>
+  <data name="CommandOpenProfilesTitle" xml:space="preserve"><value>Open portable saved profiles</value></data>
+  <data name="CommandOpenTrustPrivacyTitle" xml:space="preserve"><value>Open Trust &amp; Privacy</value></data>
+  <data name="CloseImportPanel" xml:space="preserve"><value>Close import panel</value></data>
+  <data name="CloseTrustPrivacyPanel" xml:space="preserve"><value>Close Trust &amp; Privacy panel</value></data>
+  <data name="CloseProfilesPanel" xml:space="preserve"><value>Close profiles panel</value></data>
 </root>

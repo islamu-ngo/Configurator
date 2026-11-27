@@ -144,7 +144,7 @@ public sealed class BrowserOutputGuidanceTests
             .Add(item => item.Definition, ProtectedDefinition())
             .Add(item => item.InitialLocale, locale));
         var form = component.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.InvokeAsync(() => form.EditValue(["source"], "synthetic-ui-secret-sentinel"));
         await BrowserFixture.PrepareAsync(component, false);
         await component.Find("[data-action='copy-file']").ClickAsync(new MouseEventArgs());

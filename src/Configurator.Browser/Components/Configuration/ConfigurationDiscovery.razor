@@ -13,8 +13,11 @@
                     @onclick="() => SelectStatusFilter(filter)">@T(labelKey)</button>
         }
     </div>
-    @{ var commands = Form.GetAvailableCommands(Form.DiscoveryQuery); }
-    @if (commands.Count > 0)
+    @{
+        var commands = Form.GetAvailableCommands(Form.DiscoveryQuery);
+        var surfaceCommands = MatchingSurfaceCommands();
+    }
+    @if (commands.Count > 0 || surfaceCommands.Count > 0)
     {
         <div class="configuration-discovery__commands">
             <strong class="configuration-discovery__commands-heading">@T("CommandsHeading")</strong>
@@ -26,6 +29,19 @@
                                 disabled="@(!command.IsEnabled)" @onclick="() => CommandSelected.InvokeAsync(command)">
                             <span>@command.Title</span>
                             <kbd dir="ltr">@command.ShortcutHint</kbd>
+                        </button>
+                    </li>
+                }
+                @foreach (BrowserWorkspaceCommand surfaceCommand in surfaceCommands)
+                {
+                    <li @key="surfaceCommand.Id">
+                        <button type="button" class="configuration-discovery__command-btn" data-browser-command-id="@surfaceCommand.Id"
+                                disabled="@(!surfaceCommand.IsEnabled)" @onclick="() => surfaceCommand.ExecuteAsync()">
+                            <span>@surfaceCommand.Title</span>
+                            @if (!string.IsNullOrWhiteSpace(surfaceCommand.ShortcutHint))
+                            {
+                                <kbd dir="ltr">@surfaceCommand.ShortcutHint</kbd>
+                            }
                         </button>
                     </li>
                 }
@@ -149,6 +165,17 @@
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter] public EventCallback<DefinitionDiagnostic> Navigate { get; set; }
     [Parameter] public EventCallback<WorkspaceCommandDescriptor> CommandSelected { get; set; }
+    [Parameter] public IReadOnlyList<BrowserWorkspaceCommand> SurfaceCommands { get; set; } = [];
+
+    private IReadOnlyList<BrowserWorkspaceCommand> MatchingSurfaceCommands()
+    {
+        if (SurfaceCommands.Count == 0) return [];
+        string query = Form.DiscoveryQuery.Trim();
+        if (query.Length == 0) return SurfaceCommands;
+        return SurfaceCommands
+            .Where(command => command.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+    }
     private static readonly (DefinitionDiscoveryFilter Filter, string Token, string LabelKey)[] StatusFilterChips =
     [
         (DefinitionDiscoveryFilter.All, "all", "FilterAll"),

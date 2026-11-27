@@ -15,6 +15,7 @@ public sealed class BrowserOutputSelectionTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition("file.kind")));
         var form = component.FindComponent<ConfigurationConfigurePanel>().Instance.Form;
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("settings");
         await component.InvokeAsync(() => form.SelectOutput("identity"));
         await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("identity");
@@ -25,6 +26,7 @@ public sealed class BrowserOutputSelectionTests
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         await component.InvokeAsync(() => component.Instance.DiscardAsync());
         await component.InvokeAsync(() => component.Instance.BeginAsync());
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await Assert.That(component.Find("#import-purpose").GetAttribute("value")).IsEqualTo("fill");
         await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("settings");
     }

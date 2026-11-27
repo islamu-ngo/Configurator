@@ -31,9 +31,11 @@ else
     DefinitionTransitionTransferPlan? actionReview = _transferReview;
     string densityToken = AppearanceState.FromWorkspaceDensity(Density);
 <MudRTLProvider RightToLeft="@(DisplayDirection == "rtl")">
-<section @key="_form" class="workspace configuration-editor configuration-editor--@densityToken" aria-labelledby="configuration-heading"
+<section @key="_form" @ref="_workspaceCustodyAnchor" class="workspace configuration-editor configuration-editor--@densityToken" aria-labelledby="configuration-heading"
          lang="@_form!.Locale" dir="@DisplayDirection"
          data-workspace-phase="@(_ready ? "ready" : null)"
+         data-workspace-lifetime="@_workspaceLifetime"
+         data-secret-consent="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled ? "enabled" : "locked")"
          data-experience="@_form!.SelectedExperienceId" data-density="@densityToken"
          data-naming-mode="@AppearanceState.FromWorkspaceNamingMode(NamingMode)"
          @onkeydown="args => IsCurrentView(actionForm, actionView) ? HandleWorkspaceKeyAsync(args) : Task.CompletedTask">
@@ -58,26 +60,30 @@ else
     else
     {
     <CascadingValue Name="SuggestionReviewRequested" Value="_suggestionReviewCallback" IsFixed="true">
-    <fieldset class="configuration-editor__controls">
-        <legend class="sr-only">@UiText("ConfigurationAnswers")</legend>
+    <div class="configuration-editor__controls" role="group" aria-label="@UiText("ConfigurationAnswers")">
         @{ var projection = _form.Projection; var progress = projection.Progress; var viewSections = EditorSections();
-            string? currentSectionId = SelectedSection(viewSections);
             var summary = projection.ProgressSummary;
             string readyState = !summary.IsReadyForExport
                 ? (summary.MissingRequired == 0 && summary.DeferredSecretCount == 0 && summary.OptionalInvalidCount > 0 ? "issues"
                     : summary.MissingRequired == 0 && summary.DeferredSecretCount > 0 ? "deferred" : "incomplete")
                 : progress.Required == 0 ? "none" : "complete";
             int totalAttention = summary.MissingRequired + summary.TotalInvalidCount;
-            bool secretsUnlocked = actionForm.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled; }
+            bool secretsUnlocked = actionForm.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
+            bool importAvailable = ImportArtifacts.Length > 0; }
         <WorkspaceHeader @ref="_workspaceHeader"
                          Form="_form"
                          Locale="@_form.Locale"
                          ActiveStage="@ActiveHeaderStage"
-                         DeveloperMode="@_developerMode"
                          AdvancedOpen="@_advancedOptionsOpen"
                          ActiveAdvancedCount="@ActiveAdvancedOptionsCount"
+                         SecretsUnlocked="@secretsUnlocked"
+                         ActiveUtility="@ActiveUtility"
+                         ImportAvailable="@importAvailable"
                          OnToggleAdvanced="() => { if (IsCurrentView(actionForm, actionView)) ToggleAdvancedOptions(); }"
-                         StageSelected="stage => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(stage) : Task.CompletedTask">
+                         StageSelected="stage => IsCurrentView(actionForm, actionView) ? RequestWorkflowStageAsync(stage) : Task.CompletedTask"
+                         ConsentChipClicked="() => IsCurrentView(actionForm, actionView) ? ToggleWorkspaceUtilityAsync(WorkspaceUtilityKind.TrustPrivacy) : Task.CompletedTask"
+                         RevokeSecretsClicked="() => IsCurrentView(actionForm, actionView) ? ConsentAsync(new ChangeEventArgs { Value = false }) : Task.CompletedTask"
+                         UtilitySelected="kind => IsCurrentView(actionForm, actionView) ? ToggleWorkspaceUtilityAsync(kind) : Task.CompletedTask">
             <StatusContent>
                 <div class="configuration-editor__progress configuration-editor__progress--@readyState" aria-live="polite" aria-atomic="true"
                      data-required-count="@progress.Required" data-ready-count="@progress.Ready" data-ready-state="@readyState">
@@ -105,13 +111,6 @@ else
                                 @onclick="() => IsCurrentView(actionForm, actionView) ? FocusNextRequiredWorkAsync() : Task.CompletedTask">@UiText("NeedsAttention"): @totalAttention</button>
                     }
                 </div>
-                @if (secretsUnlocked)
-                {
-                    <span class="configuration-editor__secrets-pill" data-workspace-secrets-unlocked>
-                        <MudIcon Icon="@Icons.Material.Outlined.LockOpen" Size="Size.Small" aria-hidden="true" />
-                        <span>@UiText("SecretsEnabledChip")</span>
-                    </span>
-                }
                 <div class="configuration-editor__status @(_statusCode == "workspace-ready" && StatusRecovery is null ? "configuration-editor__status--quiet" : "configuration-editor__status--alert")"
                      data-workspace-phase="private-workspace"
                      data-status-code="@_statusCode" data-status-slot="reserved">
@@ -133,6 +132,8 @@ else
                  hidden="@(!_advancedOptionsOpen)"
                  inert="@(!_advancedOptionsOpen)"
                  aria-label="@UiText("AdvancedWorkspaceOptions")">
+            @if (!string.IsNullOrEmpty(ScopeSummary) || OutputSelector is { Options.Count: > 1 })
+            {
             <div class="configuration-editor__advanced-toolbar">
                 @if (!string.IsNullOrEmpty(ScopeSummary))
                 {
@@ -145,14 +146,6 @@ else
                         <span><bdi>@ScopeSummary</bdi> · @UiText("ScopeChangeAction")</span>
                     </button>
                 }
-                <button type="button"
-                        class="configuration-editor__advanced-chip @(secretsUnlocked ? "configuration-editor__advanced-chip--active" : "")"
-                        data-workspace-consent-chip
-                        data-consent-active="@secretsUnlocked.ToString().ToLowerInvariant()"
-                        @onclick="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }">
-                    <MudIcon Icon="@(secretsUnlocked ? Icons.Material.Outlined.LockOpen : Icons.Material.Outlined.Lock)" Size="Size.Small" aria-hidden="true" />
-                    <span>@UiText(secretsUnlocked ? "SecretsEnabledChip" : "SecretsLockedChip")</span>
-                </button>
                 @if (OutputSelector is { Options.Count: > 1 } outputTaskSelector)
                 {
                     <div class="configuration-editor__ribbon-field configuration-editor__output-task">
@@ -170,6 +163,7 @@ else
                     </div>
                 }
             </div>
+            }
             @if (_form.ConfigurationContext is { } configurationContext)
             {
                 <section id="configuration-context" class="configuration-editor__context" hidden="@(!_contextOpen)" inert="@(!_contextOpen)">
@@ -236,22 +230,6 @@ else
                  data-configure-ribbon
                  role="toolbar"
                  aria-label="@UiText("WorkspaceEditorTools")">
-                <div class="configuration-editor__ribbon-group" role="group" aria-label="@UiText("ConfigurationAnswers")">
-                    <AppButton Variant="@(!_developerMode ? Variant.Filled : Variant.Outlined)"
-                               data-editing-mode="form"
-                               aria-pressed="@((!_developerMode).ToString().ToLowerInvariant())"
-                               OnClick="() => IsCurrentView(actionForm, actionView) ? RequestEditorModeAsync(false) : Task.CompletedTask">@ConfigurationDeveloper.ModeLabel(false, actionForm.Locale)</AppButton>
-                    <AppButton Variant="@(_developerMode ? Variant.Filled : Variant.Outlined)"
-                               data-editing-mode="developer"
-                               aria-pressed="@_developerMode.ToString().ToLowerInvariant()"
-                               OnClick="() => IsCurrentView(actionForm, actionView) ? RequestEditorModeAsync(true) : Task.CompletedTask">@ConfigurationDeveloper.ModeLabel(true, actionForm.Locale)</AppButton>
-                    <button @ref="_inspectorToggleControl"
-                            type="button"
-                            class="button button--secondary"
-                            data-action="toggle-inspector"
-                            aria-pressed="@((IsAnyEndDockOpen || _inspectorOpen) ? "true" : "false")"
-                            @onclick="() => IsCurrentView(actionForm, actionView) ? ToggleInspectorAsync() : Task.CompletedTask">@UiText("ToggleInspector")</button>
-                </div>
                 <div class="configuration-editor__ribbon-group">
                     @if (_form.Experiences.Count > 1)
                     {
@@ -313,207 +291,131 @@ else
                 <div class="configuration-editor__source-details">@SourceDetails</div>
             }
         </section>
-        @if (_activeWorkflowStage == WorkspaceStage.Configure)
-        {
-        <DockLayoutHost Scope="DockScope.Workspace"
-                        MinimumContentWidth="@WorkspaceMinimumContentWidth"
-                        DataTestId="workspace-dock-host"
-                        ContentDataTestId="workspace-dock-content"
-                        TabSelectRequested="HandleDockTabRequestedAsync"
-                        OverlayCloseRequested="_ => CloseEndDockAsync()">
-            <CascadingValue @key="_workspaceLifetime" Name="WorkspaceConsentAction" Value="_consentAction" IsFixed="true">
-            <CascadingValue Name="OnFieldFocused" Value="_fieldFocusCallback" IsFixed="true">
-            <CascadingValue Name="OnWorkspaceKeyDown" Value="_keyDownCallback" IsFixed="true">
-            <ConfigurationErrorSummary Form="_form"
-                                       Validation="_validation"
-                                       ShowRequiredSummary="_errorSummaryRequested"
-                                       TargetSelected="target => IsCurrentView(actionForm, actionView) ? JumpToActionableTargetAsync(target) : Task.CompletedTask" />
-            <ConfigurationConfigurePanel @ref="_configurePanel" Form="_form" Sections="viewSections" SelectedSection="@_selectedSection"
-                                         SelectedChanged="HandleConfigureSectionSelectedAsync"
-                                         LayoutModeChanged="layout => IsCurrentView(actionForm, actionView) ? SelectLayoutModeAsync(layout) : Task.CompletedTask"
-                                         MountCancellation="_mountCancellation.Token" Validation="_validation"
-                                         FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath"
-                                         RequestSecretConsent="_consentAction"
-                                         CompactShowMatchesOnly="_compactShowMatchesOnly"
-                                         CompactShowMatchesOnlyChanged="HandleCompactShowMatchesOnlyChanged"
-                                         ReviewRequested="HandleConfigureReviewRequested" />
-            @if (_returnToReview)
-            {
-                <AppButton Variant="Variant.Outlined" data-action="return-to-review" OnClick="() => { if (IsCurrentView(actionForm, actionView)) ReturnToReview(); }">@UiText("ReturnToReview")</AppButton>
-            }
-            </CascadingValue>
-            </CascadingValue>
-            </CascadingValue>
-            <div class="configuration-editor__entry-strip" data-returning-entry role="group" aria-label="@UiText("ReturningUserEntry")">
-                <button type="button" class="button button--secondary" data-entry-choice="fresh"
-                        aria-pressed="@((!_importOpen && !_profileOpen).ToString().ToLowerInvariant())"
-                        @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectReturningEntry("fresh"); }'>@UiText("StartFreshEntry")</button>
-                @if (ImportArtifacts.Length > 0)
+        <div class="configuration-editor__workbench">
+            <DockLayoutHost Scope="DockScope.Workspace"
+                            MinimumContentWidth="@WorkspaceMinimumContentWidth"
+                            DataTestId="workspace-dock-host"
+                            ContentDataTestId="workspace-dock-content"
+                            TabSelectRequested="HandleDockTabRequestedAsync"
+                            OverlayCloseRequested="_ => CloseWorkspaceUtilityAsync()">
+                @if (ShowOnboardingCue)
                 {
-                    <button type="button" class="button button--secondary" data-entry-choice="import"
-                            aria-pressed="@(_importOpen.ToString().ToLowerInvariant())"
-                            @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectReturningEntry("import"); }'>@UiText("UseExistingConfigurationEntry")</button>
-                }
-                <button type="button" class="button button--secondary" data-entry-choice="profile"
-                        aria-pressed="@(_profileOpen.ToString().ToLowerInvariant())"
-                        @onclick='() => { if (IsCurrentView(actionForm, actionView)) SelectReturningEntry("profile"); }'>@UiText("OpenSavedProfileEntry")</button>
-            </div>
-            <details class="configuration-editor__view-options">
-                <summary>@UiText("ThisWorkspace")</summary>
-                <ConfigurationFieldHelp @key="(_form, _form.SelectedExperienceId, currentSectionId)" Schema="default" Title="@UiText("ThisWorkspace")" FieldPath="workspace"
-                                        Locale="@_form.Locale"
-                                        SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
-                                        ContextTitle="@($"{Definition.Title} / {SelectedExperience.Title}")" Description="@SelectedExperience.Description"
-                                        SectionDescription="@(currentSectionId is null ? null : _editorSections[currentSectionId].Description)" />
-            </details>
-        </DockLayoutHost>
-        @if (!_developerMode && ImportArtifacts.Length > 0)
-        {
-            <details class="configuration-editor__import" data-import-panel open="@_importOpen">
-                <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _importOpen = !_importOpen; }" @onclick:preventDefault>@UiText("StartExistingConfiguration") <span class="configuration-editor__optional">@UiText("Optional")</span></summary>
-                <p class="form-help" id="artifact-import-help">@UiText("ArtifactImportHelp")</p>
-                <div class="configuration-editor__import-controls">
-                    <div class="form-group">
-                        <label for="import-purpose">@UiText("ImportPurpose")</label>
-                        <select id="import-purpose" value="@_importPurpose" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeImportPurpose(args); }">
-                            <option value="compare">@UiText("CompareDefinition")</option>
-                            <option value="fill">@UiText("FillFields")</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="import-artifact">@UiText("ImportArtifactFormat")</label>
-                        <select id="import-artifact" value="@_importArtifact" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeImportFormat(args); }">
-                            <option value="" disabled>@UiText("ImportChooseFormat")</option>
-                            @foreach (var artifact in ImportArtifacts) { <option value="@artifact.Id">@artifact.FileName</option> }
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="artifact-import">@UiText("ChooseDeclaredArtifact")</label>
-                        <InputFile @key="_fileKey" id="artifact-import" @ref="_fileInput" OnChange="args => IsCurrentView(actionForm, actionView) ? ImportAsync(args) : Task.CompletedTask"
-                                   disabled="@(ImportCapability?.InspectionSupported != true || _importPurpose == "fill" && ImportCapability?.StrictAutofillSupported != true)"
-                                   aria-describedby="session-boundary artifact-import-help import-capability" />
-                    </div>
-                </div>
-                @if (ImportCapability is { } capability)
-                {
-                    <p id="import-capability" class="form-help"
-                       data-import-inspection="@capability.InspectionSupported.ToString().ToLowerInvariant()"
-                       data-import-strict-autofill="@capability.StrictAutofillSupported.ToString().ToLowerInvariant()">
-                        @UiText(capability.InspectionSupported ? "InspectionSupported" : "InspectionUnsupported")
-                        @UiText(capability.StrictAutofillSupported ? "AutofillSupported" : "AutofillUnsupported")
-                        @UiText("ImportAssessmentBoundary")
-                    </p>
-                }
-                @if (_importPending)
-                {
-                    long importGeneration = _generation;
-                    <p aria-live="polite">@UiText("ImportPending")</p>
-                    <AppButton Variant="Variant.Outlined" data-action="cancel-import-comparison" OnClick="() => { if (IsCurrentView(actionForm, actionView)) CancelComparison(importGeneration); }">@UiText("CancelComparison")</AppButton>
-                }
-                @if (_importConsentRequired)
-                {
-                    <AppButton Variant="Variant.Outlined" data-action="review-import-consent"
-                               OnClick="() => { if (IsCurrentView(actionForm, actionView)) ReviewImportConsent(); }">@UiText("ReviewSecretConsent")</AppButton>
-                }
-                <ConfigurationImportReview @key="_form" Form="_form" FillFields="report => IsCurrentView(actionForm, actionView) ? AdoptComparison(report) : Task.CompletedTask"
-                                           Clear="report => { if (IsCurrentView(actionForm, actionView)) ClearComparison(report); }" />
-            </details>
-        }
-        }
-        @if (_activeWorkflowStage == WorkspaceStage.Review)
-        {
-            <ConfigurationReviewPanel @ref="_reviewPanel" Form="_form"
-                                 Readiness="@PreparationReadiness"
-                                 PrepareComplete="() => IsCurrentView(actionForm, actionView) ? PrepareAsync(false) : Task.CompletedTask"
-                                 ChangeField="diagnostic => { if (IsCurrentView(actionForm, actionView)) ChangeReviewField(diagnostic); }" Validation="_validation" DiagnosticCodes="_diagnostics"
-                                 CorrectField="diagnostic => { if (IsCurrentView(actionForm, actionView)) ChangeReviewField(diagnostic); }"
-                                 EnableSecrets="() => IsCurrentView(actionForm, actionView) ? EnableSecretsAsync() : Task.CompletedTask"
-                                 PrepareDraft="() => IsCurrentView(actionForm, actionView) ? PrepareAsync(true) : Task.CompletedTask" />
-        }
-        @if (_activeWorkflowStage == WorkspaceStage.Files)
-        {
-        <ConfigurationFilesPanel @ref="_filesPanel" Locale="@_form.Locale"
-                                 Readiness="@PreparationReadiness" HasPreparedFiles="@(_prepared.Count > 0)"
-                                 OutputInvalidated="@(_hadPreparedOutput && _prepared.Count == 0)"
-                                 Review='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage(WorkspaceStage.Review); }'
-                                 Prepare="draft => IsCurrentView(actionForm, actionView) ? PrepareAsync(draft) : Task.CompletedTask"
-                                 Clear="() => IsCurrentView(actionForm, actionView) ? ClearAsync() : Task.CompletedTask">
-        <ConfigurationReview Definition="Definition" Form="_form" Validation="_validation" DiagnosticCodes="_diagnostics"
-                             InvalidFields="_form.InputDiagnostics" SecretsEnabled="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
-                             CorrectField="diagnostic => { if (IsCurrentView(actionForm, actionView)) ChangeReviewField(diagnostic); }"
-                             EnableSecrets="() => IsCurrentView(actionForm, actionView) ? EnableSecretsAsync() : Task.CompletedTask" />
-        @if (_prepared.Count > 1)
-        {
-            <div class="actions">
-                <AppButton Variant="Variant.Outlined" data-action="copy-all-files"
-                           OnClick="() => IsCurrentView(actionForm, actionView) ? ExportAllAsync(false) : Task.CompletedTask">@UiText("CopyAllArtifacts")</AppButton>
-                <AppButton data-action="download-all-files"
-                           OnClick="() => IsCurrentView(actionForm, actionView) ? ExportAllAsync(true) : Task.CompletedTask">@UiText("DownloadAllArtifacts")</AppButton>
-            </div>
-        }
-        @foreach (var prepared in _prepared)
-        {
-            <div class="configuration-editor__artifact" @key="prepared">
-                <ConfigurationFiles @ref="prepared.View" Metadata="prepared.Metadata" Form="_form" Locale="@_form.Locale"
-                                    Destination="@Definition.Artifacts.Single(artifact => artifact.Id == prepared.Metadata.ArtifactId)"
-                                    Revealed="@prepared.Revealed" StatusKey="@prepared.StatusKey" StatusCode="@prepared.StatusCode"
-                                    Copy="() => IsCurrentView(actionForm, actionView) ? CopyAsync(prepared) : Task.CompletedTask"
-                                    Download="() => IsCurrentView(actionForm, actionView) ? DownloadAsync(prepared) : Task.CompletedTask"
-                                    Reveal="() => IsCurrentView(actionForm, actionView) ? RevealAsync(prepared) : Task.CompletedTask" />
-            </div>
-        }
-        </ConfigurationFilesPanel>
-        }
-        <ConfigurationNextActionsPanel @ref="_nextActionsPanel" Form="actionForm"
-                                       ShowNextActions="@IsFilesSurfaceActive" Review="actionReview"
-                                       ReviewRequested="target => IsCurrentView(actionForm, actionView) ? ReviewTransitionAsync(target) : Task.CompletedTask"
-                                       ApplyRequested="selection => IsCurrentView(actionForm, actionView) && ReferenceEquals(selection.Review, actionReview) ? ApplyReviewedTransferAsync(selection) : Task.CompletedTask"
-                                       CancelRequested="review => { if (IsCurrentView(actionForm, actionView) && ReferenceEquals(review, actionReview)) CancelTransferReview(review); }" />
-        <ConfigurationVaultPanel @key="_form" @ref="_vaultPanel" Form="_form" CaptureAuthority="CaptureProfileAuthority"
-                                 Ready="_ready" Open="@_profileOpen" RequestConsent="_consentAction" />
-        @if (_form.Definition.Locales.Count > 1)
-        {
-            <details class="configuration-editor__task-tools" open="@_taskToolsOpen">
-                <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _taskToolsOpen = !_taskToolsOpen; }" @onclick:preventDefault>@UiText("Language")</summary>
-                <div class="configuration-editor__toolbar">
-                    <div class="configuration-editor__mode">
-                        <label for="configuration-locale">@UiText("Language")</label>
-                        <select id="configuration-locale" value="@_form.Locale" @onchange="args => { if (IsCurrentView(actionForm, actionView)) ChangeLocale(args); }">
-                            @foreach (string locale in _form.Definition.Locales)
+                    <div class="configuration-editor__onboarding-cue" data-onboarding-cue role="note" aria-label="@UiText("OnboardingCueLabel")">
+                        <span class="configuration-editor__onboarding-lead">@UiText("OnboardingCueText")</span>
+                        <div class="configuration-editor__onboarding-actions">
+                            @if (importAvailable)
                             {
-                                <option value="@locale">@LanguageName(locale)</option>
+                                <button type="button" class="configuration-editor__onboarding-link" data-action="onboarding-import"
+                                        @onclick="() => IsCurrentView(actionForm, actionView) ? OpenOnboardingImportAsync() : Task.CompletedTask">
+                                    @UiText("OnboardingCueImport")
+                                </button>
                             }
-                        </select>
+                            <button type="button" class="configuration-editor__onboarding-link" data-action="onboarding-profile"
+                                    @onclick="() => IsCurrentView(actionForm, actionView) ? OpenOnboardingProfileAsync() : Task.CompletedTask">
+                                @UiText("OnboardingCueProfile")
+                            </button>
+                            <button type="button" class="configuration-editor__onboarding-dismiss" data-action="onboarding-dismiss"
+                                    aria-label="@UiText("OnboardingCueDismiss")"
+                                    @onclick="() => { if (IsCurrentView(actionForm, actionView)) DismissOnboardingCue(); }">
+                                @UiText("OnboardingCueDismiss")
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </details>
-        }
-        @if (_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)
-        {
-            <AppButton Variant="Variant.Outlined" data-action="revoke-secret-entry"
-                       OnClick="() => IsCurrentView(actionForm, actionView) ? ConsentAsync(new ChangeEventArgs { Value = false }) : Task.CompletedTask">@UiText("RevokeSecrets")</AppButton>
-        }
-        <details class="configuration-editor__privacy" data-secret-consent open="@_consentOpen">
-            <summary @onclick="() => { if (IsCurrentView(actionForm, actionView)) _consentOpen = !_consentOpen; }" @onclick:preventDefault>@UiText("ReviewSecretConsent")</summary>
-            <div class="configuration-editor__consent">
-                <input @ref="_consentControl" id="secret-consent" type="checkbox" data-workspace-lifetime="@_workspaceLifetime" checked="@(_form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
-                       aria-describedby="session-boundary secret-consent-help secret-consent-hosted-help" @onchange="args => IsCurrentView(actionForm, actionView) ? ConsentAsync(args) : Task.CompletedTask" />
-                <div>
-                    <label for="secret-consent">@UiText("EnableWorkspaceSecrets")</label>
-                    <p id="secret-consent-help" class="form-help">@UiText("WorkspaceSecretHelp") @UiText("CredentialCustodyHelp")</p>
-                    <p id="secret-consent-hosted-help" class="form-help" data-hosted-code-custody>
-                        @UiText("WorkspaceHostedCodeCustodyHelp")
-                        <a href="help#custody" data-action="custody-guidance">@UiText("WorkspaceCustodyGuideLink")</a>
-                    </p>
-                </div>
-            </div>
-        </details>
-    <details class="configuration-editor__boundary">
-        <summary>@UiText("PrivacyExportLimits")</summary>
-        <p class="form-help" data-declared-outputs>@UiFormat("DeclaredFiles", string.Join(", ", Definition.Artifacts.Select(artifact => artifact.FileName)))</p>
-        <p>@UiText("WorkspaceExportBoundary")</p>
-    </details>
-    </fieldset>
+                }
+                @if (_activeWorkflowStage == WorkspaceStage.Configure)
+                {
+                    <CascadingValue @key="_workspaceLifetime" Name="WorkspaceConsentAction" Value="_consentAction" IsFixed="true">
+                    <CascadingValue Name="OnFieldFocused" Value="_fieldFocusCallback" IsFixed="true">
+                    <CascadingValue Name="OnWorkspaceKeyDown" Value="_keyDownCallback" IsFixed="true">
+                    <ConfigurationErrorSummary Form="_form"
+                                               Validation="_validation"
+                                               ShowRequiredSummary="_errorSummaryRequested"
+                                               TargetSelected="target => IsCurrentView(actionForm, actionView) ? JumpToActionableTargetAsync(target) : Task.CompletedTask" />
+                    <ConfigurationConfigurePanel @ref="_configurePanel" Form="_form" Sections="viewSections" SelectedSection="@_selectedSection"
+                                                 SelectedChanged="HandleConfigureSectionSelectedAsync"
+                                                 LayoutModeChanged="layout => IsCurrentView(actionForm, actionView) ? SelectLayoutModeAsync(layout) : Task.CompletedTask"
+                                                 MountCancellation="_mountCancellation.Token" Validation="_validation"
+                                                 FocusField="@_focusField" FocusGeneration="_focusGeneration" FocusPath="_focusPath"
+                                                 RequestSecretConsent="_consentAction"
+                                                 CompactShowMatchesOnly="_compactShowMatchesOnly"
+                                                 CompactShowMatchesOnlyChanged="HandleCompactShowMatchesOnlyChanged"
+                                                 ReviewRequested="HandleConfigureReviewRequested" />
+                    @if (_returnToReview)
+                    {
+                        <AppButton Variant="Variant.Outlined" data-action="return-to-review" OnClick="() => { if (IsCurrentView(actionForm, actionView)) ReturnToReview(); }">@UiText("ReturnToReview")</AppButton>
+                    }
+                    </CascadingValue>
+                    </CascadingValue>
+                    </CascadingValue>
+                }
+                @if (_activeWorkflowStage == WorkspaceStage.Review)
+                {
+                    <ConfigurationReviewPanel @ref="_reviewPanel" Form="_form"
+                                         Readiness="@PreparationReadiness"
+                                         PrepareComplete="() => IsCurrentView(actionForm, actionView) ? PrepareAsync(false) : Task.CompletedTask"
+                                         ChangeField="diagnostic => IsCurrentView(actionForm, actionView) ? ChangeReviewFieldAsync(diagnostic) : Task.CompletedTask"
+                                         Validation="_validation" DiagnosticCodes="_diagnostics"
+                                         CorrectField="diagnostic => IsCurrentView(actionForm, actionView) ? ChangeReviewFieldAsync(diagnostic) : Task.CompletedTask"
+                                         EnableSecrets="() => IsCurrentView(actionForm, actionView) ? EnableSecretsAsync() : Task.CompletedTask"
+                                         PrepareDraft="() => IsCurrentView(actionForm, actionView) ? PrepareAsync(true) : Task.CompletedTask" />
+                }
+                @if (_activeWorkflowStage == WorkspaceStage.Files)
+                {
+                <ConfigurationFilesPanel @ref="_filesPanel" Locale="@_form.Locale"
+                                         Readiness="@PreparationReadiness" HasPreparedFiles="@(_prepared.Count > 0)"
+                                         OutputInvalidated="@(_hadPreparedOutput && _prepared.Count == 0)"
+                                         Review='() => { if (IsCurrentView(actionForm, actionView)) SelectWorkflowStage(WorkspaceStage.Review); }'
+                                         Prepare="draft => IsCurrentView(actionForm, actionView) ? PrepareAsync(draft) : Task.CompletedTask"
+                                         Clear="() => IsCurrentView(actionForm, actionView) ? ClearAsync() : Task.CompletedTask">
+                <ConfigurationReview Definition="Definition" Form="_form" Validation="_validation" DiagnosticCodes="_diagnostics"
+                                     InvalidFields="_form.InputDiagnostics" SecretsEnabled="@secretsUnlocked"
+                                     CorrectField="diagnostic => IsCurrentView(actionForm, actionView) ? ChangeReviewFieldAsync(diagnostic) : Task.CompletedTask"
+                                     EnableSecrets="() => IsCurrentView(actionForm, actionView) ? EnableSecretsAsync() : Task.CompletedTask" />
+                @if (_prepared.Count > 1)
+                {
+                    <div class="actions">
+                        <AppButton Variant="Variant.Outlined" data-action="copy-all-files"
+                                   OnClick="() => IsCurrentView(actionForm, actionView) ? ExportAllAsync(false) : Task.CompletedTask">@UiText("CopyAllArtifacts")</AppButton>
+                        <AppButton data-action="download-all-files"
+                                   OnClick="() => IsCurrentView(actionForm, actionView) ? ExportAllAsync(true) : Task.CompletedTask">@UiText("DownloadAllArtifacts")</AppButton>
+                    </div>
+                }
+                @foreach (var prepared in _prepared)
+                {
+                    <div class="configuration-editor__artifact" @key="prepared">
+                        <ConfigurationFiles @ref="prepared.View" Metadata="prepared.Metadata" Form="_form" Locale="@_form.Locale"
+                                            Destination="@Definition.Artifacts.Single(artifact => artifact.Id == prepared.Metadata.ArtifactId)"
+                                            Revealed="@prepared.Revealed" StatusKey="@prepared.StatusKey" StatusCode="@prepared.StatusCode"
+                                            Copy="() => IsCurrentView(actionForm, actionView) ? CopyAsync(prepared) : Task.CompletedTask"
+                                            Download="() => IsCurrentView(actionForm, actionView) ? DownloadAsync(prepared) : Task.CompletedTask"
+                                            Reveal="() => IsCurrentView(actionForm, actionView) ? RevealAsync(prepared) : Task.CompletedTask" />
+                    </div>
+                }
+                </ConfigurationFilesPanel>
+                }
+                <ConfigurationNextActionsPanel @ref="_nextActionsPanel" Form="actionForm"
+                                               ShowNextActions="@IsFilesSurfaceActive" Review="actionReview"
+                                               ReviewRequested="target => IsCurrentView(actionForm, actionView) ? ReviewTransitionAsync(target) : Task.CompletedTask"
+                                               ApplyRequested="selection => IsCurrentView(actionForm, actionView) && ReferenceEquals(selection.Review, actionReview) ? ApplyReviewedTransferAsync(selection) : Task.CompletedTask"
+                                               CancelRequested="review => { if (IsCurrentView(actionForm, actionView) && ReferenceEquals(review, actionReview)) CancelTransferReview(review); }" />
+            </DockLayoutHost>
+            <WorkspaceUtilityRail Locale="@_form.Locale"
+                                  IsRtl="@(DisplayDirection == "rtl")"
+                                  ActiveUtility="@ActiveUtility"
+                                  ImportAvailable="@importAvailable"
+                                  SecretsUnlocked="@secretsUnlocked"
+                                  HasActiveProfile="@(_form.BrowserProfile is not null)"
+                                  ProfileBusy="@(_vaultController?.IsBusy == true)"
+                                  HasImportComparison="@(_form.ImportComparison is not null)"
+                                  ImportPending="@_importPending"
+                                  DocumentDirty="@(_developerPanel?.IsDirty == true)"
+                                  UtilitySelected="kind => IsCurrentView(actionForm, actionView) ? ToggleWorkspaceUtilityAsync(kind) : Task.CompletedTask" />
+        </div>
+        <WorkspaceStatusFooter Locale="@_form.Locale"
+                               IsRtl="@(DisplayDirection == "rtl")"
+                               DeclaredOutputCount="@Definition.Artifacts.Count"
+                               OpenTrustPrivacyRequested="() => IsCurrentView(actionForm, actionView) ? OpenWorkspaceUtilityAsync(WorkspaceUtilityKind.TrustPrivacy) : Task.CompletedTask" />
+    </div>
     </CascadingValue>
     }
 </section>
@@ -521,12 +423,13 @@ else
 }
 
 @code {
-    private RenderFragment RenderInspectorDockPanel() => @<ConfigurationInspectorPane Form="_form"
+    private RenderFragment RenderInspectorDockPanel() => @<ConfigurationInspectorPane Form="_form!"
                                                                                       InspectedPath="@_inspectedPath"
                                                                                       ProjectionRevision="@(_form?.InputRevision ?? 0)"
                                                                                       Locale="@(_form?.Locale ?? "en")"
-                                                                                      IsMobileSheet="_inspectorMobileSheet"
-                                                                                      CloseRequested="CloseEndDockAsync" />;
+                                                                                      CurrentSectionTitle="@CurrentSectionTitle"
+                                                                                      CurrentSectionDescription="@CurrentSectionDescription"
+                                                                                      CloseRequested="() => CloseWorkspaceUtilityAsync()" />;
 
     private RenderFragment RenderDocumentJsonDockPanel() => @<div class="configuration-editor__document-dock">
         @if (_form is { } actionForm)
@@ -534,7 +437,7 @@ else
             long actionView = _viewGeneration;
             <div class="configuration-editor__document-dock-header">
                 <AppButton Variant="Variant.Text"
-                           OnClick="CloseEndDockAsync"
+                           OnClick="() => CloseWorkspaceUtilityAsync()"
                            data-action="close-document-json-dock"
                            aria-label="@UiText("CloseDocumentJsonDock")">@UiText("Close")</AppButton>
             </div>
@@ -553,10 +456,61 @@ else
                 </div>
             }
             <ConfigurationDeveloper @key="(_form, _developerEpoch)" @ref="_developerPanel" Form="actionForm"
-                                    ConsentControl="() => _consentControl" WorkspaceLifetime="@_workspaceLifetime"
+                                    CustodyAnchor="() => _workspaceCustodyAnchor" WorkspaceLifetime="@_workspaceLifetime"
                                     EnvironmentArtifactId="@DeveloperArtifactId"
                                     DirtyChanged="_ => { if (IsCurrentView(actionForm, actionView)) _navigation?.RefreshWork(this, _navigationLease); }"
-                                    RequestConsent="() => { if (IsCurrentView(actionForm, actionView)) RequestFocus(FocusTarget.Consent); }" />
+                                    RequestConsent="() => IsCurrentView(actionForm, actionView) ? OpenWorkspaceUtilityAsync(WorkspaceUtilityKind.TrustPrivacy, FocusTarget.Consent) : Task.CompletedTask" />
         }
     </div>;
+
+    private RenderFragment RenderImportDockPanel() => @<text>
+        @if (_form is { } actionForm && ImportArtifacts.Length > 0)
+        {
+            long actionView = _viewGeneration;
+            long importGeneration = _generation;
+            <ConfigurationImportDockPanel @ref="_importDockPanel"
+                                          Form="actionForm"
+                                          Artifacts="ImportArtifacts"
+                                          Purpose="@_importPurpose"
+                                          SelectedArtifactId="@_importArtifact"
+                                          Capability="ImportCapability"
+                                          FileKey="_fileKey"
+                                          Pending="_importPending"
+                                          ConsentRequired="_importConsentRequired"
+                                          PurposeChanged="args => { if (IsCurrentView(actionForm, actionView)) ChangeImportPurpose(args); }"
+                                          ArtifactChanged="args => { if (IsCurrentView(actionForm, actionView)) ChangeImportFormat(args); }"
+                                          FileSelected="args => IsCurrentView(actionForm, actionView) ? ImportAsync(args) : Task.CompletedTask"
+                                          CancelComparisonRequested="() => { if (IsCurrentView(actionForm, actionView)) CancelComparison(importGeneration); }"
+                                          ReviewConsentRequested="() => IsCurrentView(actionForm, actionView) ? ReviewImportConsentAsync() : Task.CompletedTask"
+                                          AdoptComparisonRequested="report => IsCurrentView(actionForm, actionView) ? AdoptComparison(report) : Task.CompletedTask"
+                                          ClearComparisonRequested="report => { if (IsCurrentView(actionForm, actionView)) ClearComparison(report); }"
+                                          CloseRequested="() => CloseWorkspaceUtilityAsync()" />
+        }
+    </text>;
+
+    private RenderFragment RenderProfilesDockPanel() => @<text>
+        @if (_vaultController is { } vaultController)
+        {
+            <ConfigurationVaultPanel @key="vaultController"
+                                     @ref="_vaultPanel"
+                                     Controller="vaultController"
+                                     RequestConsent="_consentAction"
+                                     CloseRequested="() => CloseWorkspaceUtilityAsync()" />
+        }
+    </text>;
+
+    private RenderFragment RenderTrustPrivacyDockPanel() => @<text>
+        @if (_form is { } actionForm)
+        {
+            long actionView = _viewGeneration;
+            <ConfigurationTrustPrivacyPanel @ref="_trustPrivacyPanel"
+                                            Locale="@actionForm.Locale"
+                                            WorkspaceLifetime="@_workspaceLifetime"
+                                            SecretsUnlocked="@(actionForm.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled)"
+                                            DeclaredArtifactFileNames="@(Definition.Artifacts.Select(artifact => artifact.FileName).ToArray())"
+                                            ConsentChanged="args => IsCurrentView(actionForm, actionView) ? ConsentAsync(args) : Task.CompletedTask"
+                                            RevokeRequested="() => IsCurrentView(actionForm, actionView) ? ConsentAsync(new ChangeEventArgs { Value = false }) : Task.CompletedTask"
+                                            CloseRequested="() => CloseWorkspaceUtilityAsync()" />
+        }
+    </text>;
 }

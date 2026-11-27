@@ -22,7 +22,7 @@ public sealed class BrowserSecretGenerationTests
         Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await Assert.That(component.Find("[data-field='credential'] input").HasAttribute("readonly")).IsTrue();
         await component.Find("[data-secret-action='reveal']").ClickAsync(new());
         const string draft = "-----BEGIN PRIVATE KEY-----\nsynthetic-invalid-draft\n-----END PRIVATE KEY-----\n";
@@ -44,7 +44,7 @@ public sealed class BrowserSecretGenerationTests
         javascript.Release.TrySetResult(module);
         context.Services.AddSingleton<IJSRuntime>(javascript);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-held-copy" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         var revoked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -59,7 +59,7 @@ public sealed class BrowserSecretGenerationTests
         {
             await module.OpeningStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
             await Assert.That(component.Find("[data-secret-action='copy']").HasAttribute("disabled")).IsTrue();
-            revoking = component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+            revoking = BrowserFixture.SetSecretConsentAsync(component, false);
             await revoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
         }
         finally
@@ -89,7 +89,7 @@ public sealed class BrowserSecretGenerationTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters
             .Add(item => item.Definition, definition).Add(item => item.InitialLocale, "ar"));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await Assert.That(component.FindAll("[dir='rtl']").Count).IsGreaterThan(0);
         var generate = component.Find("[data-secret-action='generate']");
         await Assert.That(generate.TagName).IsEqualTo("BUTTON");
@@ -121,7 +121,7 @@ public sealed class BrowserSecretGenerationTests
         Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='credential'] [data-secret-action='generate']").ClickAsync(new());
         await Assert.That(component.FindAll("[data-field='otherHash'] [data-secret-action='generate']").Count).IsEqualTo(1);
         var original = component.Find("input[id$='-original']");
@@ -155,7 +155,7 @@ public sealed class BrowserSecretGenerationTests
         Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "bad value" });
         var field = component.Find("[data-field='credential'] input");
         await Assert.That(field.GetAttribute("value")).IsEqualTo("bad value");
@@ -175,13 +175,13 @@ public sealed class BrowserSecretGenerationTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         await Assert.That(component.FindAll("[data-secret-action='generate']")).IsEmpty();
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-secret-action='generate']").ClickAsync(new());
         var field = component.Find("[data-field='credential'] input");
         await Assert.That(field.GetAttribute("type")).IsEqualTo("password");
         await Assert.That(field.GetAttribute("value")!.Length).IsEqualTo(32);
         await Assert.That(context.JSInterop.Invocations.Any(item => item.Identifier == "copy")).IsFalse();
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         await Assert.That(component.FindAll("[data-secret-action]")).IsEmpty();
     }
 
@@ -191,17 +191,17 @@ public sealed class BrowserSecretGenerationTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
         await Assert.That(component.FindAll("[data-secret-action]")).IsEmpty();
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-reveal-value" });
         await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("type")).IsEqualTo("password");
         component.Find("[data-field='credential'] [data-secret-action='reveal']").Click();
         await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("type")).IsEqualTo("text");
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-edited-value" });
         await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("type")).IsEqualTo("password");
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         await Assert.That(component.FindAll("[data-secret-action]")).IsEmpty();
         await Assert.That(component.Markup).DoesNotContain("synthetic-reveal-value");
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("type")).IsEqualTo("password");
     }
 
@@ -212,7 +212,7 @@ public sealed class BrowserSecretGenerationTests
         var bridge = context.JSInterop.SetupModule("./js/browser-artifacts.js");
         bridge.Setup<bool>("copy", _ => true).SetResult(false);
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-copy-value" });
         component.Find("[data-field='credential'] [data-secret-action='copy']").Click();
         await Assert.That(component.Find("[data-field='credential'] input").GetAttribute("type")).IsEqualTo("password");
@@ -232,7 +232,7 @@ public sealed class BrowserSecretGenerationTests
         Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var layout = BrowserFixture.RenderWorkspace(context, definition);
-        await layout.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(layout, true);
         await layout.Find("[data-field='credential'] [data-secret-action='open-generator']").ClickAsync(new());
         var dialog = layout.Find("[data-secret-generator-dialog]");
         var form = layout.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -273,7 +273,7 @@ public sealed class BrowserSecretGenerationTests
         Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var layout = BrowserFixture.RenderWorkspace(context, definition);
-        await layout.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(layout, true);
         await layout.Find("[data-field='credential'] [data-secret-action='open-generator']").ClickAsync(new());
         await layout.Find("[data-secret-generator-generate]").ClickAsync(new());
         string generated = layout.Find("[data-secret-generator-preview]").GetAttribute("value")!;
@@ -286,7 +286,7 @@ public sealed class BrowserSecretGenerationTests
         await layout.Find("[data-field='credential'] [data-secret-action='open-generator']").ClickAsync(new());
         await layout.Find("[data-secret-generator-generate]").ClickAsync(new());
         string second = layout.Find("[data-secret-generator-preview]").GetAttribute("value")!;
-        await layout.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(layout, false);
         await Assert.That(layout.FindAll("[data-secret-generator-dialog]")).IsEmpty();
         await Assert.That(form.Snapshot().Values.ContainsKey("credential")).IsFalse();
         await Assert.That(layout.Markup).DoesNotContain(second);

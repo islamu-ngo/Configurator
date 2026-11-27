@@ -1,0 +1,91 @@
+@using Configurator.Browser.Resources
+@using Configurator.Core.Definitions
+@using Configurator.Presentation
+@using Microsoft.AspNetCore.Components.Forms
+
+<div class="configuration-import-panel" data-import-panel lang="@Form.Locale">
+    <div class="configuration-import-panel__header">
+        <h3 id="import-panel-heading" tabindex="-1">@T("StartExistingConfiguration")</h3>
+        @if (CloseRequested.HasDelegate)
+        {
+            <AppButton Variant="Variant.Text"
+                       OnClick="CloseRequested"
+                       data-action="close-import-panel"
+                       aria-label="@T("CloseImportPanel")">@T("Close")</AppButton>
+        }
+    </div>
+    <p class="form-help" id="artifact-import-help">@T("ArtifactImportHelp")</p>
+    <div class="configuration-editor__import-controls">
+        <div class="form-group">
+            <label for="import-purpose">@T("ImportPurpose")</label>
+            <select id="import-purpose" value="@Purpose" @onchange="PurposeChanged">
+                <option value="compare">@T("CompareDefinition")</option>
+                <option value="fill">@T("FillFields")</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="import-artifact">@T("ImportArtifactFormat")</label>
+            <select id="import-artifact" value="@SelectedArtifactId" @onchange="ArtifactChanged">
+                <option value="" disabled>@T("ImportChooseFormat")</option>
+                @foreach (ArtifactDefinition artifact in Artifacts)
+                {
+                    <option value="@artifact.Id">@artifact.FileName</option>
+                }
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="artifact-import">@T("ChooseDeclaredArtifact")</label>
+            <InputFile @key="FileKey"
+                       id="artifact-import"
+                       @ref="_fileInput"
+                       OnChange="FileSelected"
+                       disabled="@(Capability?.InspectionSupported != true || Purpose == "fill" && Capability?.StrictAutofillSupported != true)"
+                       aria-describedby="session-boundary artifact-import-help import-capability" />
+        </div>
+    </div>
+    @if (Capability is { } capability)
+    {
+        <p id="import-capability" class="form-help"
+           data-import-inspection="@capability.InspectionSupported.ToString().ToLowerInvariant()"
+           data-import-strict-autofill="@capability.StrictAutofillSupported.ToString().ToLowerInvariant()">
+            @T(capability.InspectionSupported ? "InspectionSupported" : "InspectionUnsupported")
+            @T(capability.StrictAutofillSupported ? "AutofillSupported" : "AutofillUnsupported")
+            @T("ImportAssessmentBoundary")
+        </p>
+    }
+    @if (Pending)
+    {
+        <p aria-live="polite">@T("ImportPending")</p>
+        <AppButton Variant="Variant.Outlined" data-action="cancel-import-comparison" OnClick="CancelComparisonRequested">@T("CancelComparison")</AppButton>
+    }
+    @if (ConsentRequired)
+    {
+        <AppButton Variant="Variant.Outlined" data-action="review-import-consent" OnClick="ReviewConsentRequested">@T("ReviewSecretConsent")</AppButton>
+    }
+    <ConfigurationImportReview @key="Form" Form="Form" FillFields="AdoptComparisonRequested" Clear="ClearComparisonRequested" />
+</div>
+
+@code {
+    private InputFile? _fileInput;
+
+    [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
+    [Parameter, EditorRequired] public IReadOnlyList<ArtifactDefinition> Artifacts { get; set; } = [];
+    [Parameter] public string Purpose { get; set; } = "fill";
+    [Parameter] public string SelectedArtifactId { get; set; } = string.Empty;
+    [Parameter] public DefinitionImportCapability? Capability { get; set; }
+    [Parameter] public long FileKey { get; set; }
+    [Parameter] public bool Pending { get; set; }
+    [Parameter] public bool ConsentRequired { get; set; }
+    [Parameter] public EventCallback<ChangeEventArgs> PurposeChanged { get; set; }
+    [Parameter] public EventCallback<ChangeEventArgs> ArtifactChanged { get; set; }
+    [Parameter] public EventCallback<InputFileChangeEventArgs> FileSelected { get; set; }
+    [Parameter] public EventCallback CancelComparisonRequested { get; set; }
+    [Parameter] public EventCallback ReviewConsentRequested { get; set; }
+    [Parameter] public EventCallback<DefinitionImportReport> AdoptComparisonRequested { get; set; }
+    [Parameter] public EventCallback<DefinitionImportReport> ClearComparisonRequested { get; set; }
+    [Parameter] public EventCallback CloseRequested { get; set; }
+
+    public ElementReference? FileInputElement => _fileInput?.Element;
+
+    private string T(string key) => BrowserStrings.Get(key, Form.Locale);
+}

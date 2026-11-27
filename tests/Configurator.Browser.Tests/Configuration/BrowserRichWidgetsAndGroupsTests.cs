@@ -32,7 +32,7 @@ public sealed class BrowserRichWidgetsAndGroupsTests
         await Assert.That(context.JSInterop.Invocations.Any(call => call.Identifier == "copy" ||
             call.Arguments.Any(arg => arg?.ToString()?.Contains("timeoutMs", StringComparison.Ordinal) == true))).IsTrue();
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='privateMap'] input[id$='-new-key']").InputAsync(new ChangeEventArgs { Value = "MY_PRIVATE_VAR" });
         await component.Find("[data-field='privateMap'] [data-action='add-map-entry']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll("[data-field='privateMap.MY_PRIVATE_VAR'] [data-action='copy-wire-key']")).IsEmpty();
@@ -134,11 +134,11 @@ public sealed class BrowserRichWidgetsAndGroupsTests
         await component.Find("[data-snackbar-undo]").ClickAsync(new MouseEventArgs());
         await Assert.That(form.Snapshot().Values["notes"].GetString()).IsEqualTo("second note");
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await BrowserFixture.SectionNavigation(context, component).Find("[data-section='security']").ClickAsync(new MouseEventArgs());
         await component.Find("[data-field='secretToken'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-secret-entry-123456" });
         await Assert.That(form.Snapshot().Values["secretToken"].GetString()).IsEqualTo("synthetic-secret-entry-123456");
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         await Assert.That(form.Snapshot().Values.ContainsKey("secretToken")).IsFalse();
         await Assert.That(form.CanRedo).IsFalse();
 

@@ -1,6 +1,5 @@
 @using Configurator.Browser.Services.Accessibility
 @using Configurator.Browser.Services.Docking
-@implements IDisposable
 @implements IAsyncDisposable
 @inject DockLayoutState DockLayoutState
 @inject AccessibilityFocusService AccessibilityFocusService
@@ -114,8 +113,6 @@
         }
     }
 
-    public void Dispose() => DockLayoutState.Changed -= OnDockLayoutChanged;
-
     public async ValueTask DisposeAsync()
     {
         DockLayoutState.Changed -= OnDockLayoutChanged;
@@ -153,11 +150,13 @@
 
     private void SyncRenderedEntries() => _renderedEntries = ActiveOverlayEntries;
 
+    private string OverlayFocusScope => $"dock-overlay-{ScopeName}";
+
     private async Task ActivateOverlayAsync()
     {
         if (!_focusSaved)
         {
-            await AccessibilityFocusService.SaveFocusAsync();
+            await AccessibilityFocusService.SaveFocusAsync(OverlayFocusScope);
             _focusSaved = true;
         }
 
@@ -174,7 +173,7 @@
 
         if (_focusSaved)
         {
-            await AccessibilityFocusService.RestoreFocusAsync(FallbackFocusSelector);
+            await AccessibilityFocusService.RestoreFocusAsync(FallbackFocusSelector, preventScroll: true, scope: OverlayFocusScope);
             _focusSaved = false;
         }
     }

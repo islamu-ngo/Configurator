@@ -1,11 +1,25 @@
 @using Configurator.Core.Profiles
 @using Configurator.Browser.Profiles
-@implements IAsyncDisposable
+@implements IDisposable
 
-@{ ProfileWorkerAuthority rendered = CaptureAuthority(); }
-<details class="configuration-vault" data-profile-panel data-operation-phase="private-profile" open="@Open">
-    <summary>@Text("ProfileTitle")</summary>
-    <h3 id="profile-vault-heading" @ref="_heading" tabindex="-1">@Text("ProfileTitle")</h3>
+@{
+    ProfileWorkerAuthority rendered = Controller.CaptureAuthority();
+    bool ready = Controller.Ready;
+    bool busy = Controller.IsBusy;
+    bool consented = Controller.Consented;
+    var form = Controller.Form;
+}
+<div class="configuration-vault" data-profile-panel data-operation-phase="private-profile">
+    <div class="configuration-vault__header">
+        <h3 id="profile-vault-heading" @ref="_heading" tabindex="-1">@Text("ProfileTitle")</h3>
+        @if (CloseRequested.HasDelegate)
+        {
+            <AppButton Variant="Variant.Text"
+                       OnClick="CloseRequested"
+                       data-action="close-profile-panel"
+                       aria-label="@Text("CloseProfilesPanel")">@Text("Close")</AppButton>
+        }
+    </div>
     <ol class="configuration-vault__steps" data-vault-steps aria-label="@Text("VaultSequenceIntro")">
         <li>@Text("VaultStep1LockUnlock")</li>
         <li>@Text("VaultStep2ReviewDiff")</li>
@@ -17,41 +31,41 @@
         <p>@Text("ProfileAlgorithm") <bdi dir="ltr">JWE · A256GCM · PBES2-HS512+A256KW · 600000</bdi></p>
         <p>@Text("ProfileNoRecoveryBackdoor")</p>
     </details>
-    <p role="status" aria-live="polite" data-profile-status="@_status">
-        @Text(_status) @if (_code is not null) { <bdi dir="ltr">@_code</bdi> }
+    <p role="status" aria-live="polite" data-profile-status="@Controller.Status">
+        @Text(Controller.Status) @if (Controller.Code is not null) { <bdi dir="ltr">@Controller.Code</bdi> }
     </p>
-    @if (_status is "ProfileRejected" or "ProfileCancelled" && !Busy)
+    @if (Controller.Status is "ProfileRejected" or "ProfileCancelled" && !busy)
     {
         <button type="button" class="button button--secondary" data-action="retry-profile-task"
-                @onclick="() => RetryProfileTask(rendered)">@Text("RetryProfileTask")</button>
+                @onclick="() => Controller.RetryProfileTask(rendered)">@Text("RetryProfileTask")</button>
     }
-    @if (Form.RequiresBrowserProfileComposition)
+    @if (form.RequiresBrowserProfileComposition)
     {
         <p class="notice" data-profile-incomplete>@Text("ProfilePrivateOutputRequired")</p>
     }
-    <fieldset disabled="@(!Ready || Busy)" class="configuration-vault__group" data-profile-task="compare">
+    <fieldset disabled="@(!ready || busy)" class="configuration-vault__group" data-profile-task="compare">
         <legend>@Text("ProfileComparison")</legend>
         <p id="profile-comparison-help">@Text("ProfileComparisonHelp")</p>
         <label for="profile-comparison-file">@Text("ProfileComparisonOpen")</label>
-        <InputFile id="profile-comparison-file" @key="(_fileKey, 0)" accept=".json"
+        <InputFile id="profile-comparison-file" @key="(Controller.FileKey, 0)" accept=".json"
                    aria-describedby="profile-comparison-help"
-                   OnChange="args => CompareAsync(rendered, args)" />
+                   OnChange="args => Controller.CompareAsync(rendered, args.File)" />
         <button type="button" class="button button--secondary" data-action="profile-save-comparison"
-                @onclick="() => SaveComparisonAsync(rendered)">@Text("ProfileComparisonSave")</button>
+                @onclick="() => Controller.SaveComparisonAsync(rendered)">@Text("ProfileComparisonSave")</button>
     </fieldset>
-    @if (!Consented)
+    @if (!consented)
     {
         <p>@Text("ProfileConsentHelp")</p>
         <button type="button" class="button button--secondary" data-action="profile-consent"
-                @onclick="() => Current(rendered) ? RequestConsent.InvokeAsync() : Task.CompletedTask">@Text("ReviewSecretConsent")</button>
+                @onclick="() => Controller.IsCurrent(rendered) ? RequestConsent.InvokeAsync() : Task.CompletedTask">@Text("ReviewSecretConsent")</button>
     }
-    <fieldset disabled="@(!Ready || !Consented || Busy)" class="configuration-vault__group" data-profile-task="open">
+    <fieldset disabled="@(!ready || !consented || busy)" class="configuration-vault__group" data-profile-task="open">
         <legend>@Text("ProfileOpen")</legend>
         <p id="profile-open-help">@Text("ProfileOpenHelp")</p>
         <label for="profile-vault-file">@Text("ProfileChooseVault")</label>
-        <InputFile id="profile-vault-file" @key="(_fileKey, 1)" accept=".cfgvault,.json"
-                   disabled="@(Form.BrowserProfile is not null)" aria-describedby="profile-open-help"
-                   OnChange="args => { if (Current(rendered) && !Busy && Consented) _vaultFile = args.File; }" />
+        <InputFile id="profile-vault-file" @key="(Controller.FileKey, 1)" accept=".cfgvault,.json"
+                   disabled="@(form.BrowserProfile is not null)" aria-describedby="profile-open-help"
+                   OnChange="args => { if (Controller.IsCurrent(rendered) && !Controller.IsBusy && Controller.Consented) _vaultFile = args.File; }" />
         <label for="profile-open-passphrase">@Text("ProfilePassphrase")</label>
         <div class="configuration-vault__secret-row">
             <input id="profile-open-passphrase" class="form-control" type="@(IsPassphraseVisible("open") ? "text" : "password")" autocomplete="off" maxlength="1024"
@@ -64,14 +78,14 @@
                     @onclick='() => TogglePassphraseVisibility("open")'>@Text(IsPassphraseVisible("open") ? "HidePassphrase" : "ShowPassphrase")</button>
         </div>
         <label for="profile-recipient">@Text("ProfileRecipientIndex")</label>
-        <input id="profile-recipient" class="form-control" type="number" min="0" max="7" value="@_recipientIndex"
-               @onchange="args => SetRecipient(rendered, args, false)" aria-describedby="profile-recipient-help" />
+        <input id="profile-recipient" class="form-control" type="number" min="0" max="7" value="@Controller.RecipientIndex"
+               @onchange="args => Controller.SetRecipientIndex(rendered, args.Value?.ToString(), recovery: false)" aria-describedby="profile-recipient-help" />
         <p id="profile-recipient-help">@Text("ProfileRecipientHelp")</p>
         <button type="button" class="button" data-action="profile-open"
-                disabled="@(_vaultFile is null || Form.BrowserProfile is not null)"
+                disabled="@(_vaultFile is null || form.BrowserProfile is not null)"
                 @onclick="() => OpenAsync(rendered)">@Text("ProfileOpen")</button>
     </fieldset>
-    @if (Form.BrowserProfile is { } profile)
+    @if (form.BrowserProfile is { } profile)
     {
         <div class="configuration-vault__group" data-profile-task="active-profile">
             <p>@Text("ProfileMode"): @Text(profile.Mode == ProfileProtectionMode.ImportUpgradeOnly ? "ProfileBlind" : "ProfileInspectable")</p>
@@ -85,18 +99,18 @@
                     string pointer = path.ToPointer();
                     <li @key="pointer">
                         <bdi dir="ltr">@(pointer.Length == 0 ? "/" : pointer)</bdi>
-                        @if (_replacement == pointer)
+                        @if (Controller.Replacement == pointer)
                         {
                             <p>@Text("ProfileReplaceConfirmation")</p>
-                            <button type="button" class="button" disabled="@Busy" data-action="profile-confirm-replace"
-                                    @onclick="() => ReplaceAsync(rendered, pointer)">@Text("ProfileConfirmReplace")</button>
-                            <button type="button" class="button button--secondary" disabled="@Busy"
-                                    @onclick="() => { if (Current(rendered)) _replacement = null; }">@Text("Cancel")</button>
+                            <button type="button" class="button" disabled="@busy" data-action="profile-confirm-replace"
+                                    @onclick="() => Controller.ReplaceAsync(rendered, pointer)">@Text("ProfileConfirmReplace")</button>
+                            <button type="button" class="button button--secondary" disabled="@busy"
+                                    @onclick="() => Controller.CancelReplacement(rendered)">@Text("Cancel")</button>
                         }
                         else
                         {
-                            <button type="button" class="button button--secondary" disabled="@Busy" data-profile-replace="@pointer"
-                                    @onclick="() => { if (Current(rendered) && !Busy) _replacement = pointer; }">@Text("ProfileReplace")</button>
+                            <button type="button" class="button button--secondary" disabled="@busy" data-profile-replace="@pointer"
+                                    @onclick="() => Controller.BeginReplacement(rendered, pointer)">@Text("ProfileReplace")</button>
                         }
                     </li>
                 }
@@ -104,51 +118,51 @@
             @if (profile.Mode == ProfileProtectionMode.InspectableEncrypted)
             {
                 <label class="configuration-vault__confirmation">
-                    <input id="profile-inspect-consent" type="checkbox" checked="@_inspectConfirmed" disabled="@Busy"
-                           @onchange="args => { if (Current(rendered) && !Busy) _inspectConfirmed = args.Value is true; }" />
+                    <input id="profile-inspect-consent" type="checkbox" checked="@Controller.InspectConfirmed" disabled="@busy"
+                           @onchange="args => Controller.SetInspectConfirmed(rendered, args.Value is true)" />
                     @Text("ProfileInspectConsent")
                 </label>
                 <button type="button" class="button button--secondary" data-action="profile-inspect"
-                        disabled="@(Busy || !_inspectConfirmed)" @onclick="() => InspectAsync(rendered)">@Text("ProfileInspect")</button>
+                        disabled="@(busy || !Controller.InspectConfirmed)" @onclick="() => Controller.InspectAsync(rendered)">@Text("ProfileInspect")</button>
             }
-            <button type="button" class="button button--secondary" data-action="profile-plan" disabled="@Busy"
-                    @onclick="() => RefreshPlanAsync(rendered)">@Text("ProfileRefreshPlan")</button>
+            <button type="button" class="button button--secondary" data-action="profile-plan" disabled="@busy"
+                    @onclick="() => Controller.RefreshPlanAsync(rendered)">@Text("ProfileRefreshPlan")</button>
             <label for="profile-artifact">@Text("ProfileArtifact")</label>
-            <select id="profile-artifact" value="@_artifactId" disabled="@Busy"
-                    @onchange="args => { if (Current(rendered) && !Busy) _artifactId = args.Value?.ToString() ?? string.Empty; }">
-                @foreach (var artifact in Form.EligibleArtifacts)
+            <select id="profile-artifact" value="@Controller.ArtifactId" disabled="@busy"
+                    @onchange="args => Controller.SetArtifactId(rendered, args.Value?.ToString() ?? string.Empty)">
+                @foreach (var artifact in form.EligibleArtifacts)
                 {
                     <option value="@artifact.Id">@artifact.Title</option>
                 }
             </select>
             <button type="button" class="button" data-action="profile-download-private"
-                    disabled="@(Busy || _artifactId.Length == 0)" @onclick="() => DownloadPrivateAsync(rendered)">@Text("ProfileDownloadPrivate")</button>
+                    disabled="@(busy || Controller.ArtifactId.Length == 0)" @onclick="() => Controller.DownloadPrivateAsync(rendered)">@Text("ProfileDownloadPrivate")</button>
             <p>@Text("ProfileDownloadBoundary")</p>
         </div>
     }
-    @if (_fields.Length > 0)
+    @if (Controller.Fields.Count > 0)
     {
         <table class="configuration-vault__table">
             <caption>@Text("ProfileComparisonResults")</caption>
             <thead><tr><th scope="col">@Text("ProfileField")</th><th scope="col">@Text("ProfileEligibility")</th><th scope="col">@Text("ProfileComparison")</th></tr></thead>
             <tbody>
-                @foreach (var field in _fields)
+                @foreach (var field in Controller.Fields)
                 {
                     <tr><th scope="row"><bdi dir="ltr">@field.Path</bdi></th><td>@Text("ProfileEligibility" + field.Eligibility)</td><td>@Text("ProfileComparison" + field.Comparison)</td></tr>
                 }
             </tbody>
         </table>
     }
-    <fieldset disabled="@(!Ready || !Consented || Busy || Form.RequiresBrowserProfileComposition && Form.BrowserProfile is null)" class="configuration-vault__group" data-profile-task="save">
+    <fieldset disabled="@(!ready || !consented || busy || form.RequiresBrowserProfileComposition && form.BrowserProfile is null)" class="configuration-vault__group" data-profile-task="save">
         <legend>@Text("ProfileSave")</legend>
         <p id="profile-save-help">@Text("ProfileSaveHelp")</p>
-        <p class="form-help" data-profile-recovery-state="@(_status == "ProfileRecoveryVerified" ? "verified" : "unverified")">
-            @Text(_status == "ProfileRecoveryVerified" ? "ProfileRecoveryStateVerified" : "ProfileRecoveryStateUnverified")
+        <p class="form-help" data-profile-recovery-state="@(Controller.Status == "ProfileRecoveryVerified" ? "verified" : "unverified")">
+            @Text(Controller.Status == "ProfileRecoveryVerified" ? "ProfileRecoveryStateVerified" : "ProfileRecoveryStateUnverified")
         </p>
-        @if (Form.BrowserProfile is null)
+        @if (form.BrowserProfile is null)
         {
             <label for="profile-mode">@Text("ProfileMode")</label>
-            <select id="profile-mode" value="@_mode" @onchange="args => SetMode(rendered, args)">
+            <select id="profile-mode" value="@Controller.Mode" @onchange="args => SetMode(rendered, args)">
                 <option value="ImportUpgradeOnly">@Text("ProfileBlind")</option>
                 <option value="InspectableEncrypted">@Text("ProfileInspectable")</option>
             </select>
@@ -176,10 +190,10 @@
                     @onclick='() => TogglePassphraseVisibility("confirmation")'>@Text(IsPassphraseVisible("confirmation") ? "HidePassphrase" : "ShowPassphrase")</button>
         </div>
         <label class="configuration-vault__confirmation">
-            <input id="profile-add-recovery" type="checkbox" checked="@_addRecovery"
-                   @onchange="args => { if (Current(rendered) && !Busy) _addRecovery = args.Value is true; }" />@Text("ProfileAddRecovery")
+            <input id="profile-add-recovery" type="checkbox" checked="@Controller.AddRecovery"
+                   @onchange="args => Controller.SetAddRecovery(rendered, args.Value is true)" />@Text("ProfileAddRecovery")
         </label>
-        @if (_addRecovery)
+        @if (Controller.AddRecovery)
         {
             <label for="profile-backup-passphrase">@Text("ProfileRecoveryPassphrase")</label>
             <div class="configuration-vault__secret-row">
@@ -206,16 +220,16 @@
         }
         <button type="button" class="button" data-action="profile-save" @onclick="() => SaveAsync(rendered)">@Text("ProfileSave")</button>
     </fieldset>
-    @if (_recoveryReference is { } recovery)
+    @if (Controller.RecoveryReference is { } recovery)
     {
-        <fieldset disabled="@(!Ready || !Consented || Busy)" class="configuration-vault__group" data-profile-task="verify-recovery">
+        <fieldset disabled="@(!ready || !consented || busy)" class="configuration-vault__group" data-profile-task="verify-recovery">
             <legend>@Text("ProfileVerifyRecovery")</legend>
             <p id="profile-recovery-help">@Text("ProfileRecoveryHelp")</p>
             <p>@Text("ProfileSnapshot"): <bdi dir="ltr">@recovery.SnapshotId</bdi></p>
             <label for="profile-recovery-file">@Text("ProfileChooseSavedCopy")</label>
-            <InputFile id="profile-recovery-file" @key="(_fileKey, 2)" accept=".cfgvault,.json"
+            <InputFile id="profile-recovery-file" @key="(Controller.FileKey, 2)" accept=".cfgvault,.json"
                        aria-describedby="profile-recovery-help"
-                       OnChange="args => { if (Current(rendered) && !Busy && Consented) _recoveryFile = args.File; }" />
+                       OnChange="args => { if (Controller.IsCurrent(rendered) && !Controller.IsBusy && Controller.Consented) _recoveryFile = args.File; }" />
             <label for="profile-recovery-passphrase">@Text("ProfileRecoveryPassphrase")</label>
             <div class="configuration-vault__secret-row">
                 <input id="profile-recovery-passphrase" class="form-control" type="@(IsPassphraseVisible("recovery") ? "text" : "password")" autocomplete="off" maxlength="1024"
@@ -228,20 +242,19 @@
                         @onclick='() => TogglePassphraseVisibility("recovery")'>@Text(IsPassphraseVisible("recovery") ? "HidePassphrase" : "ShowPassphrase")</button>
             </div>
             <label for="profile-recovery-index">@Text("ProfileRecipientIndex")</label>
-            <input id="profile-recovery-index" class="form-control" type="number" min="0" max="7" value="@_recoveryIndex"
-                   @onchange="args => SetRecipient(rendered, args, true)" />
+            <input id="profile-recovery-index" class="form-control" type="number" min="0" max="7" value="@Controller.RecoveryIndex"
+                   @onchange="args => Controller.SetRecipientIndex(rendered, args.Value?.ToString(), recovery: true)" />
             <button type="button" class="button" data-action="profile-recover" disabled="@(_recoveryFile is null)"
                     @onclick="() => RecoverAsync(rendered)">@Text("ProfileVerifyRecovery")</button>
         </fieldset>
     }
-    @if (Busy || Form.BrowserProfile is not null)
+    @if (busy || form.BrowserProfile is not null)
     {
         <button type="button" class="button button--secondary" data-action="profile-cancel"
-                @onclick="() => Cancel(rendered)">@Text("ProfileClose")</button>
+                @onclick="() => Controller.Cancel(rendered)">@Text("ProfileClose")</button>
     }
-</details>
+</div>
 
 @code {
-    [Parameter] public bool Open { get; set; }
     public ElementReference Heading => _heading;
 }

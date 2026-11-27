@@ -1,4 +1,6 @@
-let _savedFocusElement = null;
+const _savedFocusByScope = new Map();
+const DOCK_OVERLAY_SELECTOR = '[data-testid="dock-overlay-host"]';
+const DOCK_OVERLAY_OR_END_SELECTOR = '[data-testid="dock-overlay-host"], [data-dock-side="end"]';
 
 export function setFocus(selector, preventScroll) {
     requestAnimationFrame(() => {
@@ -40,41 +42,57 @@ export function announce(message, politeness) {
     });
 }
 
-export function saveActiveElement() {
-    _savedFocusElement = document.activeElement;
+export function saveActiveElement(scope = 'default') {
+    const key = typeof scope === 'string' && scope.length > 0 ? scope : 'default';
+    const active = document.activeElement;
+    if (!active || active === document.body) {
+        return;
+    }
+
+    // Never save an element inside an overlay, or overwrite a saved trigger from inside an end dock.
+    if (active.closest?.(DOCK_OVERLAY_SELECTOR)) {
+        return;
+    }
+    if (_savedFocusByScope.has(key) && active.closest?.(DOCK_OVERLAY_OR_END_SELECTOR)) {
+        return;
+    }
+
+    _savedFocusByScope.set(key, typeof WeakRef === 'function' ? new WeakRef(active) : active);
 }
 
-export function restoreFocus(fallbackSelector) {
+export function restoreFocus(fallbackSelector, preventScroll = false, scope = 'default') {
+    const key = typeof scope === 'string' && scope.length > 0 ? scope : 'default';
+    const savedRef = _savedFocusByScope.get(key) ?? null;
+    _savedFocusByScope.delete(key);
+    const focusOptions = { preventScroll: !!preventScroll };
+
     requestAnimationFrame(() => {
         const current = document.activeElement;
-        if (current && current !== document.body && !current.closest('[data-dock-overlay-host]')) {
-            _savedFocusElement = null;
+        if (current && current !== document.body && !current.closest?.(DOCK_OVERLAY_OR_END_SELECTOR)) {
             return;
         }
 
-        if (_savedFocusElement && _savedFocusElement !== document.body && document.contains(_savedFocusElement)) {
-            _savedFocusElement.focus();
-            _savedFocusElement = null;
+        const saved = savedRef && typeof savedRef.deref === 'function' ? savedRef.deref() : savedRef;
+        if (saved && saved !== document.body && saved.isConnected && !saved.closest?.(DOCK_OVERLAY_OR_END_SELECTOR)) {
+            saved.focus(focusOptions);
             return;
         }
-
-        _savedFocusElement = null;
 
         if (fallbackSelector) {
             const fallback = document.querySelector(fallbackSelector);
             if (fallback) {
-                fallback.focus();
+                fallback.focus(focusOptions);
                 return;
             }
         }
 
         const main = document.getElementById('main-content');
         if (main) {
-            main.focus();
+            main.focus(focusOptions);
             return;
         }
 
-        document.body.focus();
+        document.body.focus(focusOptions);
     });
 }
 

@@ -120,7 +120,8 @@ public sealed class BrowserConfigurationReviewTests
         var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await component.InvokeAsync(() => form.SetDiscovery("obstructing-query"));
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         long revision = form.InputRevision;
@@ -145,7 +146,8 @@ public sealed class BrowserConfigurationReviewTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         if (conflict) await component.InvokeAsync(() => form.EditValue(["name"], "manual-answer"));
         long revision = form.InputRevision;
         string json = conflict ? """{"name":"synthetic-file-canary"}""" : """{"name":42}""";
@@ -182,6 +184,7 @@ public sealed class BrowserConfigurationReviewTests
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await Assert.That(component.Find("[role=status]").GetAttribute("data-code")).IsEqualTo("import-secret-consent-required");
         await Assert.That(stream.Position).IsEqualTo(0);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await component.Find("[data-action='review-import-consent']").ClickAsync(new MouseEventArgs());
         await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
         await Assert.That(form.InputRevision).IsEqualTo(revision);
@@ -195,6 +198,8 @@ public sealed class BrowserConfigurationReviewTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, Definition()));
+        await Assert.That(component.FindAll("#artifact-import")).IsEmpty();
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         var controls = component.FindAll("input").Select(control => control.Id).ToList();
         int importIndex = controls.IndexOf("artifact-import");
         int manualIndex = controls.IndexOf(component.Find("[data-field='name'] input").Id);
@@ -245,9 +250,10 @@ public sealed class BrowserConfigurationReviewTests
         source["requiredCapabilities"] = new JsonArray("projection.copy", "projection.object", "schema.object", "schema.string", "values.initial");
         var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await Assert.That(component.Find("[data-import-inspection]").GetAttribute("data-import-inspection")).IsEqualTo("false");
         await Assert.That(component.Find("#artifact-import").HasAttribute("disabled")).IsTrue();
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         using var input = new MemoryStream("{}"u8.ToArray());
         await component.InvokeAsync(() => component.Instance.LoadAsync(input));
         await Assert.That(input.Position).IsEqualTo(0);

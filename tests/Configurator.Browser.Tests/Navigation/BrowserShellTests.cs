@@ -28,9 +28,9 @@ public sealed class BrowserShellTests
         await editor.Find("#clear-workspace").ClickAsync(new MouseEventArgs());
         await editor.InvokeAsync(editor.Instance.BeginAsync);
         await editor.InvokeAsync(() => oldConsent.InvokeAsync());
-        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsFalse();
+        await Assert.That(editor.FindAll("[data-trust-privacy-panel]")).IsEmpty();
         await editor.Find("[data-field='credential'] [data-action='field-secret-consent']").ClickAsync(new MouseEventArgs());
-        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsTrue();
+        await Assert.That(editor.FindAll("[data-trust-privacy-panel]")).Count().IsEqualTo(1);
         await Assert.That(editor.Find("#secret-consent").HasAttribute("checked")).IsFalse();
     }
 
@@ -64,16 +64,16 @@ public sealed class BrowserShellTests
         await shell.Find("[data-discovery-result='credential'] button").ClickAsync(new MouseEventArgs());
         await Assert.That(shell.FindAll("[data-discovery-result]")).IsEmpty();
         await Assert.That(editor.Find("#secret-consent").HasAttribute("checked")).IsFalse();
-        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsTrue();
+        await Assert.That(editor.FindAll("[data-trust-privacy-panel]")).Count().IsEqualTo(1);
         await Assert.That(editor.Find("[data-workflow-step='configure']").GetAttribute("aria-current")).IsEqualTo("step");
         await Assert.That(form.InputRevision).IsEqualTo(0);
         await Assert.That(form.CanEdit(["credential"])).IsFalse();
         await Assert.That(context.JSInterop.Invocations.Last(call => call.Identifier == "Blazor._internal.domWrapper.focus").Arguments[0]).IsNotNull();
-        await editor.Find("details[data-secret-consent] > summary").ClickAsync(new MouseEventArgs());
-        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsFalse();
+        await editor.Find("[data-action='close-trust-privacy-panel']").ClickAsync(new MouseEventArgs());
+        await Assert.That(editor.FindAll("[data-trust-privacy-panel]")).IsEmpty();
         await shell.Find("button[aria-controls='workspace-search-results']").ClickAsync(new MouseEventArgs());
         await shell.Find("[data-discovery-result='credential'] button").ClickAsync(new MouseEventArgs());
-        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsTrue();
+        await Assert.That(editor.FindAll("[data-trust-privacy-panel]")).Count().IsEqualTo(1);
     }
 
     [Test]
@@ -358,7 +358,7 @@ public sealed class BrowserShellTests
         await Assert.That(form.WorkspaceNamingMode).IsEqualTo(WorkspaceNamingMode.Technical);
         await Assert.That(form.InputRevision).IsEqualTo(revision);
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await Assert.That(component.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("true");
     }
 
@@ -383,7 +383,7 @@ public sealed class BrowserShellTests
         await BrowserFixture.SelectPanelAsync(editor, "review");
         int focusCountBefore = context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus");
         await editor.Find("[data-workspace-consent-chip]").ClickAsync(new MouseEventArgs());
-        await Assert.That(editor.Find("details[data-secret-consent]").HasAttribute("open")).IsTrue();
+        await Assert.That(editor.FindAll("[data-trust-privacy-panel]")).Count().IsEqualTo(1);
         await Assert.That(context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus"))
             .IsGreaterThan(focusCountBefore);
     }
@@ -448,9 +448,10 @@ public sealed class BrowserShellTests
         string[] layoutSwitches = configurePanel.QuerySelectorAll("[data-layout-mode]").Select(el => el.GetAttribute("data-layout-mode") ?? "").ToArray();
         await Assert.That(layoutSwitches).IsEquivalentTo(["section-by-section", "all-sections"]);
 
-        // Progress bar excludes returning-user entry choices, which remain accessible in workspace tools.
+        // Progress bar excludes returning-user entry choices; untouched sessions show onboarding cue and utility rail provides Import/Profiles.
         await Assert.That(editor.FindAll(".configuration-editor__progress [data-returning-entry]")).IsEmpty();
-        await Assert.That(editor.FindAll("[data-returning-entry] [data-entry-choice]").Count).IsGreaterThan(0);
+        await Assert.That(editor.FindAll("[data-onboarding-cue]")).Count().IsEqualTo(1);
+        await Assert.That(editor.FindAll("[data-utility-rail-action='profiles']")).Count().IsEqualTo(1);
 
         // Context disclosure starts hidden/collapsed at rest and toggles open via Scope chip.
         var scopeChip = editor.Find("[data-workspace-scope][data-action='change-scope']");
@@ -630,17 +631,119 @@ public sealed class BrowserShellTests
         await Assert.That(advancedPanel.QuerySelectorAll("[data-workspace-scope]").Length).IsEqualTo(1);
         await Assert.That(advancedPanel.QuerySelectorAll("[data-digest-disclosure] [data-digest]").Length).IsEqualTo(1);
 
-        // Activating Inspector and overriding detail updates the active-options count badge when collapsed again.
-        await app.Find("[data-action='toggle-inspector']").ClickAsync(new MouseEventArgs());
+        // Activating Inspector via utility rail does not inflate the Advanced badge; overriding detail updates the badge when collapsed.
+        await app.Find("[data-utility-rail-action='inspector']").ClickAsync(new MouseEventArgs());
         await app.Find("#configuration-detail").ChangeAsync(new ChangeEventArgs { Value = "advanced" });
         await app.Find("[data-action='toggle-advanced-options']").ClickAsync(new MouseEventArgs());
         await Assert.That(app.Find("#workspace-advanced-options").HasAttribute("hidden")).IsTrue();
-        await Assert.That(app.Find(".workspace-header__advanced-badge").TextContent.Trim()).IsEqualTo("2");
+        await Assert.That(app.Find(".workspace-header__advanced-badge").TextContent.Trim()).IsEqualTo("1");
 
         // Closing End dock while Advanced is collapsed restores focus safely without throwing or focusing an inert element.
-        int focusBefore = context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus");
+        int restoreBefore = context.JSInterop.Invocations.Count(call => call.Identifier == "restoreFocus");
         await app.Find("[data-action='close-inspector-pane']").ClickAsync(new MouseEventArgs());
-        await Assert.That(context.JSInterop.Invocations.Count(call => call.Identifier == "Blazor._internal.domWrapper.focus"))
-            .IsGreaterThan(focusBefore);
+        await Assert.That(context.JSInterop.Invocations.Count(call => call.Identifier == "restoreFocus"))
+            .IsGreaterThan(restoreBefore);
+    }
+
+    [Test]
+    public async Task CleanFormBoundaryRemovesBottomAccordionsUsesSemanticGroupWrapperAndExposesHeaderCustodyControls()
+    {
+        await using BunitContext context = BrowserFixture.Context();
+        IRenderedComponent<MainLayout> component = BrowserFixture.RenderWorkspace(context, BrowserFixture.Definition);
+
+        // S01: Semantic <div role="group"> replaces outer <fieldset>; zero legacy bottom clutter blocks render.
+        AngleSharp.Dom.IElement controls = component.Find(".configuration-editor__controls");
+        await Assert.That(controls.TagName.Equals("DIV", StringComparison.OrdinalIgnoreCase)).IsTrue();
+        await Assert.That(controls.GetAttribute("role")).IsEqualTo("group");
+        await Assert.That(component.FindAll("[data-returning-entry]")).IsEmpty();
+        await Assert.That(component.FindAll(".configuration-editor__view-options")).IsEmpty();
+        await Assert.That(component.FindAll("#configuration-locale")).IsEmpty();
+        await Assert.That(component.FindAll("details[data-import-panel]")).IsEmpty();
+        await Assert.That(component.FindAll("details[data-profile-panel]")).IsEmpty();
+        await Assert.That(component.FindAll("details[data-secret-consent]")).IsEmpty();
+        await Assert.That(component.FindAll(".configuration-editor__boundary")).IsEmpty();
+        await Assert.That(component.FindAll("#workspace-advanced-options [data-editing-mode]")).IsEmpty();
+        await Assert.That(component.FindAll("#workspace-advanced-options [data-action='toggle-inspector']")).IsEmpty();
+        await Assert.That(component.FindAll("#workspace-advanced-options [data-workspace-consent-chip]")).IsEmpty();
+
+        // S04 & S06: Header promotes interactive consent chip, unlocked Revoke control, and narrow MudMenu Tools trigger.
+        AngleSharp.Dom.IElement header = component.Find("header.workspace-header");
+        AngleSharp.Dom.IElement consentChip = header.QuerySelector("[data-workspace-consent-chip]")!;
+        await Assert.That(consentChip).IsNotNull();
+        await Assert.That(consentChip.GetAttribute("data-consent-active")).IsEqualTo("false");
+        await Assert.That(header.QuerySelectorAll("[data-action='revoke-secret-entry']").Length).IsEqualTo(0);
+        await Assert.That(header.QuerySelectorAll("[data-action='open-workspace-tools']").Length).IsEqualTo(1);
+
+        // S01 & S02: Quiet status footer opens Trust & Privacy cleanly; scoped WeakRef focus save & restore run with preventScroll.
+        AngleSharp.Dom.IElement footer = component.Find("[data-workspace-status-footer]");
+        await footer.QuerySelector("[data-action='open-trust-privacy-footer']")!.ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-trust-privacy-panel]")).Count().IsEqualTo(1);
+        await Assert.That(context.JSInterop.Invocations.Any(call =>
+            call.Identifier == "saveActiveElement"
+            && call.Arguments.Count > 0
+            && call.Arguments[0]?.ToString() == "workspace-utility")).IsTrue();
+
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await Assert.That(component.Find("header.workspace-header [data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("true");
+        await Assert.That(component.FindAll("header.workspace-header [data-action='revoke-secret-entry']")).Count().IsEqualTo(1);
+
+        await component.Find("[data-action='close-trust-privacy-panel']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-trust-privacy-panel]")).IsEmpty();
+        await Assert.That(context.JSInterop.Invocations.Any(call =>
+            call.Identifier == "restoreFocus"
+            && call.Arguments.Count >= 3
+            && Equals(call.Arguments[1], true)
+            && call.Arguments[2]?.ToString() == "workspace-utility")).IsTrue();
+
+        // Narrow Tools MudMenu opens any utility in-context.
+        await component.Find("header.workspace-header [data-action='open-workspace-tools']").ClickAsync(new MouseEventArgs());
+        IRenderedComponent<IComponent> popover = BrowserFixture.PopoverSurface(context, component);
+        await popover.Find("[data-tools-utility='profiles']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("#profile-vault-heading")).Count().IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task UtilityWorkbenchOperatesInContextAcrossAllStagesAndCtrlKSurfacesBrowserCommands()
+    {
+        await using BunitContext context = BrowserFixture.Context();
+        IRenderedComponent<MainLayout> component = BrowserFixture.RenderWorkspace(context, BrowserFixture.Definition);
+        IRenderedComponent<ConfigurationEditor> editor = component.FindComponent<ConfigurationEditor>();
+        DockLayoutState dockState = context.Services.GetRequiredService<DockLayoutState>();
+
+        // Move to Review stage: rail remains mounted, workspace width floor stays protected at 464px (420 + 44px rail),
+        // and opening Trust & Privacy keeps user on Review stage without yanking back to Configure.
+        await BrowserFixture.SelectPanelAsync(component, "review");
+        await Assert.That(component.Find("[data-workflow-step='review']").GetAttribute("aria-current")).IsEqualTo("step");
+        await Assert.That(component.FindAll("[data-workspace-utility-rail]")).Count().IsEqualTo(1);
+        IRenderedComponent<Configurator.Browser.Components.Docking.DockLayoutHost> workspaceHost = component
+            .FindComponents<Configurator.Browser.Components.Docking.DockLayoutHost>()
+            .Single(host => host.Instance.Scope == DockScope.Workspace);
+        await Assert.That(workspaceHost.Instance.MinimumContentWidth).IsEqualTo(464);
+
+        await component.Find("[data-utility-rail-action='trust-privacy']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-trust-privacy-panel]")).Count().IsEqualTo(1);
+        await Assert.That(component.Find("[data-workflow-step='review']").GetAttribute("aria-current")).IsEqualTo("step");
+
+        // Switch to Files stage: rail and Import utility operate in-context without leaving Files.
+        await BrowserFixture.SelectPanelAsync(component, "prepare");
+        await Assert.That(component.Find("[data-workflow-step='prepare']").GetAttribute("aria-current")).IsEqualTo("step");
+        await component.Find("[data-utility-rail-action='import']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-import-panel]")).Count().IsEqualTo(1);
+        await Assert.That(component.Find("[data-workflow-step='prepare']").GetAttribute("aria-current")).IsEqualTo("step");
+
+        // Ctrl+K exposes wired OpenDocumentEditor + Browser surface commands (import, profiles, trust-privacy).
+        await component.Find("#configuration-search").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-command-id='OpenDocumentEditor']")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-browser-command-id='browser.open-import']")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-browser-command-id='browser.open-profiles']")).Count().IsEqualTo(1);
+        await Assert.That(component.FindAll("[data-browser-command-id='browser.open-trust-privacy']")).Count().IsEqualTo(1);
+
+        await component.Find("[data-command-id='OpenDocumentEditor']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-developer-panel]")).Count().IsEqualTo(1);
+
+        // At <= 960px viewport width, workspace minimum content width drops back to 420px because rail hides.
+        await component.InvokeAsync(() => dockState.UpdateViewport(960, isMobile: false, DockScope.Workspace, 420));
+        await editor.InvokeAsync(() => editor.Render());
+        await Assert.That(workspaceHost.Instance.MinimumContentWidth).IsEqualTo(420);
     }
 }

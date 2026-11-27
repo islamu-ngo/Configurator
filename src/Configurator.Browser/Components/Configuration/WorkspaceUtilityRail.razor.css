@@ -1,0 +1,80 @@
+.workspace-utility-rail {
+    position: sticky;
+    inset-block-start: var(--isl-sticky-dock-top, var(--isl-shell-header-height, 4rem));
+    align-self: start;
+    inline-size: 44px;
+    min-inline-size: 44px;
+    padding-block: var(--isl-space-1);
+    border-inline-start: 1px solid var(--isl-color-border);
+    background: var(--isl-surface-container-low);
+    z-index: 2;
+}
+
+.workspace-utility-rail__toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.workspace-utility-rail__button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 44px;
+    block-size: 44px;
+    min-inline-size: 44px;
+    min-block-size: 44px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--isl-radius-sm);
+    background: transparent;
+    color: var(--isl-color-text-secondary);
+    cursor: pointer;
+    transition: background-color var(--isl-duration-fast) var(--isl-ease-standard),
+                color var(--isl-duration-fast) var(--isl-ease-standard),
+                border-color var(--isl-duration-fast) var(--isl-ease-standard);
+}
+
+.workspace-utility-rail__button:hover {
+    background: var(--isl-surface-container);
+    color: var(--isl-color-text);
+}
+
+.workspace-utility-rail__button--active {
+    background: var(--isl-surface-container-high);
+    border-color: var(--isl-color-control-border);
+    color: var(--isl-color-text);
+}
+
+.workspace-utility-rail__button:focus-visible {
+    outline: 2px solid var(--isl-focus-ring);
+    outline-offset: -2px;
+}
+
+.workspace-utility-rail__dot {
+    position: absolute;
+    inset-block-start: 7px;
+    inset-inline-end: 7px;
+    inline-size: 7px;
+    block-size: 7px;
+    border-radius: var(--isl-radius-full);
+    background: var(--isl-color-primary);
+    border: 1px solid var(--isl-surface-container-low);
+}
+
+.workspace-utility-rail__dot--unlocked {
+    background: var(--isl-color-success);
+}
+
+.workspace-utility-rail__dot--dirty,
+.workspace-utility-rail__dot--busy {
+    background: var(--isl-color-warning);
+}
+
+@media (max-width: 60rem) {
+    .workspace-utility-rail {
+        display: none;
+    }
+}

@@ -3,6 +3,7 @@ namespace Configurator.Browser.Tests;
 using System.Text.Json;
 using Bunit;
 using Configurator.Browser.Components.Configuration;
+using Configurator.Browser.Layout;
 using Configurator.Browser.Services;
 using Configurator.Core.Definitions;
 using Configurator.Presentation;
@@ -106,7 +107,7 @@ public sealed class BrowserEditingTests
             InputFileContent.CreateFromBinary(seed.Definition.CanonicalBytes.ToArray(), "synthetic-local.json")));
         await page.Find("[data-action='open-workspace']").ClickAsync(new MouseEventArgs());
         await Assert.That(page.Find(".configuration-editor").GetAttribute("lang")).IsEqualTo("en");
-        await Assert.That(page.Find("#configuration-locale").GetAttribute("value")).IsEqualTo("en");
+        await Assert.That(context.Services.GetRequiredService<BrowserNavigationState>().Culture.Locale).IsEqualTo("en");
     }
 
     [Test]
@@ -117,15 +118,19 @@ public sealed class BrowserEditingTests
         BrowserLaunchSelection selected = BrowserLaunchSelection.Resolve(registry.Current, seed.Definition.FamilyId.ToString("D"), "");
         await Assert.That(selected.Locale).IsEqualTo("en");
         await using var context = BrowserFixture.Context(registry);
-        var editor = context.Render<ConfigurationEditor>(parameters => parameters
-            .Add(component => component.Definition, seed.Definition)
-            .Add(component => component.InitialLocale, "ar"));
+        var editor = context.Render<MainLayout>(parameters => parameters.Add(item => item.Body, builder =>
+        {
+            builder.OpenComponent<ConfigurationEditor>(0);
+            builder.AddAttribute(1, nameof(ConfigurationEditor.Definition), seed.Definition);
+            builder.AddAttribute(2, nameof(ConfigurationEditor.InitialLocale), "ar");
+            builder.CloseComponent();
+        }));
         var form = editor.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
         await Assert.That(editor.Find(".configuration-editor").GetAttribute("lang")).IsEqualTo("ar");
         await Assert.That(editor.Find(".configuration-editor").GetAttribute("dir")).IsEqualTo("rtl");
         await Assert.That(editor.Find("[data-field='choice'] label[for]").TextContent).Contains("Translated choice");
-        editor.Find("#configuration-locale").Change("en");
+        await BrowserFixture.SwitchLocaleAsync(context, editor, "en");
         await Assert.That(editor.Find(".configuration-editor").GetAttribute("dir")).IsEqualTo("ltr");
         await Assert.That(form.InputRevision).IsEqualTo(revision);
         await Assert.That(form.Snapshot().Values.Count).IsEqualTo(0);

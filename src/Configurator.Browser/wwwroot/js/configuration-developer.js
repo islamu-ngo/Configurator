@@ -6,9 +6,10 @@ export function createBridge() {
   let fence = 0;
 
   function bound(owned) {
-    return owned.host?.isConnected && owned.consent?.isConnected &&
-      owned.consent.checked && owned.consent.dataset.workspaceLifetime === owned.workspaceLifetime &&
-      owned.host.dataset.editorLifetime === owned.editorLifetime;
+    return owned.host?.isConnected && owned.custody?.isConnected &&
+      owned.custody.dataset?.workspaceLifetime === owned.workspaceLifetime &&
+      owned.custody.dataset?.secretConsent === "enabled" &&
+      owned.host.dataset?.editorLifetime === owned.editorLifetime;
   }
 
   function current(token, version) {
@@ -50,12 +51,14 @@ export function createBridge() {
     const owned = active;
     if (!owned || owned.token > token) return;
     active = null;
-    owned.consent?.removeEventListener("change", owned.revoke, true);
+    owned.custody?.removeEventListener("click", owned.revokeClick, true);
+    owned.custody?.removeEventListener("change", owned.revokeChange, true);
+    globalThis.removeEventListener("configurator-workspace-consent-revoked", owned.revokeEvent);
     globalThis.removeEventListener("configurator-custody-abandoned", owned.abandon);
     clearRead(owned);
     owned.locations = null;
     owned.callback = null;
-    owned.consent = null;
+    owned.custody = null;
     try { owned.editor.dispose(); }
     finally {
       owned.editor = null;
@@ -69,14 +72,25 @@ export function createBridge() {
       const source = options.source;
       try {
         if (token <= fence || active) throw new Error("developer-stale");
-        const consent = options.consent;
-        const owned = { token, host, callback, consent, workspaceLifetime: options.workspaceLifetime,
+        const custody = options.custodyAnchor;
+        const owned = { token, host, callback, custody, workspaceLifetime: options.workspaceLifetime,
           editorLifetime: options.editorLifetime, editor: null, transfer: null, locations: null, suppress: false, historyLimited: false };
-        if (!(consent instanceof HTMLInputElement) || consent.type !== "checkbox" ||
-            !owned.workspaceLifetime || !owned.editorLifetime || !bound(owned))
+        if (!(custody instanceof Element) || !owned.workspaceLifetime || !owned.editorLifetime || !bound(owned))
           throw new Error("developer-consent-required");
-        owned.revoke = () => {
-          if (!consent.checked) retire(token);
+        owned.revokeClick = event => {
+          const target = event?.target;
+          if (target instanceof Element && target.closest('[data-action="revoke-secret-entry"], [data-action="revoke-secret-entry-panel"]'))
+            retire(token);
+        };
+        owned.revokeChange = event => {
+          const target = event?.target;
+          if (target instanceof HTMLInputElement && target.id === "secret-consent" && !target.checked)
+            retire(token);
+        };
+        owned.revokeEvent = event => {
+          const detailLifetime = event?.detail?.workspaceLifetime;
+          if (!detailLifetime || detailLifetime === owned.workspaceLifetime)
+            retire(token);
         };
         owned.abandon = () => retire(token);
         owned.editor = createEditor(host, {
@@ -92,7 +106,9 @@ export function createBridge() {
           }
         });
         active = owned;
-        consent.addEventListener("change", owned.revoke, true);
+        custody.addEventListener("click", owned.revokeClick, true);
+        custody.addEventListener("change", owned.revokeChange, true);
+        globalThis.addEventListener("configurator-workspace-consent-revoked", owned.revokeEvent);
         globalThis.addEventListener("configurator-custody-abandoned", owned.abandon);
         return owned.editor.version;
       } finally {

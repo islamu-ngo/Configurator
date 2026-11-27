@@ -24,7 +24,7 @@ public sealed class BrowserMaskedChoiceTests
         var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var workspace = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await workspace.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(workspace, true);
         var form = workspace.FindComponents<ConfigurationField>()[0].Instance.Form;
         await workspace.InvokeAsync(() => form.EditValue(["protectedChoice"], "beta"));
         var component = workspace.FindComponents<ConfigurationField>()

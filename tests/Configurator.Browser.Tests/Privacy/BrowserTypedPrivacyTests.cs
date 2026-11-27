@@ -89,7 +89,7 @@ public sealed class BrowserTypedPrivacyTests
             {"type":"object","title":"Settings","additionalProperties":false,"x-configurator":{"sensitivity":"public","detail":"standard"},"properties":{
               "enabled":{"type":"boolean","title":"Enabled","x-configurator":{"sensitivity":"sensitive","detail":"standard"}}}}
             """)));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long before = form.InputRevision;
         var read = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -119,13 +119,13 @@ public sealed class BrowserTypedPrivacyTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
         component.Find("[data-field='HOST'] input").Input("example.test");
         await Assert.That(component.FindAll("[data-field='settings.secret'] input")).IsEmpty();
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         component.Find("[data-field='settings.secret'] input").Input("synthetic-local-nested-secret");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await BrowserFixture.PrepareAsync(component, draft: false);
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         await BrowserFixture.SelectPanelAsync(component, "configure");
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         await Assert.That(form.Snapshot().Values["settings"].TryGetProperty("secret", out _)).IsFalse();
         await Assert.That(component.Markup).DoesNotContain("synthetic-local-nested-secret");
         await BrowserFixture.SelectPanelAsync(component, "prepare");
@@ -147,9 +147,9 @@ public sealed class BrowserTypedPrivacyTests
         await Assert.That(ordinary.HasAttribute("disabled")).IsFalse();
         ordinary.Input("synthetic-private-value");
         await Assert.That(component.FindAll("[data-field='settings.secret'] input")).IsEmpty();
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         component.Find("[data-field='settings.secret'] input").Input("synthetic-nested-secret");
-        component.Find("#secret-consent").Change(false);
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await Assert.That(form.Snapshot().Values["settings"].GetProperty("ordinary").GetString()).IsEqualTo("synthetic-private-value");
         await Assert.That(form.Snapshot().Values["settings"].TryGetProperty("secret", out _)).IsFalse();
@@ -208,7 +208,7 @@ public sealed class BrowserTypedPrivacyTests
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);
         await Assert.That(component.Find(".configuration-editor__artifact [data-prepared-file]").GetAttribute("data-readiness")).IsEqualTo("complete");
         await BrowserFixture.SelectPanelAsync(component, "configure");
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         await BrowserFixture.SelectPanelAsync(component, "prepare");
         await Assert.That(component.FindAll(".configuration-editor__artifact")).IsEmpty();
         await Assert.That(component.Markup).DoesNotContain("synthetic-compound-secret");

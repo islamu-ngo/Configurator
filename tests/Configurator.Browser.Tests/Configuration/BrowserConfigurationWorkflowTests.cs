@@ -287,7 +287,7 @@ public sealed class BrowserConfigurationWorkflowTests
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "retained.test" });
         await component.Find("[data-field='attempts'] input").InputAsync(new ChangeEventArgs { Value = "7" });
         await component.Find("[data-field='attempts'] input").InputAsync(new ChangeEventArgs { Value = "unfinished-number" });
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-roundtrip-secret" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
@@ -355,7 +355,7 @@ public sealed class BrowserConfigurationWorkflowTests
         await Assert.That(draftDocument.RootElement.GetProperty("hostname").GetString()).IsEqualTo("example.test");
         await Assert.That(draftDocument.RootElement.GetProperty("credential").GetString()).IsEqualTo("");
         await BrowserFixture.SelectPanelAsync(component, "configure");
-        component.Find("#secret-consent").Change(true);
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         component.Find("[data-field='credential'] input").Input("synthetic-secret-canary");
         await BrowserFixture.PrepareAsync(component, draft: false);
         await Assert.That(component.FindAll(".configuration-editor__artifact")).Count().IsEqualTo(1);

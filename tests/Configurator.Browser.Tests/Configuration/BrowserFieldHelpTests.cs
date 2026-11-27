@@ -6,6 +6,7 @@ using Bunit;
 using Configurator.Core.Definitions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.DependencyInjection;
 
 public sealed class BrowserFieldHelpTests
 {
@@ -84,7 +85,7 @@ public sealed class BrowserFieldHelpTests
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"object","members":{"CREDENTIAL":{"op":"copy","reference":{"scope":"root","path":"/credential"}}}}""");
         var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = BrowserFixture.RenderWorkspace(context, definition);
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-help-private-answer" });
         await component.Find("[data-field='credential'] [data-action='field-help']").ClickAsync(new MouseEventArgs());
         var dialog = component.Find("[role='dialog']");
@@ -138,10 +139,10 @@ public sealed class BrowserFieldHelpTests
         source["artifacts"]![0]!["projection"] = JsonNode.Parse("""{"op":"object","members":{"CREDENTIAL":{"op":"copy","reference":{"scope":"root","path":"/credential"}}}}""");
         var definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         var component = BrowserFixture.RenderWorkspace(context, definition);
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='credential'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-docked-secret-value" });
 
-        await component.Find("[data-action='toggle-inspector']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "inspector");
         var pane = component.Find("[data-inspector-pane]");
         await Assert.That(component.FindAll("[role='dialog']")).IsEmpty();
 
@@ -157,16 +158,22 @@ public sealed class BrowserFieldHelpTests
     public async Task MobileInspectorSheetExposesDismissibleDialogSemanticsAndClosesOnEscape()
     {
         await using var context = BrowserFixture.Context();
-        var renderingModule = context.JSInterop.SetupModule("./js/configuration-rendering.js");
-        renderingModule.Setup<bool>("isNarrowViewport", _ => true).SetResult(true);
+        var dockState = context.Services.GetRequiredService<Configurator.Browser.Services.Docking.DockLayoutState>();
         var component = BrowserFixture.RenderWorkspace(context, BrowserFixture.Definition);
+        await component.InvokeAsync(() => dockState.UpdateViewport(
+            760,
+            isMobile: true,
+            Configurator.Browser.Services.Docking.DockScope.Workspace,
+            Configurator.Browser.Services.Docking.DockLayoutState.DefaultMinimumContentWidth));
 
-        await component.Find("[data-action='toggle-inspector']").ClickAsync(new MouseEventArgs());
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "inspector");
 
+        var overlayHost = component.Find("[data-testid='dock-overlay-host'] [data-testid='dock-panel-host']");
+        await Assert.That(overlayHost.GetAttribute("role")).IsEqualTo("dialog");
+        await Assert.That(overlayHost.GetAttribute("aria-modal")).IsEqualTo("true");
         var pane = component.Find("[data-inspector-pane]");
-        await Assert.That(pane.GetAttribute("data-mobile-sheet")).IsEqualTo("true");
-        await Assert.That(pane.GetAttribute("role")).IsEqualTo("dialog");
-        await Assert.That(pane.GetAttribute("aria-modal")).IsEqualTo("true");
+        await Assert.That(pane.GetAttribute("role")).IsNull();
+        await Assert.That(pane.GetAttribute("aria-modal")).IsNull();
 
         await pane.KeyDownAsync(new KeyboardEventArgs { Key = "Escape" });
         await Assert.That(component.FindAll("[data-inspector-pane]")).IsEmpty();

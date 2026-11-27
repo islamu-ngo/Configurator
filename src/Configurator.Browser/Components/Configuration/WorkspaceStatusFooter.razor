@@ -1,0 +1,46 @@
+@using System.Globalization
+@using Configurator.Browser.Resources
+
+<div class="workspace-status-footer"
+     data-workspace-status-footer
+     role="contentinfo"
+     aria-label="@T("WorkspaceStatusFooterLabel")"
+     lang="@Locale"
+     dir="@(IsRtl ? "rtl" : "ltr")">
+    <span class="workspace-status-footer__item">@T("WorkspaceStatusLocalTab")</span>
+    <span class="workspace-status-footer__separator" aria-hidden="true">·</span>
+    <span class="workspace-status-footer__item" data-declared-output-count="@DeclaredOutputCount">@OutputsLabel</span>
+    <span class="workspace-status-footer__separator" aria-hidden="true">·</span>
+    <button type="button"
+            class="workspace-status-footer__trigger"
+            data-action="open-trust-privacy-footer"
+            @onclick="HandleOpenTrustPrivacyAsync">
+        @T("WorkspaceStatusPrivacyLink")
+    </button>
+</div>
+
+@code {
+    private (string Locale, bool IsRtl, int DeclaredOutputCount) _rendered;
+    private bool _hasRendered;
+
+    [Parameter, EditorRequired] public string Locale { get; set; } = "en";
+    [Parameter] public bool IsRtl { get; set; }
+    [Parameter] public int DeclaredOutputCount { get; set; }
+    [Parameter] public EventCallback OpenTrustPrivacyRequested { get; set; }
+
+    protected override bool ShouldRender() => !_hasRendered || !_rendered.Equals((Locale, IsRtl, DeclaredOutputCount));
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        _hasRendered = true;
+        _rendered = (Locale, IsRtl, DeclaredOutputCount);
+    }
+
+    private Task HandleOpenTrustPrivacyAsync() => OpenTrustPrivacyRequested.InvokeAsync();
+
+    private string OutputsLabel => DeclaredOutputCount == 1
+        ? T("WorkspaceStatusDeclaredOutputsSingle")
+        : string.Format(CultureInfo.GetCultureInfo(Locale), T("WorkspaceStatusDeclaredOutputsPlural"), DeclaredOutputCount);
+
+    private string T(string key) => BrowserStrings.Get(key, Locale);
+}

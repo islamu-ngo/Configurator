@@ -22,7 +22,8 @@ public sealed class BrowserImportComparisonTests
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition,
             DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()))));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await Assert.That(component.Find("#import-artifact").GetAttribute("value")).IsEqualTo("");
         using var stream = new MemoryStream("{}"u8.ToArray());
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
@@ -58,12 +59,13 @@ public sealed class BrowserImportComparisonTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await BrowserFixture.NotifyChoiceAsync(component, "mode", "single");
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "workspace.test" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await BrowserFixture.PrepareAsync(component, draft: true);
         await BrowserFixture.SelectPanelAsync(component, "configure");
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         long revision = form.InputRevision;
         using var stream = new MemoryStream("""{"mode":"single","hostname":"file.test","credential":"synthetic-compared-secret"}"""u8.ToArray());
@@ -91,8 +93,9 @@ public sealed class BrowserImportComparisonTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "invalid draft" });
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         long revision = form.InputRevision;
@@ -114,8 +117,10 @@ public sealed class BrowserImportComparisonTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await Assert.That(component.Find("#import-purpose").GetAttribute("value")).IsEqualTo("fill");
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         if (purpose == "compare")
             await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = purpose });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
@@ -154,7 +159,8 @@ public sealed class BrowserImportComparisonTests
 
         await using var context = BrowserFixture.Context(new BrowserDefinitionRegistry([nested]));
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, nested));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         await component.InvokeAsync(() => form.SetValue(["options", "db", "host"], JsonSerializer.SerializeToElement("existing.test")));
 
@@ -205,7 +211,8 @@ public sealed class BrowserImportComparisonTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         int inputs = 0, views = 0, comparisons = 0;
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
@@ -234,7 +241,8 @@ public sealed class BrowserImportComparisonTests
         Definition definition = DefinitionCodec.ParseJson(Encoding.UTF8.GetBytes(source.ToJsonString()));
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         string text = structural
             ? """{"version":1,"mode":"single","hostname":"compared.test","credential":"synthetic-private-value"}"""
@@ -270,7 +278,8 @@ public sealed class BrowserImportComparisonTests
             """, "schema.object", "schema.array", "schema.string", "schema.integer", "schema.map", "projection.object", "projection.copy");
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         var form = component.FindComponent<ConfigurationImportReview>().Instance.Form;
         using var rows = JsonDocument.Parse("""[{"name":"workspace-B","port":2},{"name":"workspace-A","port":1}]""");
         using var map = JsonDocument.Parse("""{"current.key":"workspace"}""");
@@ -313,7 +322,8 @@ public sealed class BrowserImportComparisonTests
             "schema.object", "schema.array", "schema.string", "schema.bounds", "projection.object", "projection.copy");
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         string input = new JsonObject
         {
             ["items"] = new JsonArray(Enumerable.Range(0, 3000)
@@ -348,10 +358,12 @@ public sealed class BrowserImportComparisonTests
             FailDisposal = true
         };
         var file = new LocalFile(stream);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await component.InvokeAsync(() => component.FindComponents<InputFile>().Single(input => input.Instance.AdditionalAttributes?["id"] as string == "artifact-import").Instance.OnChange
             .InvokeAsync(new InputFileChangeEventArgs([file])));
         await Assert.That(file.Opened).IsFalse();
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await component.InvokeAsync(() => component.FindComponents<InputFile>().Single(input => input.Instance.AdditionalAttributes?["id"] as string == "artifact-import").Instance.OnChange
             .InvokeAsync(new InputFileChangeEventArgs([file])));
         var form = component.FindComponent<ConfigurationImportReview>().Instance.Form;
@@ -369,7 +381,8 @@ public sealed class BrowserImportComparisonTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         using var stream = new CapturingStream(Enumerable.Repeat((byte)'x', 1024 * 1024 + 2).ToArray());
         await component.InvokeAsync(() => component.Instance.LoadAsync(stream));
         await Assert.That(stream.Position).IsEqualTo(1024 * 1024 + 1);
@@ -383,13 +396,14 @@ public sealed class BrowserImportComparisonTests
     {
         await using var context = BrowserFixture.Context();
         var component = context.Render<ConfigurationEditor>(parameters => parameters.Add(item => item.Definition, BrowserFixture.Definition));
-        await Assert.That(component.Find("details[data-import-panel]").HasAttribute("open")).IsFalse();
+        await Assert.That(component.FindAll("[data-import-panel]")).IsEmpty();
 
-        await component.Find("[data-entry-choice='import']").ClickAsync(new MouseEventArgs());
-        await Assert.That(component.Find("details[data-import-panel]").HasAttribute("open")).IsTrue();
-        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+        await component.Find("[data-action='onboarding-import']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("[data-import-panel]")).Count().IsEqualTo(1);
+        await Assert.That(component.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("false");
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(component, "import");
         await component.Find("#import-purpose").ChangeAsync(new ChangeEventArgs { Value = "compare" });
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
         using var stream = new MemoryStream("""{"mode":"single","hostname":"adopted.test","credential":"synthetic-adopted-secret"}"""u8.ToArray());

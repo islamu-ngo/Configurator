@@ -1,11 +1,13 @@
 namespace Configurator.Browser.Tests;
 
 using System.Buffers.Text;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Bunit;
 using Configurator.Browser.Profiles;
+using Configurator.Browser.Services;
 using Configurator.Browser.Worker.Profiles;
 using Configurator.Core.Definitions;
 using Configurator.Core.Profiles;
@@ -30,7 +32,8 @@ public sealed partial class BrowserProfileVaultTests
         using var runtime = new ProfileRuntime();
         context.Services.AddSingleton<IJSRuntime>(runtime);
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
-        var panel = RenderProfile(context, form);
+        await using BrowserProfileVaultController controller = CreateController(context, form);
+        var panel = RenderProfile(context, controller);
         await OpenThroughUiAsync(panel, Container(form.Definition, mode));
 
         await Assert.That(form.BrowserProfile!.Mode).IsEqualTo(mode);
@@ -52,7 +55,8 @@ public sealed partial class BrowserProfileVaultTests
         using var runtime = new ProfileRuntime();
         context.Services.AddSingleton<IJSRuntime>(runtime);
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
-        var panel = RenderProfile(context, form);
+        await using BrowserProfileVaultController controller = CreateController(context, form);
+        var panel = RenderProfile(context, controller);
         await OpenThroughUiAsync(panel, Container(form.Definition, ProfileProtectionMode.InspectableEncrypted));
         await Assert.That(panel.Find("[data-action='profile-inspect']").HasAttribute("disabled")).IsTrue();
 
@@ -72,7 +76,8 @@ public sealed partial class BrowserProfileVaultTests
         using var runtime = new ProfileRuntime();
         context.Services.AddSingleton<IJSRuntime>(runtime);
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
-        var panel = RenderProfile(context, form);
+        await using BrowserProfileVaultController controller = CreateController(context, form);
+        var panel = RenderProfile(context, controller);
         await OpenThroughUiAsync(panel, Container(form.Definition, ProfileProtectionMode.ImportUpgradeOnly));
         WorkerModule module = runtime.Modules.Single();
         module.Hold = "retire-field";
@@ -102,7 +107,8 @@ public sealed partial class BrowserProfileVaultTests
         using var runtime = new ProfileRuntime { Hold = "unlock" };
         context.Services.AddSingleton<IJSRuntime>(runtime);
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
-        var panel = RenderProfile(context, form);
+        await using BrowserProfileVaultController controller = CreateController(context, form);
+        var panel = RenderProfile(context, controller);
         await SelectVaultAsync(panel, Container(form.Definition, ProfileProtectionMode.ImportUpgradeOnly));
         Task opening = panel.Find("[data-action='profile-open']").ClickAsync(new MouseEventArgs());
         WorkerModule module = runtime.Modules.Single();
@@ -130,7 +136,8 @@ public sealed partial class BrowserProfileVaultTests
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
         form.SetValue(DefinitionPath.Parse("/endpoint"), JsonSerializer.SerializeToElement("current-endpoint"));
         form.SetValue(DefinitionPath.Parse("/token"), JsonSerializer.SerializeToElement("synthetic-current-token"));
-        var panel = RenderProfile(context, form);
+        await using BrowserProfileVaultController controller = CreateController(context, form);
+        var panel = RenderProfile(context, controller);
         await panel.Find("#profile-new-passphrase").InputAsync(new ChangeEventArgs { Value = PortablePassphrase });
         await panel.Find("#profile-confirm-passphrase").InputAsync(new ChangeEventArgs { Value = PortablePassphrase });
         await panel.Find("[data-action='profile-save']").ClickAsync(new MouseEventArgs());
@@ -159,7 +166,8 @@ public sealed partial class BrowserProfileVaultTests
         using var runtime = new ProfileRuntime();
         context.Services.AddSingleton<IJSRuntime>(runtime);
         using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
-        var panel = RenderProfile(context, form);
+        await using BrowserProfileVaultController controller = CreateController(context, form);
+        var panel = RenderProfile(context, controller);
 
         await Assert.That(panel.FindAll("[data-profile-task='compare']").Count).IsEqualTo(1);
         await Assert.That(panel.FindAll("[data-profile-task='open']").Count).IsEqualTo(1);
@@ -185,14 +193,167 @@ public sealed partial class BrowserProfileVaultTests
         await Assert.That(panel.Find("[data-profile-recovery-state]").GetAttribute("data-profile-recovery-state")).IsEqualTo("verified");
     }
 
-    private static IRenderedComponent<ConfigurationVaultPanel> RenderProfile(BunitContext context, DefinitionFormModel form)
+    [Test]
+    public async Task ProfileControllerPreservesWorkerAcrossPanelRemountAndRetiresOnUnmountedRevocation()
+    {
+        await using var context = BrowserFixture.Context();
+        using var runtime = new ProfileRuntime();
+        context.Services.AddSingleton<IJSRuntime>(runtime);
+        using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        await using BrowserProfileVaultController controller = CreateController(context, form);
+
+        IRenderedComponent<ConfigurationVaultPanel> firstPanel = context.Render<ConfigurationVaultPanel>(
+            parameters => parameters.Add(item => item.Controller, controller));
+        await OpenThroughUiAsync(firstPanel, Container(form.Definition, ProfileProtectionMode.ImportUpgradeOnly));
+        await Assert.That(form.BrowserProfile).IsNotNull();
+        await Assert.That(controller.Fields.Count > 0).IsTrue();
+        await Assert.That(firstPanel.FindAll("details[data-profile-panel]")).IsEmpty();
+
+        // Type unsubmitted draft passphrase and reveal it before unmounting the panel.
+        await firstPanel.Find("#profile-new-passphrase").InputAsync(new ChangeEventArgs { Value = PortablePassphrase });
+        await firstPanel.Find("[data-passphrase-toggle='profile-new-passphrase']").ClickAsync(new MouseEventArgs());
+        await Assert.That(firstPanel.Find("#profile-new-passphrase").GetAttribute("type")).IsEqualTo("text");
+
+        // Unmount the panel (simulating switching End-Dock utilities or overlay transitions).
+        firstPanel.Dispose();
+
+        // Worker custody and comparison fields must survive panel unmount.
+        WorkerModule worker = runtime.Modules.Single();
+        await Assert.That(worker.Retired).IsFalse();
+        await Assert.That(form.BrowserProfile).IsNotNull();
+        await Assert.That(controller.Fields.Count > 0).IsTrue();
+
+        // Remounting against the same controller preserves worker custody while local passphrases stay wiped.
+        IRenderedComponent<ConfigurationVaultPanel> secondPanel = context.Render<ConfigurationVaultPanel>(
+            parameters => parameters.Add(item => item.Controller, controller));
+        await Assert.That(secondPanel.FindAll("[data-profile-task='active-profile']")).Count().IsEqualTo(1);
+        await Assert.That(secondPanel.Find("#profile-new-passphrase").GetAttribute("value") ?? "").IsEqualTo("");
+        await Assert.That(secondPanel.Find("#profile-new-passphrase").GetAttribute("type")).IsEqualTo("password");
+        await Assert.That(secondPanel.Find("[data-passphrase-toggle='profile-new-passphrase']").GetAttribute("aria-pressed")).IsEqualTo("false");
+
+        // Save snapshot so RecoveryReference exists, then unmount and revoke consent while unmounted.
+        await secondPanel.Find("#profile-new-passphrase").InputAsync(new ChangeEventArgs { Value = PortablePassphrase });
+        await secondPanel.Find("#profile-confirm-passphrase").InputAsync(new ChangeEventArgs { Value = PortablePassphrase });
+        await secondPanel.Find("[data-action='profile-save']").ClickAsync(new MouseEventArgs());
+        await Assert.That(controller.RecoveryReference).IsNotNull();
+
+        secondPanel.Dispose();
+
+        // Revoking consent while panel is unmounted must synchronously retire worker and clear RecoveryReference.
+        form.SetSecretEntryEnabled(false);
+
+        await Assert.That(worker.Retired).IsTrue();
+        await Assert.That(form.BrowserProfile).IsNull();
+        await Assert.That(controller.RecoveryReference).IsNull();
+        await Assert.That(controller.Fields).IsEmpty();
+    }
+
+    [Test]
+    public async Task ProfileControllerTracksIsBusyWipesPassphraseBeforeAwaitAndRetiresOnUnmountedEdit()
+    {
+        await using var context = BrowserFixture.Context();
+        using var runtime = new ProfileRuntime { Hold = "unlock" };
+        context.Services.AddSingleton<IJSRuntime>(runtime);
+        using var form = new DefinitionFormModel(Definition(), DefinitionSessionPrivacy.BrowserSecretsEnabled);
+        await using BrowserProfileVaultController controller = CreateController(context, form);
+
+        IRenderedComponent<ConfigurationVaultPanel> panel = context.Render<ConfigurationVaultPanel>(
+            parameters => parameters.Add(item => item.Controller, controller));
+        await SelectVaultAsync(panel, Container(form.Definition, ProfileProtectionMode.ImportUpgradeOnly));
+        await panel.Find("[data-passphrase-toggle='profile-open-passphrase']").ClickAsync(new MouseEventArgs());
+        await Assert.That(panel.Find("#profile-open-passphrase").GetAttribute("type")).IsEqualTo("text");
+
+        Task opening = panel.Find("[data-action='profile-open']").ClickAsync(new MouseEventArgs());
+        WorkerModule module = runtime.Modules.Single();
+        await module.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // While KDF/unlock is still in-flight: IsBusy is true AND view-local passphrase + visibility were already wiped before await!
+        await Assert.That(controller.IsBusy).IsTrue();
+        await Assert.That(panel.Find("#profile-open-passphrase").GetAttribute("value") ?? "").IsEqualTo("");
+        await Assert.That(panel.Find("#profile-open-passphrase").GetAttribute("type")).IsEqualTo("password");
+
+        // Unmount the panel while work is still in-flight, then mutate an answer -> controller retires worker synchronously.
+        panel.Dispose();
+        form.SetValue(DefinitionPath.Parse("/endpoint"), JsonSerializer.SerializeToElement("edited-while-unmounted"));
+
+        await Assert.That(module.Retired).IsTrue();
+        module.Release.TrySetResult();
+        await opening.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(controller.IsBusy).IsFalse();
+        await Assert.That(controller.Status).IsEqualTo("ProfileCancelled");
+        await Assert.That(form.BrowserProfile).IsNull();
+    }
+
+    [Test]
+    public async Task ProfileControllerEnforcesZeroStringPassphraseBoundaryAndPanelIsSyncDisposableOnly()
+    {
+        Type controllerType = typeof(BrowserProfileVaultController);
+        const BindingFlags AllMembers = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+
+        // Compile-time boundary: zero string fields or properties for passphrases/credentials on controller.
+        foreach (FieldInfo field in controllerType.GetFields(AllMembers))
+        {
+            if (field.Name.Contains("passphrase", StringComparison.OrdinalIgnoreCase)
+                || field.Name.Contains("credential", StringComparison.OrdinalIgnoreCase)
+                || field.Name.Contains("confirmation", StringComparison.OrdinalIgnoreCase))
+            {
+                await Assert.That(field.FieldType).IsNotEqualTo(typeof(string));
+            }
+        }
+
+        // OpenAsync, SaveAsync, and RecoverAsync must accept ONLY ReadOnlyMemory<byte> / collections of ReadOnlyMemory<byte>, never string.
+        foreach (string methodName in new[] { nameof(BrowserProfileVaultController.OpenAsync), nameof(BrowserProfileVaultController.SaveAsync), nameof(BrowserProfileVaultController.RecoverAsync) })
+        {
+            MethodInfo method = controllerType.GetMethod(methodName, BindingFlags.Public | BindingFlags.Instance)!;
+            ParameterInfo[] parameters = method.GetParameters();
+            await Assert.That(parameters.Any(parameter => parameter.ParameterType == typeof(string))).IsFalse();
+            await Assert.That(parameters.Any(parameter =>
+                parameter.ParameterType == typeof(ReadOnlyMemory<byte>)
+                || parameter.ParameterType == typeof(IReadOnlyList<ReadOnlyMemory<byte>>))).IsTrue();
+        }
+
+        // ConfigurationVaultPanel implements IDisposable ONLY (never IAsyncDisposable).
+        await Assert.That(typeof(IDisposable).IsAssignableFrom(typeof(ConfigurationVaultPanel))).IsTrue();
+        await Assert.That(typeof(IAsyncDisposable).IsAssignableFrom(typeof(ConfigurationVaultPanel))).IsFalse();
+    }
+
+    [Test]
+    public async Task ProfileControllerDisposesCleanlyBeforeFormDisposalInConfigurationEditor()
+    {
+        await using var context = BrowserFixture.Context();
+        using var runtime = new ProfileRuntime(context.JSInterop.JSRuntime);
+        context.Services.AddSingleton<IJSRuntime>(runtime);
+        IRenderedComponent<ConfigurationEditor> editor = context.Render<ConfigurationEditor>(
+            parameters => parameters.Add(item => item.Definition, Definition()));
+        await BrowserFixture.SetSecretConsentAsync(editor, true);
+        await BrowserFixture.OpenWorkspaceUtilityAsync(editor, "profiles");
+        IRenderedComponent<ConfigurationVaultPanel> panel = editor.FindComponent<ConfigurationVaultPanel>();
+        DefinitionFormModel form = panel.Instance.Controller.Form;
+        await OpenThroughUiAsync(panel, Container(form.Definition, ProfileProtectionMode.ImportUpgradeOnly));
+        WorkerModule worker = runtime.Modules.Single();
+        await Assert.That(worker.Retired).IsFalse();
+
+        // DiscardAsync must retire controller BEFORE form.Dispose() with zero ObjectDisposedException.
+        await editor.InvokeAsync(() => editor.Instance.DiscardAsync());
+        await Assert.That(worker.Retired).IsTrue();
+    }
+
+    private static BrowserProfileVaultController CreateController(BunitContext context, DefinitionFormModel form)
     {
         Guid workspace = Guid.NewGuid();
         ProfileWorkerAuthority Authority() => new(workspace, 1, form.InputRevision, 1,
             form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled);
-        return context.Render<ConfigurationVaultPanel>(parameters => parameters.Add(item => item.Form, form)
-            .Add(item => item.Ready, true).Add(item => item.CaptureAuthority, Authority));
+        return new BrowserProfileVaultController(
+            form,
+            context.Services.GetRequiredService<IJSRuntime>(),
+            context.Services.GetRequiredService<BrowserDefinitionRegistry>(),
+            Authority);
     }
+
+    private static IRenderedComponent<ConfigurationVaultPanel> RenderProfile(
+        BunitContext context,
+        BrowserProfileVaultController controller) =>
+        context.Render<ConfigurationVaultPanel>(parameters => parameters.Add(item => item.Controller, controller));
 
     private static async Task SelectVaultAsync(IRenderedComponent<ConfigurationVaultPanel> panel, byte[] container)
     {
@@ -250,23 +411,28 @@ public sealed partial class BrowserProfileVaultTests
         });
     }
 
-    private sealed class ProfileRuntime : IJSInProcessRuntime, IDisposable
+    private sealed class ProfileRuntime(IJSRuntime? fallback = null) : IJSInProcessRuntime, IDisposable
     {
         private WorkerFactory? _module;
         internal string? Hold { get; init; }
         internal List<WorkerModule> Modules { get; } = [];
         internal List<byte[]> Downloads { get; } = [];
         public TValue Invoke<TValue>(string identifier, params object?[]? args) => throw new NotSupportedException();
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args)
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
         {
             if (identifier is "Blazor._internal.InputFile.init" or "Blazor._internal.domWrapper.focus")
                 return ValueTask.FromResult(default(TValue)!);
-            if (identifier != "import" || args?[0] is not "./js/profile-worker-host.js") throw new NotSupportedException();
-            _module ??= new WorkerFactory(this);
-            return ValueTask.FromResult((TValue)(object)_module);
+            if (identifier == "import" && args?[0] is "./js/profile-worker-host.js")
+            {
+                _module ??= new WorkerFactory(this);
+                return ValueTask.FromResult((TValue)(object)_module);
+            }
+            if (fallback is not null)
+                return fallback.InvokeAsync<TValue>(identifier, cancellationToken, args);
+            throw new NotSupportedException();
         }
-        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
-            InvokeAsync<TValue>(identifier, args);
         public void Dispose()
         {
             foreach (WorkerModule module in Modules) module.Dispose();

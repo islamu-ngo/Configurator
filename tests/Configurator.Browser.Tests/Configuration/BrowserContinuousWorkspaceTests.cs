@@ -41,7 +41,7 @@ public sealed class BrowserContinuousWorkspaceTests
         // Clicking locked secret consent action opens the single consent destination without auto-enabling consent.
         await secretField.QuerySelector("[data-action='field-secret-consent']")!.ClickAsync(new MouseEventArgs());
         await Assert.That(form.SessionPrivacy).IsEqualTo(DefinitionSessionPrivacy.BrowserNoSecrets);
-        await Assert.That(component.Find("details[data-secret-consent]").HasAttribute("open")).IsTrue();
+        await Assert.That(component.FindAll("[data-trust-privacy-panel]")).Count().IsEqualTo(1);
 
         // Enable secrets, supply secret and private map entry, and verify masking + metadata-only search.
         await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
@@ -360,7 +360,7 @@ public sealed class BrowserContinuousWorkspaceTests
         var form = component.FindComponents<ConfigurationField>()[0].Instance.Form;
 
         await component.Find("[data-layout-mode='all-sections']").ClickAsync(new MouseEventArgs());
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await component.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "compact.example" });
         await component.Find("[data-field='secretToken'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-secret-compact-key" });
 
@@ -486,6 +486,84 @@ public sealed class BrowserContinuousWorkspaceTests
         await toggle.ClickAsync(new MouseEventArgs());
         await Assert.That(component.FindAll("[data-field='options.note'] input")).IsEmpty();
         await Assert.That(component.Find("[data-field='options'] [data-action='expand-optional']").GetAttribute("aria-expanded")).IsEqualTo("false");
+    }
+
+    [Test]
+    public async Task DeveloperMountsWithTrustPrivacyUnmountedAndRetiresSynchronouslyOnHeaderRevoke()
+    {
+        await using var context = BrowserFixture.Context();
+        using var engine = new WorstBreakDeveloperBridge(context.JSInterop.JSRuntime);
+        context.Services.AddSingleton<IJSRuntime>(engine);
+        var component = BrowserFixture.RenderWorkspace(context, CreateCompactDefinition());
+
+        // Step 1: Open Trust & Privacy via header consent chip and unlock secrets.
+        await component.Find("header.workspace-header [data-workspace-consent-chip]").ClickAsync(new MouseEventArgs());
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await component.Find("[data-field='secretToken'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-worst-break-secret" });
+
+        // Step 2: Switch to Document (JSON) utility via right rail -> Trust & Privacy (#secret-consent) is UNMOUNTED!
+        await component.Find("[data-utility-rail-action='document']").ClickAsync(new MouseEventArgs());
+        await Assert.That(component.FindAll("#secret-consent")).IsEmpty();
+        await engine.Mounted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await Assert.That(engine.Active).IsTrue();
+        await Assert.That(engine.Options!.CustodyAnchor.Id).IsNotNull();
+        await Assert.That(engine.Options.WorkspaceLifetime)
+            .IsEqualTo(component.Find("section.configuration-editor").GetAttribute("data-workspace-lifetime"));
+
+        // Step 3: Click always-visible header Revoke -> retires JS bridge synchronously and clears secrets immediately!
+        await component.Find("header.workspace-header [data-action='revoke-secret-entry']").ClickAsync(new MouseEventArgs());
+        await Assert.That(engine.Active).IsFalse();
+        await Assert.That(engine.SynchronousRetireCalls).IsGreaterThan(0);
+        await Assert.That(component.Find("header.workspace-header [data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("false");
+        await Assert.That(component.FindAll("header.workspace-header [data-action='revoke-secret-entry']")).IsEmpty();
+        await Assert.That(component.FindAll("[data-field='secretToken'] [data-secret-denied]")).Count().IsEqualTo(1);
+    }
+
+    private sealed class WorstBreakDeveloperBridge(IJSRuntime fallback) : IJSRuntime, IJSInProcessObjectReference
+    {
+        internal TaskCompletionSource Mounted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal bool Active { get; private set; }
+        internal int SynchronousRetireCalls { get; private set; }
+        internal ConfigurationDeveloper.EditorOptions? Options { get; private set; }
+
+        public TValue Invoke<TValue>(string identifier, params object?[]? args)
+        {
+            if (identifier == "retire")
+            {
+                SynchronousRetireCalls++;
+                Active = false;
+            }
+            return default!;
+        }
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) =>
+            InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier == "import" && args?[0]?.ToString() is "./js/configuration-developer.js" or "./js/configuration-rendering.js")
+                return (TValue)(object)this;
+            if (identifier == "createBridge")
+                return (TValue)(object)this;
+            if (identifier is "nextFrame" or "nextTask")
+                return default!;
+            if (identifier == "mount")
+            {
+                Options = (ConfigurationDeveloper.EditorOptions)args![3]!;
+                Active = true;
+                Mounted.TrySetResult();
+                return (TValue)(object)1L;
+            }
+            if (identifier == "retire")
+            {
+                Active = false;
+                return default!;
+            }
+            return await fallback.InvokeAsync<TValue>(identifier, cancellationToken, args);
+        }
+
+        public void Dispose() { }
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private static Definition CreateLargeAllSectionsDefinition(int sectionCount, int fieldsPerSection)

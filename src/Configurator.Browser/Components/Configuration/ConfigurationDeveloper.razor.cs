@@ -18,7 +18,7 @@ public partial class ConfigurationDeveloper : ComponentBase
     [Parameter] public string? EnvironmentArtifactId { get; set; }
     [Parameter] public EventCallback<bool> DirtyChanged { get; set; }
     [Parameter] public EventCallback RequestConsent { get; set; }
-    [Parameter] public Func<ElementReference>? ConsentControl { get; set; }
+    [Parameter] public Func<ElementReference>? CustodyAnchor { get; set; }
     [Parameter] public string WorkspaceLifetime { get; set; } = string.Empty;
 
     private ElementReference _heading;
@@ -172,7 +172,8 @@ public partial class ConfigurationDeveloper : ComponentBase
         {
             await _retirement;
             if (!LeaseCurrent(owner, session, token)) return;
-            if (ConsentControl is null || string.IsNullOrEmpty(WorkspaceLifetime))
+            ElementReference custodyAnchor = CustodyAnchor is null ? default : CustodyAnchor();
+            if (CustodyAnchor is null || string.IsNullOrEmpty(custodyAnchor.Id) || string.IsNullOrEmpty(WorkspaceLifetime))
                 throw new JSException("developer-consent-required");
             if (_module is null)
             {
@@ -248,7 +249,7 @@ public partial class ConfigurationDeveloper : ComponentBase
         _modelReady && version == _version && LeaseCurrent(generation, session, token);
 
     private EditorOptions Options(byte[] source) => new(source, RepresentationName, Text("EditorLabel"), HelpId,
-        Form.Locale, CompletionItems(), EditorPhrases(), ConsentControl!(), WorkspaceLifetime, _id);
+        Form.Locale, CompletionItems(), EditorPhrases(), CustodyAnchor!(), WorkspaceLifetime, _id);
 
     private Dictionary<string, string> EditorPhrases() => new()
     {
@@ -507,6 +508,6 @@ public partial class ConfigurationDeveloper : ComponentBase
     public sealed record CompletionItem(string Label, string Apply, string Detail, string Type);
     public sealed record EditorOptions(byte[] Source, string Representation, string Label, string DescribedBy,
         string Locale, IReadOnlyList<CompletionItem> CompletionItems, Dictionary<string, string> Phrases,
-        ElementReference Consent, string WorkspaceLifetime, string EditorLifetime);
+        ElementReference CustodyAnchor, string WorkspaceLifetime, string EditorLifetime);
     public sealed record EditorState(long Version, bool Dirty, bool HistoryLimited);
 }

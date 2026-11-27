@@ -1,6 +1,5 @@
 @using Configurator.Browser.Services.Docking
 @using MudBlazor.Services
-@implements IDisposable
 @implements IAsyncDisposable
 @implements IBrowserViewportObserver
 @inject DockLayoutState DockLayoutState
@@ -42,6 +41,11 @@
     private int _viewportWidth;
     private DockScope? _lastPublishedScope;
     private int? _lastPublishedMinimumContentWidth;
+    private int _renderedStartWidth;
+    private int _renderedEndWidth;
+    private int _renderedBottomWidth;
+    private bool _dockRenderPending;
+    private bool _disposed;
 
     private string ScopeName => Scope.ToString().ToLowerInvariant();
 
@@ -69,7 +73,13 @@
         $"--dock-layout-end-width: {DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.End)}px;"
     });
 
-    protected override void OnInitialized() => DockLayoutState.Changed += OnDockLayoutChanged;
+    protected override void OnInitialized()
+    {
+        _renderedStartWidth = DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.Start);
+        _renderedEndWidth = DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.End);
+        _renderedBottomWidth = DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.Bottom);
+        DockLayoutState.Changed += OnDockLayoutChanged;
+    }
 
     protected override void OnParametersSet()
     {
@@ -99,10 +109,9 @@
         }
     }
 
-    public void Dispose() => DockLayoutState.Changed -= OnDockLayoutChanged;
-
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         DockLayoutState.Changed -= OnDockLayoutChanged;
 
         if (_viewportSubscribed)
@@ -119,7 +128,30 @@
         }
     }
 
-    private void OnDockLayoutChanged() => _ = InvokeAsync(StateHasChanged);
+    private void OnDockLayoutChanged()
+    {
+        if (_disposed) return;
+        int startWidth = DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.Start);
+        int endWidth = DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.End);
+        int bottomWidth = DockLayoutState.GetEffectiveDockedWidth(Scope, DockSide.Bottom);
+        if (startWidth == _renderedStartWidth
+            && endWidth == _renderedEndWidth
+            && bottomWidth == _renderedBottomWidth)
+        {
+            return;
+        }
+
+        _renderedStartWidth = startWidth;
+        _renderedEndWidth = endWidth;
+        _renderedBottomWidth = bottomWidth;
+        if (_dockRenderPending) return;
+        _dockRenderPending = true;
+        _ = InvokeAsync(() =>
+        {
+            _dockRenderPending = false;
+            if (!_disposed) StateHasChanged();
+        });
+    }
 
     Task IBrowserViewportObserver.NotifyBrowserViewportChangeAsync(BrowserViewportEventArgs args)
     {

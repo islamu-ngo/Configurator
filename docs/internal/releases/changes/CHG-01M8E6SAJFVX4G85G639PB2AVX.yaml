@@ -1,0 +1,28 @@
+Change-Id: CHG-01M8E6SAJFVX4G85G639PB2AVX
+Title: "Replace bottom workspace accordions with right utility workbench"
+Type: feat
+Scope: browser
+Summary: "Decouple profile vault and Developer JSON custody from transient panel mounts, end Browser forms cleanly at section pagination above a quiet custody footer, and consolidate workspace utilities into a single-active right workbench with header secret posture and one-click revocation."
+Group: browser-workspace-utilities
+Supersedes: []
+Impacts:
+  Breaking:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Removes stacked bottom workspace/privacy accordions, outer landmark fieldset wrapper, duplicate #configuration-locale selector, ConfigurationDeveloper.ConsentControl, ConfigurationInspectorPane.IsMobileSheet, and redundant Advanced Form/Developer/Inspector/consent buttons in favor of the topbar LanguagePicker, WorkspaceHeader secret posture chip, one-click Revoke control, narrow MudMenu Tools trigger, always-mounted CustodyAnchor, and single-active right-side Workspace Utility Workbench."
+  Security:
+    Reference: docs/internal/BROWSER_UI.md
+    Disposition: documented
+    Detail: "Decouples encrypted profile worker custody into BrowserProfileVaultController (compile-time ReadOnlyMemory<byte> passphrase boundary) and binds ConfigurationDeveloper to an always-mounted CustodyAnchor with capture-phase and synchronous in-process revocation."
+  Migration:
+    Reference: docs/RELEASE_RUNBOOK.md
+    Disposition: not-applicable
+  Configuration:
+    Reference: docs/CONFIGURATION.md
+    Disposition: not-applicable
+  OpenAPI:
+    Reference: docs/API_CHANGELOG.md
+    Disposition: not-applicable
+  Operator:
+    Reference: docs/RELEASE_CHECKLIST.md
+    Disposition: not-applicable

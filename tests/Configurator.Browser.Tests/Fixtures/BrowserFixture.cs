@@ -142,6 +142,54 @@ internal static class BrowserFixture
         await component.Find(draft ? "#prepare-draft" : "#prepare-complete").ClickAsync(new MouseEventArgs());
     }
 
+    internal static async Task OpenWorkspaceUtilityAsync<T>(IRenderedComponent<T> component, string actionToken)
+        where T : class, IComponent
+    {
+        IElement button = component.Find($"[data-utility-rail-action='{actionToken}']");
+        if (button.GetAttribute("aria-expanded") != "true")
+            await button.ClickAsync(new MouseEventArgs());
+    }
+
+    internal static async Task CloseWorkspaceUtilityAsync<T>(IRenderedComponent<T> component)
+        where T : class, IComponent
+    {
+        IReadOnlyList<IElement> open = component.FindAll("[data-utility-rail-action][aria-expanded='true']");
+        if (open.Count > 0)
+            await open[0].ClickAsync(new MouseEventArgs());
+    }
+
+    internal static async Task SetSecretConsentAsync<T>(IRenderedComponent<T> component, bool enabled)
+        where T : class, IComponent
+    {
+        if (component.FindAll("#secret-consent").Count == 0)
+        {
+            if (!enabled && component.FindAll("header.workspace-header [data-action='revoke-secret-entry']").Count > 0)
+            {
+                await component.Find("header.workspace-header [data-action='revoke-secret-entry']").ClickAsync(new MouseEventArgs());
+                return;
+            }
+
+            await OpenWorkspaceUtilityAsync(component, "trust-privacy");
+        }
+
+        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = enabled });
+    }
+
+    internal static async Task<IRenderedComponent<IComponent>> OpenToolsMenuAsync<T>(BunitContext context, IRenderedComponent<T> component)
+        where T : class, IComponent
+    {
+        await component.Find("header.workspace-header [data-action='open-workspace-tools']").ClickAsync(new MouseEventArgs());
+        return PopoverSurface(context, component);
+    }
+
+    internal static async Task SwitchLocaleAsync<T>(BunitContext context, IRenderedComponent<T> component, string locale)
+        where T : class, IComponent
+    {
+        await component.Find("[data-action='toggle-language-picker']").ClickAsync(new MouseEventArgs());
+        IRenderedComponent<IComponent> surface = PopoverSurface(context, component);
+        await surface.Find($"[data-locale='{locale}']").ClickAsync(new MouseEventArgs());
+    }
+
     internal static async Task<IElement> OpenOmissionAsync<T>(BunitContext context, IRenderedComponent<T> component, string field)
         where T : class, IComponent
     {

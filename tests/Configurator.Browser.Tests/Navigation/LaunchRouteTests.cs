@@ -270,28 +270,27 @@ public sealed class LaunchRouteTests
         context.Services.GetRequiredService<NavigationManager>().NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0&mode={mode}");
         var component = context.Render<App>();
 
-        await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
-        await Assert.That(component.FindAll("[data-returning-entry] [data-entry-choice]").Count).IsEqualTo(3);
-        var importPanel = component.Find("details[data-import-panel]");
-        var profilePanel = component.Find("details[data-profile-panel]");
-        await Assert.That(importPanel.HasAttribute("open")).IsEqualTo(mode == "import");
-        await Assert.That(profilePanel.HasAttribute("open")).IsEqualTo(mode == "profile");
+        await Assert.That(component.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("false");
+        await Assert.That(component.FindAll("[data-returning-entry]")).IsEmpty();
+        await Assert.That(component.FindAll("[data-import-panel]").Count).IsEqualTo(mode == "import" ? 1 : 0);
+        await Assert.That(component.FindAll("[data-profile-panel]").Count).IsEqualTo(mode == "profile" ? 1 : 0);
 
         if (mode == "fresh")
         {
-            await component.Find("[data-entry-choice='import']").ClickAsync(new MouseEventArgs());
-            await Assert.That(component.Find("details[data-import-panel]").HasAttribute("open")).IsTrue();
-            await Assert.That(component.Find("details[data-profile-panel]").HasAttribute("open")).IsFalse();
-            await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+            await Assert.That(component.FindAll("[data-onboarding-cue]")).Count().IsEqualTo(1);
+            await component.Find("[data-action='onboarding-import']").ClickAsync(new MouseEventArgs());
+            await Assert.That(component.FindAll("[data-import-panel]")).Count().IsEqualTo(1);
+            await Assert.That(component.FindAll("[data-profile-panel]")).IsEmpty();
+            await Assert.That(component.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("false");
 
-            await component.Find("[data-entry-choice='profile']").ClickAsync(new MouseEventArgs());
-            await Assert.That(component.Find("details[data-profile-panel]").HasAttribute("open")).IsTrue();
-            await Assert.That(component.Find("details[data-import-panel]").HasAttribute("open")).IsFalse();
-            await Assert.That(component.Find("#secret-consent").HasAttribute("checked")).IsFalse();
+            await component.Find("[data-utility-rail-action='profiles']").ClickAsync(new MouseEventArgs());
+            await Assert.That(component.FindAll("[data-profile-panel]")).Count().IsEqualTo(1);
+            await Assert.That(component.FindAll("[data-import-panel]")).IsEmpty();
+            await Assert.That(component.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("false");
 
-            await component.Find("[data-entry-choice='fresh']").ClickAsync(new MouseEventArgs());
-            await Assert.That(component.Find("details[data-import-panel]").HasAttribute("open")).IsFalse();
-            await Assert.That(component.Find("details[data-profile-panel]").HasAttribute("open")).IsFalse();
+            await component.Find("[data-utility-rail-action='profiles']").ClickAsync(new MouseEventArgs());
+            await Assert.That(component.FindAll("[data-import-panel]")).IsEmpty();
+            await Assert.That(component.FindAll("[data-profile-panel]")).IsEmpty();
         }
     }
 
@@ -383,5 +382,51 @@ public sealed class LaunchRouteTests
         await component.InvokeAsync(() => navigation.NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0"));
         await navigation.Completion.WaitAsync(TimeSpan.FromSeconds(5));
         await Assert.That(component.Find("[data-field='hostname'] input").GetAttribute("value")).IsNotEqualTo("discarded-on-settings-nav.example.test");
+    }
+
+    [Test]
+    public async Task UntouchedOnboardingCueSelfDismissesOnFirstEditOrDismissAndModeRoutesOpenUtilityDockWithoutConsent()
+    {
+        var registry = new BrowserDefinitionRegistry([BrowserFixture.Definition]);
+        await using var freshContext = BrowserFixture.Context(registry);
+        freshContext.Services.GetRequiredService<NavigationManager>()
+            .NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0");
+        var fresh = freshContext.Render<App>();
+
+        // Untouched workspace renders compact onboarding micro-cue and keeps utility dock closed by default.
+        await Assert.That(fresh.FindAll("[data-onboarding-cue]")).Count().IsEqualTo(1);
+        await Assert.That(fresh.FindAll("[data-onboarding-cue] [data-action='onboarding-import']")).Count().IsEqualTo(1);
+        await Assert.That(fresh.FindAll("[data-onboarding-cue] [data-action='onboarding-profile']")).Count().IsEqualTo(1);
+        await Assert.That(fresh.FindAll("[data-onboarding-cue] [data-action='onboarding-dismiss']")).Count().IsEqualTo(1);
+        await Assert.That(fresh.FindAll("[data-import-panel]")).IsEmpty();
+        await Assert.That(fresh.FindAll("#profile-vault-heading")).IsEmpty();
+
+        // First answer edit auto-hides the onboarding cue immediately.
+        await fresh.Find("[data-field='hostname'] input").InputAsync(new ChangeEventArgs { Value = "started.example.test" });
+        await Assert.That(fresh.FindAll("[data-onboarding-cue]")).IsEmpty();
+
+        // Explicit Dismiss also removes the onboarding cue on a fresh session.
+        await using var dismissContext = BrowserFixture.Context(registry);
+        dismissContext.Services.GetRequiredService<NavigationManager>()
+            .NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0");
+        var dismissable = dismissContext.Render<App>();
+        await dismissable.Find("[data-action='onboarding-dismiss']").ClickAsync(new MouseEventArgs());
+        await Assert.That(dismissable.FindAll("[data-onboarding-cue]")).IsEmpty();
+
+        // ?mode=import opens Import in End Dock without granting secret consent.
+        await using var importContext = BrowserFixture.Context(registry);
+        importContext.Services.GetRequiredService<NavigationManager>()
+            .NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0&mode=import");
+        var importApp = importContext.Render<App>();
+        await Assert.That(importApp.FindAll("[data-import-panel]")).Count().IsEqualTo(1);
+        await Assert.That(importApp.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("false");
+
+        // ?mode=profile opens Profiles in End Dock without granting secret consent.
+        await using var profileContext = BrowserFixture.Context(registry);
+        profileContext.Services.GetRequiredService<NavigationManager>()
+            .NavigateTo($"/launch/{BrowserFixture.Family}?appVersion=1.0&mode=profile");
+        var profileApp = profileContext.Render<App>();
+        await Assert.That(profileApp.FindAll("#profile-vault-heading")).Count().IsEqualTo(1);
+        await Assert.That(profileApp.Find("[data-workspace-consent-chip]").GetAttribute("data-consent-active")).IsEqualTo("false");
     }
 }

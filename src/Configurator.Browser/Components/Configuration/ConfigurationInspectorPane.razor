@@ -1,8 +1,6 @@
 @using System.Text.Json
 @using Configurator.Core.Definitions
 @using Configurator.Presentation
-@using Microsoft.JSInterop
-@inject IJSRuntime Javascript
 
 @{
     string locale = Form.Locale;
@@ -12,14 +10,12 @@
     var bindings = InspectedPath is null || state is null ? ([], []) : Form.GetEditorBindings([state.FieldId, .. state.RelativePath]);
     JsonElement schema = presentation?.Schema.Keywords ?? default;
     string fieldPath = InspectedPath is null ? string.Empty : string.Join('.', InspectedPath.Segments);
+    DefinitionFormExperience? selectedExperience = Form.DisplayExperiences.FirstOrDefault(item => item.Id == Form.SelectedExperienceId);
+    bool secretsUnlocked = Form.SessionPrivacy == DefinitionSessionPrivacy.BrowserSecretsEnabled;
 }
 
-<aside @ref="_paneElement"
-       class="configuration-inspector-pane @(IsMobileSheet ? "configuration-inspector-pane--sheet" : string.Empty)"
+<aside class="configuration-inspector-pane"
        data-inspector-pane
-       data-mobile-sheet="@(IsMobileSheet ? "true" : null)"
-       role="@(IsMobileSheet ? "dialog" : null)"
-       aria-modal="@(IsMobileSheet ? "true" : null)"
        aria-label="@T("InspectorPaneLabel", locale)"
        tabindex="-1"
        lang="@locale"
@@ -31,7 +27,34 @@
     </div>
     @if (presentation is null || InspectedPath is null)
     {
-        <p class="configuration-inspector-pane__empty">@T("InspectorPaneEmpty", locale)</p>
+        <section class="configuration-inspector-pane__overview" data-workspace-overview aria-labelledby="inspector-workspace-overview-heading">
+            <h4 id="inspector-workspace-overview-heading">@T("WorkspaceOverviewHeading", locale)</h4>
+            <dl class="configuration-inspector-pane__facts">
+                <dt>@T("WorkspaceOverviewDefinition", locale)</dt>
+                <dd><bdi>@Form.Definition.Title</bdi></dd>
+                @if (selectedExperience is not null)
+                {
+                    <dt>@T("WorkspaceOverviewExperience", locale)</dt>
+                    <dd><bdi>@selectedExperience.Title</bdi></dd>
+                }
+                @if (!string.IsNullOrWhiteSpace(CurrentSectionTitle))
+                {
+                    <dt>@T("WorkspaceOverviewSection", locale)</dt>
+                    <dd><bdi>@CurrentSectionTitle</bdi></dd>
+                }
+                <dt>@T("WorkspaceOverviewCustody", locale)</dt>
+                <dd>@T(secretsUnlocked ? "SecretsEnabledChip" : "SecretsLockedChip", locale)</dd>
+            </dl>
+            @if (!string.IsNullOrWhiteSpace(selectedExperience?.Description))
+            {
+                <p class="form-help" data-experience-description>@selectedExperience.Description</p>
+            }
+            @if (!string.IsNullOrWhiteSpace(CurrentSectionDescription))
+            {
+                <p class="form-help" data-section-description>@CurrentSectionDescription</p>
+            }
+            <p class="configuration-inspector-pane__empty">@T("InspectorPaneEmpty", locale)</p>
+        </section>
     }
     else
     {
@@ -108,24 +131,13 @@
 </aside>
 
 @code {
-    private ElementReference _paneElement;
-    private IJSObjectReference? _module;
-
     [Parameter, EditorRequired] public DefinitionFormModel Form { get; set; } = null!;
     [Parameter] public DefinitionPath? InspectedPath { get; set; }
     [Parameter] public long ProjectionRevision { get; set; }
     [Parameter] public string Locale { get; set; } = "en";
-    [Parameter] public bool IsMobileSheet { get; set; }
+    [Parameter] public string? CurrentSectionTitle { get; set; }
+    [Parameter] public string? CurrentSectionDescription { get; set; }
     [Parameter] public EventCallback CloseRequested { get; set; }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (IsMobileSheet && !string.IsNullOrEmpty(_paneElement.Id))
-        {
-            _module ??= await Javascript.InvokeAsync<IJSObjectReference>("import", "./js/configuration-rendering.js");
-            await _module.InvokeVoidAsync("focusSheetStart", _paneElement);
-        }
-    }
 
     private Task HandleKeyDownAsync(KeyboardEventArgs args) =>
         args.Key == "Escape" ? CloseRequested.InvokeAsync() : Task.CompletedTask;

@@ -50,26 +50,26 @@ public sealed class AccessibilityFocusService(IJSRuntime jsRuntime) : IAsyncDisp
         }
     }
 
-    public async Task SaveFocusAsync()
+    public async Task SaveFocusAsync(string scope = "default")
     {
         if (_disposed) return;
         try
         {
             IJSObjectReference module = await GetModuleAsync();
-            await module.InvokeVoidAsync("saveActiveElement");
+            await module.InvokeVoidAsync("saveActiveElement", scope);
         }
         catch (JSException)
         {
         }
     }
 
-    public async Task RestoreFocusAsync(string? fallbackSelector = null)
+    public async Task RestoreFocusAsync(string? fallbackSelector = null, bool preventScroll = false, string scope = "default")
     {
         if (_disposed) return;
         try
         {
             IJSObjectReference module = await GetModuleAsync();
-            await module.InvokeVoidAsync("restoreFocus", fallbackSelector);
+            await module.InvokeVoidAsync("restoreFocus", fallbackSelector, preventScroll, scope);
         }
         catch (JSException)
         {

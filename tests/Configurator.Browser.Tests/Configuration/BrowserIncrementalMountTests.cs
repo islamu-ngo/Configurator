@@ -707,7 +707,7 @@ public sealed class BrowserIncrementalMountTests
         var component = context.Render<ConfigurationEditor>(parameters => parameters
             .Add(item => item.Definition, WithConfiguration(Group(new JsonObject { ["settings"] = secret }))));
         await StartAsync(component, frames);
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         var field = component.FindComponents<BrowserCredentialEntryTests.EmittedInputField>()
             .Single(item => item.Instance.Path.SequenceEqual(["settings", "setting0"]));
         await field.Find("input").InputAsync(new ChangeEventArgs { Value = "synthetic-nested-secret" });
@@ -716,7 +716,7 @@ public sealed class BrowserIncrementalMountTests
         object oldInput = currentField.CaptureInput();
         Frame obsolete = await frames.NextAsync();
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         await component.InvokeAsync(obsolete.Release);
         await component.InvokeAsync(() => InvokeInputAsync(oldInput, "synthetic-late-nested-secret"));
         await CompleteAsync(component, frames);
@@ -724,7 +724,7 @@ public sealed class BrowserIncrementalMountTests
         await Assert.That(component.FindAll("[data-configuration-mount] input")).IsEmpty();
         await Assert.That(component.Markup).DoesNotContain("synthetic-nested-secret");
         await Assert.That(component.Markup).DoesNotContain("synthetic-late-nested-secret");
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await CompleteAsync(component, frames);
         await Assert.That(component.FindAll("[data-configuration-mount] input")).Count().IsEqualTo(36);
         await Assert.That(component.Find("[data-field='settings.setting0'] input").GetAttribute("value")).IsEqualTo("");
@@ -916,7 +916,7 @@ public sealed class BrowserIncrementalMountTests
             parameters.Add(item => item.Definition, Definition(advancedTail: true, secret: true)));
         await StartAsync(component, frames);
         await CompleteAsync(component, frames);
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await CompleteAsync(component, frames);
         await component.Find("[data-field='setting0'] input").InputAsync(new ChangeEventArgs { Value = "ordinary-retained" });
         await component.Find("[data-field='setting1'] input").InputAsync(new ChangeEventArgs { Value = "synthetic-retired-secret" });
@@ -929,7 +929,7 @@ public sealed class BrowserIncrementalMountTests
         object oldInput = secret.Instance.CaptureInput();
         Frame obsolete = await frames.NextAsync();
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = false });
+        await BrowserFixture.SetSecretConsentAsync(component, false);
         await Assert.That(form.Snapshot().Values.ContainsKey("setting1")).IsFalse();
         await Assert.That(component.FindAll("[data-field='setting1'] input")).IsEmpty();
         int focusCalls = frames.FocusCalls;
@@ -945,7 +945,7 @@ public sealed class BrowserIncrementalMountTests
         await BrowserFixture.SelectPanelAsync(component, "configure");
         await CompleteAsync(component, frames);
 
-        await component.Find("#secret-consent").ChangeAsync(new ChangeEventArgs { Value = true });
+        await BrowserFixture.SetSecretConsentAsync(component, true);
         await CompleteAsync(component, frames);
         await Assert.That(component.FindAll("[data-configuration-mount] input")).Count().IsEqualTo(36);
         await Assert.That(component.Find("[data-field='setting1'] input").GetAttribute("value")).IsEqualTo("");

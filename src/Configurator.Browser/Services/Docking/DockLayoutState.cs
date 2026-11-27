@@ -278,6 +278,66 @@ public sealed class DockLayoutState : IDockPanelRegistry
             NotifyChanged(reason);
     }
 
+    /// <summary>
+    /// Atomically closes sibling closable panels in the same <c>(Scope, Side)</c> group while opening
+    /// and activating <paramref name="id"/> in a single state transition and change notification.
+    /// </summary>
+    public void OpenExclusive(DockPanelId id, DockLayoutChangeReason reason = DockLayoutChangeReason.UserAction)
+    {
+        ArgumentNullException.ThrowIfNull(id);
+        DockPanelEntry target = RequireEntry(id);
+        bool changed = false;
+
+        if (reason is DockLayoutChangeReason.UserAction)
+        {
+            foreach (DockPanelEntry entry in _entries.Values)
+            {
+                if (IsSameSideGroup(entry, target) || IsActivationGroupEntry(entry, target))
+                    _userActivatedInOverlay.Remove(entry.Descriptor.Id);
+            }
+        }
+
+        foreach (DockPanelEntry entry in _entries.Values.ToArray())
+        {
+            if (!IsSameSideGroup(entry, target))
+            {
+                if (IsActivationGroupEntry(entry, target) && entry.State.IsActive)
+                {
+                    SetEntryState(entry.Descriptor.Id, entry.State with { IsActive = false });
+                    changed = true;
+                }
+
+                continue;
+            }
+
+            bool isTarget = entry.Descriptor.Id == id;
+            if (!isTarget && !entry.Descriptor.CanClose)
+                continue;
+
+            DockPanelState nextState = isTarget
+                ? entry.State with { IsOpen = true, IsActive = true }
+                : entry.State with { IsOpen = false, IsActive = false };
+
+            if (entry.State != nextState)
+            {
+                SetEntryState(entry.Descriptor.Id, nextState);
+                changed = true;
+            }
+        }
+
+        if (reason is DockLayoutChangeReason.UserAction)
+        {
+            DockPanelEntry updatedTarget = RequireEntry(id);
+            if (ShouldRenderDockedPanelAsOverlay(updatedTarget))
+                _userActivatedInOverlay.Add(id);
+        }
+
+        SanitizeOverlayActiveStates();
+
+        if (changed)
+            NotifyChanged(reason);
+    }
+
     public void UpdateViewport(int viewportWidth, bool isMobile) =>
         UpdateViewportCore(viewportWidth, isMobile, projectionChanged: false);
 
@@ -540,6 +600,10 @@ public sealed class DockLayoutState : IDockPanelRegistry
             }
         }
     }
+
+    private static bool IsSameSideGroup(DockPanelEntry entry, DockPanelEntry target) =>
+        entry.Descriptor.Scope == target.Descriptor.Scope
+        && entry.Descriptor.Side == target.Descriptor.Side;
 
     private bool IsActivationGroupEntry(DockPanelEntry entry, DockPanelEntry activeEntry) =>
         GetActivationGroupKey(entry) == GetActivationGroupKey(activeEntry);
