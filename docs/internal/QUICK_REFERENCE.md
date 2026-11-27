@@ -3,8 +3,8 @@
 > **Audience:** Contributors | AI agents
 > **Status:** Implemented invariant router
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-10-08
-> **Source Anchors:** `AGENTS.md`, `PROJECTS.md`, `Directory.Build.props`, `docs/internal/extraction/FOUNDATION.md`
+> **Last Verified:** 2026-11-23
+> **Source Anchors:** `AGENTS.md`, `PROJECTS.md`, `Directory.Build.props`, `docs/internal/extraction/FOUNDATION.md`, `docs/internal/adr/ADR-desktop-ui-library-and-sukiui.md`
 
 Selected reusable rules from Event revision
 `c65788c36aaa4d2a7c0e4bbd7ccb0e96e529ae38` are adapted to actual Configurator
@@ -83,6 +83,18 @@ native file protection. Test actual
 keyboard/focus/rendering semantics and accessibility, not CSS/source text.
 Do not import backend role inspection or HAL gating into this offline utility.
 Use the existing surface contracts and [test-layer guide](TESTING.md#choosing-the-right-test-layer).
+
+**Configurator Product Priority & Desktop UI Delegation:** ISLAMU Event is
+ISLAMU's flagship product; Configurator is a supporting, optional quality-of-life
+utility. Safety, secret custody, data-only definition admission, generation
+fencing and protected native output are **non-negotiable**. On Desktop, the
+accepted planned direction ([Desktop SukiUI ADR](adr/ADR-desktop-ui-library-and-sukiui.md))
+adopts 100% MIT `SukiUI` (mirroring `MudBlazor` on Browser) and delegates UI,
+controls and theming heavily to SukiUI to minimize maintenance. Desktop does not
+require 1:1 Browser visual/density/theme-engine parity; Desktop RTL and automated
+WCAG/high-contrast clamping are optional bonuses when cleanly supported, not
+blocking gates. Current Desktop builds remain on `Avalonia.Themes.Fluent 12.1.6`
+until the planned migration executes.
 
 ## Protected Paths & Sensitive Boundaries
 

@@ -80,6 +80,7 @@ disposition and replacement evidence.
 | [Configuration experience across Browser, Desktop and Terminal](workstreams/i-vsd-configuration-experience.md) | current / plan-aligned for Compact-only r2; implementation awaiting approval; history retained | 2026-11-14 |
 | [Configuration experience unification across Presentation, Browser, Desktop, Terminal, and authoring quality](workstreams/i-vsd-configuration-experience-unification.md) | current / plan-aligned; implementation awaiting approval | 2026-11-16 |
 | [Browser launch readiness, static host operations, and qualification](workstreams/i-vsd-browser-launch-readiness.md) | current / implementation-verified (external release gates open) | 2026-11-23 |
+| [Avalonia Desktop SukiUI adoption and refactoring](workstreams/i-vsd-desktop-sukiui-adoption.md) | current / plan-aligned; implementation awaiting approval | 2026-11-23 |
 
 For each assessment, read its reviewed input, claim boundary, validation gaps,
 finding and mitigation IDs, and lifecycle before reusing a conclusion. A

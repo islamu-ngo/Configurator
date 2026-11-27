@@ -13,6 +13,16 @@ background telemetry, requires no target application credentials, and performs
 outbound HTTPS requests only when you explicitly enter a public HTTPS
 definition URL and choose **Fetch** on the **Open** screen.
 
+> [!NOTE]
+> **Planned Desktop UI Refresh:** Current builds use Avalonia's built-in Fluent
+> theme with custom local styling. The accepted future UI direction migrates
+> Desktop to the 100% MIT open-source **SukiUI** component library to deliver a
+> more polished native desktop interface with lower maintenance overhead while
+> keeping offline security, secret custody, and protected file output unchanged
+> ([Desktop UI decision](../internal/adr/ADR-desktop-ui-library-and-sukiui.md)).
+> This migration is planned and not yet shipped; the layout and display options
+> below describe the current release.
+
 ---
 
 ## Installation & Launch

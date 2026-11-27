@@ -4,9 +4,9 @@
 > **Kind:** Explanation
 > **Status:** Maintained direction; implementation and ambitions distinguished below
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-11-03
-> **Source Anchors:** `docs/internal/universal-configurator.md`, `docs/internal/go-to-market.md`, `docs/internal/adr/ADR-terminal-framework-and-workbench.md`, `src/Configurator.Terminal/`, `AGENTS.md`
-> **Review basis:** Product-owner direction and source review at `97c5a1789545b73a9536a4b9d4fa934976afb16c`; no new runtime or external competitive assessment on 2026-11-03.
+> **Last Verified:** 2026-11-23
+> **Source Anchors:** `docs/internal/universal-configurator.md`, `docs/internal/go-to-market.md`, `docs/internal/adr/ADR-terminal-framework-and-workbench.md`, `docs/internal/adr/ADR-desktop-ui-library-and-sukiui.md`, `src/Configurator.Terminal/`, `src/Configurator.Desktop/`, `AGENTS.md`
+> **Review basis:** Product-owner direction on 2026-11-23 (Desktop SukiUI UI-library selection and optional-utility pragmatism); historical 2026-11-03 Terminal source review retained unchanged. No new runtime qualification.
 
 ISLAMU Configurator helps maintainers describe configuration requirements once
 and helps operators prepare candidate configuration files locally. A bounded,
@@ -71,6 +71,30 @@ blocks; no demonstrated requirement offsets a migration and requalification of
 the current custody and lifetime safeguards. Higher-level alternative controls
 remain useful tradeoffs. A multi-pane workspace is an evaluation direction,
 not an approved layout or a promise of identical Browser interaction.
+
+### Organizational role, UI delegation, and Desktop direction
+
+**ISLAMU Event** is ISLAMU's flagship application; **ISLAMU Configurator** is a
+supporting, optional quality-of-life utility (operators can always edit target
+configuration files manually without Configurator). Because ISLAMU builds open
+source software as a non-profit with finite maintenance bandwidth, Configurator
+applies two pragmatic UI rules:
+
+- **100% open-source MIT UI libraries without open-core conflicts:** Just as
+  Browser selected `MudBlazor` (MIT), the accepted
+  [Desktop UI library decision](adr/ADR-desktop-ui-library-and-sukiui.md)
+  (2026-11-23, planned and unimplemented) selects **`SukiUI`** (MIT, Avalonia 12
+  `7.x`) over open-core ecosystems that maintain a competing commercial desktop
+  control library alongside their MIT core.
+- **Delegate UI heavily while keeping safety non-negotiable:** Secret custody,
+  data-only definition admission, generation fencing and create-only protected
+  native output are non-negotiable. On Desktop, controls, chrome, dialogs,
+  notifications and theming delegate heavily to `SukiUI` rather than mirroring
+  Browser's MudBlazor implementation; Desktop RTL, automated WCAG/high-contrast
+  clamping and 4-step Browser density parity are treated as welcome bonuses when
+  cleanly supported rather than blockers that justify bespoke overrides. Current
+  Desktop builds remain on `Avalonia.Themes.Fluent 12.1.6` until the migration
+  executes.
 
 ### Future secret-store workflows and Browser hosting boundaries
 
@@ -146,7 +170,7 @@ Definitions are purely declarative JSON or YAML documents admitted by `Configura
 The configuration experience is completely decoupled from the rendering surface:
 - **CLI (`Configurator.Cli`):** Headless, scriptable execution with machine receipts and stdin/file piping.
 - **Terminal (`Configurator.Terminal`):** Keyboard-driven text user interface built on official `Terminal.Gui` v2, with a sustained workbench direction for local and remote shells; actual-host support remains evidence-scoped.
-- **Desktop (`Configurator.Desktop`):** Full-featured native GUI built on Avalonia for local operator workflows.
+- **Desktop (`Configurator.Desktop`):** Native GUI built on Avalonia 12 for local operator workflows (currently styled with `Avalonia.Themes.Fluent`, with an accepted planned migration to 100% MIT `SukiUI` recorded in the [Desktop UI library decision](adr/ADR-desktop-ui-library-and-sukiui.md)).
 - **Browser (`Configurator.Browser`):** Zero-install, static client-side Blazor WebAssembly running entirely in the operator's browser.
 
 > [!NOTE]

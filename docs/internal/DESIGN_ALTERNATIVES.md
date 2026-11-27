@@ -3,7 +3,7 @@
 > **Audience:** Contributors | AI agents
 > **Status:** Implemented
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-10-27
+> **Last Verified:** 2026-11-23
 > **Source Anchors:** `docs/internal/universal-configurator.md`, `docs/internal/adr/`, `docs/internal/QUICK_REFERENCE.md`
 
 Configurator’s architecture prioritizes operator privacy, deterministic outputs, offline independence, and maintainer sovereignty. Every design choice balances usability with strict security boundaries.
@@ -77,6 +77,17 @@ This document records the major design alternatives evaluated during system desi
 | **Blazor Interactive Server** | **Rejected** | Server-side Blazor transmits every keystroke, focus event, and secret value over a WebSocket circuit to server memory. It requires constant network connectivity and drops state on disconnection. | [ADR: Browser Session Trust](adr/ADR-browser-session-trust-and-export.md) |
 | **Blazor Interactive Auto** | **Rejected** | Auto mode uses Server interactivity initially while WASM downloads in the background, creating unpredictable shifts in where secrets are processed between visits. | [ADR: Browser Session Trust](adr/ADR-browser-session-trust-and-export.md) |
 | **Standalone Interactive WebAssembly** | **Adopted** | The application is published as a standalone static WASM client. Interactivity, state management, and artifact composition occur exclusively within the client browser thread. | [ADR: Browser Session Trust](adr/ADR-browser-session-trust-and-export.md)<br/>[LAUNCH_CONTRACT.md](LAUNCH_CONTRACT.md) |
+
+---
+
+## 8. Desktop UI Component Library and Delegation Strategy
+
+| Option | Status | Trade-offs & Rationale | Evidence / Decision Anchor |
+|---|---|---|---|
+| **IRIHI `Semi.Avalonia` + `Irihi.Ursa` (Open-Core Ecosystem)** | **Rejected** | Core `Semi` and `Ursa` are MIT and technically mature, but IRIHI also sells `Asura` (*flagship commercial control library*) and `Hydra` alongside closed-source NuGet adapters (`Semi.Avalonia.Dock`, `Semi.Avalonia.Tabalonia`, `Semi.Avalonia.AvaloniaEdit`). Maintaining both an MIT and a commercial desktop control library under one vendor creates an open-core incentive conflict misaligned with ISLAMU's pure open-source non-profit priority. | [ADR: Desktop UI Library (SukiUI)](adr/ADR-desktop-ui-library-and-sukiui.md#evaluated-alternatives-and-rationale) |
+| **`Montago/NocturneTheme`, `AtomUI` (LGPL v3), `Actipro` / `Eremex` (Proprietary EULA)** | **Rejected** | Missing OSS license (`NocturneTheme`), copyleft LGPL obligations (`AtomUI`), or proprietary commercial EULAs (`Actipro`, `Eremex`) conflict with Configurator's pure MIT distribution and self-buildable stack. | [ADR: Desktop UI Library (SukiUI)](adr/ADR-desktop-ui-library-and-sukiui.md#evaluated-alternatives-and-rationale)<br/>[IP_GOVERNANCE.md](legal/IP_GOVERNANCE.md) |
+| **Raw `Avalonia.Themes.Fluent` + Bespoke Custom Theme Layer** | **Current Baseline; Planned to Supersede** | Functional today (`12.1.6`), but shifts full desktop component, chrome, dialog, toast and visual polish maintenance onto ISLAMU—poor leverage for an optional quality-of-life utility supporting ISLAMU Event. | [DESKTOP_CLIENT.md](DESKTOP_CLIENT.md)<br/>[ADR: Desktop UI Library (SukiUI)](adr/ADR-desktop-ui-library-and-sukiui.md) |
+| **`SukiUI` (100% MIT Community Library) with Pragmatic Delegation** | **Accepted Future Direction** | Pure MIT ecosystem with no commercial superset (mirroring `MudBlazor` on Blazor), desired modern desktop UI/UX, active maintenance and community PR acceptance. Configurator Desktop adapts to SukiUI and delegates UI/theming/controls heavily rather than enforcing Browser visual/density parity, RTL or automated WCAG clamping, while keeping safety, secret custody and protected output strictly non-negotiable. Implementation and dependency admission remain planned. | [ADR: Desktop UI Library (SukiUI)](adr/ADR-desktop-ui-library-and-sukiui.md) — planned and unimplemented |
 
 ---
 

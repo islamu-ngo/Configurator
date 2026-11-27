@@ -33,6 +33,16 @@ retains create-only protected writes. Appearance remains a session preference
 under the existing native high-contrast owner. This needs no navigation
 framework, answer cache, persisted preference or compatibility layer.
 
+> [!NOTE]
+> **Amendment (2026-11-23):** Semantic workspace ownership, non-destructive stage
+> switching, stable editor projection identity, Presentation state authority and
+> Artifacts protected-write boundaries above remain in force. The planned Desktop
+> UI/theming/chrome layer is superseded by
+> [ADR: Desktop UI library selection (SukiUI)](ADR-desktop-ui-library-and-sukiui.md),
+> which delegates Desktop controls and appearance to `SukiUI` (MIT) and treats
+> custom high-contrast clamping, RTL and Browser visual/density parity as optional
+> bonuses rather than mandatory local overrides. Implementation remains planned.
+
 Explicit pages trade uninterrupted scrolling for bounded visible scopes.
 Per-level limits do not prove bounded total evaluator work or latency.
 Actual native accessibility, keyboard and platform qualification remain

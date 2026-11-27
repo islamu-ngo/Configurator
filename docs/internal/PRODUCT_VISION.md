@@ -4,8 +4,8 @@
 > **Kind:** Explanation
 > **Status:** Current strategic product vision
 > **Owner:** Contributor Experience
-> **Last Verified:** 2026-11-08
-> **Source Anchors:** `docs/internal/universal-configurator.md`, `docs/internal/go-to-market.md`, `docs/internal/CORE_DEFINITION_CONTRACT.md`, `docs/internal/PRESENTATION_STATE.md`, `docs/internal/LAUNCH_CONTRACT.md`, `docs/internal/BROWSER_UI.md`, `docs/internal/DESKTOP_CLIENT.md`, `docs/internal/TERMINAL_CLIENT.md`, `docs/internal/CLI_CONTRACT.md`, `docs/internal/DEFINITION_STORE.md`
+> **Last Verified:** 2026-11-23
+> **Source Anchors:** `docs/internal/universal-configurator.md`, `docs/internal/go-to-market.md`, `docs/internal/CORE_DEFINITION_CONTRACT.md`, `docs/internal/PRESENTATION_STATE.md`, `docs/internal/LAUNCH_CONTRACT.md`, `docs/internal/BROWSER_UI.md`, `docs/internal/DESKTOP_CLIENT.md`, `docs/internal/TERMINAL_CLIENT.md`, `docs/internal/CLI_CONTRACT.md`, `docs/internal/DEFINITION_STORE.md`, `docs/internal/adr/ADR-desktop-ui-library-and-sukiui.md`
 
 ---
 
@@ -25,9 +25,9 @@ ISLAMU is a non-profit organization dedicated to building and maintaining sovere
 
 1. **Digital Sovereignty & Resilience:** Ensuring that community institutions, mosques, schools, and non-profit organizations do not depend entirely on proprietary infrastructure controlled by foreign, potentially hostile states or monopolistic corporate entities that subject users to arbitrary deplatforming, invasive surveillance, or sudden sanctions.
 2. **Ethical Alternatives to Rent-Seeking SaaS:** Providing production-ready, fully free and open-source alternatives to critical tools that are currently locked behind expensive subscriptions or extractive monetization models.
-3. **Broad Scope Beyond Religious Software:** ISLAMU produces both community-specific software (such as **ISLAMU Event**, a comprehensive event and attendee management platform) and foundational technical infrastructure (such as **ISLAMU Configurator** and **ISLAMU SecretKit**), with long-term horizons encompassing sovereign communications and productivity tooling.
+3. **Broad Scope Beyond Religious Software:** ISLAMU produces both its flagship community platform (**ISLAMU Event**, a comprehensive event and attendee management platform—ISLAMU's primary project) and supporting technical utilities (such as **ISLAMU Configurator** and **ISLAMU SecretKit**), with long-term horizons encompassing sovereign communications and productivity tooling.
 
-ISLAMU Configurator serves as the configuration foundation of this entire ecosystem, guaranteeing that every application released by the organization can be self-hosted with zero friction, zero telemetry, and verifiable security.
+ISLAMU Configurator is a supporting, optional quality-of-life utility rather than a mandatory platform dependency: any operator can always edit configuration files manually without Configurator. Because maintenance capacity prioritizes ISLAMU Event and Configurator's core secret-handling safety, Configurator keeps **safety, secret custody, and protected output non-negotiable**, while delegating UI/UX heavily to pure MIT open-source component libraries (`MudBlazor` on Browser, planned `SukiUI` on Desktop) so every application released by the organization can be self-hosted with low friction, zero telemetry, and verifiable security.
 
 ---
 
@@ -88,9 +88,9 @@ Configurator delivers a unified configuration definition across four purpose-bui
    * **Absolute Air-Gapped Custody ([`LAUNCH_CONTRACT.md`](LAUNCH_CONTRACT.md)):** Zero telemetry, zero network tracking, and zero backend answer storage. Operators can inspect their browser's Network tab and verify zero bytes transmitted during the entire configuration session.
    * Direct deep-linking allows immediate loading of definitions via URL parameter or store hash without prior installation.
 2. **Cross-Platform Native Desktop Client ([`Configurator.Desktop`](DESKTOP_CLIENT.md)):**
-   * Built on Avalonia 12 with compiled data-binding and native host qualification across Linux (X11), Windows, and macOS.
-   * Supports native create-only protected file publishing directly to disk.
-   * Material Design 3 tonal surfaces, 4-step density scaling, and native high-contrast accessibility.
+   * Built on Avalonia 12 with compiled data-binding and native host qualification on Linux (X11), with Windows and macOS targets planned.
+   * Supports native create-only protected file publishing directly to disk on Linux.
+   * Currently styled with `Avalonia.Themes.Fluent` and local overrides; the accepted planned UI direction ([Desktop SukiUI ADR](adr/ADR-desktop-ui-library-and-sukiui.md)) migrates Desktop to 100% MIT **SukiUI** and adapts Desktop UX directly around SukiUI rather than mirroring Browser's MudBlazor styling, density or custom contrast-clamping stack.
 3. **Terminal Workbench ([`Configurator.Terminal`](TERMINAL_CLIENT.md)):**
    * Built on Terminal.Gui v2, optimized for system administrators working over SSH or in head-less Linux environments.
    * Compact 3-stage workbench (`Configure`, `Review & Import`, `Files & Save`) fitting cleanly within standard `80×24` terminals, with an automatic split section navigator on terminals $\ge 100$ columns.
@@ -259,7 +259,7 @@ ISLAMU Configurator is constructed under the rigorous discipline of **Islamic Va
 * **Amanah (أَمَانَة — Sacred Custody and Trust):** User secrets are treated with ultimate custody discipline. Candidate secrets in generators are zeroed upon disposal; browser memory is purged upon consent revocation; zero analytics or tracking exist; and the browser runtime remains strictly offline.
 * **Bayan (بَيَان — Clarity and Non-Deception):** All hidden defaults, dynamic behaviors, and runtime consequences are explicitly declared (`"If omitted: <defaultText>"`). Software must not obscure its true requirements behind technical jargon.
 * **La Darar (لَا ضَرَر — Avoidance of Harm):** Denial-of-service immunity through hand-written, linear-time $O(n)$ format validators; arbitrary backtracking regular expressions (`pattern`) are strictly forbidden to prevent ReDoS vulnerabilities.
-* **Adl (عَدْل — Justice and Equitable Access):** Uncompromising commitment to accessibility: full English and Arabic (RTL) parity with left-to-right bidi isolation for technical wire tokens; WCAG 2.2 contrast compliance across all themes; and four explicit density levels that never drop interactive hit targets below operable minimums.
+* **Adl (عَدْل — Justice and Equitable Access):** Respecting operators across environments without gatekeeping or telemetry. Safety, truthfulness and secret custody (`Sidq`, `Amanah`, `Bayan`, `La Darar`) are non-negotiable on every surface; ergonomic enhancements such as RTL layout, high-contrast modes and multi-step density scaling are pursued pragmatically per surface—implemented deeply on Browser where MudBlazor and CSS make them natural, and treated as welcome bonuses on Desktop where they fit cleanly within `SukiUI` rather than forcing brittle bespoke overrides in an optional utility ([Desktop SukiUI ADR](adr/ADR-desktop-ui-library-and-sukiui.md)).
 * **Itqan (إِتْقَان — Rigorous Mastery and Excellence):** Delivering well-tested, robust, deterministic software that fulfills its stated mandate completely, rather than deploying fragile, half-finished prototypes.
 
 ---

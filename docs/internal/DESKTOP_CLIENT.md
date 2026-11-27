@@ -4,15 +4,30 @@
 > **Status:** Definition and deployment adapters; published-package and manual qualification remain separate
 > **Owner:** Desktop
 > **Last Verified:** 2026-11-13
-> **Source Anchors:** `src/Configurator.Desktop/`, `src/Configurator.Presentation/`
+> **Source Anchors:** `src/Configurator.Desktop/`, `src/Configurator.Presentation/`, `docs/internal/adr/ADR-desktop-ui-library-and-sukiui.md`
+> **Review basis:** Implemented Desktop source verified 2026-11-13; planned SukiUI direction note added 2026-11-23 (unimplemented, no new runtime qualification).
 
-Desktop remains on the centrally pinned Avalonia 12.1.6 packages. It references
+Desktop remains on the centrally pinned Avalonia 12.1.6 packages (currently
+styled with `Avalonia.Themes.Fluent 12.1.6`). It references
 Presentation and Artifacts, with Core types available through those references.
 `BuildAvaloniaApp` enables `.UseManagedSystemDialogs()` so Linux X11 and Wayland
 hosts avoid native GTK/DBus portal `libEGL` crashes; Avalonia 12.1.6 ships
 managed dialogs inside the existing `Avalonia` package without adding another
 NuGet dependency.
 It has no target-specific DTO, catalogue, manifest, or identity workflow.
+
+> [!NOTE]
+> **Planned UI Library Direction (Accepted 2026-11-23, Unimplemented):** The
+> product owner has accepted
+> [ADR: Desktop UI library selection (SukiUI)](adr/ADR-desktop-ui-library-and-sukiui.md)
+> to migrate `Configurator.Desktop` from bespoke `Avalonia.Themes.Fluent`
+> overrides to 100% MIT `SukiUI` (Avalonia 12 `7.x`). Under that direction,
+> secret custody, definition admission, generation fencing and create-only
+> protected native output remain non-negotiable, while Desktop delegates UI,
+> controls and theming heavily to SukiUI and treats Browser visual/density
+> parity, RTL and automated WCAG/high-contrast clamping as optional bonuses
+> rather than blockers. The sections below describe the currently implemented
+> `Avalonia.Themes.Fluent` codebase until that migration is planned and executed.
 
 ## Encrypted local profile adapter
 
