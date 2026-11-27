@@ -261,8 +261,8 @@ internal static class QualificationChecks
         // Secret input must be denied before explicit consent.
         await page.Locator("[data-field='apiSecret'] [data-secret-denied]").WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
 
-        // Open secret consent panel and verify default unchecked + hosted-code disclosure + custody link.
-        await page.Locator("[data-secret-consent] summary").ClickAsync();
+        // Open Trust & Privacy utility via WorkspaceHeader consent chip and verify default unchecked + hosted-code disclosure + custody link.
+        await EnsureTrustPrivacyOpenAsync(page);
         ILocator consentCheckbox = page.Locator("#secret-consent");
         await consentCheckbox.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
         Require(!await consentCheckbox.IsCheckedAsync(), "secret-consent-default-checked");
@@ -277,13 +277,13 @@ internal static class QualificationChecks
         string? href = await custodyLink.GetAttributeAsync("href");
         Require(href == "help#custody", "custody-link-mismatch");
 
-        // Enable consent, enter synthetic secret, then revoke and verify secret input disappears.
+        // Enable consent, enter synthetic secret, then revoke via always-visible WorkspaceHeader control and verify secret input disappears.
         await consentCheckbox.CheckAsync();
         ILocator secretInput = page.Locator("[data-field='apiSecret'] input");
         await secretInput.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
         await secretInput.FillAsync(SecretCanary);
 
-        ILocator revokeButton = page.Locator("[data-action='revoke-secret-entry']");
+        ILocator revokeButton = page.Locator("header.workspace-header [data-action='revoke-secret-entry']");
         await revokeButton.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
         await revokeButton.ClickAsync();
         await page.Locator("[data-field='apiSecret'] [data-secret-denied]").WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
@@ -319,7 +319,7 @@ internal static class QualificationChecks
 
         // Enable consent, supply secret, prepare complete artifact, and verify exact JSON via deliberate reveal.
         await page.Locator("[data-workflow-step='configure']").ClickAsync();
-        await page.Locator("[data-secret-consent] summary").ClickAsync();
+        await EnsureTrustPrivacyOpenAsync(page);
         await page.Locator("#secret-consent").CheckAsync();
         await FillFieldInputAsync(page, "apiSecret", SecretCanary);
 
@@ -347,8 +347,8 @@ internal static class QualificationChecks
         await EnsureNestedHostEditableAsync(page);
         await FillFieldInputAsync(page, "options.db.host", "workspace-db.local");
 
-        // Open import panel and verify unconsented file upload is refused fail-closed before reading.
-        await page.Locator("[data-entry-choice='import']").ClickAsync();
+        // Open import utility panel and verify unconsented file upload is refused fail-closed before reading.
+        await OpenImportUtilityAsync(page);
         await page.Locator("#import-purpose").WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
         await page.Locator("#import-purpose").SelectOptionAsync("compare");
 
@@ -370,10 +370,10 @@ internal static class QualificationChecks
         await page.WaitForFunctionAsync("() => document.querySelector(\"[data-status-code='import-secret-consent-required']\") !== null");
 
         // Grant explicit per-workspace consent before comparing and autofilling existing config files.
-        ILocator consentDetails = page.Locator("[data-secret-consent]");
-        if (await consentDetails.GetAttributeAsync("open") is null)
-            await consentDetails.Locator("summary").ClickAsync();
+        await EnsureTrustPrivacyOpenAsync(page);
         await page.Locator("#secret-consent").CheckAsync();
+        await OpenImportUtilityAsync(page);
+        await page.Locator("#artifact-import").WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
 
         await page.Locator("#artifact-import").SetInputFilesAsync(new FilePayload
         {
@@ -567,7 +567,7 @@ internal static class QualificationChecks
 
         await FillFieldInputAsync(page, "serviceName", AnswerCanary);
         await FillFieldInputAsync(page, "workerPort", "8081");
-        await page.Locator("[data-secret-consent] summary").ClickAsync();
+        await EnsureTrustPrivacyOpenAsync(page);
         await page.Locator("#secret-consent").CheckAsync();
         await FillFieldInputAsync(page, "apiSecret", SecretCanary);
 
@@ -848,12 +848,42 @@ internal static class QualificationChecks
         await hostInput.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
     }
 
+    private static async Task EnsureTrustPrivacyOpenAsync(IPage page)
+    {
+        ILocator consentCheckbox = page.Locator("#secret-consent");
+        if (await consentCheckbox.IsVisibleAsync())
+            return;
+
+        await page.Locator("header.workspace-header [data-workspace-consent-chip]").ClickAsync();
+        await consentCheckbox.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+    }
+
+    private static async Task OpenImportUtilityAsync(IPage page)
+    {
+        ILocator importPurpose = page.Locator("#import-purpose");
+        if (await importPurpose.IsVisibleAsync())
+            return;
+
+        ILocator railTrigger = page.Locator("[data-utility-rail-action='import']");
+        if (await railTrigger.IsVisibleAsync())
+        {
+            await railTrigger.ClickAsync();
+        }
+        else
+        {
+            await page.Locator("header.workspace-header [data-action='open-workspace-tools']").ClickAsync();
+            await page.Locator("[data-tools-utility='import']").ClickAsync();
+        }
+
+        await importPurpose.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+    }
+
     private static async Task SwitchWorkspaceLocaleAsync(IPage page, string locale)
     {
-        ILocator taskTools = page.Locator(".configuration-editor__task-tools");
-        if (await taskTools.CountAsync() > 0 && await taskTools.GetAttributeAsync("open") is null)
-            await taskTools.Locator("summary").ClickAsync();
-        await page.Locator("#configuration-locale").SelectOptionAsync(locale);
+        await page.Locator("[data-action='toggle-language-picker']").ClickAsync();
+        ILocator option = page.Locator($"[data-locale='{locale}']");
+        await option.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+        await option.ClickAsync();
     }
 
     private static void Require(bool condition, string diagnosticCode)

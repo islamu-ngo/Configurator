@@ -449,8 +449,8 @@ internal static class CompoundRootBenchmarks
                 : await MeasureTrustedClickAsync(page, "[data-workflow-step='configure']", "Boolean(document.querySelector(\".configuration-configure-panel\"))", minStartMs),
 
             "import-compare" => isForward
-                ? await MeasureTrustedClickAsync(page, "[data-entry-choice='import']", "document.querySelector(\"[data-entry-choice='import']\")?.getAttribute('aria-pressed') === 'true'", minStartMs)
-                : await MeasureTrustedClickAsync(page, "[data-entry-choice='fresh']", "document.querySelector(\"[data-entry-choice='fresh']\")?.getAttribute('aria-pressed') === 'true'", minStartMs),
+                ? await MeasureTrustedClickAsync(page, "[data-utility-rail-action='import']", "document.querySelector(\"[data-utility-rail-action='import']\")?.getAttribute('aria-expanded') === 'true' && Boolean(document.querySelector('#import-purpose'))", minStartMs)
+                : await MeasureTrustedClickAsync(page, "[data-utility-rail-action='import']", "document.querySelector(\"[data-utility-rail-action='import']\")?.getAttribute('aria-expanded') === 'false'", minStartMs),
 
             "deferred-draft" => isForward
                 ? await MeasureTrustedClickAsync(page, "[data-workflow-step='prepare']", "Boolean(document.querySelector(\"[data-files-state]\"))", minStartMs)
@@ -509,11 +509,10 @@ internal static class CompoundRootBenchmarks
 
     private static async Task<SampleTiming> MeasureConsentToggleAsync(IPage page, bool enable, double minStartMs)
     {
-        ILocator details = page.Locator("[data-secret-consent]");
-        if (await details.GetAttributeAsync("open") is null)
-            await details.Locator("summary").ClickAsync();
-
         ILocator checkbox = page.Locator("#secret-consent");
+        if (!await checkbox.IsVisibleAsync())
+            await page.Locator("header.workspace-header [data-workspace-consent-chip]").ClickAsync();
+
         await checkbox.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
         await page.EvaluateAsync("() => window.__cfgArm('#secret-consent', ['pointerdown', 'click', 'change'])");
         if (enable)
@@ -547,16 +546,19 @@ internal static class CompoundRootBenchmarks
     private static async Task<bool> TryAutofillFixtureAnswersAsync(IPage page, byte[] artifactBytes)
     {
         await EnsureConfigureStageAsync(page);
-        ILocator consentDetails = page.Locator("[data-secret-consent]");
-        if (await consentDetails.GetAttributeAsync("open") is null)
-            await consentDetails.Locator("summary").ClickAsync();
         ILocator consentCheckbox = page.Locator("#secret-consent");
+        if (!await consentCheckbox.IsVisibleAsync())
+        {
+            await page.Locator("header.workspace-header [data-workspace-consent-chip]").ClickAsync();
+            await consentCheckbox.WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
+        }
         if (!await consentCheckbox.IsCheckedAsync())
             await consentCheckbox.CheckAsync();
 
-        ILocator importChoice = page.Locator("[data-entry-choice='import']");
-        if (await importChoice.CountAsync() == 0) return false;
-        await importChoice.ClickAsync();
+        ILocator importTrigger = page.Locator("[data-utility-rail-action='import']");
+        if (await importTrigger.CountAsync() == 0) return false;
+        if (await importTrigger.GetAttributeAsync("aria-expanded") != "true")
+            await importTrigger.ClickAsync();
         await page.Locator("#import-purpose").WaitForAsync(new LocatorWaitForOptions { State = WaitForSelectorState.Visible });
         await page.Locator("#import-purpose").SelectOptionAsync("fill");
         ILocator artifactSelect = page.Locator("#import-artifact");
