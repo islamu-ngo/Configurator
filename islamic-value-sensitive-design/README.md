@@ -81,6 +81,7 @@ disposition and replacement evidence.
 | [Configuration experience unification across Presentation, Browser, Desktop, Terminal, and authoring quality](workstreams/i-vsd-configuration-experience-unification.md) | current / plan-aligned; implementation awaiting approval | 2026-11-16 |
 | [Browser launch readiness, static host operations, and qualification](workstreams/i-vsd-browser-launch-readiness.md) | current / implementation-verified (external release gates open) | 2026-11-23 |
 | [Avalonia Desktop SukiUI adoption and refactoring](workstreams/i-vsd-desktop-sukiui-adoption.md) | current / plan-aligned; implementation awaiting approval | 2026-11-23 |
+| [Browser UI/UX polish, multi-step responsive navigation, surface elevation, and human-first field guidance](workstreams/i-vsd-browser-ui-ux-polish.md) | current / plan-aligned; implementation awaiting approval | 2026-11-27 |
 
 For each assessment, read its reviewed input, claim boundary, validation gaps,
 finding and mitigation IDs, and lifecycle before reusing a conclusion. A
